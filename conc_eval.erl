@@ -6,7 +6,7 @@
 
 %% Concrete Evaluation of MFA
 %% M, F, A, Mode, Trace, CodeServer, CallType
-eval(M, F, A, concrete, Trace, CodeServer, CallType) ->
+eval(M, F, A, concrete, CallType, Parent, CodeServer, _TraceServer, _Register) ->
   %% TODO Some kind of caching instead of constantly querying CodeServer
   case get_module_db(M, CodeServer) of
     unloadable ->
@@ -16,7 +16,7 @@ eval(M, F, A, concrete, Trace, CodeServer, CallType) ->
       %% Get function info
       Arity = length(A),
       Key = {M, F, Arity},
-      [{Key, {Def, Exported}}] = ets:lookup(ModDb, Key),
+      [{Key, {_Def, Exported}}] = ets:lookup(ModDb, Key),
       
       %% Check if CallType is compatible
       case check_exported(Exported, CallType) of
@@ -24,7 +24,7 @@ eval(M, F, A, concrete, Trace, CodeServer, CallType) ->
           %% TODO Should raise exception
           error;
         true ->
-          ok
+          Parent ! ok
       end
   end.
 
