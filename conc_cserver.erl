@@ -55,7 +55,7 @@ code_change(_OldVsn, State, _Extra) ->
   
 handle_info(Msg, State) ->
   %% Just outputting unexpected messages for now
-  io:format("[conc_server]: Unexpected message ~p~n", [Msg]),
+  io:format("[conc_cserver]: Unexpected message ~p~n", [Msg]),
   {noreply, State}.
   
 %% Load a Module into the Db

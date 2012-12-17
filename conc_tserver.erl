@@ -41,15 +41,37 @@ code_change(_OldVsn, State, _Extra) ->
   %% No change planned.
   {ok, State}.
   
+handle_call({register_parent, Parent}, {From, _FromTag}, State) ->
+  Procs = State#state.procs,
+  Ptree = State#state.ptree,
+  FromPid = 
+    case is_atom(From) of
+     true ->  whereis(From);
+     false -> From
+    end,
+  monitor(process, FromPid),
+  ets:insert(Ptree, {Parent, FromPid}),
+  NewProcs = [FromPid|Procs],
+  {reply, ok, State#state{procs=NewProcs}};
+  
 handle_call(terminate, _From, State) ->
   {stop, normal, stopped, State}.
   
 handle_cast(_Msg, State) ->
   {noreply, State}.
 
+handle_info({'DOWN', _Ref, process, Who, normal}, State) ->
+  Procs = State#state.procs,
+  NewProcs = lists:delete(Who, Procs),
+  case NewProcs of
+    [] ->
+      {stop, normal, State#state{procs=NewProcs}};
+    _  ->
+      {noreply, State#state{procs=NewProcs}}
+  end;
   
 handle_info(Msg, State) ->
   %% Just outputting unexpected messages for now
-  io:format("[conc_server]: Unexpected message ~p~n", [Msg]),
+  io:format("[conc_tserver]: Unexpected message ~p~n", [Msg]),
   {noreply, State}.
 

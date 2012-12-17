@@ -11,14 +11,14 @@ start(Mod, Fun, Args)
     {ok, TraceServer} = gen_server:start_link(conc_tserver, [self()], []),           % Start trace server
     
     StartArgs = [Mod, Fun, Args, concrete, external, self(), CodeServer, TraceServer, true],
-    P = spawn(conc_eval, eval, StartArgs),
-    io:format("[conc]: Spawned ~p~n", [P]),
+    spawn(conc_eval, eval, StartArgs),
+%    io:format("[conc]: Spawned ~p~n", [P]),
     receive
       B ->
         io:format("[conc]: Concrete Eval of ~p:~p(~p) = ~p~n", [Mod, Fun, Args, B])
     end,
 
-    gen_server:call(TraceServer, terminate),
+%    gen_server:call(TraceServer, terminate),
 
     receive
       {TraceServer, Msg} ->
