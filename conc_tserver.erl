@@ -82,6 +82,13 @@ handle_info({'DOWN', _Ref, process, Who, normal}, State) ->
       {noreply, State#state{procs=NewProcs}}
   end;
   
+handle_info({'DOWN', _Ref, process, Who, Reason}, State) ->
+  Procs = State#state.procs,
+  NewProcs = lists:delete(Who, Procs),
+  %% TODO Kill all processes
+  io:format("[conc_tserver]: ~p : ~p~n", [Who, Reason]),
+  {stop, normal, State#state{procs=NewProcs}};
+  
 handle_info(Msg, State) ->
   %% Just outputting unexpected messages for now
   io:format("[conc_tserver]: Unexpected message ~p~n", [Msg]),

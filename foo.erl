@@ -11,7 +11,10 @@ mymin([H|T], CurrentMin) ->
    end.
    
 test(A) ->
-  {1, a}.
+  X = fun(A) -> {A} end,
+  Y = fun(F, B) -> F(B) end,
+  Y(X, A).
+
   
 test(A, B, C) ->
   [A, B, C].
