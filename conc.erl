@@ -15,7 +15,7 @@ start(Mod, Fun, Args)
 %    io:format("[conc]: Spawned ~p~n", [P]),
     receive
       B ->
-        io:format("[conc]: Concrete Eval of ~p:~p(~p) = ~p~n", [Mod, Fun, Args, B])
+        io:format("[conc]: Concrete Eval of ~p:~p(~p) =~n~p~n", [Mod, Fun, Args, B])
     end,
 
 %    gen_server:call(TraceServer, terminate),
