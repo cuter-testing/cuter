@@ -32,6 +32,11 @@ terminate(_Reason, State) ->
   %% TODO
   %% reconstruct Process Tree and Traces Tree
   %%
+    io:format("***** Traces *****~n"),
+    report(Super, Traces, Ptree),
+    io:format("******************~n"),
+  %%
+  %%
   ets:delete(Traces),
   ets:delete(Ptree),
   Super ! {self(), State},
@@ -57,7 +62,14 @@ handle_call({register_parent, Parent}, {From, _FromTag}, State) ->
 handle_call(terminate, _From, State) ->
   {stop, normal, stopped, State}.
   
-handle_cast(_Msg, State) ->
+handle_cast({trace, Who, Trace}, State) ->
+  Traces = State#state.traces,
+  case ets:lookup(Traces, Who) of
+    [] ->
+      ets:insert(Traces, {Who, [Trace]});
+    [{Who, OldTrace}] ->
+      ets:insert(Traces, {Who, [Trace | OldTrace]})
+  end,
   {noreply, State}.
 
 handle_info({'DOWN', _Ref, process, Who, normal}, State) ->
@@ -75,3 +87,23 @@ handle_info(Msg, State) ->
   io:format("[conc_tserver]: Unexpected message ~p~n", [Msg]),
   {noreply, State}.
 
+report([], _Traces, _Ptree) ->
+  ok;
+  
+report(Super, Traces, Ptree) 
+  when is_pid(Super) ->
+    io:format("[conc_tserver]: Skipping Super ~p~n", [Super]),
+    L = ets:lookup(Ptree, Super),
+    Procs = lists:map(fun({_X, Y}) -> Y end, L),
+    report(Procs, Traces, Ptree);
+    
+report([Proc|Procs], Traces, Ptree) ->
+  [{Proc, Trace}] = ets:lookup(Traces, Proc),
+  io:format("[conc_tserver]: Trace of ~p:~n~p~n", [Proc, lists:reverse(Trace)]),
+  case ets:lookup(Ptree, Proc) of
+    [] ->
+      report(Procs, Traces, Ptree);
+    L ->
+      NewProcs = lists:map(fun({_X, Y}) -> Y end, L),
+      report(Procs ++ NewProcs, Traces, Ptree)
+  end.

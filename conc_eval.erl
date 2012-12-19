@@ -5,7 +5,7 @@
 
 
 %% Concrete Evaluation of MFA
-%% M, F, A, Mode, Trace, CodeServer, CallType
+%% M, F, A, Mode, Trace, CodeServer, CallType, Parent, CodeServer, TraceServer, Register
 eval(M, F, A, concrete, CallType, Parent, CodeServer, TraceServer, Register) ->
   register_to_trace(Register, TraceServer, Parent),
   %% TODO Some kind of caching instead of constantly querying CodeServer
@@ -30,8 +30,9 @@ eval(M, F, A, concrete, CallType, Parent, CodeServer, TraceServer, Register) ->
         true ->
           %% Bind function's parameters to the Arguments
           Environment = init_fun_parameters(A, Def#c_fun.vars),
-          Result = eval_fun(M, concrete, CodeServer, TraceServer, Def#c_fun.body, Environment),
-          Parent ! Result
+          Result = eval_core(M, concrete, CodeServer, TraceServer, Def#c_fun.body, Environment),
+          Parent ! Result,
+          send_trace(TraceServer, ok)
       end
   end.
   
@@ -66,6 +67,8 @@ check_exported(false, CallType) ->
       false
   end.
   
+%% Creates a new Environment where function's paremeters
+%% are bound to the actual arguments
 init_fun_parameters(Args, Vars_c) ->
   Env = conc_eval_bindings:new_environment(),
   init_fun_parameters(Args, Vars_c, Env).
@@ -76,5 +79,10 @@ init_fun_parameters([Arg|Args], [Var_c|Vars_c], Env) ->
   {ok, NewEnv} = conc_eval_bindings:add_binding(Var_c#c_var.name, Arg, Env),
   init_fun_parameters(Args, Vars_c, NewEnv).
   
-eval_fun(_M, concrete, _CodeServer, _TraceServer, _Expr, _Env) ->
+  
+send_trace(TraceServer, Msg) ->
+  gen_server:cast(TraceServer, {trace, self(), Msg}).
+
+%% Evaluate Core Erlang
+eval_core(_M, concrete, _CodeServer, _TraceServer, _Expr, _Env) ->
   ok.
