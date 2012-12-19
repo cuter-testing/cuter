@@ -10,7 +10,7 @@ start(Mod, Fun, Args)
     {ok, CodeServer} = gen_server:start_link(conc_cserver, [{limited, [foo]}], []),  % Start code server
     {ok, TraceServer} = gen_server:start_link(conc_tserver, [self()], []),           % Start trace server
     
-    StartArgs = [Mod, Fun, Args, concrete, external, self(), CodeServer, TraceServer, true],
+    StartArgs = [Mod, Fun, Args, concrete, external, CodeServer, TraceServer, {true, self()}],
     spawn(conc_eval, eval, StartArgs),
 %    io:format("[conc]: Spawned ~p~n", [P]),
 %    receive

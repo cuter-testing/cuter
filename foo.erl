@@ -11,10 +11,12 @@ mymin([H|T], CurrentMin) ->
    end.
    
 test(A) ->
-  X = fun(A) -> {A} end,
-  Y = fun(F, B) -> F(B) end,
-  Y(X, A).
-
+%  X = fun(A) -> {A} end,
+%  Y = fun(F, B) -> F(B) end,
+%  Y(X, A).
+%  test(1, 2, 3).
+  X = lists:reverse(A),
+  {X}.
   
 test(A, B, C) ->
   [A, B, C].
