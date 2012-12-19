@@ -144,7 +144,7 @@ eval_core(M, concrete, CodeServer, TraceServer, {c_apply, _Anno, Op, Args}, Env)
       eval(M, Fun, Eval_Args, concrete, local, CodeServer, TraceServer, false);
     Closure ->
       %% Apply the evaluated Args to the closure
-      apply(Closure, [Eval_Args])
+      apply(Closure, Eval_Args)
   end;
   
 %% c_call
@@ -179,17 +179,128 @@ eval_core(M, concrete, CodeServer, TraceServer, {c_cons, _Anno, Hd, Tl}, Env) ->
   
 %% c_fun
 eval_core(M, concrete, CodeServer, TraceServer, {c_fun, _Anno, Vars, Body}, Env) ->
-  %% The return value is a closure
-  fun(Args) -> %% problematic, always fun with 1 parameter / BIFs may have different specs
-    %% Bind the parameters
-    NewEnv = bind_parameters(Args, Vars, Env),
-%    %% DEBUG -------------------------------------
-%    io:format("[c_fun]: Args = ~p~n", [Args]),
-%    io:format("[c_fun]: Vars = ~p~n", [Vars]),
-%    io:format("[c_fun]: NewEnv = ~p~n", [NewEnv]),
-%    %% -------------------------------------------
-    %% Evaluate the body of the function
-    eval_core(M, concrete, CodeServer, TraceServer, Body, NewEnv)
+  %% Manually creating anonymous func
+  %% and not use a list Args for parameters
+  %% since the problem is that high order functions
+  %% don't always expect a /1 function
+  Arity = length(Vars),
+  case Arity of
+    0 ->
+      fun() -> 
+        eval_core(M, concrete, CodeServer, TraceServer, Body, Env) 
+      end;
+    1 ->
+      fun(A) ->
+        NewEnv = bind_parameters([A], Vars, Env),
+        eval_core(M, concrete, CodeServer, TraceServer, Body, NewEnv)
+      end;
+    2 ->
+      fun(A, B) ->
+        NewEnv = bind_parameters([A, B], Vars, Env),
+        eval_core(M, concrete, CodeServer, TraceServer, Body, NewEnv)
+      end;
+    3 ->
+      fun(A, B, C) ->
+        NewEnv = bind_parameters([A, B, C], Vars, Env),
+        eval_core(M, concrete, CodeServer, TraceServer, Body, NewEnv)
+      end;
+    4 ->
+      fun(A, B, C, D) ->
+        NewEnv = bind_parameters([A, B, C, D], Vars, Env),
+        eval_core(M, concrete, CodeServer, TraceServer, Body, NewEnv)
+      end;
+    5 ->
+      fun(A, B, C, D, E) ->
+        NewEnv = bind_parameters([A, B, C, D, E], Vars, Env),
+        eval_core(M, concrete, CodeServer, TraceServer, Body, NewEnv)
+      end;
+    6 ->
+      fun(A, B, C, D, E, F) ->
+        NewEnv = bind_parameters([A, B, C, D, E, F], Vars, Env),
+        eval_core(M, concrete, CodeServer, TraceServer, Body, NewEnv)
+      end;
+    7 ->
+      fun(A, B, C, D, E, F, G) ->
+        NewEnv = bind_parameters([A, B, C, D, E, F, G], Vars, Env),
+        eval_core(M, concrete, CodeServer, TraceServer, Body, NewEnv)
+      end;
+    8 ->
+      fun(A, B, C, D, E, F, G, H) ->
+        NewEnv = bind_parameters([A, B, C, D, E, F, G, H], Vars, Env),
+        eval_core(M, concrete, CodeServer, TraceServer, Body, NewEnv)
+      end;
+    9 ->
+      fun(A, B, C, D, E, F, G, H, I) ->
+        NewEnv = bind_parameters([A, B, C, D, E, F, G, H, I], Vars, Env),
+        eval_core(M, concrete, CodeServer, TraceServer, Body, NewEnv)
+      end;
+    10 ->
+      fun(A, B, C, D, E, F, G, H, I, J) ->
+        NewEnv = bind_parameters([A, B, C, D, E, F, G, H, I, J], Vars, Env),
+        eval_core(M, concrete, CodeServer, TraceServer, Body, NewEnv)
+      end;
+    11 ->
+      fun(A, B, C, D, E, F, G, H, I, J, K) ->
+        NewEnv = bind_parameters([A, B, C, D, E, F, G, H, I, J, K], Vars, Env),
+        eval_core(M, concrete, CodeServer, TraceServer, Body, NewEnv)
+      end;
+    12 ->
+      fun(A, B, C, D, E, F, G, H, I, J, K, L) ->
+        NewEnv = bind_parameters([A, B, C, D, E, F, G, H, I, J, K, L], Vars, Env),
+        eval_core(M, concrete, CodeServer, TraceServer, Body, NewEnv)
+      end;
+    13 ->
+      fun(A, B, C, D, E, F, G, H, I, J, K, L, Z) ->
+        NewEnv = bind_parameters([A, B, C, D, E, F, G, H, I, J, K, L, Z], Vars, Env),
+        eval_core(M, concrete, CodeServer, TraceServer, Body, NewEnv)
+      end;
+    14 ->
+      fun(A, B, C, D, E, F, G, H, I, J, K, L, Z, N) ->
+        NewEnv = bind_parameters([A, B, C, D, E, F, G, H, I, J, K, L, Z, N], Vars, Env),
+        eval_core(M, concrete, CodeServer, TraceServer, Body, NewEnv)
+      end;
+    15 ->
+      fun(A, B, C, D, E, F, G, H, I, J, K, L, Z, N, O) ->
+        NewEnv = bind_parameters([A, B, C, D, E, F, G, H, I, J, K, L, Z, N, O], Vars, Env),
+        eval_core(M, concrete, CodeServer, TraceServer, Body, NewEnv)
+      end;
+    16 ->
+      fun(A, B, C, D, E, F, G, H, I, J, K, L, Z, N, O, P) ->
+        NewEnv = bind_parameters([A, B, C, D, E, F, G, H, I, J, K, L, Z, N, O, P], Vars, Env),
+        eval_core(M, concrete, CodeServer, TraceServer, Body, NewEnv)
+      end;
+    17 ->
+      fun(A, B, C, D, E, F, G, H, I, J, K, L, Z, N, O, P, Q) ->
+        NewEnv = bind_parameters([A, B, C, D, E, F, G, H, I, J, K, L, Z, N, O, P, Q], Vars, Env),
+        eval_core(M, concrete, CodeServer, TraceServer, Body, NewEnv)
+      end;
+    18 ->
+      fun(A, B, C, D, E, F, G, H, I, J, K, L, Z, N, O, P, Q, R) ->
+        NewEnv = bind_parameters([A, B, C, D, E, F, G, H, I, J, K, L, Z, N, O, P, Q, R], Vars, Env),
+        eval_core(M, concrete, CodeServer, TraceServer, Body, NewEnv)
+      end;
+    19 ->
+      fun(A, B, C, D, E, F, G, H, I, J, K, L, Z, N, O, P, Q, R, S) ->
+        NewEnv = bind_parameters([A, B, C, D, E, F, G, H, I, J, K, L, Z, N, O, P, Q, R, S], Vars, Env),
+        eval_core(M, concrete, CodeServer, TraceServer, Body, NewEnv)
+      end;
+    20 ->
+      fun(A, B, C, D, E, F, G, H, I, J, K, L, Z, N, O, P, Q, R, S, T) ->
+        NewEnv = bind_parameters([A, B, C, D, E, F, G, H, I, J, K, L, Z, N, O, P, Q, R, S, T], Vars, Env),
+        eval_core(M, concrete, CodeServer, TraceServer, Body, NewEnv)
+      end;
+    21 ->
+      fun(A, B, C, D, E, F, G, H, I, J, K, L, Z, N, O, P, Q, R, S, T, U) ->
+        NewEnv = bind_parameters([A, B, C, D, E, F, G, H, I, J, K, L, Z, N, O, P, Q, R, S, T, U], Vars, Env),
+        eval_core(M, concrete, CodeServer, TraceServer, Body, NewEnv)
+      end;
+    22 ->
+      fun(A, B, C, D, E, F, G, H, I, J, K, L, Z, N, O, P, Q, R, S, T, U, V) ->
+        NewEnv = bind_parameters([A, B, C, D, E, F, G, H, I, J, K, L, Z, N, O, P, Q, R, S, T, U, V], Vars, Env),
+        eval_core(M, concrete, CodeServer, TraceServer, Body, NewEnv)
+      end;
+    _ ->
+      exception('error', lambda_fun_argument_limit)
   end;
   
 %% c_let
