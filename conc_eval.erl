@@ -5,9 +5,10 @@
 
 
 %% Concrete Evaluation of MFA
-%% M, F, A, Mode, Trace, CodeServer, CallType, Parent, CodeServer, TraceServer, Register
+%% M, F, A, Mode, CallType, Parent, CodeServer, TraceServer, Register
 eval(M, F, A, concrete, CallType, Parent, CodeServer, TraceServer, Register) ->
   register_to_trace(Register, TraceServer, Parent),
+  send_trace(TraceServer, {func_in, M, F, A}), %% Trace
   %% TODO Some kind of caching instead of constantly querying CodeServer
   case get_module_db(M, CodeServer) of
     unloadable ->
@@ -29,10 +30,10 @@ eval(M, F, A, concrete, CallType, Parent, CodeServer, TraceServer, Register) ->
           Parent ! error_not_exported;
         true ->
           %% Bind function's parameters to the Arguments
+%          io:format("Def: ~p~n", [Def]),
           Environment = init_fun_parameters(A, Def#c_fun.vars),
           Result = eval_core(M, concrete, CodeServer, TraceServer, Def#c_fun.body, Environment),
-          Parent ! Result,
-          send_trace(TraceServer, ok)
+          send_trace(TraceServer, {func_out, M, F, A, Result}) %% Trace
       end
   end.
   
@@ -79,10 +80,19 @@ init_fun_parameters([Arg|Args], [Var_c|Vars_c], Env) ->
   {ok, NewEnv} = conc_eval_bindings:add_binding(Var_c#c_var.name, Arg, Env),
   init_fun_parameters(Args, Vars_c, NewEnv).
   
-  
+%% Send Trace Data to Trace Server
 send_trace(TraceServer, Msg) ->
   gen_server:cast(TraceServer, {trace, self(), Msg}).
 
 %% Evaluate Core Erlang
-eval_core(_M, concrete, _CodeServer, _TraceServer, _Expr, _Env) ->
-  ok.
+eval_core(_M, concrete, _CodeServer, _TraceServer, {c_literal, _Anno, Val}, _Env) ->
+  Val;
+
+eval_core(M, concrete, CodeServer, TraceServer, {c_tuple, _Anno, Es}, Env) ->
+  Eval_Es = lists:map(
+    fun(E) ->
+      eval_core(M, concrete, CodeServer, TraceServer, E, Env)
+    end,
+    Es
+  ),
+  list_to_tuple(Eval_Es).

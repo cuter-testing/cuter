@@ -13,10 +13,10 @@ start(Mod, Fun, Args)
     StartArgs = [Mod, Fun, Args, concrete, external, self(), CodeServer, TraceServer, true],
     spawn(conc_eval, eval, StartArgs),
 %    io:format("[conc]: Spawned ~p~n", [P]),
-    receive
-      B ->
-        io:format("[conc]: Concrete Eval of ~p:~p(~p) =~n~p~n", [Mod, Fun, Args, B])
-    end,
+%    receive
+%      B ->
+%        io:format("[conc]: Concrete Eval of ~p:~p(~p) =~n~p~n", [Mod, Fun, Args, B])
+%    end,
 
 %    gen_server:call(TraceServer, terminate),
 
