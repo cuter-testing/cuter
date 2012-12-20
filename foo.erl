@@ -12,12 +12,15 @@ mymin([H|T], CurrentMin) ->
    
 test(A, B) ->
   X = fun(Y) -> Y end,
-  Y = fun(F, X) -> F(X) + 4 end,
+  Y = fun(F, XX) -> F(XX) + 4 end,
   {X(A), test(), Y(X, B), lists:reverse([1,2,3])}.
   
 test() ->
   [1,2].
   
 test(A, B, C) ->
-  [A, B, C].
+  case A of
+    [a,b,c] -> ok;
+    _ -> {B, C}
+  end.
 

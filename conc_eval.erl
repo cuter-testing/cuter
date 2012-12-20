@@ -2,12 +2,7 @@
 -compile([export_all]).
 
 -include_lib("compiler/src/core_parse.hrl").
--include("conc_eval_bindings.hrl").
-
--import(conc_eval_bindings, [term_to_semantic/1, semantic_to_term/1,
-  terms_to_semantics/1, semantics_to_terms/1]).
-
-
+-include("conc_lib.hrl").
 
 %%--------------------------------------------------------------------------
 %% eval(M, F, A, Mode, CallType, CodeServer, TraceServer, Register) -> Val
@@ -39,26 +34,22 @@ eval(M, F, A, concrete, CallType, CodeServer, TraceServer, Register) ->
       %% Get function info
       Arity = length(A),
       Key = {M, F, Arity},
-%      io:format("!!~n~p~n!!~n",[ets:lookup(ModDb, Key)]),
       [{Key, {Def, Exported}}] = ets:lookup(ModDb, Key),
       
       %% Check if CallType is compatible
       case check_exported(Exported, CallType) of
         false ->
-          %% Calling function that is not exported
-          %% from outside the module
-          %% TODO Should raise exception
-          ErrorMsg = lists:flatten(io_lib:format("Not Exported function ~p:~p/~p", [M, F, Arity])),
-          exception('error', ErrorMsg);
+          %% External function call that is not exported
+          %% TODO Fix exception
+          exception('error', not_exported_function);
         true ->
           %% Wrap Args into semantic values
-          SemanticArgs = terms_to_semantics(A),
+          SemanticArgs = conc_lib:terms_to_semantics(A),
           %% Bind function's parameters to the Arguments
-%          io:format("Def: ~p~n", [Def]),
+          io:format("[eval]: Def=~n~p~n", [Def]),
           Environment = init_fun_parameters(SemanticArgs, Def#c_fun.vars),
-%          Result = Def,
-          SemanticResult = eval_core(M, concrete, CodeServer, TraceServer, Def#c_fun.body, Environment),
-          Result = semantic_to_term(SemanticResult),
+          SemanticResult = eval_expr(M, concrete, CodeServer, TraceServer, Def#c_fun.body, Environment),
+          Result = conc_lib:semantic_to_term(SemanticResult),
           send_trace(TraceServer, {func_out, M, F, A, Result}), %% Trace
           Result
       end
@@ -98,13 +89,13 @@ check_exported(false, CallType) ->
 %% Creates a new Environment where function's paremeters
 %% are bound to the actual arguments
 init_fun_parameters(Args, Vars_c) ->
-  Env = conc_eval_bindings:new_environment(),
+  Env = conc_lib:new_environment(),
   bind_parameters(Args, Vars_c, Env).
   
 bind_parameters([], [], Env) ->
   Env;
 bind_parameters([Arg|Args], [Var_c|Vars_c], Env) ->
-  {ok, NewEnv} = conc_eval_bindings:add_binding(Var_c#c_var.name, Arg, Env),
+  NewEnv = conc_lib:add_binding(Var_c#c_var.name, Arg, Env),
   bind_parameters(Args, Vars_c, NewEnv).
   
 %% Send Trace Data to Trace Server
@@ -121,25 +112,25 @@ exception(Class, Reason) ->
   erlang:Class(Reason).
 
 %%--------------------------------------------------------------------
-%% eval_core(M, Mode, CodeServer, TraceServer, Expr, Env) -> Sem
+%% eval_expr(M, Mode, CodeServer, TraceServer, Expr, Env) -> Sem
 %%   M :: atom()
 %%   Mode :: concrete | symbolic
 %%   CodeServer :: pid()
 %%   TraceServer :: pid()
 %%   Expr :: cerl()
-%%   Env :: conc_eval_bindings:environment()
+%%   Env :: conc_lib:environment()
 %%   Sem :: #semantic{}
 %% Evaluate Core Erlang ASTs in record format
 %%--------------------------------------------------------------------
 
 %% c_apply
-eval_core(M, concrete, CodeServer, TraceServer, {c_apply, _Anno, Op, Args}, Env) ->
+eval_expr(M, concrete, CodeServer, TraceServer, {c_apply, _Anno, Op, Args}, Env) ->
   %% Evaluate Op
-  {semantic, Op_Val, 1} = eval_core(M, concrete, CodeServer, TraceServer, Op, Env),
+  {semantic, Op_Val, 1} = eval_expr(M, concrete, CodeServer, TraceServer, Op, Env),
   %% Evaluate Args
   Args_Val = lists:map(
     fun(Arg) ->
-      {semantic, Arg_Val, 1} = eval_core(M, concrete, CodeServer, TraceServer, Arg, Env),
+      {semantic, Arg_Val, 1} = eval_expr(M, concrete, CodeServer, TraceServer, Arg, Env),
       #semantic{value=Arg_Val, degree=1}
     end,
     Args
@@ -151,11 +142,11 @@ eval_core(M, concrete, CodeServer, TraceServer, {c_apply, _Anno, Op, Args}, Env)
   case Op_Val of
     {Fun, _Arity} -> 
       %% Unwrap the semantic arguments
-      A = semantics_to_terms(Args_Val),
+      A = conc_lib:semantics_to_terms(Args_Val),
       %% Call the local function
       Result = eval(M, Fun, A, concrete, local, CodeServer, TraceServer, false),
       %% Wrap the result to a semantic value
-      term_to_semantic(Result);
+      conc_lib:term_to_semantic(Result);
     Closure ->
       %% Apply the evaluated Args to the closure
 %      %% DEBUG --------------------------------------------------------------
@@ -165,15 +156,15 @@ eval_core(M, concrete, CodeServer, TraceServer, {c_apply, _Anno, Op, Args}, Env)
   end;
   
 %% c_call
-eval_core(M, concrete, CodeServer, TraceServer, {c_call, _Anno, Mod, Name, Args}, Env) ->
+eval_expr(M, concrete, CodeServer, TraceServer, {c_call, _Anno, Mod, Name, Args}, Env) ->
   %% Evaluate Module name
-  {semantic, Mod_Val, 1} = eval_core(M, concrete, CodeServer, TraceServer, Mod, Env),
+  {semantic, Mod_Val, 1} = eval_expr(M, concrete, CodeServer, TraceServer, Mod, Env),
   %5 Evaluate Function name
-  {semantic, Name_Val, 1} = eval_core(M, concrete, CodeServer, TraceServer, Name, Env),
+  {semantic, Name_Val, 1} = eval_expr(M, concrete, CodeServer, TraceServer, Name, Env),
   %% Evaluate Args
   Args_Val = lists:map(
     fun(Arg) ->
-      {semantic, Arg_Val, 1} = eval_core(M, concrete, CodeServer, TraceServer, Arg, Env),
+      {semantic, Arg_Val, 1} = eval_expr(M, concrete, CodeServer, TraceServer, Arg, Env),
       Arg_Val
     end,
     Args
@@ -188,18 +179,34 @@ eval_core(M, concrete, CodeServer, TraceServer, {c_call, _Anno, Mod, Name, Args}
     end,
   %% Wrap the result in a semantic object
   #semantic{value=Result, degree=1};
+  
+%% c_case
+eval_expr(M, concrete, CodeServer, TraceServer, {c_case, _Anno, Arg, Clauses}, Env) ->
+  Arg_Val = eval_expr(M, concrete, CodeServer, TraceServer, Arg, Env),
+%  %% DEBUG -----------------------------------------------------------------
+%  io:format("[c_case]: Expr to be matched : ~p~n", [Arg_Val]),
+%  %% -----------------------------------------------------------------------
+  {Body, NewEnv} = find_clause(M, concrete, CodeServer, TraceServer, Clauses, Arg_Val, Env),
+%  %% DEBUG -----------------------------------------------------------------
+%  io:format("[c_case]: Will evaluate ~n~p~n in Env : ~p~n", [Body, NewEnv]),
+%  %% -----------------------------------------------------------------------
+  eval_expr(M, concrete, CodeServer, TraceServer, Body, NewEnv);
+  
+%% c_clause
+%eval_expr(M, concrete, CodeServer, TraceServer, {c_clause, _Anno, Pats, Guard, Body}, Env) ->
+  
 
 %% c_cons
-eval_core(M, concrete, CodeServer, TraceServer, {c_cons, _Anno, Hd, Tl}, Env) ->
+eval_expr(M, concrete, CodeServer, TraceServer, {c_cons, _Anno, Hd, Tl}, Env) ->
   %% Evaluate the head of the list
-  {semantic, Hd_Val, 1} = eval_core(M, concrete, CodeServer, TraceServer, Hd, Env),
+  {semantic, Hd_Val, 1} = eval_expr(M, concrete, CodeServer, TraceServer, Hd, Env),
   %% Evaluate the tail of the list
-  {semantic, Tl_Val, 1} = eval_core(M, concrete, CodeServer, TraceServer, Tl, Env),
+  {semantic, Tl_Val, 1} = eval_expr(M, concrete, CodeServer, TraceServer, Tl, Env),
   %% Apply the list constructor
   #semantic{value=[Hd_Val | Tl_Val], degree=1};
   
 %% c_fun
-eval_core(M, concrete, CodeServer, TraceServer, {c_fun, _Anno, Vars, Body}, Env) ->
+eval_expr(M, concrete, CodeServer, TraceServer, {c_fun, _Anno, Vars, Body}, Env) ->
   %% Manually creating anonymous func
   %% and not use a list Args for parameters
   %% since the problem is that high order functions
@@ -209,117 +216,117 @@ eval_core(M, concrete, CodeServer, TraceServer, {c_fun, _Anno, Vars, Body}, Env)
     case Arity of
       0 ->
         fun() -> 
-          eval_core(M, concrete, CodeServer, TraceServer, Body, Env) 
+          eval_expr(M, concrete, CodeServer, TraceServer, Body, Env) 
         end;
       1 ->
         fun(A) ->
           NewEnv = bind_parameters([A], Vars, Env),
-          eval_core(M, concrete, CodeServer, TraceServer, Body, NewEnv)
+          eval_expr(M, concrete, CodeServer, TraceServer, Body, NewEnv)
         end;
       2 ->
         fun(A, B) ->
           NewEnv = bind_parameters([A, B], Vars, Env),
-          eval_core(M, concrete, CodeServer, TraceServer, Body, NewEnv)
+          eval_expr(M, concrete, CodeServer, TraceServer, Body, NewEnv)
         end;
       3 ->
         fun(A, B, C) ->
           NewEnv = bind_parameters([A, B, C], Vars, Env),
-          eval_core(M, concrete, CodeServer, TraceServer, Body, NewEnv)
+          eval_expr(M, concrete, CodeServer, TraceServer, Body, NewEnv)
         end;
       4 ->
         fun(A, B, C, D) ->
           NewEnv = bind_parameters([A, B, C, D], Vars, Env),
-          eval_core(M, concrete, CodeServer, TraceServer, Body, NewEnv)
+          eval_expr(M, concrete, CodeServer, TraceServer, Body, NewEnv)
         end;
       5 ->
         fun(A, B, C, D, E) ->
           NewEnv = bind_parameters([A, B, C, D, E], Vars, Env),
-          eval_core(M, concrete, CodeServer, TraceServer, Body, NewEnv)
+          eval_expr(M, concrete, CodeServer, TraceServer, Body, NewEnv)
         end;
       6 ->
         fun(A, B, C, D, E, F) ->
           NewEnv = bind_parameters([A, B, C, D, E, F], Vars, Env),
-          eval_core(M, concrete, CodeServer, TraceServer, Body, NewEnv)
+          eval_expr(M, concrete, CodeServer, TraceServer, Body, NewEnv)
         end;
       7 ->
         fun(A, B, C, D, E, F, G) ->
           NewEnv = bind_parameters([A, B, C, D, E, F, G], Vars, Env),
-          eval_core(M, concrete, CodeServer, TraceServer, Body, NewEnv)
+          eval_expr(M, concrete, CodeServer, TraceServer, Body, NewEnv)
         end;
       8 ->
         fun(A, B, C, D, E, F, G, H) ->
           NewEnv = bind_parameters([A, B, C, D, E, F, G, H], Vars, Env),
-          eval_core(M, concrete, CodeServer, TraceServer, Body, NewEnv)
+          eval_expr(M, concrete, CodeServer, TraceServer, Body, NewEnv)
         end;
       9 ->
         fun(A, B, C, D, E, F, G, H, I) ->
           NewEnv = bind_parameters([A, B, C, D, E, F, G, H, I], Vars, Env),
-          eval_core(M, concrete, CodeServer, TraceServer, Body, NewEnv)
+          eval_expr(M, concrete, CodeServer, TraceServer, Body, NewEnv)
         end;
       10 ->
         fun(A, B, C, D, E, F, G, H, I, J) ->
           NewEnv = bind_parameters([A, B, C, D, E, F, G, H, I, J], Vars, Env),
-          eval_core(M, concrete, CodeServer, TraceServer, Body, NewEnv)
+          eval_expr(M, concrete, CodeServer, TraceServer, Body, NewEnv)
         end;
       11 ->
         fun(A, B, C, D, E, F, G, H, I, J, K) ->
           NewEnv = bind_parameters([A, B, C, D, E, F, G, H, I, J, K], Vars, Env),
-          eval_core(M, concrete, CodeServer, TraceServer, Body, NewEnv)
+          eval_expr(M, concrete, CodeServer, TraceServer, Body, NewEnv)
         end;
       12 ->
         fun(A, B, C, D, E, F, G, H, I, J, K, L) ->
           NewEnv = bind_parameters([A, B, C, D, E, F, G, H, I, J, K, L], Vars, Env),
-          eval_core(M, concrete, CodeServer, TraceServer, Body, NewEnv)
+          eval_expr(M, concrete, CodeServer, TraceServer, Body, NewEnv)
         end;
       13 ->
         fun(A, B, C, D, E, F, G, H, I, J, K, L, Z) ->
           NewEnv = bind_parameters([A, B, C, D, E, F, G, H, I, J, K, L, Z], Vars, Env),
-          eval_core(M, concrete, CodeServer, TraceServer, Body, NewEnv)
+          eval_expr(M, concrete, CodeServer, TraceServer, Body, NewEnv)
         end;
       14 ->
         fun(A, B, C, D, E, F, G, H, I, J, K, L, Z, N) ->
           NewEnv = bind_parameters([A, B, C, D, E, F, G, H, I, J, K, L, Z, N], Vars, Env),
-          eval_core(M, concrete, CodeServer, TraceServer, Body, NewEnv)
+          eval_expr(M, concrete, CodeServer, TraceServer, Body, NewEnv)
         end;
       15 ->
         fun(A, B, C, D, E, F, G, H, I, J, K, L, Z, N, O) ->
           NewEnv = bind_parameters([A, B, C, D, E, F, G, H, I, J, K, L, Z, N, O], Vars, Env),
-          eval_core(M, concrete, CodeServer, TraceServer, Body, NewEnv)
+          eval_expr(M, concrete, CodeServer, TraceServer, Body, NewEnv)
         end;
       16 ->
         fun(A, B, C, D, E, F, G, H, I, J, K, L, Z, N, O, P) ->
           NewEnv = bind_parameters([A, B, C, D, E, F, G, H, I, J, K, L, Z, N, O, P], Vars, Env),
-          eval_core(M, concrete, CodeServer, TraceServer, Body, NewEnv)
+          eval_expr(M, concrete, CodeServer, TraceServer, Body, NewEnv)
         end;
       17 ->
         fun(A, B, C, D, E, F, G, H, I, J, K, L, Z, N, O, P, Q) ->
           NewEnv = bind_parameters([A, B, C, D, E, F, G, H, I, J, K, L, Z, N, O, P, Q], Vars, Env),
-          eval_core(M, concrete, CodeServer, TraceServer, Body, NewEnv)
+          eval_expr(M, concrete, CodeServer, TraceServer, Body, NewEnv)
         end;
       18 ->
         fun(A, B, C, D, E, F, G, H, I, J, K, L, Z, N, O, P, Q, R) ->
           NewEnv = bind_parameters([A, B, C, D, E, F, G, H, I, J, K, L, Z, N, O, P, Q, R], Vars, Env),
-          eval_core(M, concrete, CodeServer, TraceServer, Body, NewEnv)
+          eval_expr(M, concrete, CodeServer, TraceServer, Body, NewEnv)
         end;
       19 ->
         fun(A, B, C, D, E, F, G, H, I, J, K, L, Z, N, O, P, Q, R, S) ->
           NewEnv = bind_parameters([A, B, C, D, E, F, G, H, I, J, K, L, Z, N, O, P, Q, R, S], Vars, Env),
-          eval_core(M, concrete, CodeServer, TraceServer, Body, NewEnv)
+          eval_expr(M, concrete, CodeServer, TraceServer, Body, NewEnv)
         end;
       20 ->
         fun(A, B, C, D, E, F, G, H, I, J, K, L, Z, N, O, P, Q, R, S, T) ->
           NewEnv = bind_parameters([A, B, C, D, E, F, G, H, I, J, K, L, Z, N, O, P, Q, R, S, T], Vars, Env),
-          eval_core(M, concrete, CodeServer, TraceServer, Body, NewEnv)
+          eval_expr(M, concrete, CodeServer, TraceServer, Body, NewEnv)
         end;
       21 ->
         fun(A, B, C, D, E, F, G, H, I, J, K, L, Z, N, O, P, Q, R, S, T, U) ->
           NewEnv = bind_parameters([A, B, C, D, E, F, G, H, I, J, K, L, Z, N, O, P, Q, R, S, T, U], Vars, Env),
-          eval_core(M, concrete, CodeServer, TraceServer, Body, NewEnv)
+          eval_expr(M, concrete, CodeServer, TraceServer, Body, NewEnv)
         end;
       22 ->
         fun(A, B, C, D, E, F, G, H, I, J, K, L, Z, N, O, P, Q, R, S, T, U, V) ->
           NewEnv = bind_parameters([A, B, C, D, E, F, G, H, I, J, K, L, Z, N, O, P, Q, R, S, T, U, V], Vars, Env),
-          eval_core(M, concrete, CodeServer, TraceServer, Body, NewEnv)
+          eval_expr(M, concrete, CodeServer, TraceServer, Body, NewEnv)
         end;
       _ ->
         exception('error', lambda_fun_argument_limit)
@@ -328,11 +335,11 @@ eval_core(M, concrete, CodeServer, TraceServer, {c_fun, _Anno, Vars, Body}, Env)
     #semantic{value=Fun, degree=1};
   
 %% c_let
-eval_core(M, concrete, CodeServer, TraceServer, {c_let, _Anno, Vars, Arg, Body}, Env) ->
+eval_expr(M, concrete, CodeServer, TraceServer, {c_let, _Anno, Vars, Arg, Body}, Env) ->
   %% Degree of Vars sequence
   Degree = length(Vars),
   %% Evaluate the Args
-  {semantic, Args, Degree} = eval_core(M, concrete, CodeServer, TraceServer, Arg, Env),
+  {semantic, Args, Degree} = eval_expr(M, concrete, CodeServer, TraceServer, Arg, Env),
 %  %% DEBUG ---------------------------------
 %  io:format("[c_let]: Args = ~p~n", [Args]),
 %  %% ---------------------------------------
@@ -347,23 +354,47 @@ eval_core(M, concrete, CodeServer, TraceServer, {c_let, _Anno, Vars, Arg, Body},
 %  io:format("[c_let]: NewEnv = ~p~n", [NewEnv]),
 %  %% -------------------------------------------
   %% Evaluate the 'in' expression of the let definition
-  eval_core(M, concrete, CodeServer, TraceServer, Body, NewEnv);
+  eval_expr(M, concrete, CodeServer, TraceServer, Body, NewEnv);
+  
+%% c_letrec
+eval_expr(M, concrete, CodeServer, TraceServer, {c_letrec, _Anno, Defs, Body}, Env) ->
+  FuncNames = 
+    lists:map(fun({Func, _Def}) -> Func#c_var.name end, Defs),
+  %% Forward Declaration of funs
+  ForwardEnv = 
+    list:foldl(
+      fun(Name, E) ->
+        conc_lib:add_binding(Name, forward_declaration, E)
+      end,
+      Env, FuncNames
+    ),
+  %% Declare funs
+  NewEnv = 
+    lists:foldl(
+      fun({Func, Def}, E) ->
+        Name = Func#c_var.name,
+        {semantic, Def_Val, 1} = eval_expr(M, concrete, CodeServer, TraceServer, Def, E),
+        conc_lib:add_binding(Name, #semantic{value=Def_Val, degree=1}, E)
+      end,
+      ForwardEnv, Defs
+    ),
+  eval_expr(M, concrete, CodeServer, TraceServer, Body, NewEnv);
 
 %% c_literal
-eval_core(_M, concrete, _CodeServer, _TraceServer, {c_literal, _Anno, Val}, _Env) ->
+eval_expr(_M, concrete, _CodeServer, _TraceServer, {c_literal, _Anno, Val}, _Env) ->
   #semantic{value=Val, degree=1};
   
 %% c_seq
-eval_core(M, concrete, CodeServer, TraceServer, {c_seq, _Anno, Arg, Body}, Env) ->
-  _Arg_Val = eval_core(M, concrete, CodeServer, TraceServer, Arg, Env),
-  eval_core(M, concrete, CodeServer, TraceServer, Body, Env);
+eval_expr(M, concrete, CodeServer, TraceServer, {c_seq, _Anno, Arg, Body}, Env) ->
+  _Arg_Val = eval_expr(M, concrete, CodeServer, TraceServer, Arg, Env),
+  eval_expr(M, concrete, CodeServer, TraceServer, Body, Env);
 
 %% c_tuple
-eval_core(M, concrete, CodeServer, TraceServer, {c_tuple, _Anno, Es}, Env) ->
+eval_expr(M, concrete, CodeServer, TraceServer, {c_tuple, _Anno, Es}, Env) ->
   %% Evaluate the Args
   Es_Val = lists:map(
     fun(E) ->
-      {semantic, E_Val, 1} = eval_core(M, concrete, CodeServer, TraceServer, E, Env),
+      {semantic, E_Val, 1} = eval_expr(M, concrete, CodeServer, TraceServer, E, Env),
       E_Val
     end,
     Es
@@ -372,11 +403,11 @@ eval_core(M, concrete, CodeServer, TraceServer, {c_tuple, _Anno, Es}, Env) ->
   #semantic{value=list_to_tuple(Es_Val), degree=1};
   
 %% c_values
-eval_core(M, concrete, CodeServer, TraceServer, {c_values, _Anno, Es}, Env) ->
+eval_expr(M, concrete, CodeServer, TraceServer, {c_values, _Anno, Es}, Env) ->
   Degree = length(Es),
   Es_Val = lists:map(
     fun(E) ->
-      {semantic, E_Val, 1} = eval_core(M, concrete, CodeServer, TraceServer, E, Env),
+      {semantic, E_Val, 1} = eval_expr(M, concrete, CodeServer, TraceServer, E, Env),
       #semantic{value=E_Val, degree=1}
     end,
     Es
@@ -384,17 +415,139 @@ eval_core(M, concrete, CodeServer, TraceServer, {c_values, _Anno, Es}, Env) ->
   #semantic{value=Es_Val, degree=Degree};
   
 %% c_var
-eval_core(_M, concrete, _CodeServer, _TraceServer, {c_var, _Anno, Name}, Env)
+eval_expr(_M, concrete, _CodeServer, _TraceServer, {c_var, _Anno, Name}, Env)
   when is_tuple(Name) ->
     %% If Name is a function
-    case conc_eval_bindings:get_value(Name, Env) of
+    case conc_lib:get_value(Name, Env) of
       {ok, Closure} -> %% declared in letdef
         Closure;
       error ->         %% either local in module or external
         #semantic{value=Name, degree=1}
     end;
     
-eval_core(_M, concrete, _CodeServer, _TraceServer, {c_var, _Anno, Name}, Env) ->
+eval_expr(_M, concrete, _CodeServer, _TraceServer, {c_var, _Anno, Name}, Env) ->
   %% If it's a variable then return its value
-    {ok, Value} = conc_eval_bindings:get_value(Name, Env),
+    {ok, Value} = conc_lib:get_value(Name, Env),
     Value.
+    
+%% ----------------------------------------------------------------------------
+
+%% literal
+pattern_match(concrete, TraceServer, {c_literal, _Anno, LitVal}, V) ->
+  case LitVal =:= V of
+    true ->
+      send_trace(TraceServer, {match_success, LitVal, V}),
+      {true, []};
+    false ->
+      send_trace(TraceServer, {match_fail, LitVal, V}),
+      false
+  end;
+  
+%% variable
+pattern_match(concrete, TraceServer, {c_var, _Anno, Name}, V) ->
+  send_trace(TraceServer, {match_success, Name, V}),
+  SemanticV = conc_lib:term_to_semantic(V),
+  {true, [{Name, SemanticV}]};
+  
+%% tuple
+pattern_match(concrete, TraceServer, {c_tuple, _Anno, Es}, V)
+  when is_tuple(V) ->
+    Vs = tuple_to_list(V),
+    pattern_match_all(concrete, TraceServer, Es, Vs);
+  
+pattern_match(concrete, TraceServer, {c_tuple, _Anno, _Es}, V) ->
+  send_trace(TraceServer, {match_fail, val_not_tuple, V}),
+  false;
+  
+%% list
+pattern_match(concrete, TraceServer, {c_cons, _Anno, Hd, Tl}, [V|Vs]) ->
+  case pattern_match(concrete, TraceServer, Hd, V) of
+    false ->
+      false;
+    {true, Mapping_Hd} ->
+      case pattern_match(concrete, TraceServer, Tl, Vs) of
+        false ->
+          false;
+        {true, Mapping_Tl} ->
+          {true, Mapping_Hd ++ Mapping_Tl}
+      end
+  end;
+  
+pattern_match(concrete, TraceServer, {c_cons, _Anno, _Hd, _Tl}, V) ->
+  send_trace(TraceServer, {match_fail, val_not_list, V}),
+  false.
+
+%% ----------------------------------------------------------------
+pattern_match_all(concrete, TraceServer, Pats, EVals) ->
+  pattern_match_all(concrete, TraceServer, Pats, EVals, []).
+  
+  
+  
+%% ----------------------------------------------------------------
+pattern_match_all(concrete, _TraceServer, [] ,[], Mappings) ->
+  {true, Mappings};
+pattern_match_all(concrete, _TraceServer, _Pats, [], _Mappings) ->
+  false;
+pattern_match_all(concrete, _TraceServer, [], _EVals, _Mappings) ->
+  false;
+pattern_match_all(concrete, TraceServer, [Pat|Pats] ,[EVal|EVals], Mappings) ->
+%  %% DEBUG ---------------------------------------------------------------------
+%  io:format("[pat_match_all]: Will try to match ~n~p~n with ~p~n", [Pat, EVal]),
+%  %% ---------------------------------------------------------------------------
+  Match = pattern_match(concrete, TraceServer, Pat, EVal),
+  case Match of
+    {true, Maps} ->
+      pattern_match_all(concrete, TraceServer, Pats, EVals, Maps ++ Mappings);
+    false ->
+      false
+  end.
+  
+%% -----------------------------------------------------------------
+match_clause(M, concrete, CodeServer, TraceServer, {c_clause, _Anno, Pats, Guard, Body}, ArgVal, Env, Cnt)
+  when length(Pats) =:= ArgVal#semantic.degree ->
+    EVals = 
+      case ArgVal#semantic.degree of
+        1 -> [conc_lib:semantic_to_term(ArgVal)];
+        _ -> conc_lib:semantics_to_terms(ArgVal#semantic.value)
+      end,
+    Match = pattern_match_all(concrete, TraceServer, Pats, EVals),
+    case Match of
+      false ->
+        false;
+      {true, Ms} ->
+        NewEnv = conc_lib:add_mappings_to_environment(Ms, Env),
+        {semantic, Res, 1} = eval_expr(M, concrete, CodeServer, TraceServer, Guard, NewEnv),
+        case Res of
+          false ->
+            send_trace(TraceServer, {guard_fail, Guard}),
+            false;
+          true ->
+            send_trace(TraceServer, {guard_success, Guard}),
+            send_trace(TraceServer, {clause_match, Cnt}),
+            {true, Body, NewEnv}
+        end
+    end;
+
+match_clause(_M, concrete, _CodeServer, _TraceServer, {c_clause, _Anno, _Pats, _Guard, _Body}, _ArgVal, _Env, _Cnt) ->
+  false.
+    
+%% ----------------------------------------------------------------
+find_clause(M, concrete, CodeServer, TraceServer, Clauses, ArgVal, Env) ->
+  find_clause(M, concrete, CodeServer, TraceServer, Clauses, ArgVal, Env, 1).
+  
+  
+%% ------------------------------------------------
+find_clause(_M, concrete, _CodeServer, TraceServer, [], ArgVal, _Env, _Cnt) ->
+  send_trace(TraceServer, {no_match_clause, ArgVal#semantic.value}),
+  %% TODO fix exception
+  exception(error, no_match_clause);
+find_clause(M, concrete, CodeServer, TraceServer, [Cl|Cls], ArgVal, Env, Cnt) ->
+  Match = match_clause(M, concrete, CodeServer, TraceServer, Cl, ArgVal, Env, Cnt),
+  case Match of
+    false ->
+      find_clause(M, concrete, CodeServer, TraceServer, Cls, ArgVal, Env, Cnt+1);
+    {true, Body, NewEnv} ->
+      {Body, NewEnv}
+  end.
+  
+
