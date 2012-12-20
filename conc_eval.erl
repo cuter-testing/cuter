@@ -488,7 +488,19 @@ pattern_match(concrete, TraceServer, {c_cons, _Anno, Hd, Tl}, [V|Vs]) ->
   
 pattern_match(concrete, TraceServer, {c_cons, _Anno, _Hd, _Tl}, V) ->
   send_trace(TraceServer, {match_fail, val_not_list, V}),
-  false.
+  false;
+  
+%% Alias pattern
+pattern_match(concrete, TraceServer, {c_alias, _Anno, Var, Pat}, V) ->
+  Match = pattern_match(concrete, TraceServer, Pat, V),
+  case Match of
+    false ->
+      false;
+    {true, Mapping} ->
+      VarName = Var#c_var.name,
+      SemanticV = conc_lib:term_to_semantic(V),
+      {true, [{VarName, SemanticV}|Mapping]}
+  end.
 
 %% Helper functions pattern_match_all/4 and pattern_match_all/5
 %% that apply pattern_matching to a sequence of patterns and values
@@ -558,7 +570,7 @@ match_clause(M, concrete, CodeServer, TraceServer, {c_clause, _Anno, Pats, Guard
 
 match_clause(_M, concrete, _CodeServer, _TraceServer, {c_clause, _Anno, _Pats, _Guard, _Body}, _ArgVal, _Env, _Cnt) ->
   false.
-    
+
 %%----------------------------------------------------------------------------
 %% find_clause(M, Mode, CodeServer, TraceServer, Cls, Val, Env) -> Match
 %%   M :: atom()

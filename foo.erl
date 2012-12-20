@@ -18,10 +18,10 @@ test(A, B) ->
 test() ->
   [1,2].
   
-test(A, B, C) ->
+test(A, B, {C, D}=E) ->
   case A of
-    [a,b,c] -> ok;
-    _ -> {B, C}
+    [a,b,c] -> E;
+    _ -> {B, C, D}
   end.
 
 fact(N)
