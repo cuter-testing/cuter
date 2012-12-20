@@ -3,7 +3,3 @@
   degree
 }).
 
--record(pat_match, {
-  match,
-  mapping
-}).

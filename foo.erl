@@ -1,5 +1,5 @@
 -module(foo).
--export([mymin/1, test/3, test/2, test/0]).
+-export([mymin/1, test/3, test/2, test/0, fact/1]).
 
 mymin([H|T]) -> mymin(T, H).
 
@@ -24,3 +24,7 @@ test(A, B, C) ->
     _ -> {B, C}
   end.
 
+fact(N)
+  when N < 2 -> 1;
+fact(N) ->
+  N * fact(N-1).

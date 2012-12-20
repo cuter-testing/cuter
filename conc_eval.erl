@@ -432,7 +432,20 @@ eval_expr(_M, concrete, _CodeServer, _TraceServer, {c_var, _Anno, Name}, Env) ->
     
 %% ----------------------------------------------------------------------------
 
-%% literal
+%%----------------------------------------------------------------------
+%% pattern_match(Mode, TraceServer, Pat, Val) -> Match
+%%   Mode :: concrete | symbolic
+%%   TraceServer :: pid()
+%%   Pat :: cerl()
+%%   Val :: term()
+%%   Match = {true, Map} | false
+%%     Map :: [{semantic_var(), semantic_value()}]
+%% Pattern Match an evaluated expression Val with a pattern Pat.
+%% If it succeeds, it returns {true, Map}, yielding a mapping Map.
+%% If it fails, it returns false.
+%%----------------------------------------------------------------------
+
+%% AtomicLiteral pattern
 pattern_match(concrete, TraceServer, {c_literal, _Anno, LitVal}, V) ->
   case LitVal =:= V of
     true ->
@@ -443,13 +456,13 @@ pattern_match(concrete, TraceServer, {c_literal, _Anno, LitVal}, V) ->
       false
   end;
   
-%% variable
+%% VariableName pattern
 pattern_match(concrete, TraceServer, {c_var, _Anno, Name}, V) ->
   send_trace(TraceServer, {match_success, Name, V}),
   SemanticV = conc_lib:term_to_semantic(V),
   {true, [{Name, SemanticV}]};
   
-%% tuple
+%% Tuple pattern
 pattern_match(concrete, TraceServer, {c_tuple, _Anno, Es}, V)
   when is_tuple(V) ->
     Vs = tuple_to_list(V),
@@ -459,7 +472,7 @@ pattern_match(concrete, TraceServer, {c_tuple, _Anno, _Es}, V) ->
   send_trace(TraceServer, {match_fail, val_not_tuple, V}),
   false;
   
-%% list
+%% List constructor pattern
 pattern_match(concrete, TraceServer, {c_cons, _Anno, Hd, Tl}, [V|Vs]) ->
   case pattern_match(concrete, TraceServer, Hd, V) of
     false ->
@@ -477,13 +490,11 @@ pattern_match(concrete, TraceServer, {c_cons, _Anno, _Hd, _Tl}, V) ->
   send_trace(TraceServer, {match_fail, val_not_list, V}),
   false.
 
-%% ----------------------------------------------------------------
+%% Helper functions pattern_match_all/4 and pattern_match_all/5
+%% that apply pattern_matching to a sequence of patterns and values
 pattern_match_all(concrete, TraceServer, Pats, EVals) ->
   pattern_match_all(concrete, TraceServer, Pats, EVals, []).
-  
-  
-  
-%% ----------------------------------------------------------------
+    
 pattern_match_all(concrete, _TraceServer, [] ,[], Mappings) ->
   {true, Mappings};
 pattern_match_all(concrete, _TraceServer, _Pats, [], _Mappings) ->
@@ -502,7 +513,24 @@ pattern_match_all(concrete, TraceServer, [Pat|Pats] ,[EVal|EVals], Mappings) ->
       false
   end.
   
-%% -----------------------------------------------------------------
+%%----------------------------------------------------------------------------
+%% match_clause(M, Mode, CodeServer, TraceServer, Cl, Val, Env, Cnt) -> Match
+%%   M :: atom()
+%%   Mode :: concrete | symbolic
+%%   CodeServer :: pid()
+%%   TraceServer :: pid()
+%%   Cl  :: #c_clause{}
+%%   Val :: #semantic{}
+%%   Env :: conc_lib:environment()
+%%   Cnt :: non_neg_integer()
+%%   Match = {true, Body, NewEnv} | false
+%%     Body :: cerl()
+%%     NewEnv :: conc_lib:environment()
+%% Matches a clause Cl with an evaluated switch expression Val.
+%% If the match succeeds, it returns the Body that will be evaluated and
+%% the new environment (that includes the added mappings).
+%% If the match fails, it returns false.
+%%----------------------------------------------------------------------------
 match_clause(M, concrete, CodeServer, TraceServer, {c_clause, _Anno, Pats, Guard, Body}, ArgVal, Env, Cnt)
   when length(Pats) =:= ArgVal#semantic.degree ->
     EVals = 
@@ -531,21 +559,35 @@ match_clause(M, concrete, CodeServer, TraceServer, {c_clause, _Anno, Pats, Guard
 match_clause(_M, concrete, _CodeServer, _TraceServer, {c_clause, _Anno, _Pats, _Guard, _Body}, _ArgVal, _Env, _Cnt) ->
   false.
     
-%% ----------------------------------------------------------------
-find_clause(M, concrete, CodeServer, TraceServer, Clauses, ArgVal, Env) ->
-  find_clause(M, concrete, CodeServer, TraceServer, Clauses, ArgVal, Env, 1).
+%%----------------------------------------------------------------------------
+%% find_clause(M, Mode, CodeServer, TraceServer, Cls, Val, Env) -> Match
+%%   M :: atom()
+%%   Mode :: concrete | symbolic
+%%   CodeServer :: pid()
+%%   TraceServer :: pid()
+%%   Cls :: [#c_clause{}]
+%%   Val :: #semantic{}
+%%   Env :: conc_lib:environment()
+%%   Match = {Body, NewEnv}
+%%     Body :: cerl()
+%%     NewEnv :: conc_lib:environment()
+%% Matches an evaluated switch expression Val with the appropriate
+%% clause from the list Cls and returns the Body that will be
+%% evaluated next and the new environment (that includes the mappings)
+%%----------------------------------------------------------------------------
+find_clause(M, concrete, CodeServer, TraceServer, Clauses, Val, Env) ->
+  find_clause(M, concrete, CodeServer, TraceServer, Clauses, Val, Env, 1).
   
-  
-%% ------------------------------------------------
-find_clause(_M, concrete, _CodeServer, TraceServer, [], ArgVal, _Env, _Cnt) ->
-  send_trace(TraceServer, {no_match_clause, ArgVal#semantic.value}),
+%% Helper function find_clause/8
+find_clause(_M, concrete, _CodeServer, TraceServer, [], Val, _Env, _Cnt) ->
+  send_trace(TraceServer, {no_match_clause, Val#semantic.value}),
   %% TODO fix exception
   exception(error, no_match_clause);
-find_clause(M, concrete, CodeServer, TraceServer, [Cl|Cls], ArgVal, Env, Cnt) ->
-  Match = match_clause(M, concrete, CodeServer, TraceServer, Cl, ArgVal, Env, Cnt),
+find_clause(M, concrete, CodeServer, TraceServer, [Cl|Cls], Val, Env, Cnt) ->
+  Match = match_clause(M, concrete, CodeServer, TraceServer, Cl, Val, Env, Cnt),
   case Match of
     false ->
-      find_clause(M, concrete, CodeServer, TraceServer, Cls, ArgVal, Env, Cnt+1);
+      find_clause(M, concrete, CodeServer, TraceServer, Cls, Val, Env, Cnt+1);
     {true, Body, NewEnv} ->
       {Body, NewEnv}
   end.
