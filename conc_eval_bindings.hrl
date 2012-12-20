@@ -1,0 +1,4 @@
+-record(semantic, {
+  value,
+  degree
+}).

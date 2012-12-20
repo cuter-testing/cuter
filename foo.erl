@@ -1,5 +1,5 @@
 -module(foo).
--export([mymin/1, test/3, test/2]).
+-export([mymin/1, test/3, test/2, test/0]).
 
 mymin([H|T]) -> mymin(T, H).
 
@@ -11,13 +11,12 @@ mymin([H|T], CurrentMin) ->
    end.
    
 test(A, B) ->
-%  X = fun(A) -> {A} end,
-%  Y = fun(F, B) -> F(B) end,
-%  Y(X, A).
-%  test(1, 2, 3).
-  X = lists:reverse(A),
-  Y = lists:foldl(fun(X,L) -> X+L end, 0, B),
-  {X, Y}.
+  X = fun(Y) -> Y end,
+  Y = fun(F, X) -> F(X) + 4 end,
+  {X(A), test(), Y(X, B), lists:reverse([1,2,3])}.
+  
+test() ->
+  [1,2].
   
 test(A, B, C) ->
   [A, B, C].
