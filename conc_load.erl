@@ -3,6 +3,9 @@
 %% External exports
 -export([load/2]).
 
+%% Will be using the records representation of
+%% the Core Erlang Abstract Syntax Tree
+%% as they are defined in core_parse.hrl
 -include_lib("compiler/src/core_parse.hrl").
 
 %%====================================================================
@@ -27,6 +30,15 @@ load(Mod, Db) ->
 %% Internal functions
 %%====================================================================
 
+%% In each ModDb, the following information is saved:
+%%
+%%       Key                  Value    
+%% -----------------    ---------------
+%% anno                 ModAnno :: []
+%% name                 ModName :: atom()
+%% exported             [{Mod :: atom(), Fun :: atom(), Arity :: non_neg_integer()}]  
+%% attributes           Attrs :: [{cerl(), cerl()}]
+%% {Mod, Fun, Arity}    {Def :: #c_fun{}, Exported :: boolean()}
 store_module(Mod, Db) ->
 
   %% Compile the module to Core Erlang

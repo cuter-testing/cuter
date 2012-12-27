@@ -159,7 +159,7 @@ eval_expr(M, concrete, CodeServer, TraceServer, {c_apply, _Anno, Op, Args}, Env)
 eval_expr(M, concrete, CodeServer, TraceServer, {c_call, _Anno, Mod, Name, Args}, Env) ->
   %% Evaluate Module name
   {semantic, Mod_Val, 1} = eval_expr(M, concrete, CodeServer, TraceServer, Mod, Env),
-  %5 Evaluate Function name
+  %% Evaluate Function name
   {semantic, Name_Val, 1} = eval_expr(M, concrete, CodeServer, TraceServer, Name, Env),
   %% Evaluate Args
   Args_Val = lists:map(
@@ -191,10 +191,6 @@ eval_expr(M, concrete, CodeServer, TraceServer, {c_case, _Anno, Arg, Clauses}, E
 %  io:format("[c_case]: Will evaluate ~n~p~n in Env : ~p~n", [Body, NewEnv]),
 %  %% -----------------------------------------------------------------------
   eval_expr(M, concrete, CodeServer, TraceServer, Body, NewEnv);
-  
-%% c_clause
-%eval_expr(M, concrete, CodeServer, TraceServer, {c_clause, _Anno, Pats, Guard, Body}, Env) ->
-  
 
 %% c_cons
 eval_expr(M, concrete, CodeServer, TraceServer, {c_cons, _Anno, Hd, Tl}, Env) ->
@@ -356,7 +352,7 @@ eval_expr(M, concrete, CodeServer, TraceServer, {c_let, _Anno, Vars, Arg, Body},
   %% Evaluate the 'in' expression of the let definition
   eval_expr(M, concrete, CodeServer, TraceServer, Body, NewEnv);
   
-%% c_letrec
+%% c_letrec !!!!!!UNTESTED!!!!
 eval_expr(M, concrete, CodeServer, TraceServer, {c_letrec, _Anno, Defs, Body}, Env) ->
   FuncNames = 
     lists:map(fun({Func, _Def}) -> Func#c_var.name end, Defs),
@@ -524,52 +520,6 @@ pattern_match_all(concrete, TraceServer, [Pat|Pats] ,[EVal|EVals], Mappings) ->
     false ->
       false
   end.
-  
-%%----------------------------------------------------------------------------
-%% match_clause(M, Mode, CodeServer, TraceServer, Cl, Val, Env, Cnt) -> Match
-%%   M :: atom()
-%%   Mode :: concrete | symbolic
-%%   CodeServer :: pid()
-%%   TraceServer :: pid()
-%%   Cl  :: #c_clause{}
-%%   Val :: #semantic{}
-%%   Env :: conc_lib:environment()
-%%   Cnt :: non_neg_integer()
-%%   Match = {true, Body, NewEnv} | false
-%%     Body :: cerl()
-%%     NewEnv :: conc_lib:environment()
-%% Matches a clause Cl with an evaluated switch expression Val.
-%% If the match succeeds, it returns the Body that will be evaluated and
-%% the new environment (that includes the added mappings).
-%% If the match fails, it returns false.
-%%----------------------------------------------------------------------------
-match_clause(M, concrete, CodeServer, TraceServer, {c_clause, _Anno, Pats, Guard, Body}, ArgVal, Env, Cnt)
-  when length(Pats) =:= ArgVal#semantic.degree ->
-    EVals = 
-      case ArgVal#semantic.degree of
-        1 -> [conc_lib:semantic_to_term(ArgVal)];
-        _ -> conc_lib:semantics_to_terms(ArgVal#semantic.value)
-      end,
-    Match = pattern_match_all(concrete, TraceServer, Pats, EVals),
-    case Match of
-      false ->
-        false;
-      {true, Ms} ->
-        NewEnv = conc_lib:add_mappings_to_environment(Ms, Env),
-        {semantic, Res, 1} = eval_expr(M, concrete, CodeServer, TraceServer, Guard, NewEnv),
-        case Res of
-          false ->
-            send_trace(TraceServer, {guard_fail, Guard}),
-            false;
-          true ->
-            send_trace(TraceServer, {guard_success, Guard}),
-            send_trace(TraceServer, {clause_match, Cnt}),
-            {true, Body, NewEnv}
-        end
-    end;
-
-match_clause(_M, concrete, _CodeServer, _TraceServer, {c_clause, _Anno, _Pats, _Guard, _Body}, _ArgVal, _Env, _Cnt) ->
-  false.
 
 %%----------------------------------------------------------------------------
 %% find_clause(M, Mode, CodeServer, TraceServer, Cls, Val, Env) -> Match
@@ -604,4 +554,55 @@ find_clause(M, concrete, CodeServer, TraceServer, [Cl|Cls], Val, Env, Cnt) ->
       {Body, NewEnv}
   end.
   
+%%----------------------------------------------------------------------------
+%% match_clause(M, Mode, CodeServer, TraceServer, Cl, Val, Env, Cnt) -> Match
+%%   M :: atom()
+%%   Mode :: concrete | symbolic
+%%   CodeServer :: pid()
+%%   TraceServer :: pid()
+%%   Cl  :: #c_clause{}
+%%   Val :: #semantic{}
+%%   Env :: conc_lib:environment()
+%%   Cnt :: non_neg_integer()
+%%   Match = {true, Body, NewEnv} | false
+%%     Body :: cerl()
+%%     NewEnv :: conc_lib:environment()
+%% Matches a clause Cl with an evaluated switch expression Val.
+%% If the match succeeds, it returns the Body that will be evaluated and
+%% the new environment (that includes the added mappings).
+%% If the match fails, it returns false.
+%%----------------------------------------------------------------------------
+match_clause(M, concrete, CodeServer, TraceServer, {c_clause, _Anno, Pats, Guard, Body}, ArgVal, Env, Cnt)
+  when length(Pats) =:= ArgVal#semantic.degree ->
+    send_trace(TraceServer, {clause_try, Cnt}),
+    EVals = 
+      case ArgVal#semantic.degree of
+        1 -> [conc_lib:semantic_to_term(ArgVal)];
+        _ -> conc_lib:semantics_to_terms(ArgVal#semantic.value)
+      end,
+    Match = pattern_match_all(concrete, TraceServer, Pats, EVals),
+    case Match of
+      false ->
+        false;
+      {true, Ms} ->
+        NewEnv = conc_lib:add_mappings_to_environment(Ms, Env),
+        {semantic, Res, 1} = eval_expr(M, concrete, CodeServer, TraceServer, Guard, NewEnv),
+        case Res of
+          false ->
+            send_trace(TraceServer, {guard_fail, Guard}),
+            false;
+          true ->
+            send_trace(TraceServer, {guard_success, Guard}),
+            send_trace(TraceServer, {clause_match, Cnt}),
+            {true, Body, NewEnv}
+        end
+    end;
+
+match_clause(_M, concrete, _CodeServer, TraceServer, {c_clause, _Anno, _Pats, _Guard, _Body}, _ArgVal, _Env, Cnt) ->
+  send_trace(TraceServer, {clause_try, Cnt}),
+  send_trace(TraceServer, {wrong_number_of_pats}),
+  send_trace(TraceServer, {clause_fail, Cnt}),
+  false.
+
+
 

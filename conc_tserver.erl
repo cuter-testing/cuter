@@ -9,10 +9,10 @@
 
 %% gen_server state datatype
 -record(state, {
-  super,
-  procs,       %% List of Pids of Live Evaluator processes
-  traces,
-  ptree
+  super,    %% Supervisor process :: pid()
+  procs,    %% List of Pids of Live Evaluator processes :: [pid()]
+  traces,   %% ETS table where traces are stored :: ets:tid()
+  ptree     %% ETS table where {Parent, Child} process pids are stored :: {pid(), pid()}
 }).
 
 %%====================================================================
@@ -39,6 +39,7 @@ terminate(_Reason, State) ->
   %%
   ets:delete(Traces),
   ets:delete(Ptree),
+  %% inform super to shutdown codeserver
   Super ! {self(), State},
   ok.
 
@@ -93,6 +94,10 @@ handle_info(Msg, State) ->
   %% Just outputting unexpected messages for now
   io:format("[conc_tserver]: Unexpected message ~p~n", [Msg]),
   {noreply, State}.
+  
+%%====================================================================
+%% Internal functions
+%%====================================================================
 
 report([], _Traces, _Ptree) ->
   ok;

@@ -10,7 +10,7 @@
 
 %% gen_server state datatype
 -record(state, {
-  %%-- Module database -------------------
+  %%-- Modules' database -------------------
   %% Creates an ETS table where it stores:
   %% {Key, Value} -> {Module, ModuleDb}
   %% ModDb :: ets:tid()
@@ -24,11 +24,6 @@
 %% External exports
 %%====================================================================
 
-%call(Request) ->
-%  gen_server:call(?MODULE, Request).
-  
-%cast(Request) ->
-%  gen_server:cast(?MODULE, Request).
 
 %%====================================================================
 %% gen_server callbacks
@@ -103,12 +98,14 @@ handle_call(terminate, _From, State) ->
   {stop, normal, stopped, State}.
   
 handle_cast(_Msg, State) ->
+  %% Not handling any casts
   {noreply, State}.
 
 %%====================================================================
 %% Internal functions
 %%====================================================================
 
+%% can_be_loaded(Mod, State) -> boolean()
 can_be_loaded(Mod, State) ->
   Mode = State#state.intMode,
   case Mode of

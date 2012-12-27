@@ -1,5 +1,5 @@
 -module(foo).
--export([mymin/1, test/3, test/2, test/0, fact/1]).
+-export([mymin/1, test/3, test/2, test/0, goo/1]).
 
 mymin([H|T]) -> mymin(T, H).
 
@@ -24,7 +24,7 @@ test(A, B, {C, D}=E) ->
     _ -> {B, C, D}
   end.
 
-fact(N)
-  when N < 2 -> 1;
-fact(N) ->
-  N * fact(N-1).
+goo(X) ->
+  try throw({ok, X}) of
+    Y -> Y
+    catch C:E -> {C, E} end.
