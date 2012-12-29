@@ -20,8 +20,8 @@
 %%--------------------------------------------------------------------------
 
 %% Concrete Evaluation of MFA
-eval(M, F, A, concrete, CallType, CodeServer, TraceServer, Register) ->
-  register_to_trace(Register, TraceServer),
+eval(M, F, A, concrete, CallType, CodeServer, TraceServer, CallerPid) ->
+  register_to_trace(TraceServer, CallerPid),
   send_trace(TraceServer, {func_in, M, F, A}), %% Trace
   %% TODO Some kind of caching instead of constantly querying CodeServer
   case get_module_db(M, CodeServer) of
@@ -34,7 +34,7 @@ eval(M, F, A, concrete, CallType, CodeServer, TraceServer, Register) ->
       %% Get function info
       Arity = length(A),
       Key = {M, F, Arity},
-      [{Key, {Def, Exported}}] = ets:lookup(ModDb, Key),
+      [{Key, {Def, Exported}}] = ets:lookup(ModDb, Key), %% TODO must check is fun exists
       
       %% Check if CallType is compatible
       case check_exported(Exported, CallType) of
@@ -46,7 +46,7 @@ eval(M, F, A, concrete, CallType, CodeServer, TraceServer, Register) ->
           %% Wrap Args into semantic values
           SemanticArgs = conc_lib:terms_to_semantics(A),
           %% Bind function's parameters to the Arguments
-          io:format("[eval]: Def=~n~p~n", [Def]),
+%          io:format("[eval]: Def=~n~p~n", [Def]),
           Environment = init_fun_parameters(SemanticArgs, Def#c_fun.vars),
           SemanticResult = eval_expr(M, concrete, CodeServer, TraceServer, Def#c_fun.body, Environment),
           Result = conc_lib:semantic_to_term(SemanticResult),
@@ -56,11 +56,13 @@ eval(M, F, A, concrete, CallType, CodeServer, TraceServer, Register) ->
   end.
   
 %% Register self() and Parent to the Trace Server
-register_to_trace({true, Parent}, TraceServer) ->
-  gen_server:call(TraceServer, {register_parent, Parent});
-  
-register_to_trace(false, _TraceServer) ->
-  ok.
+register_to_trace(TraceServer, CallerPid) ->
+  case CallerPid =:= self() of
+    true ->
+      ok;
+    false ->
+      gen_server:call(TraceServer, {register_parent, CallerPid})
+  end.
 
 get_module_db(Mod, CodeServer) ->
   case gen_server:call(CodeServer, {is_stored, Mod}) of
@@ -144,7 +146,7 @@ eval_expr(M, concrete, CodeServer, TraceServer, {c_apply, _Anno, Op, Args}, Env)
       %% Unwrap the semantic arguments
       A = conc_lib:semantics_to_terms(Args_Val),
       %% Call the local function
-      Result = eval(M, Fun, A, concrete, local, CodeServer, TraceServer, false),
+      Result = eval(M, Fun, A, concrete, local, CodeServer, TraceServer, self()),
       %% Wrap the result to a semantic value
       conc_lib:term_to_semantic(Result);
     Closure ->
@@ -173,9 +175,9 @@ eval_expr(M, concrete, CodeServer, TraceServer, {c_call, _Anno, Mod, Name, Args}
   Result = 
     case M =:= Mod_Val of
       true ->
-        eval(Mod_Val, Name_Val, Args_Val, concrete, local, CodeServer, TraceServer, false);
+        eval(Mod_Val, Name_Val, Args_Val, concrete, local, CodeServer, TraceServer, self());
       false ->
-        eval(Mod_Val, Name_Val, Args_Val, concrete, external, CodeServer, TraceServer, false)
+        eval(Mod_Val, Name_Val, Args_Val, concrete, external, CodeServer, TraceServer, self())
     end,
   %% Wrap the result in a semantic object
   #semantic{value=Result, degree=1};
@@ -191,6 +193,19 @@ eval_expr(M, concrete, CodeServer, TraceServer, {c_case, _Anno, Arg, Clauses}, E
 %  io:format("[c_case]: Will evaluate ~n~p~n in Env : ~p~n", [Body, NewEnv]),
 %  %% -----------------------------------------------------------------------
   eval_expr(M, concrete, CodeServer, TraceServer, Body, NewEnv);
+  
+%% c_catch
+eval_expr(M, concrete, CodeServer, TraceServer, {c_catch, _Anno, Body}, Env) ->
+  try
+    eval_expr(M, concrete, CodeServer, TraceServer, Body, Env)
+  catch
+    throw:Throw ->
+      #semantic{value=Throw, degree=1};
+    exit:Exit ->
+      #semantic{value={'EXIT', Exit}, degree=1};
+    error:Error ->
+      #semantic{value={'EXIT', {Error, []}}, degree=1}
+  end;
 
 %% c_cons
 eval_expr(M, concrete, CodeServer, TraceServer, {c_cons, _Anno, Hd, Tl}, Env) ->
@@ -340,12 +355,13 @@ eval_expr(M, concrete, CodeServer, TraceServer, {c_let, _Anno, Vars, Arg, Body},
 %  io:format("[c_let]: Args = ~p~n", [Args]),
 %  %% ---------------------------------------
   %% Bind the variables
-  case Degree of %% problem is when we have 1 argument
-    1 ->
-      NewEnv = bind_parameters([#semantic{value=Args, degree=1}], Vars, Env);
-    _ ->
-      NewEnv = bind_parameters(Args, Vars, Env)
-  end,
+  NewEnv = 
+    case Degree of %% problem is when we have 1 argument
+      1 ->
+        bind_parameters([#semantic{value=Args, degree=1}], Vars, Env);
+      _ ->
+        bind_parameters(Args, Vars, Env)
+    end,
 %  %% DEBUG -------------------------------------
 %  io:format("[c_let]: NewEnv = ~p~n", [NewEnv]),
 %  %% -------------------------------------------
@@ -379,6 +395,48 @@ eval_expr(M, concrete, CodeServer, TraceServer, {c_letrec, _Anno, Defs, Body}, E
 %% c_literal
 eval_expr(_M, concrete, _CodeServer, _TraceServer, {c_literal, _Anno, Val}, _Env) ->
   #semantic{value=Val, degree=1};
+  
+%% c_primop
+eval_expr(M, concrete, CodeServer, TraceServer, {c_primop, _Anno, Name, Args}, Env) ->
+  %% Evaluate primop arguments
+  Args_Val = lists:map(
+    fun(Arg) ->
+      {semantic, Arg_Val, 1} = eval_expr(M, concrete, CodeServer, TraceServer, Arg, Env),
+      #semantic{value=Arg_Val, degree=1}
+    end,
+    Args
+  ),
+  %% Determine the primop
+  PrimOp = Name#c_literal.val,
+  %% Unwrap the semantic arguments
+  A = conc_lib:semantics_to_terms(Args_Val),
+  %% Call the local function TODO needs case for each primop
+  Result = eval(erlang, PrimOp, A, concrete, local, CodeServer, TraceServer, self()),
+  %% Wrap the result to a semantic value
+  conc_lib:term_to_semantic(Result);  
+  
+%% c_try
+eval_expr(M, concrete, CodeServer, TraceServer, {c_try, _Anno, Arg, Vars, Body, Evars, Handler}, Env) ->
+  try
+    Degree = length(Vars),
+    %% Evaluate the Arg
+    {semantic, ArgVal, Degree} = eval_expr(M, concrete, CodeServer, TraceServer, Arg, Env),
+    %% Bind the variables
+    NewEnv = 
+      case Degree of %% problem is when we have 1 argument
+        1 ->
+          bind_parameters([#semantic{value=ArgVal, degree=1}], Vars, Env);
+        _ ->
+          bind_parameters(ArgVal, Vars, Env)
+      end,
+    eval_expr(M, concrete, CodeServer, TraceServer, Body, NewEnv)
+  catch
+    Class:Reason ->
+      %% TODO 3rd value should be stack, but...
+      Vals = [#semantic{value=Class, degree=1}, #semantic{value=Reason, degree=1}, #semantic{value=[], degree=1}],
+      ExcEnv = bind_parameters(Vals, Evars, Env),
+      eval_expr(M, concrete, CodeServer, TraceServer, Handler, ExcEnv)
+  end;
   
 %% c_seq
 eval_expr(M, concrete, CodeServer, TraceServer, {c_seq, _Anno, Arg, Body}, Env) ->
@@ -509,7 +567,7 @@ pattern_match_all(concrete, _TraceServer, _Pats, [], _Mappings) ->
   false;
 pattern_match_all(concrete, _TraceServer, [], _EVals, _Mappings) ->
   false;
-pattern_match_all(concrete, TraceServer, [Pat|Pats] ,[EVal|EVals], Mappings) ->
+pattern_match_all(concrete, TraceServer, [Pat|Pats], [EVal|EVals], Mappings) ->
 %  %% DEBUG ---------------------------------------------------------------------
 %  io:format("[pat_match_all]: Will try to match ~n~p~n with ~p~n", [Pat, EVal]),
 %  %% ---------------------------------------------------------------------------

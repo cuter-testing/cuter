@@ -56,6 +56,7 @@ handle_call({register_parent, Parent}, {From, _FromTag}, State) ->
      false -> From
     end,
   monitor(process, FromPid),
+  io:format("[conc_tserver]: Monitoring ~p~n", [FromPid]),
   ets:insert(Ptree, {Parent, FromPid}),
   NewProcs = [FromPid|Procs],
   {reply, ok, State#state{procs=NewProcs}};

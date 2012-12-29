@@ -1,5 +1,5 @@
 -module(foo).
--export([mymin/1, test/3, test/2, test/0, goo/1]).
+-export([mymin/1, test/3, test/2, test/0, goo/1, boo/1]).
 
 mymin([H|T]) -> mymin(T, H).
 
@@ -25,6 +25,10 @@ test(A, B, {C, D}=E) ->
   end.
 
 goo(X) ->
-  try throw({ok, X}) of
+  try exit({ok, X}) of
     Y -> Y
-    catch C:E -> {C, E} end.
+  catch error:E -> {error, E} 
+  end.
+  
+boo(X) ->
+  <<X:4/little-signed-integer-unit:8>>.
