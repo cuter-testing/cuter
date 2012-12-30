@@ -64,7 +64,7 @@ remove_binding(Var, Environment) ->
 %% Functions to wrap terms into semantic values
 -spec terms_to_semantics([term()]) -> [semantic_value()].
 terms_to_semantics(Terms) ->
-  terms_to_semantics(Terms, []).
+  lists:map(fun term_to_semantic/1, Terms).
   
 -spec term_to_semantic(term()) -> semantic_value().
 term_to_semantic(Term) ->
@@ -73,7 +73,7 @@ term_to_semantic(Term) ->
 %% Functions to unwrap terms from semantic values
 -spec semantics_to_terms([semantic_value()]) -> [term()].
 semantics_to_terms(Semantics) ->
-  semantics_to_terms(Semantics, []).
+  lists:map(fun semantic_to_term/1, Semantics).
 
 -spec semantic_to_term(semantic_value()) -> term().
 semantic_to_term(Semantic) ->
@@ -82,17 +82,4 @@ semantic_to_term(Semantic) ->
 %%====================================================================
 %% Internal functions
 %%====================================================================
-  
--spec terms_to_semantics([term()], [semantic_value()]) -> [semantic_value()].
-terms_to_semantics([], Acc) ->
-  lists:reverse(Acc);
-terms_to_semantics([Term|Terms], Acc) ->
-  SemanticTerm = term_to_semantic(Term),
-  terms_to_semantics(Terms, [SemanticTerm|Acc]).
-  
--spec semantics_to_terms([semantic_value()], [term()]) -> [term()].
-semantics_to_terms([], Acc) ->
-  lists:reverse(Acc);
-semantics_to_terms([Semantic|Semantics], Acc) ->
-  Term = semantic_to_term(Semantic),
-  semantics_to_terms(Semantics, [Term|Acc]).
+

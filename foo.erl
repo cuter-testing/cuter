@@ -25,10 +25,17 @@ test(A, B, {C, D}=E) ->
   end.
 
 goo(X) ->
-  try exit({ok, X}) of
-    Y -> Y
-  catch error:E -> {error, E} 
-  end.
+  Y = length(X),
+  F = fun() -> lists:reverse([2,4]) end,
+  spawn_opt(F, [monitor]),
+  Y * Y.
   
 boo(X) ->
-  <<X:4/little-signed-integer-unit:8>>.
+  F = fun(Z) ->
+    try error({ok, Z}) of
+      Y -> Y
+    catch
+      error:E -> {got, E}
+    end
+  end,
+  catch F(X).

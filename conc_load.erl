@@ -12,19 +12,23 @@
 %% External exports
 %%====================================================================
 
+%load(Mod, Db) ->
+%  process_flag(trap_exit, true),
+%  Loader = spawn_link(
+%    fun() -> 
+%      store_module(Mod, Db),
+%      exit({ok, Mod})
+%    end
+%  ),
+%  receive
+%    {'EXIT', Loader, Msg} ->
+%      process_flag(trap_exit, false),
+%      Msg
+%  end.
+  
 load(Mod, Db) ->
-  process_flag(trap_exit, true),
-  Loader = spawn_link(
-    fun() -> 
-      store_module(Mod, Db),
-      exit({ok, Mod})
-    end
-  ),
-  receive
-    {'EXIT', Loader, Msg} ->
-      process_flag(trap_exit, false),
-      Msg
-  end.
+  store_module(Mod, Db),
+  {ok, Mod}.
 
 %%====================================================================
 %% Internal functions

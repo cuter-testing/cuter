@@ -60,7 +60,7 @@ handle_call({load, Mod}, _From, State) ->
     true ->
       %% Create an ETS table to store the code of the module
       Db = State#state.db,
-      ModDb = ets:new(Mod, [ordered_set, public]),
+      ModDb = ets:new(Mod, [ordered_set, protected]),
       ets:insert(Db, {Mod, ModDb}),
       
       %% Load the code of the module

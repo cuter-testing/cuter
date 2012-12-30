@@ -5,22 +5,97 @@
 -include("conc_lib.hrl").
 
 %%--------------------------------------------------------------------------
-%% eval(M, F, A, Mode, CallType, CodeServer, TraceServer, Register) -> Val
-%%   M :: atom()
-%%   F :: atom()
+%% eval(FunInfo, A, Mode, CallType, CodeServer, TraceServer, Register) -> Val
+%%   FunInfo :: {named, M, F} | {lambda, Closure}
+%%    M :: atom()
+%%    F :: atom()
+%%    Closure :: fun()
 %%   A :: [term()]
 %%   Mode :: concrete | symbolic
 %%   CallType :: local | external
 %%   CodeServer :: pid()
 %%   TraceServer :: pid()
-%%   Register :: {true, Parent} | false
+%%   CallerPid :: pid()
 %%    Parent :: pid()
 %%   Val :: term()
 %% Interpret and trace Core Erlang ASTs (concretely or symbolically)
 %%--------------------------------------------------------------------------
 
 %% Concrete Evaluation of MFA
-eval(M, F, A, concrete, CallType, CodeServer, TraceServer, CallerPid) ->
+
+%% Handle spawn/1, spawn/2, spawn/3, spawn/4,
+%% spawn_link/1 spawn_link/2, spawn_link/3, spawn_link/4
+eval({named, erlang, F}, A, concrete, _CallType, CodeServer, TraceServer, CallerPid)
+  when F =:= spawn; F =:= spawn_link ->
+    register_to_trace(TraceServer, CallerPid),
+    send_trace(TraceServer, {func_in, erlang, F, A}), %% Trace
+    Result =
+      case A of
+        [Fun] ->
+          EvalArgs = [{lambda, Fun}, [], concrete, local, CodeServer, TraceServer, self()],
+          erlang:F(conc_eval, eval, EvalArgs);
+        [Node, Fun] ->
+          EvalArgs = [{lambda, Fun}, [], concrete, local, CodeServer, TraceServer, self()],
+          erlang:F(Node, conc_eval, eval, EvalArgs);
+        [Mod, Fun, Args] ->
+          Call = find_call_type(erlang, Mod),
+          EvalArgs = [{named, Mod, Fun}, Args, concrete, Call, CodeServer, TraceServer, self()],
+          erlang:F(conc_eval, eval, EvalArgs);
+        [Node, Mod, Fun, Args] ->
+          Call = find_call_type(erlang, Mod),
+          EvalArgs = [{named, Mod, Fun}, Args, concrete, Call, CodeServer, TraceServer, self()],
+          erlang:F(Node, conc_eval, eval, EvalArgs);
+        _ ->
+          exception(error, undef_function)
+      end,
+    send_trace(TraceServer, {func_out, erlang, F, A, Result}), %% Trace
+    Result;
+    
+%% Handle spawn_monitor/1, spawn_monitor/3
+eval({named, erlang, spawn_monitor}, A, concrete, _CallType, CodeServer, TraceServer, CallerPid) ->
+  register_to_trace(TraceServer, CallerPid),
+  send_trace(TraceServer, {func_in, erlang, spawn_monitor, A}), %% Trace
+  EvalArgs =
+    case A of
+      [Fun] ->
+        [{lambda, Fun}, [], concrete, local, CodeServer, TraceServer, self()];
+      [Mod, Fun, Args] ->
+        Call = find_call_type(erlang, Mod),
+        [{named, Mod, Fun}, Args, concrete, Call, CodeServer, TraceServer, self()];
+      _ ->
+        exception(error, undef_function)
+    end,
+  Result = erlang:spawn_monitor(conc_eval, eval, EvalArgs),
+  send_trace(TraceServer, {func_out, erlang, spawn_monitor, A, Result}), %% Trace
+  Result;
+  
+%% Handle spawn_opt/2, spawn_opt/3, spawn_opt/4, spawn_opt/5
+eval({named, erlang, spawn_opt}, A, concrete, _CallType, CodeServer, TraceServer, CallerPid) ->
+  register_to_trace(TraceServer, CallerPid),
+  send_trace(TraceServer, {func_in, erlang, spawn_opt, A}), %% Trace
+  Result =
+    case A of
+      [Fun, Opts] ->
+        EvalArgs = [{lambda, Fun}, [], concrete, local, CodeServer, TraceServer, self()],
+        erlang:spawn_opt(conc_eval, eval, EvalArgs, Opts);
+      [Node, Fun, Opts] ->
+        EvalArgs = [{lambda, Fun}, [], concrete, local, CodeServer, TraceServer, self()],
+        erlang:spawn_opt(Node, conc_eval, eval, EvalArgs, Opts);
+      [Mod, Fun, Args, Opts] ->
+        Call = find_call_type(erlang, Mod),
+        EvalArgs = [{named, Mod, Fun}, Args, concrete, Call, CodeServer, TraceServer, self()],
+        erlang:spawn_opt(conc_eval, eval, EvalArgs, Opts);
+      [Node, Mod, Fun, Args, Opts] ->
+        Call = find_call_type(erlang, Mod),
+        EvalArgs = [{named, Mod, Fun}, Args, concrete, Call, CodeServer, TraceServer, self()],
+        erlang:spawn_opt(Node, conc_eval, eval, EvalArgs, Opts);
+      _ ->
+        exception(error, undef_function)
+    end,
+  send_trace(TraceServer, {func_out, erlang, spawn_opt, A, Result}), %% Trace
+  Result;
+
+eval({named, M, F}, A, concrete, CallType, CodeServer, TraceServer, CallerPid) ->
   register_to_trace(TraceServer, CallerPid),
   send_trace(TraceServer, {func_in, M, F, A}), %% Trace
   %% TODO Some kind of caching instead of constantly querying CodeServer
@@ -34,13 +109,12 @@ eval(M, F, A, concrete, CallType, CodeServer, TraceServer, CallerPid) ->
       %% Get function info
       Arity = length(A),
       Key = {M, F, Arity},
-      [{Key, {Def, Exported}}] = ets:lookup(ModDb, Key), %% TODO must check is fun exists
+      {Def, Exported} = retrieve_function(Key, ModDb),
       
       %% Check if CallType is compatible
       case check_exported(Exported, CallType) of
         false ->
           %% External function call that is not exported
-          %% TODO Fix exception
           exception('error', not_exported_function);
         true ->
           %% Wrap Args into semantic values
@@ -53,6 +127,25 @@ eval(M, F, A, concrete, CallType, CodeServer, TraceServer, CallerPid) ->
           send_trace(TraceServer, {func_out, M, F, A, Result}), %% Trace
           Result
       end
+  end;
+  
+eval({lambda, Closure}, A, concrete, _CallType, _CodeServer, TraceServer, CallerPid) ->
+  register_to_trace(TraceServer, CallerPid),
+  send_trace(TraceServer, {func_in_anon, A}), %% Trace
+  SemanticArgs = conc_lib:terms_to_semantics(A),
+  %% No need to bind func params, will be done automatically
+  SemanticResult = apply(Closure, SemanticArgs),
+  Result = conc_lib:semantic_to_term(SemanticResult),
+  send_trace(TraceServer, {func_out_anon, A, Result}), %% Trace
+  Result.
+
+%% Ensure that function exists
+retrieve_function(FuncKey, ModDb) ->
+  case ets:lookup(ModDb, FuncKey) of
+    [] ->
+      exception(error, undef_function);
+    [{FuncKey, Val}] ->
+      Val
   end.
   
 %% Register self() and Parent to the Trace Server
@@ -78,15 +171,9 @@ get_module_db(Mod, CodeServer) ->
       {ok, ModDb}
   end.
 
-check_exported(true, _CallType) ->
-  true;
-check_exported(false, CallType) ->
-  case CallType of
-    local ->
-      true;
-    external ->
-      false
-  end.
+check_exported(true, _CallType) -> true;
+check_exported(false, local)    -> true;
+check_exported(false, external) -> false.
   
 %% Creates a new Environment where function's paremeters
 %% are bound to the actual arguments
@@ -133,7 +220,7 @@ eval_expr(M, concrete, CodeServer, TraceServer, {c_apply, _Anno, Op, Args}, Env)
   Args_Val = lists:map(
     fun(Arg) ->
       {semantic, Arg_Val, 1} = eval_expr(M, concrete, CodeServer, TraceServer, Arg, Env),
-      #semantic{value=Arg_Val, degree=1}
+      Arg_Val
     end,
     Args
   ),
@@ -141,44 +228,37 @@ eval_expr(M, concrete, CodeServer, TraceServer, {c_apply, _Anno, Op, Args}, Env)
 %  io:format("[c_apply]: Eval_Op = ~p~n", [Eval_Op]),
 %  io:format("[c_apply]: Eval_Args = ~p~n", [Eval_Args]),
 %  %% ---------------------------------------------------
-  case Op_Val of
-    {Fun, _Arity} -> 
-      %% Unwrap the semantic arguments
-      A = conc_lib:semantics_to_terms(Args_Val),
-      %% Call the local function
-      Result = eval(M, Fun, A, concrete, local, CodeServer, TraceServer, self()),
-      %% Wrap the result to a semantic value
-      conc_lib:term_to_semantic(Result);
-    Closure ->
-      %% Apply the evaluated Args to the closure
-%      %% DEBUG --------------------------------------------------------------
-%      io:format("[c_apply]: Closure = ~p, Args = ~p~n", [Closure, Args_Val]),
-%      %% --------------------------------------------------------------------
-      apply(Closure, Args_Val)
-  end;
+  Result = 
+    case Op_Val of
+      {Fun, _Arity} -> 
+        %% Call the local function
+        eval({named, M, Fun}, Args_Val, concrete, local, CodeServer, TraceServer, self());
+      Closure ->
+        %% Apply the evaluated Args to the closure
+  %      %% DEBUG --------------------------------------------------------------
+  %      io:format("[c_apply]: Closure = ~p, Args = ~p~n", [Closure, Args_Val]),
+  %      %% --------------------------------------------------------------------
+        eval({lambda, Closure}, Args_Val, concrete, local, CodeServer, TraceServer, self())
+    end,
+  %% Wrap the result to a semantic value
+  conc_lib:term_to_semantic(Result);
   
 %% c_call
-eval_expr(M, concrete, CodeServer, TraceServer, {c_call, _Anno, Mod, Name, Args}, Env) ->
+eval_expr(M, concrete, CodeServer, TraceServer, {c_call, _Anno, Mod, Fun, Args}, Env) ->
   %% Evaluate Module name
-  {semantic, Mod_Val, 1} = eval_expr(M, concrete, CodeServer, TraceServer, Mod, Env),
+  {semantic, ModVal, 1} = eval_expr(M, concrete, CodeServer, TraceServer, Mod, Env),
   %% Evaluate Function name
-  {semantic, Name_Val, 1} = eval_expr(M, concrete, CodeServer, TraceServer, Name, Env),
+  {semantic, FunVal, 1} = eval_expr(M, concrete, CodeServer, TraceServer, Fun, Env),
   %% Evaluate Args
-  Args_Val = lists:map(
+  ArgsVal = lists:map(
     fun(Arg) ->
-      {semantic, Arg_Val, 1} = eval_expr(M, concrete, CodeServer, TraceServer, Arg, Env),
-      Arg_Val
+      {semantic, ArgVal, 1} = eval_expr(M, concrete, CodeServer, TraceServer, Arg, Env),
+      ArgVal
     end,
     Args
   ),
   %% Call MFA
-  Result = 
-    case M =:= Mod_Val of
-      true ->
-        eval(Mod_Val, Name_Val, Args_Val, concrete, local, CodeServer, TraceServer, self());
-      false ->
-        eval(Mod_Val, Name_Val, Args_Val, concrete, external, CodeServer, TraceServer, self())
-    end,
+  Result = eval({named, ModVal, FunVal}, ArgsVal, concrete, find_call_type(M, ModVal), CodeServer, TraceServer, self()),
   %% Wrap the result in a semantic object
   #semantic{value=Result, degree=1};
   
@@ -411,7 +491,12 @@ eval_expr(M, concrete, CodeServer, TraceServer, {c_primop, _Anno, Name, Args}, E
   %% Unwrap the semantic arguments
   A = conc_lib:semantics_to_terms(Args_Val),
   %% Call the local function TODO needs case for each primop
-  Result = eval(erlang, PrimOp, A, concrete, local, CodeServer, TraceServer, self()),
+  Result = 
+    case PrimOp of
+      'raise' ->
+        [Class, Reason] = A,
+        eval({named, erlang, Class}, [Reason], concrete, local, CodeServer, TraceServer, self())
+    end,
   %% Wrap the result to a semantic value
   conc_lib:term_to_semantic(Result);  
   
@@ -433,7 +518,8 @@ eval_expr(M, concrete, CodeServer, TraceServer, {c_try, _Anno, Arg, Vars, Body, 
   catch
     Class:Reason ->
       %% TODO 3rd value should be stack, but...
-      Vals = [#semantic{value=Class, degree=1}, #semantic{value=Reason, degree=1}, #semantic{value=[], degree=1}],
+      %% CAUTION!! 3rd Var which is stacktrace is substituted by exception class
+      Vals = [#semantic{value=Class, degree=1}, #semantic{value=Reason, degree=1}, #semantic{value=Class, degree=1}],
       ExcEnv = bind_parameters(Vals, Evars, Env),
       eval_expr(M, concrete, CodeServer, TraceServer, Handler, ExcEnv)
   end;
@@ -663,4 +749,16 @@ match_clause(_M, concrete, _CodeServer, TraceServer, {c_clause, _Anno, _Pats, _G
   false.
 
 
+%%====================================================================
+%% Helper functions
+%%====================================================================
+
+find_call_type(M1, M2) ->
+  case M1 =:= M2 of
+    true  -> local;
+    false -> external
+  end.
+
+will_spawn_process(erlang, spawn, 1) -> true;
+will_spawn_process(_Mod, _Fun, _Arity) -> false.
 
