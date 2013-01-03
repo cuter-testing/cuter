@@ -5,7 +5,7 @@ start(Mod, Fun, Args)
   when is_atom(Mod); is_list(Mod) ->
   
     %% Start Code and Trace Servers
-    {ok, CodeServer} = gen_server:start_link(conc_cserver, [{limited, [foo]}], []),  % Start code server
+    {ok, CodeServer} = gen_server:start_link(conc_cserver, [{limited, [foo, rush]}], []),  % Start code server
     {ok, TraceServer} = gen_server:start_link(conc_tserver, [self()], []),           % Start trace server
     
     StartArgs = [{named, Mod, Fun}, Args, concrete, external, CodeServer, TraceServer, self()],

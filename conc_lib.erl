@@ -5,7 +5,9 @@
 %% External exported functions
 -export([new_environment/0, get_value/2, add_binding/3,
   remove_binding/2, is_bound/2, term_to_semantic/1, semantic_to_term/1,
-  terms_to_semantics/1, semantics_to_terms/1, add_mappings_to_environment/2]).
+  terms_to_semantics/1, semantics_to_terms/1, add_mappings_to_environment/2,
+  is_semantic_val/1, are_semantic_vals/1, ensure_semantic_val/1, ensure_semantic_vals/1,
+  ensure_not_semantic_val/1]).
 
 %% External exported types
 -export_type([environment/0, semantic_var/0, semantic_value/0]).
@@ -77,7 +79,32 @@ semantics_to_terms(Semantics) ->
 
 -spec semantic_to_term(semantic_value()) -> term().
 semantic_to_term(Semantic) ->
-  Semantic#semantic.value.  
+  Semantic#semantic.value.
+  
+is_semantic_val({semantic, _Name, _Degree}) -> true;
+is_semantic_val(_) -> false.
+
+are_semantic_vals(Vals) ->
+  lists:all(fun is_semantic_val/1, Vals).
+  
+ensure_semantic_val(Val) ->
+  case is_semantic_val(Val) of
+    true ->
+      Val;
+    false ->
+      term_to_semantic(Val)
+  end.
+  
+ensure_semantic_vals(Vals) ->
+  lists:map(fun ensure_semantic_val/1, Vals).
+  
+ensure_not_semantic_val(Val) ->
+  case is_semantic_val(Val) of
+    true ->
+      semantic_to_term(Val);
+    false ->
+      Val
+  end.
   
 %%====================================================================
 %% Internal functions
