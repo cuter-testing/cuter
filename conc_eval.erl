@@ -111,11 +111,12 @@ eval({named, erlang, spawn_opt}, A, concrete, _CallType, CodeServer, TraceServer
 
 eval({named, M, F}, A, concrete, CallType, CodeServer, TraceServer, CallerPid) ->
   register_to_trace(TraceServer, CallerPid),
+  io:format("Calling ~p:~p/~p~n", [M,F,length(A)]),
   send_trace(TraceServer, {func_in, M, F, A}, true), %% Trace
   %% TODO Some kind of caching instead of constantly querying CodeServer
   case get_module_db(M, CodeServer) of
     unloadable ->
-      io:format("!!! ~p is unloadable~n", [M]),
+%      io:format("!!! ~p is unloadable~n", [M]),
       Result = apply(M, F, A),
       send_trace(TraceServer, {func_out, M, F, A, Result}, true), %% Trace
       Result;
@@ -144,8 +145,20 @@ eval({named, M, F}, A, concrete, CallType, CodeServer, TraceServer, CallerPid) -
       end
   end;
   
+eval({letrec_func, M, F, Def, Env}, A, concrete, _CallType, CodeServer, TraceServer, CallerPid) ->
+  register_to_trace(TraceServer, CallerPid),
+  io:format("Calling Letrec Fun ~p/~p~n", [F,length(A)]),
+  send_trace(TraceServer, {func_in_letrec, F, A}, true), %% Trace
+  SemanticArgs = conc_lib:terms_to_semantics(A),
+  Environment = bind_parameters(SemanticArgs, Def#c_fun.vars, Env),
+  SemanticResult = eval_expr(M, concrete, CodeServer, TraceServer, Def#c_fun.body, Environment),
+  Result = conc_lib:semantic_to_term(SemanticResult),
+  send_trace(TraceServer, {func_out_letrec, F, A, Result}, true), %% Trace
+  Result;
+  
 eval({lambda, Closure}, A, concrete, _CallType, _CodeServer, TraceServer, CallerPid) ->
   register_to_trace(TraceServer, CallerPid),
+  io:format("Calling Lambda ~n"),
   send_trace(TraceServer, {func_in_lambda, A}, true), %% Trace
   %% No need to bind func params, will be done automatically
   Res = apply(Closure, A),
@@ -186,6 +199,8 @@ eval_expr(M, concrete, CodeServer, TraceServer, {c_apply, _Anno, Op, Args}, Env)
       case eval_expr(M, concrete, CodeServer, TraceServer, Arg, Env) of
         {semantic, {func, F, Arity}, 1} ->
           create_closure(M, F, Arity, concrete, CodeServer, TraceServer);
+        {semantic, {letrec_func, Mod, F, Arity, Def, E}, 1} ->
+          create_closure(Mod, F, Arity, concrete, CodeServer, TraceServer, Def, E());
         {semantic, ArgVal, 1} ->
           ArgVal
       end
@@ -201,6 +216,9 @@ eval_expr(M, concrete, CodeServer, TraceServer, {c_apply, _Anno, Op, Args}, Env)
       {func, Fun, _Arity} -> 
         %% Call the local function
         eval({named, M, Fun}, ArgsVal, concrete, local, CodeServer, TraceServer, self());
+      {letrec_func, Mod, Fun, _Arity, Def, E} ->
+        %% Call the letrec function
+        eval({letrec_func, Mod, Fun, Def, E()}, ArgsVal, concrete, local, CodeServer, TraceServer, self());
       Closure ->
         %% Apply the evaluated Args to the closure
   %      %% DEBUG --------------------------------------------------------------
@@ -223,6 +241,8 @@ eval_expr(M, concrete, CodeServer, TraceServer, {c_call, _Anno, Mod, Fun, Args},
       case eval_expr(M, concrete, CodeServer, TraceServer, Arg, Env) of
         {semantic, {func, F, Arity}, 1} ->
           create_closure(M, F, Arity, concrete, CodeServer, TraceServer);
+        {semantic, {letrec_func, Mod, F, Arity, Def, E}, 1} ->
+          create_closure(Mod, F, Arity, concrete, CodeServer, TraceServer, Def, E());
         {semantic, ArgVal, 1} ->
           ArgVal
       end
@@ -302,7 +322,8 @@ eval_expr(M, concrete, CodeServer, TraceServer, {c_letrec, _Anno, Defs, Body}, E
   H = fun(F) -> fun() ->
     lists:foldl(
       fun({N, D}, E) ->
-        conc_lib:add_binding(N, {D, F}, E)
+        SemVal = conc_lib:term_to_semantic({letrec_func, M, D, F}),
+        conc_lib:add_binding(N, SemVal, E)
       end,
       Env, UDefs
     )
@@ -349,7 +370,10 @@ eval_expr(M, concrete, CodeServer, TraceServer, {c_primop, _Anno, Name, Args}, E
     case PrimOp of
       'raise' ->
         [Class, Reason] = ArgsVal,
-        eval({named, erlang, Class}, [Reason], concrete, local, CodeServer, TraceServer, self())
+        eval({named, erlang, Class}, [Reason], concrete, local, CodeServer, TraceServer, self());
+      'match_fail' -> %% TODO fix
+        [Reason] = ArgsVal,
+        eval({named, erlang, error}, [{badmatch, Reason}], concrete, local, CodeServer, TraceServer, self())
     end,
   %% Wrap the result to a semantic value
   conc_lib:term_to_semantic(Result);  
@@ -410,8 +434,11 @@ eval_expr(_M, concrete, _CodeServer, _TraceServer, {c_var, _Anno, Name}, Env)
   when is_tuple(Name) ->
     %% If Name is a function
     case conc_lib:get_value(Name, Env) of
-      {ok, {semantic, Closure, 1}} when is_function(Closure) ->
+      {ok, {semantic, Closure, 1}} when is_function(Closure) -> %% Closure
         {semantic, Closure, 1};
+      {ok, {semantic, {letrec_func, Mod, Def, E}, 1}} ->  %% Fun bound in a letrec
+        {Fun, Arity} = Name,
+        #semantic{value={letrec_func, Mod, Fun, Arity, Def, E}, degree=1};
       error ->         %% either local in module or external
         {Fun, Arity} = Name,
         #semantic{value={func, Fun, Arity}, degree=1}
@@ -611,6 +638,9 @@ create_closure(M, F, Arity, concrete, CodeServer, TraceServer) ->
   {Def, _Exported} = retrieve_function(Key, ModDb),
 %  io:format("[high order closure]: Def=~n~p~n", [Def]),
   Env = conc_lib:new_environment(),
+  make_fun(M, F, Arity, concrete, CodeServer, TraceServer, Def#c_fun.vars, Def#c_fun.body, Env, true).
+  
+create_closure(M, F, Arity, concrete, CodeServer, TraceServer, Def, Env) ->
   make_fun(M, F, Arity, concrete, CodeServer, TraceServer, Def#c_fun.vars, Def#c_fun.body, Env, true).
 
 make_fun(M, F, Arity, concrete, CodeServer, TraceServer, Vars, Body, OuterEnv, TraceF) ->

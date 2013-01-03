@@ -1,5 +1,5 @@
 -module(foo).
--export([mymin/1, test/3, test/2, test/0, goo/1, boo/1, y/1]).
+-export([mymin/1, test/3, test/2, test/0, goo/1, boo/1, y/1, moo/0]).
 
 mymin([H|T]) -> mymin(T, H).
 
@@ -17,6 +17,8 @@ test(A, B) ->
   
 test() ->
   lists:map(fun moo/1, [1,2,3]).
+  
+moo() -> [X+Y || X <- [1,2], Y <- [2,3]].
   
 test(A, B, {C, D}=E) ->
   case A of
