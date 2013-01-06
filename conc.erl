@@ -6,7 +6,7 @@ start(Mod, Fun, Args)
   
     %% Start Code and Trace Servers
     Dir = filename:absname("core"),
-    {ok, CodeServer} = gen_server:start_link(conc_cserver, [{limited, [foo, rush, rectangle, circle, polymorph]}, Dir], []),  % Start code server
+    {ok, CodeServer} = gen_server:start_link(conc_cserver, [Dir], []),  % Start code server
     {ok, TraceServer} = gen_server:start_link(conc_tserver, [self()], []),           % Start trace server
     
     StartArgs = [{named, {Mod, Fun}}, Args, concrete, external, CodeServer, TraceServer, self()],

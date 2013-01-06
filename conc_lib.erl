@@ -4,7 +4,7 @@
 
 %% External exported functions
 -export([new_environment/0, add_binding/3, is_bound/2, get_value/2,
-  add_mappings_to_environment/2]).
+  add_mappings_to_environment/2, is_bif/3]).
 
 %% External exported types
 -export_type([environment/0, semantic_var/0, semantic_value/0]).
@@ -54,3 +54,11 @@ add_mappings_to_environment([], Env) ->
 add_mappings_to_environment([{Var, Value}|Ms], Env) ->
   NEnv = add_binding(Var, Value, Env),
   add_mappings_to_environment(Ms, NEnv).
+  
+is_bif(erlang, _F, _A)    -> true;
+is_bif(lists, member, 2)  -> true;
+is_bif(lists, reverse, 2) -> true;
+is_bif(lists, keymember, 3) -> true;
+is_bif(lists, keysearch, 3) -> true;
+is_bif(lists, keyfind, 3) -> true;
+is_bif(_M, _F, _A) -> false.

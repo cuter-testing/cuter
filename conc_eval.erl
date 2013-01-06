@@ -88,18 +88,21 @@ eval({named, {erlang, spawn_opt}}, As, concrete, _CallType, CodeServer, TraceSer
 
 eval({named, {M, F}}, As, concrete, CallType, CodeServer, TraceServer, CallerPid) ->
   register_to_trace(TraceServer, CallerPid),
-  case get_module_db(M, CodeServer) of
-    non_existing ->
-      exception(error, undef);
-    unloadable ->
+  Arity = length(As),
+  case conc_lib:is_bif(M, F, Arity) of
+    true ->
       apply(M, F, As);
-    {ok, ModDb} ->
-      Arity = length(As),
-      Key = {M, F, Arity},
-      {Def, Exported} = retrieve_function(Key, ModDb),
-      ok = check_exported(Exported, CallType),
-      Env = bind_parameters(As, Def#c_fun.vars, conc_lib:new_environment()),
-      eval_expr(M, concrete, CodeServer, TraceServer, Def#c_fun.body, Env)
+    false ->
+      case get_module_db(M, CodeServer) of
+        preloaded ->
+          apply(M, F, As);
+        {ok, MDb} ->
+          Key = {M, F, Arity},
+          {Def, Exported} = retrieve_function(Key, MDb),
+          ok = check_exported(Exported, CallType),
+          Env = bind_parameters(As, Def#c_fun.vars, conc_lib:new_environment()),
+          eval_expr(M, concrete, CodeServer, TraceServer, Def#c_fun.body, Env)
+      end
   end;
   
 eval({lambda, Closure}, As, concrete, _CallType, _CodeServer, TraceServer, CallerPid) ->
@@ -641,23 +644,26 @@ register_to_trace(TraceServer, CallerPid) ->
       gen_server:call(TraceServer, {register_parent, CallerPid})
   end.
   
-get_module_db(Mod, CodeServer) ->
-  case get(Mod) of
+get_module_db(M, CodeServer) ->
+  case get(M) of
     undefined ->
-      case gen_server:call(CodeServer, {load, Mod}) of
-        {ok, {Mod, ModDb}} ->
+      case gen_server:call(CodeServer, {load, M}) of
+        {ok, MDb} ->
           %% Module Code loaded
-          put(Mod, ModDb),
-          {ok, ModDb};
-        unloadable ->
-          %% Black Box Tested Module
-          unloadable;
+          put(M, MDb),
+          {ok, MDb};
+        preloaded ->
+          %% Preloaded Module
+          preloaded;
+        cover_compiled ->
+          %% Cover Compiled Module
+          exception(error, {cover_compiled, M});
         non_existing ->
           %% Invalid Module
-          non_existing
+          exception(error, {undef, M})
       end;
-    ModDb ->
-      {ok, ModDb}
+    MDb ->
+      {ok, MDb}
   end.
   
 %% Ensure that function exists
@@ -666,7 +672,7 @@ retrieve_function(FuncKey, ModDb) ->
     undefined ->
       case ets:lookup(ModDb, FuncKey) of
         [] ->
-          exception(error, undef);
+          exception(error, {undef, FuncKey});
         [{FuncKey, Val}] ->
           put(FuncKey, Val),
           Val

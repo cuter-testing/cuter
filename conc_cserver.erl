@@ -15,7 +15,6 @@
   %% {Key, Value} -> {Module, ModuleDb}
   %% ModDb :: ets:tid()
   db,      % ETS table :: ets:tid()
-  intMode, % modules that can be loaded // all, [modules]
   dir      % Directory where .core files are saved
 }).
 
@@ -30,14 +29,9 @@
 %% gen_server callbacks
 %%====================================================================
 
-init([Mode, Dir]) ->
+init([Dir]) ->
   Db = ets:new(?MODULE, [ordered_set, protected]),
-  case Mode of
-    global ->
-      {ok, #state{db=Db, intMode=all, dir=Dir}};
-    {limited, ModList} when is_list(ModList) ->
-      {ok, #state{db=Db, intMode=ModList, dir=Dir}}
-  end.
+  {ok, #state{db=Db, dir=Dir}}.
   
 terminate(_Reason, State) ->
   Db = State#state.db,
@@ -59,36 +53,40 @@ handle_info(Msg, State) ->
   {noreply, State}.
   
 %% Handle a "Load a Module into the Db" call
-%%   Case                           Reply
-%% --------                       ---------
-%% Module is already loaded  -->  {ok, {Mod, ModDb}
-%% Module is now loaded      -->  {ok, {Mod, ModDb}
-%% Module is unloadable      -->  unloadable
-%% Module is non_existing    -->  non_existing
-handle_call({load, Mod}, _From, State) ->
-
-  case is_mod_stored(Mod, State) of
-    {true, ModDb} ->
-      {reply, {ok, {Mod, ModDb}}, State};
+%%   Case                             Reply
+%% --------                         ---------
+%% Module M is already loaded  -->  {ok, MDb}
+%% Module M is not loaded yet  -->  false
+%% Module M is preloaded       -->  preloaded
+%% Module M is cover_compiled  -->  cover_compiled
+%% Module M does not exist     -->  non_existing
+handle_call({load, M}, _From, State) ->
+  io:format("[load]: Got request for module : ~p~n", [M]),
+  case is_mod_stored(M, State) of
+    {true, MDb} ->
+      {reply, {ok, {M, MDb}}, State};
     false ->
+      io:format("[load]: Will load module : ~p~n", [M]),
       %% Create an ETS table to store the code of the module
       Db = State#state.db,
-      ModDb = ets:new(Mod, [ordered_set, protected]),
-      ets:insert(Db, {Mod, ModDb}),
+      MDb = ets:new(M, [ordered_set, protected]),
+      ets:insert(Db, {M, MDb}),
       
       %% Load the code of the module
       Dir = State#state.dir,
-      Reply = conc_load:load(Mod, ModDb, Dir),
+      Reply = conc_load:load(M, MDb, Dir),
       
       %% Reply
       case Reply of
-        {ok, Mod} ->
-          {reply, {ok, {Mod, ModDb}}, State};
+        {ok, M} ->
+          {reply, {ok, MDb}, State};
         _ ->
           {reply, Reply, State}
       end;
-    unloadable ->
-      {reply, unloadable, State};
+    preloaded ->
+      {reply, preloaded, State};
+    cover_compiled ->
+      {reply, cover_compiled, State};
     non_existing ->
       {reply, non_existing, State}
   end;
@@ -110,37 +108,25 @@ handle_cast(_Msg, State) ->
 %%====================================================================
 
 %% Check if a Module is stored in the Db
-%%   Case                           Reply
-%% --------                       ---------
-%% Module is already loaded  -->  {true, ModDb}
-%% Module is not loaded yet  -->  false
-%% Module is unloadable      -->  unloadable
-%% Module does not exist     -->  non_existing
-is_mod_stored(Mod, State) ->
-  case can_be_loaded(Mod, State) of
-    true ->
-      Db = State#state.db,
-      case ets:lookup(Db, Mod) of
-        [] -> false;
-        [{Mod, ModDb}] -> {true, ModDb}
-      end;
-    false ->
-      case code:which(Mod) of
-        non_existing ->
-          non_existing;
-        _ -> 
-          unloadable
+%%   Case                             Reply
+%% --------                         ---------
+%% Module M is already loaded  -->  {true, MDb}
+%% Module M is not loaded yet  -->  false
+%% Module M is preloaded       -->  preloaded
+%% Module M is cover_compiled  -->  cover_compiled
+%% Module M does not exist     -->  non_existing
+is_mod_stored(M, State) ->
+  Db = State#state.db,
+  case ets:lookup(Db, M) of
+    [{M, MDb}] ->
+      {true, MDb};
+    [] ->
+      case code:which(M) of
+        non_existing   -> non_existing;
+        preloaded      -> preloaded;
+        cover_compiled -> cover_compiled;
+        _Path          -> false
       end
-  end.
-
-%% can_be_loaded(Mod, State) -> boolean()
-can_be_loaded(Mod, State) ->
-  Mode = State#state.intMode,
-  case Mode of
-    all ->
-      true;
-    ModList ->
-      lists:member(Mod, ModList)
   end.
 
 delete_stored_modules(Db) ->
@@ -158,5 +144,3 @@ delete_stored_core_files(Dir) ->
       ok = file:delete(Dir ++ "/" ++ File)
     end,
   Filenames).
-  
-

@@ -78,6 +78,10 @@ ensure_mod_loaded(Mod) ->
   case code:which(Mod) of
     non_existing ->
       erlang:throw(module_not_loaded);
+    preloaded ->
+      erlang:throw(preloaded_modules_not_supported);
+    cover_compiled ->
+      erlang:throw(cover_compiled_modules_not_supported);
     Path ->
       {ok, Path}
   end.
