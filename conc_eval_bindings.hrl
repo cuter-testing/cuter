@@ -1,4 +1,0 @@
--record(semantic, {
-  value,
-  degree
-}).
