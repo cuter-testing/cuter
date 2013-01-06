@@ -56,6 +56,7 @@ add_mappings_to_environment([{Var, Value}|Ms], Env) ->
   add_mappings_to_environment(Ms, NEnv).
   
 is_bif(erlang, _F, _A)    -> true;
+is_bif(net_kernel, _F, _A) -> true;
 is_bif(lists, member, 2)  -> true;
 is_bif(lists, reverse, 2) -> true;
 is_bif(lists, keymember, 3) -> true;

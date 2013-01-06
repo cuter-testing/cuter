@@ -85,6 +85,22 @@ eval({named, {erlang, spawn_opt}}, As, concrete, _CallType, CodeServer, TraceSer
     _ ->
       exception(error, undef)
   end;
+  
+  
+%% Handle apply/2, apply/3
+eval({named, {erlang, apply}}, As, concrete, _CallType, CodeServer, TraceServer, CallerPid) ->
+  register_to_trace(TraceServer, CallerPid),
+  EvalArgs =
+    case As of
+      [Fun, Args] ->
+        [{lambda, Fun}, Args, concrete, local, CodeServer, TraceServer, self()];
+      [Mod, Fun, Args] ->
+        Call = find_call_type(erlang, Mod),
+        [{named, {Mod, Fun}}, Args, concrete, Call, CodeServer, TraceServer, self()];
+      _ ->
+        exception(error, undef)
+    end,
+  erlang:apply(conc_eval, eval, EvalArgs);
 
 eval({named, {M, F}}, As, concrete, CallType, CodeServer, TraceServer, CallerPid) ->
   register_to_trace(TraceServer, CallerPid),
@@ -99,6 +115,7 @@ eval({named, {M, F}}, As, concrete, CallType, CodeServer, TraceServer, CallerPid
         {ok, MDb} ->
           Key = {M, F, Arity},
           {Def, Exported} = retrieve_function(Key, MDb),
+%          io:format("Def = ~p~n",[Def]),
           ok = check_exported(Exported, CallType),
           Env = bind_parameters(As, Def#c_fun.vars, conc_lib:new_environment()),
           eval_expr(M, concrete, CodeServer, TraceServer, Def#c_fun.body, Env)
@@ -180,7 +197,7 @@ eval_expr(M, concrete, CodeServer, TraceServer, {c_call, _Anno, Mod, Fun, Args},
   ArgsVal = lists:map(
     fun(Arg) ->
       case eval_expr(M, concrete, CodeServer, TraceServer, Arg, Env) of
-        {func, {F, Arity}}->
+        {func, {F, Arity}} ->
           create_closure(M, F, Arity, concrete, CodeServer, TraceServer);
         {letrec_func, {Mod, F, Arity, Def, E}} ->
           create_closure(Mod, F, Arity, concrete, CodeServer, TraceServer, Def, E());

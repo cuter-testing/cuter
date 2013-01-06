@@ -72,9 +72,11 @@ loop() ->
 spawn(M, F, A) ->
   Parent = self(),
   Fun = fun() ->
-    io:format("Parent : ~p, Me : ~p~n", [Parent, self()]),
-    R = apply(M, F, A),
-    io:format("Result = ~p~n", [R])
+%    io:format("Parent : ~p, Me : ~p~n", [Parent, self()]),
+    R = apply(M, F, A)
+%    io:format("Result = ~p~n", [R])
   end,
   erlang:spawn(Fun),
+%  dict:new(),
+%  timer:sleep(100),
   ok.
