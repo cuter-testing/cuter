@@ -5,11 +5,17 @@ start(Mod, Fun, Args)
   when is_atom(Mod); is_list(Mod) ->
   
     %% Start Code and Trace Servers
-    {ok, CodeServer} = gen_server:start_link(conc_cserver, [{limited, [foo, rush]}], []),  % Start code server
+    Dir = filename:absname("core"),
+    {ok, CodeServer} = gen_server:start_link(conc_cserver, [{limited, [foo, rush, rectangle, circle, polymorph]}, Dir], []),  % Start code server
     {ok, TraceServer} = gen_server:start_link(conc_tserver, [self()], []),           % Start trace server
     
-    StartArgs = [{named, Mod, Fun}, Args, concrete, external, CodeServer, TraceServer, self()],
-    spawn(conc_eval, eval, StartArgs),
+    StartArgs = [{named, {Mod, Fun}}, Args, concrete, external, CodeServer, TraceServer, self()],
+%    spawn(conc_eval, eval, StartArgs),
+    spawn(?MODULE, chk, [self(), StartArgs]),
+    receive
+      {Time, Val} ->
+        io:format("Time = ~w secs~nResult = ~p~n", [Time/1000000, Val])
+    end,
 %    io:format("[conc]: Spawned ~p~n", [P]),
 %    receive
 %      B ->
@@ -25,4 +31,16 @@ start(Mod, Fun, Args)
 
 start(_, _, _) ->
   {error, invalid_module_name}.
+  
+chk(S, As) ->
+%  eprof:start(),
+%  eprof:start_profiling([self()]),
+  Start = now(),
+  Val = apply(conc_eval, eval, As),
+  End  = now(),
+%  eprof:stop_profiling(),
+%  eprof:analyze(),
+%  eprof:stop(),
+  Time = timer:now_diff(End, Start),
+  S ! {Time, Val}.
 

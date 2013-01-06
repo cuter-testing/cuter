@@ -3,11 +3,8 @@
 -include("conc_lib.hrl").
 
 %% External exported functions
--export([new_environment/0, get_value/2, add_binding/3,
-  remove_binding/2, is_bound/2, term_to_semantic/1, semantic_to_term/1,
-  terms_to_semantics/1, semantics_to_terms/1, add_mappings_to_environment/2,
-  is_semantic_val/1, are_semantic_vals/1, ensure_semantic_val/1, ensure_semantic_vals/1,
-  ensure_not_semantic_val/1]).
+-export([new_environment/0, add_binding/3, is_bound/2, get_value/2,
+  add_mappings_to_environment/2]).
 
 %% External exported types
 -export_type([environment/0, semantic_var/0, semantic_value/0]).
@@ -15,7 +12,8 @@
 %% Type definitions
 -type environment() :: orddict:orddict().
 -type semantic_var() :: cerl:var_name().
--type semantic_value() :: #semantic{}.
+-type semantic_value() :: term() | #valuelist{}.
+
 
 
 %%====================================================================
@@ -27,6 +25,12 @@
 new_environment() -> 
   orddict:new().
   
+%% Adds a new binding to the environment
+%% and returns the new environment
+-spec add_binding(semantic_var(), semantic_value(), environment()) -> environment().
+add_binding(Var, Val, Env) ->
+  orddict:store(Var, Val, Env).
+  
 %% Checks if Var is bound in the environment
 -spec is_bound(semantic_var(), environment()) -> boolean().
 is_bound(Var, Environment) ->
@@ -37,18 +41,11 @@ is_bound(Var, Environment) ->
 %% or error if Var is unbound.
 -spec get_value(semantic_var(), environment()) -> semantic_value().
 get_value(Var, Environment) ->
-  case is_bound(Var, Environment) of
-    true ->
-      {ok, orddict:fetch(Var, Environment)};
-    false ->
-      error
+  try orddict:fetch(Var, Environment) of
+    Val -> {ok, Val}
+  catch
+    error:_Error -> error
   end.
-
-%% Adds a new binding to the environment
-%% and returns the new environment
--spec add_binding(semantic_var(), semantic_value(), environment()) -> environment().
-add_binding(Var, Value, Environment) ->
-  orddict:store(Var, Value, Environment).
   
 %% Add new mappings to environment
 -spec add_mappings_to_environment([{semantic_var(), semantic_value()}], environment()) -> environment().
@@ -57,56 +54,3 @@ add_mappings_to_environment([], Env) ->
 add_mappings_to_environment([{Var, Value}|Ms], Env) ->
   NEnv = add_binding(Var, Value, Env),
   add_mappings_to_environment(Ms, NEnv).
-
-%% Removes a binding from the environment
--spec remove_binding(semantic_var(), environment()) -> environment().
-remove_binding(Var, Environment) ->
-  orddict:erase(Var, Environment).
-  
-%% Functions to wrap terms into semantic values
--spec terms_to_semantics([term()]) -> [semantic_value()].
-terms_to_semantics(Terms) ->
-  lists:map(fun term_to_semantic/1, Terms).
-  
--spec term_to_semantic(term()) -> semantic_value().
-term_to_semantic(Term) ->
-  #semantic{value=Term, degree=1}.
-  
-%% Functions to unwrap terms from semantic values
--spec semantics_to_terms([semantic_value()]) -> [term()].
-semantics_to_terms(Semantics) ->
-  lists:map(fun semantic_to_term/1, Semantics).
-
--spec semantic_to_term(semantic_value()) -> term().
-semantic_to_term(Semantic) ->
-  Semantic#semantic.value.
-  
-is_semantic_val({semantic, _Name, _Degree}) -> true;
-is_semantic_val(_) -> false.
-
-are_semantic_vals(Vals) ->
-  lists:all(fun is_semantic_val/1, Vals).
-  
-ensure_semantic_val(Val) ->
-  case is_semantic_val(Val) of
-    true ->
-      Val;
-    false ->
-      term_to_semantic(Val)
-  end.
-  
-ensure_semantic_vals(Vals) ->
-  lists:map(fun ensure_semantic_val/1, Vals).
-  
-ensure_not_semantic_val(Val) ->
-  case is_semantic_val(Val) of
-    true ->
-      semantic_to_term(Val);
-    false ->
-      Val
-  end.
-  
-%%====================================================================
-%% Internal functions
-%%====================================================================
-

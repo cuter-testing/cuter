@@ -1,7 +1,7 @@
 -module(conc_load).
 
 %% External exports
--export([load/2]).
+-export([load/3, compile_core/2]).
 
 %% Will be using the records representation of
 %% the Core Erlang Abstract Syntax Tree
@@ -26,9 +26,13 @@
 %      Msg
 %  end.
   
-load(Mod, Db) ->
-  store_module(Mod, Db),
-  {ok, Mod}.
+load(Mod, Db, Dir) ->
+  try store_module(Mod, Db, Dir) of
+    ok -> {ok, Mod}
+  catch
+    throw:module_not_loaded ->
+      {error, {module_not_loaded, Mod}}
+  end.
 
 %%====================================================================
 %% Internal functions
@@ -43,10 +47,10 @@ load(Mod, Db) ->
 %% exported             [{Mod :: atom(), Fun :: atom(), Arity :: non_neg_integer()}]  
 %% attributes           Attrs :: [{cerl(), cerl()}]
 %% {Mod, Fun, Arity}    {Def :: #c_fun{}, Exported :: boolean()}
-store_module(Mod, Db) ->
+store_module(Mod, Db, Dir) ->
 
   %% Compile the module to Core Erlang
-  Core = compile_core(Mod),
+  Core = compile_core(Mod, Dir),
   
   %% Build Core Erlang Abstract Syntax Tree
   {ok, Tokens, _} = scan_file(Core),
@@ -62,11 +66,22 @@ store_module(Mod, Db) ->
   ok.
   
 %% Compile the module source to Core Erlang
-compile_core(Mod) ->
-  Source = filename:absname(Mod) ++ ".erl",
-  compile:file(Source, [to_core]),
-  filename:absname(Mod) ++ ".core".
+compile_core(Mod, Dir) ->
+  {ok, BeamPath} = ensure_mod_loaded(Mod),
+  {ok, {_, [{compile_info, Info}]}} = beam_lib:chunks(BeamPath, [compile_info]),
+  Source = proplists:get_value(source, Info),
   
+  compile:file(Source, [to_core, {outdir, Dir}]),
+  Dir ++ "/" ++ atom_to_list(Mod) ++ ".core".
+  
+ensure_mod_loaded(Mod) ->
+  case code:which(Mod) of
+    non_existing ->
+      erlang:throw(module_not_loaded);
+    Path ->
+      {ok, Path}
+  end.
+    
 %% Core Erlang Scanner
 scan_file(File) ->
   {ok, FileContents} = file:read_file(File),

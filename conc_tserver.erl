@@ -32,9 +32,9 @@ terminate(_Reason, State) ->
   %% TODO
   %% reconstruct Process Tree and Traces Tree
   %%
-    io:format("***** Traces *****~n"),
-    report(Super, Traces, Ptree),
-    io:format("******************~n"),
+%    io:format("***** Traces *****~n"),
+%    report(Super, Traces, Ptree),
+%    io:format("******************~n"),
   %%
   %%
   ets:delete(Traces),

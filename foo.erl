@@ -1,5 +1,5 @@
 -module(foo).
--export([mymin/1, test/3, test/2, test/0, goo/1, boo/1, y/1, moo/0]).
+-export([mymin/1, test/3, test/2, test/0, goo/1, boo/1, y/1, moo/0, test_fac/1, fac/1, r/1, loop/0, send/1, spawn/3]).
 
 mymin([H|T]) -> mymin(T, H).
 
@@ -47,3 +47,34 @@ boo(X) ->
 y(M) ->
     G = fun (F) -> M(fun() -> (F(F))() end) end,
     G(G).
+    
+fac(0) -> 1;
+fac(N) when N > 0 -> N*fac(N-1).
+test_fac(X) -> fac(X),ok.
+
+r(X) ->
+  receive
+    ok -> X
+  end.
+  
+send(Pid) ->
+%  timer:sleep(100),
+  Pid ! gello,
+  Pid ! {self(), test_msg}.
+  
+loop() ->
+  Pid = erlang:spawn(foo, send, [self()]),
+  receive
+    {Pid, Msg} -> Msg
+  after 100 -> bored
+  end.
+  
+spawn(M, F, A) ->
+  Parent = self(),
+  Fun = fun() ->
+    io:format("Parent : ~p, Me : ~p~n", [Parent, self()]),
+    R = apply(M, F, A),
+    io:format("Result = ~p~n", [R])
+  end,
+  erlang:spawn(Fun),
+  ok.
