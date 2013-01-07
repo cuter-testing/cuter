@@ -643,7 +643,8 @@ pattern_match(concrete, Type, TraceServer, {c_alias, _Anno, Var, Pat}, V) ->
 %% that apply pattern_matching to a sequence of patterns and values
 pattern_match_all(concrete, Type, TraceServer, Pats, EVals) ->
   pattern_match_all(concrete, Type, TraceServer, Pats, EVals, []).
-    
+  
+%% Helper function pattern_match_all/6
 pattern_match_all(concrete, _Type, _TraceServer, [] ,[], Mappings) ->
   {true, Mappings};
 pattern_match_all(concrete, _Type, _TraceServer, _Pats, [], _Mappings) ->
