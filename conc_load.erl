@@ -30,8 +30,14 @@ load(Mod, Db, Dir) ->
   try store_module(Mod, Db, Dir) of
     ok -> {ok, Mod}
   catch
-    throw:module_not_loaded ->
-      {error, {module_not_loaded, Mod}}
+    throw:non_existing ->
+      {error, {non_existing, Mod}};
+    throw:preloaded ->
+      {error, {preloaded, Mod}};
+    throw:cover_compiled ->
+      {error, {cover_compiled, Mod}};
+    throw:{compile, Errors} ->
+      {error, {compile, {Mod, Errors}}}
   end.
 
 %%====================================================================
@@ -70,18 +76,24 @@ compile_core(Mod, Dir) ->
   {ok, BeamPath} = ensure_mod_loaded(Mod),
   {ok, {_, [{compile_info, Info}]}} = beam_lib:chunks(BeamPath, [compile_info]),
   Source = proplists:get_value(source, Info),
-  
-  compile:file(Source, [to_core, {outdir, Dir}]),
-  Dir ++ "/" ++ atom_to_list(Mod) ++ ".core".
+  Includes = proplists:lookup_all(i, proplists:get_value(options, Info)),
+  CompInfo = [to_core, return_errors, {outdir, Dir}] ++ Includes,
+  CompRet = compile:file(Source, CompInfo),
+  case CompRet of
+    {ok, Mod} ->
+      Dir ++ "/" ++ atom_to_list(Mod) ++ ".core";
+    Errors ->
+      erlang:throw({compile, Errors})
+  end.
   
 ensure_mod_loaded(Mod) ->
   case code:which(Mod) of
     non_existing ->
-      erlang:throw(module_not_loaded);
+      erlang:throw(non_existing);
     preloaded ->
-      erlang:throw(preloaded_modules_not_supported);
+      erlang:throw(preloaded);
     cover_compiled ->
-      erlang:throw(cover_compiled_modules_not_supported);
+      erlang:throw(cover_compiled);
     Path ->
       {ok, Path}
   end.
@@ -128,5 +140,9 @@ store_module_funs(Mod, AST, Db) ->
 store_fun(Exps, Mod, {Fun, Def}, Db) ->
   {FunName, Arity} = Fun#c_var.name,
   Exported = lists:member({Mod, FunName, Arity}, Exps),
+%  case Mod of
+%      timer -> io:format("Timer:~p/~p~n",[FunName, Arity]);
+%      _ -> ok
+%  end,
   ets:insert(Db, {{Mod, FunName, Arity}, {Def, Exported}}).
 %  io:format("[conc_load]: Stored Function : ~p:~p/~p (~p) =~n~p~n", [Mod, FunName, Arity, Exported, Def]).

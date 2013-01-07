@@ -15,7 +15,6 @@
 -type semantic_value() :: term() | #valuelist{}.
 
 
-
 %%====================================================================
 %% External exports
 %%====================================================================
@@ -36,7 +35,7 @@ add_binding(Var, Val, Env) ->
 is_bound(Var, Environment) ->
   orddict:is_key(Var, Environment).
   
-%% Get the Value of a bound Variable
+%% Gets the Value of a bound Variable
 %% Returns {ok, Value} if Var is bound,
 %% or error if Var is unbound.
 -spec get_value(semantic_var(), environment()) -> semantic_value().
@@ -48,15 +47,21 @@ get_value(Var, Environment) ->
   end.
   
 %% Add new mappings to environment
+%% Mappings may be a deeply nested list
 -spec add_mappings_to_environment([{semantic_var(), semantic_value()}], environment()) -> environment().
 add_mappings_to_environment([], Env) ->
   Env;
-add_mappings_to_environment([{Var, Value}|Ms], Env) ->
-  NEnv = add_binding(Var, Value, Env),
+add_mappings_to_environment([M | Ms], Env)
+  when is_list(M) ->
+    NEnv = add_mappings_to_environment(M, Env),
+    add_mappings_to_environment(Ms, NEnv);
+add_mappings_to_environment([{Var, Val} | Ms], Env) ->
+  NEnv = add_binding(Var, Val, Env),
   add_mappings_to_environment(Ms, NEnv).
   
+%% Returns true if an MFA is an Erlang BIF
 is_bif(erlang, _F, _A)    -> true;
-is_bif(net_kernel, _F, _A) -> true;
+is_bif(net_kernel, dflag_unicode_io, 1) -> true;
 is_bif(lists, member, 2)  -> true;
 is_bif(lists, reverse, 2) -> true;
 is_bif(lists, keymember, 3) -> true;

@@ -1,46 +1,27 @@
 -module(conc).
 -compile([export_all]).
 
-start(Mod, Fun, Args)
-  when is_atom(Mod); is_list(Mod) ->
+start(M, F, As) ->
   
-    %% Start Code and Trace Servers
-    Dir = filename:absname("core"),
-    {ok, CodeServer} = gen_server:start_link(conc_cserver, [Dir], []),  % Start code server
-    {ok, TraceServer} = gen_server:start_link(conc_tserver, [self()], []),           % Start trace server
-    
-    StartArgs = [{named, {Mod, Fun}}, Args, concrete, external, CodeServer, TraceServer, self()],
-%    spawn(conc_eval, eval, StartArgs),
-    spawn(?MODULE, chk, [self(), StartArgs]),
-    receive
-      {Time, Val} ->
-        io:format("Time = ~w secs~nResult = ~p~n", [Time/1000000, Val])
-    end,
-%    io:format("[conc]: Spawned ~p~n", [P]),
-%    receive
-%      B ->
-%        io:format("[conc]: Concrete Eval of ~p:~p(~p) =~n~p~n", [Mod, Fun, Args, B])
-%    end,
-
-    receive
-      {TraceServer, Msg} ->
-        gen_server:call(CodeServer, terminate),
-        {ok, Msg}
-    end;
-
-
-start(_, _, _) ->
-  {error, invalid_module_name}.
+  %% Start Code and Trace Servers
+  Dir = filename:absname("core"),
+  {ok, CodeServer} = gen_server:start_link(conc_cserver, [Dir], []),  % Start code server
+  {ok, TraceServer} = gen_server:start_link(conc_tserver, [self()], []),           % Start trace server
   
-chk(S, As) ->
+  Start = now(),
 %  eprof:start(),
 %  eprof:start_profiling([self()]),
-  Start = now(),
-  Val = apply(conc_eval, eval, As),
-  End  = now(),
-%  eprof:stop_profiling(),
-%  eprof:analyze(),
-%  eprof:stop(),
-  Time = timer:now_diff(End, Start),
-  S ! {Time, Val}.
+  Result = conc_eval:i(M, F, As, CodeServer, TraceServer),
+  io:format("Result = ~p~n", [Result]),
+  receive
+    {TraceServer, Msg} ->
+%      eprof:stop_profiling(),
+%      eprof:analyze(),
+%      eprof:stop(),
+      gen_server:call(CodeServer, terminate),
+      End  = now(),
+      Time = timer:now_diff(End, Start),
+      io:format("Time elapsed = ~w secs~n", [Time/1000000]),
+      {ok, Msg}
+  end.
 

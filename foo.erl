@@ -1,5 +1,6 @@
 -module(foo).
--export([mymin/1, test/3, test/2, test/0, goo/1, boo/1, y/1, moo/0, test_fac/1, fac/1, r/1, loop/0, send/1, spawn/3]).
+-export([mymin/1, test/3, test/2, test/0, goo/1, boo/1, y/1, moo/0, test_fac/1, fac/1, r/1, loop/0, send/1, spawn/3, moo/1,
+  qoo/1]).
 
 mymin([H|T]) -> mymin(T, H).
 
@@ -16,9 +17,11 @@ test(A, B) ->
   {X(A), test(), Y(X, B), lists:reverse([1,2,3])}.
   
 test() ->
-  lists:map(fun moo/1, [1,2,3]).
+  lists:map(fun too/1, [1,{2,3},"546"]).
   
 moo() -> [X+Y || X <- [1,2], Y <- [2,3]].
+
+too(X) -> io:format("~p~n", [X]).
   
 test(A, B, {C, D}=E) ->
   case A of
@@ -72,11 +75,18 @@ loop() ->
 spawn(M, F, A) ->
   Parent = self(),
   Fun = fun() ->
-%    io:format("Parent : ~p, Me : ~p~n", [Parent, self()]),
-    R = apply(M, F, A)
-%    io:format("Result = ~p~n", [R])
+    io:format("Parent : ~p, Me : ~p~n", [Parent, self()]),
+    R = apply(M, F, A),
+    io:format("Result = ~p~n", [R])
   end,
-  erlang:spawn(Fun),
+  erlang:spawn_opt(Fun, [monitor]),
 %  dict:new(),
 %  timer:sleep(100),
+  ok.
+  
+qoo(Z) ->
+  F = fun() -> exit(vgainw), io:format("F~n") end,
+  G = fun() -> lists:reverse(lists:reverse(lists:reverse(Z))), io:format("G~n") end,
+  K = fun() -> timer:sleep(1000), io:format("K~n") end,
+  erlang:spawn(G),erlang:spawn(K),erlang:spawn(F),
   ok.

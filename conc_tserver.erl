@@ -85,11 +85,16 @@ handle_info({'DOWN', _Ref, process, Who, normal}, State) ->
   end;
   
 handle_info({'DOWN', _Ref, process, Who, Reason}, State) ->
+  io:format("[conc_tserver]: Exception in ~p  : ~p~n", [Who, Reason]),
   Procs = State#state.procs,
   NewProcs = lists:delete(Who, Procs),
-  %% TODO Kill all processes
-  io:format("[conc_tserver]: ~p : ~p~n", [Who, Reason]),
-  {stop, normal, State#state{procs=NewProcs}};
+  io:format("Killings procs ~p~n", [NewProcs]),
+  %% Killing all remaining alive processes
+  lists:map(
+    fun(P) -> exit(P, kill) end,
+    NewProcs
+  ),
+  {stop, normal, State#state{procs=[]}};
   
 handle_info(Msg, State) ->
   %% Just outputting unexpected messages for now

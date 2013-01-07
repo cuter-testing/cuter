@@ -64,9 +64,8 @@ handle_call({load, M}, _From, State) ->
   io:format("[load]: Got request for module : ~p~n", [M]),
   case is_mod_stored(M, State) of
     {true, MDb} ->
-      {reply, {ok, {M, MDb}}, State};
+      {reply, {ok, MDb}, State};
     false ->
-      io:format("[load]: Will load module : ~p~n", [M]),
       %% Create an ETS table to store the code of the module
       Db = State#state.db,
       MDb = ets:new(M, [ordered_set, protected]),
@@ -79,6 +78,7 @@ handle_call({load, M}, _From, State) ->
       %% Reply
       case Reply of
         {ok, M} ->
+          io:format("[load]: Loaded module ~p~n", [M]),
           {reply, {ok, MDb}, State};
         _ ->
           {reply, Reply, State}
