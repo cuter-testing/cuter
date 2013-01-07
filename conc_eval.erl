@@ -577,66 +577,61 @@ match_clause(M, concrete, Type, CodeServer, TraceServer, {c_clause, _Anno, Pats,
   
   
 %%----------------------------------------------------------------------
-%% pattern_match(Mode, TraceServer, Pat, Val) -> Match
+%% pattern_match(Mode, TraceServer, Pat, Val, Maps) -> Match
 %%   Mode :: concrete | symbolic
 %%   TraceServer :: pid()
 %%   Pat :: cerl()
 %%   Val :: term()
+%%   Maps :: [{semantic_var(), semantic_value()}]
 %%   Match = {true, Map} | false
-%%     Map :: [{semantic_var(), semantic_value()}]
+%%    Map :: [{semantic_var(), semantic_value()}]
 %% Pattern Match an evaluated expression Val with a pattern Pat.
-%% If it succeeds, it returns {true, Map}, yielding a mapping Map.
+%% If it succeeds, it returns {true, Map}, yielding a mapping Map,
+%% which is appended to current list of Maps.
 %% If it fails, it returns false.
 %%----------------------------------------------------------------------
 
 %% AtomicLiteral pattern
-pattern_match(concrete, _Type, _TraceServer, {c_literal, _Anno, LitVal}, V) ->
+pattern_match(concrete, _Type, _TraceServer, {c_literal, _Anno, LitVal}, V, Maps) ->
   case LitVal =:= V of
     true ->
-      {true, []};
+      {true, Maps};
     false ->
       false
   end;
   
 %% VariableName pattern
-pattern_match(concrete, _Type, _TraceServer, {c_var, _Anno, Name}, V) ->
-  {true, [{Name, V}]};
+pattern_match(concrete, _Type, _TraceServer, {c_var, _Anno, Name}, V, Maps) ->
+  {true, [{Name, V} | Maps]};
   
 %% Tuple pattern
-pattern_match(concrete, Type,  TraceServer, {c_tuple, _Anno, Es}, V)
+pattern_match(concrete, Type,  TraceServer, {c_tuple, _Anno, Es}, V, Maps)
   when is_tuple(V) ->
     Vs = tuple_to_list(V),
-    pattern_match_all(concrete, Type, TraceServer, Es, Vs);
-pattern_match(concrete, _Type, _TraceServer, {c_tuple, _Anno, _Es}, _V) ->
+    pattern_match_all(concrete, Type, TraceServer, Es, Vs, Maps);
+pattern_match(concrete, _Type, _TraceServer, {c_tuple, _Anno, _Es}, _V, _Maps) ->
   false;
   
 %% List constructor pattern
-%% TODO tail recursive
-pattern_match(concrete, Type, TraceServer, {c_cons, _Anno, Hd, Tl}, [V|Vs]) ->
-  case pattern_match(concrete, Type, TraceServer, Hd, V) of
+pattern_match(concrete, Type, TraceServer, {c_cons, _Anno, Hd, Tl}, [V|Vs], Maps) ->
+  case pattern_match(concrete, Type, TraceServer, Hd, V, Maps) of
     false ->
       false;
     {true, Mapping_Hd} ->
-      case pattern_match(concrete, Type, TraceServer, Tl, Vs) of
-        false ->
-          false;
-        {true, Mapping_Tl} ->
-          %% Creating deep list of mappings
-          {true, [Mapping_Hd | Mapping_Tl]}
-      end
+      pattern_match(concrete, Type, TraceServer, Tl, Vs, Mapping_Hd)
   end;
-pattern_match(concrete, _Type, _TraceServer, {c_cons, _Anno, _Hd, _Tl}, _V) ->
+pattern_match(concrete, _Type, _TraceServer, {c_cons, _Anno, _Hd, _Tl}, _V, _Maps) ->
   false;
   
 %% Alias pattern
-pattern_match(concrete, Type, TraceServer, {c_alias, _Anno, Var, Pat}, V) ->
-  Match = pattern_match(concrete, Type, TraceServer, Pat, V),
+pattern_match(concrete, Type, TraceServer, {c_alias, _Anno, Var, Pat}, V, Maps) ->
+  Match = pattern_match(concrete, Type, TraceServer, Pat, V, Maps),
   case Match of
     false ->
       false;
-    {true, Mapping} ->
+    {true, Mappings} ->
       VarName = Var#c_var.name,
-      {true, [{VarName, V}|Mapping]}
+      {true, [{VarName, V}|Mappings]}
   end.
 
 %% Helper functions pattern_match_all/4 and pattern_match_all/5
@@ -644,7 +639,6 @@ pattern_match(concrete, Type, TraceServer, {c_alias, _Anno, Var, Pat}, V) ->
 pattern_match_all(concrete, Type, TraceServer, Pats, EVals) ->
   pattern_match_all(concrete, Type, TraceServer, Pats, EVals, []).
   
-%% Helper function pattern_match_all/6
 pattern_match_all(concrete, _Type, _TraceServer, [] ,[], Mappings) ->
   {true, Mappings};
 pattern_match_all(concrete, _Type, _TraceServer, _Pats, [], _Mappings) ->
@@ -652,11 +646,10 @@ pattern_match_all(concrete, _Type, _TraceServer, _Pats, [], _Mappings) ->
 pattern_match_all(concrete, _Type, _TraceServer, [], _EVals, _Mappings) ->
   false;
 pattern_match_all(concrete, Type, TraceServer, [Pat|Pats], [EVal|EVals], Mappings) ->
-  Match = pattern_match(concrete, Type, TraceServer, Pat, EVal),
+  Match = pattern_match(concrete, Type, TraceServer, Pat, EVal, Mappings),
   case Match of
     {true, Maps} ->
-      %% Creating deep list of mappings
-      pattern_match_all(concrete, Type, TraceServer, Pats, EVals, [Maps | Mappings]);
+      pattern_match_all(concrete, Type, TraceServer, Pats, EVals, Maps);
     false ->
       false
   end.
