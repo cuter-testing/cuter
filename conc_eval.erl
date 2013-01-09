@@ -4,6 +4,8 @@
 -include_lib("compiler/src/core_parse.hrl").
 -include("conc_lib.hrl").
 
+-define(TRACE_CALLS, false).
+
 %%--------------------------------------------------------------------------
 %% i(M, F, A, CodeServer, TraceServer) -> Val
 %%   M :: atom()
@@ -54,6 +56,7 @@ i(M, F, A, CodeServer, TraceServer) ->
 %% spawn_link/1 spawn_link/2, spawn_link/3, spawn_link/4
 eval({named, {erlang, F}}, As, concrete, _CallType, CodeServer, TraceServer)
   when F =:= spawn; F =:= spawn_link ->
+    send_trace(TraceServer, {func_call, {erlang, F, length(As), As}}, ?TRACE_CALLS),
     ChildPid = 
       case As of
         [Fun] ->
@@ -83,6 +86,7 @@ eval({named, {erlang, F}}, As, concrete, _CallType, CodeServer, TraceServer)
     
 %% Handle spawn_monitor/1, spawn_monitor/3
 eval({named, {erlang, spawn_monitor}}, As, concrete, _CallType, CodeServer, TraceServer) ->
+  send_trace(TraceServer, {func_call, {erlang, spawn_monitor, length(As), As}}, ?TRACE_CALLS),
   EvalArgs =
     case As of
       [Fun] ->
@@ -101,6 +105,7 @@ eval({named, {erlang, spawn_monitor}}, As, concrete, _CallType, CodeServer, Trac
   
 %% Handle spawn_opt/2, spawn_opt/3, spawn_opt/4, spawn_opt/5
 eval({named, {erlang, spawn_opt}}, As, concrete, _CallType, CodeServer, TraceServer) ->
+  send_trace(TraceServer, {func_call, {erlang, spawn_opt, length(As), As}}, ?TRACE_CALLS),
   {ChildPid, ChildRef} = 
     case As of
       [Fun, Opts] ->
@@ -131,6 +136,7 @@ eval({named, {erlang, spawn_opt}}, As, concrete, _CallType, CodeServer, TraceSer
   
 %% Handle apply/2, apply/3
 eval({named, {erlang, apply}}, As, concrete, _CallType, CodeServer, TraceServer) ->
+  send_trace(TraceServer, {func_call, {erlang, apply, length(As), As}}, ?TRACE_CALLS),
   EvalArgs =
     case As of
       [Fun, Args] ->
@@ -145,6 +151,7 @@ eval({named, {erlang, apply}}, As, concrete, _CallType, CodeServer, TraceServer)
 
 %% Handle make_fun/3  
 eval({named, {erlang, make_fun}}, As, concrete, _CallType, CodeServer, TraceServer) ->
+  send_trace(TraceServer, {func_call, {erlang, make_fun, length(As), As}}, ?TRACE_CALLS),
   case As of
     [M, F, Arity] ->
       make_fun(M, F, Arity, concrete, CodeServer, TraceServer);
@@ -155,6 +162,7 @@ eval({named, {erlang, make_fun}}, As, concrete, _CallType, CodeServer, TraceServ
 %% Handle an MFA
 eval({named, {M, F}}, As, concrete, CallType, CodeServer, TraceServer) ->
   Arity = length(As),
+  send_trace(TraceServer, {func_call, {M, F, Arity, As}}, ?TRACE_CALLS),
   case conc_lib:is_bif(M, F, Arity) of
     true ->
       apply(M, F, As);

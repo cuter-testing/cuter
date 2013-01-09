@@ -66,11 +66,12 @@ handle_call(terminate, _From, State) ->
   
 handle_cast({trace, Who, Trace}, State) ->
   Traces = State#state.traces,
+  EncTrace = term_to_binary(Trace),
   case ets:lookup(Traces, Who) of
     [] ->
-      ets:insert(Traces, {Who, [Trace]});
+      ets:insert(Traces, {Who, [EncTrace]});
     [{Who, OldTrace}] ->
-      ets:insert(Traces, {Who, [Trace | OldTrace]})
+      ets:insert(Traces, {Who, [EncTrace | OldTrace]})
   end,
   {noreply, State}.
 
