@@ -1,7 +1,8 @@
 conc-test-ref
 =============
 
-c(foo), c(conc), c(conc_cserver), c(conc_load), c(conc_eval), c(conc_tserver), c(conc_lib).
+c(rush), c(foo), c(conc), c(conc_cserver), c(conc_load), c(conc_eval), c(conc_tserver), c(conc_lib).
+c(rush), c(foo), c(conc,[native]), c(conc_cserver,[native]), c(conc_load,[native]), c(conc_eval,[native]), c(conc_tserver,[native]), c(conc_lib,[native]).
 conc:start(foo,mymin,[[a,b,c]]).
 conc:start(foo,spawn,[lists,reverse,[[1,2,3]]]).
 conc:start(rush, solve, [6,6,{2,0},[{0,{2,3},{2,4}},{1,{0,0},{2,0}},{2,{4,0},{4,1}},{3,{5,1},{5,3}},{4,{1,2},{3,2}},{5,{0,4},{0,5}},{6,{1,5},{3,5}},{7,{4,5},{5,5}}]]).

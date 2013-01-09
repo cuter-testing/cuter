@@ -141,6 +141,11 @@ delete_stored_core_files(Dir) ->
   {ok, Filenames} = file:list_dir(Dir),
   lists:map(
     fun(File) ->
-      ok = file:delete(Dir ++ "/" ++ File)
+      case File =/= "README" of
+        true ->
+          ok = file:delete(Dir ++ "/" ++ File);
+        false ->
+          ok
+      end
     end,
   Filenames).
