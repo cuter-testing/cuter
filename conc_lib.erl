@@ -1134,518 +1134,6 @@ make_bitstring(Val, Size, Unit, Type, Flags) ->
       <<Val:Size/signed-big-float-unit:255>>;
     {_, 256, float, signed, big} ->
       <<Val:Size/signed-big-float-unit:256>>;
-    {_, 1, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:1>>;
-    {_, 2, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:2>>;
-    {_, 3, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:3>>;
-    {_, 4, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:4>>;
-    {_, 5, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:5>>;
-    {_, 6, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:6>>;
-    {_, 7, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:7>>;
-    {_, 8, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:8>>;
-    {_, 9, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:9>>;
-    {_, 10, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:10>>;
-    {_, 11, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:11>>;
-    {_, 12, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:12>>;
-    {_, 13, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:13>>;
-    {_, 14, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:14>>;
-    {_, 15, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:15>>;
-    {_, 16, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:16>>;
-    {_, 17, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:17>>;
-    {_, 18, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:18>>;
-    {_, 19, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:19>>;
-    {_, 20, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:20>>;
-    {_, 21, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:21>>;
-    {_, 22, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:22>>;
-    {_, 23, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:23>>;
-    {_, 24, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:24>>;
-    {_, 25, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:25>>;
-    {_, 26, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:26>>;
-    {_, 27, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:27>>;
-    {_, 28, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:28>>;
-    {_, 29, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:29>>;
-    {_, 30, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:30>>;
-    {_, 31, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:31>>;
-    {_, 32, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:32>>;
-    {_, 33, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:33>>;
-    {_, 34, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:34>>;
-    {_, 35, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:35>>;
-    {_, 36, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:36>>;
-    {_, 37, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:37>>;
-    {_, 38, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:38>>;
-    {_, 39, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:39>>;
-    {_, 40, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:40>>;
-    {_, 41, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:41>>;
-    {_, 42, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:42>>;
-    {_, 43, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:43>>;
-    {_, 44, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:44>>;
-    {_, 45, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:45>>;
-    {_, 46, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:46>>;
-    {_, 47, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:47>>;
-    {_, 48, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:48>>;
-    {_, 49, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:49>>;
-    {_, 50, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:50>>;
-    {_, 51, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:51>>;
-    {_, 52, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:52>>;
-    {_, 53, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:53>>;
-    {_, 54, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:54>>;
-    {_, 55, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:55>>;
-    {_, 56, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:56>>;
-    {_, 57, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:57>>;
-    {_, 58, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:58>>;
-    {_, 59, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:59>>;
-    {_, 60, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:60>>;
-    {_, 61, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:61>>;
-    {_, 62, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:62>>;
-    {_, 63, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:63>>;
-    {_, 64, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:64>>;
-    {_, 65, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:65>>;
-    {_, 66, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:66>>;
-    {_, 67, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:67>>;
-    {_, 68, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:68>>;
-    {_, 69, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:69>>;
-    {_, 70, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:70>>;
-    {_, 71, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:71>>;
-    {_, 72, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:72>>;
-    {_, 73, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:73>>;
-    {_, 74, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:74>>;
-    {_, 75, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:75>>;
-    {_, 76, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:76>>;
-    {_, 77, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:77>>;
-    {_, 78, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:78>>;
-    {_, 79, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:79>>;
-    {_, 80, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:80>>;
-    {_, 81, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:81>>;
-    {_, 82, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:82>>;
-    {_, 83, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:83>>;
-    {_, 84, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:84>>;
-    {_, 85, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:85>>;
-    {_, 86, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:86>>;
-    {_, 87, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:87>>;
-    {_, 88, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:88>>;
-    {_, 89, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:89>>;
-    {_, 90, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:90>>;
-    {_, 91, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:91>>;
-    {_, 92, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:92>>;
-    {_, 93, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:93>>;
-    {_, 94, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:94>>;
-    {_, 95, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:95>>;
-    {_, 96, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:96>>;
-    {_, 97, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:97>>;
-    {_, 98, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:98>>;
-    {_, 99, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:99>>;
-    {_, 100, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:100>>;
-    {_, 101, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:101>>;
-    {_, 102, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:102>>;
-    {_, 103, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:103>>;
-    {_, 104, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:104>>;
-    {_, 105, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:105>>;
-    {_, 106, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:106>>;
-    {_, 107, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:107>>;
-    {_, 108, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:108>>;
-    {_, 109, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:109>>;
-    {_, 110, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:110>>;
-    {_, 111, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:111>>;
-    {_, 112, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:112>>;
-    {_, 113, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:113>>;
-    {_, 114, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:114>>;
-    {_, 115, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:115>>;
-    {_, 116, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:116>>;
-    {_, 117, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:117>>;
-    {_, 118, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:118>>;
-    {_, 119, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:119>>;
-    {_, 120, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:120>>;
-    {_, 121, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:121>>;
-    {_, 122, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:122>>;
-    {_, 123, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:123>>;
-    {_, 124, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:124>>;
-    {_, 125, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:125>>;
-    {_, 126, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:126>>;
-    {_, 127, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:127>>;
-    {_, 128, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:128>>;
-    {_, 129, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:129>>;
-    {_, 130, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:130>>;
-    {_, 131, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:131>>;
-    {_, 132, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:132>>;
-    {_, 133, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:133>>;
-    {_, 134, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:134>>;
-    {_, 135, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:135>>;
-    {_, 136, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:136>>;
-    {_, 137, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:137>>;
-    {_, 138, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:138>>;
-    {_, 139, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:139>>;
-    {_, 140, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:140>>;
-    {_, 141, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:141>>;
-    {_, 142, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:142>>;
-    {_, 143, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:143>>;
-    {_, 144, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:144>>;
-    {_, 145, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:145>>;
-    {_, 146, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:146>>;
-    {_, 147, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:147>>;
-    {_, 148, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:148>>;
-    {_, 149, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:149>>;
-    {_, 150, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:150>>;
-    {_, 151, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:151>>;
-    {_, 152, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:152>>;
-    {_, 153, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:153>>;
-    {_, 154, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:154>>;
-    {_, 155, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:155>>;
-    {_, 156, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:156>>;
-    {_, 157, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:157>>;
-    {_, 158, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:158>>;
-    {_, 159, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:159>>;
-    {_, 160, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:160>>;
-    {_, 161, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:161>>;
-    {_, 162, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:162>>;
-    {_, 163, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:163>>;
-    {_, 164, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:164>>;
-    {_, 165, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:165>>;
-    {_, 166, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:166>>;
-    {_, 167, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:167>>;
-    {_, 168, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:168>>;
-    {_, 169, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:169>>;
-    {_, 170, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:170>>;
-    {_, 171, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:171>>;
-    {_, 172, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:172>>;
-    {_, 173, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:173>>;
-    {_, 174, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:174>>;
-    {_, 175, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:175>>;
-    {_, 176, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:176>>;
-    {_, 177, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:177>>;
-    {_, 178, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:178>>;
-    {_, 179, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:179>>;
-    {_, 180, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:180>>;
-    {_, 181, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:181>>;
-    {_, 182, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:182>>;
-    {_, 183, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:183>>;
-    {_, 184, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:184>>;
-    {_, 185, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:185>>;
-    {_, 186, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:186>>;
-    {_, 187, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:187>>;
-    {_, 188, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:188>>;
-    {_, 189, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:189>>;
-    {_, 190, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:190>>;
-    {_, 191, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:191>>;
-    {_, 192, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:192>>;
-    {_, 193, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:193>>;
-    {_, 194, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:194>>;
-    {_, 195, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:195>>;
-    {_, 196, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:196>>;
-    {_, 197, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:197>>;
-    {_, 198, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:198>>;
-    {_, 199, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:199>>;
-    {_, 200, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:200>>;
-    {_, 201, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:201>>;
-    {_, 202, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:202>>;
-    {_, 203, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:203>>;
-    {_, 204, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:204>>;
-    {_, 205, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:205>>;
-    {_, 206, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:206>>;
-    {_, 207, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:207>>;
-    {_, 208, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:208>>;
-    {_, 209, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:209>>;
-    {_, 210, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:210>>;
-    {_, 211, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:211>>;
-    {_, 212, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:212>>;
-    {_, 213, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:213>>;
-    {_, 214, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:214>>;
-    {_, 215, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:215>>;
-    {_, 216, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:216>>;
-    {_, 217, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:217>>;
-    {_, 218, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:218>>;
-    {_, 219, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:219>>;
-    {_, 220, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:220>>;
-    {_, 221, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:221>>;
-    {_, 222, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:222>>;
-    {_, 223, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:223>>;
-    {_, 224, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:224>>;
-    {_, 225, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:225>>;
-    {_, 226, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:226>>;
-    {_, 227, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:227>>;
-    {_, 228, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:228>>;
-    {_, 229, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:229>>;
-    {_, 230, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:230>>;
-    {_, 231, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:231>>;
-    {_, 232, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:232>>;
-    {_, 233, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:233>>;
-    {_, 234, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:234>>;
-    {_, 235, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:235>>;
-    {_, 236, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:236>>;
-    {_, 237, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:237>>;
-    {_, 238, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:238>>;
-    {_, 239, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:239>>;
-    {_, 240, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:240>>;
-    {_, 241, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:241>>;
-    {_, 242, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:242>>;
-    {_, 243, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:243>>;
-    {_, 244, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:244>>;
-    {_, 245, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:245>>;
-    {_, 246, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:246>>;
-    {_, 247, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:247>>;
-    {_, 248, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:248>>;
-    {_, 249, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:249>>;
-    {_, 250, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:250>>;
-    {_, 251, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:251>>;
-    {_, 252, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:252>>;
-    {_, 253, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:253>>;
-    {_, 254, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:254>>;
-    {_, 255, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:255>>;
-    {_, 256, binary, signed, big} ->
-      <<Val:Size/signed-big-binary-unit:256>>;
     {all, 1, binary, signed, big} ->
       <<Val:Size/signed-big-binary-unit:1>>;
     {all, 2, binary, signed, big} ->
@@ -2157,6 +1645,518 @@ make_bitstring(Val, Size, Unit, Type, Flags) ->
     {all, 255, binary, signed, big} ->
       <<Val:Size/signed-big-binary-unit:255>>;
     {all, 256, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:256>>;
+    {_, 1, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:1>>;
+    {_, 2, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:2>>;
+    {_, 3, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:3>>;
+    {_, 4, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:4>>;
+    {_, 5, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:5>>;
+    {_, 6, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:6>>;
+    {_, 7, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:7>>;
+    {_, 8, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:8>>;
+    {_, 9, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:9>>;
+    {_, 10, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:10>>;
+    {_, 11, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:11>>;
+    {_, 12, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:12>>;
+    {_, 13, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:13>>;
+    {_, 14, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:14>>;
+    {_, 15, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:15>>;
+    {_, 16, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:16>>;
+    {_, 17, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:17>>;
+    {_, 18, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:18>>;
+    {_, 19, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:19>>;
+    {_, 20, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:20>>;
+    {_, 21, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:21>>;
+    {_, 22, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:22>>;
+    {_, 23, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:23>>;
+    {_, 24, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:24>>;
+    {_, 25, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:25>>;
+    {_, 26, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:26>>;
+    {_, 27, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:27>>;
+    {_, 28, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:28>>;
+    {_, 29, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:29>>;
+    {_, 30, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:30>>;
+    {_, 31, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:31>>;
+    {_, 32, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:32>>;
+    {_, 33, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:33>>;
+    {_, 34, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:34>>;
+    {_, 35, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:35>>;
+    {_, 36, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:36>>;
+    {_, 37, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:37>>;
+    {_, 38, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:38>>;
+    {_, 39, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:39>>;
+    {_, 40, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:40>>;
+    {_, 41, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:41>>;
+    {_, 42, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:42>>;
+    {_, 43, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:43>>;
+    {_, 44, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:44>>;
+    {_, 45, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:45>>;
+    {_, 46, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:46>>;
+    {_, 47, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:47>>;
+    {_, 48, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:48>>;
+    {_, 49, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:49>>;
+    {_, 50, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:50>>;
+    {_, 51, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:51>>;
+    {_, 52, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:52>>;
+    {_, 53, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:53>>;
+    {_, 54, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:54>>;
+    {_, 55, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:55>>;
+    {_, 56, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:56>>;
+    {_, 57, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:57>>;
+    {_, 58, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:58>>;
+    {_, 59, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:59>>;
+    {_, 60, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:60>>;
+    {_, 61, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:61>>;
+    {_, 62, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:62>>;
+    {_, 63, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:63>>;
+    {_, 64, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:64>>;
+    {_, 65, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:65>>;
+    {_, 66, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:66>>;
+    {_, 67, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:67>>;
+    {_, 68, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:68>>;
+    {_, 69, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:69>>;
+    {_, 70, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:70>>;
+    {_, 71, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:71>>;
+    {_, 72, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:72>>;
+    {_, 73, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:73>>;
+    {_, 74, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:74>>;
+    {_, 75, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:75>>;
+    {_, 76, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:76>>;
+    {_, 77, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:77>>;
+    {_, 78, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:78>>;
+    {_, 79, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:79>>;
+    {_, 80, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:80>>;
+    {_, 81, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:81>>;
+    {_, 82, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:82>>;
+    {_, 83, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:83>>;
+    {_, 84, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:84>>;
+    {_, 85, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:85>>;
+    {_, 86, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:86>>;
+    {_, 87, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:87>>;
+    {_, 88, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:88>>;
+    {_, 89, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:89>>;
+    {_, 90, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:90>>;
+    {_, 91, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:91>>;
+    {_, 92, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:92>>;
+    {_, 93, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:93>>;
+    {_, 94, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:94>>;
+    {_, 95, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:95>>;
+    {_, 96, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:96>>;
+    {_, 97, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:97>>;
+    {_, 98, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:98>>;
+    {_, 99, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:99>>;
+    {_, 100, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:100>>;
+    {_, 101, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:101>>;
+    {_, 102, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:102>>;
+    {_, 103, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:103>>;
+    {_, 104, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:104>>;
+    {_, 105, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:105>>;
+    {_, 106, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:106>>;
+    {_, 107, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:107>>;
+    {_, 108, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:108>>;
+    {_, 109, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:109>>;
+    {_, 110, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:110>>;
+    {_, 111, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:111>>;
+    {_, 112, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:112>>;
+    {_, 113, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:113>>;
+    {_, 114, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:114>>;
+    {_, 115, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:115>>;
+    {_, 116, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:116>>;
+    {_, 117, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:117>>;
+    {_, 118, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:118>>;
+    {_, 119, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:119>>;
+    {_, 120, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:120>>;
+    {_, 121, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:121>>;
+    {_, 122, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:122>>;
+    {_, 123, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:123>>;
+    {_, 124, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:124>>;
+    {_, 125, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:125>>;
+    {_, 126, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:126>>;
+    {_, 127, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:127>>;
+    {_, 128, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:128>>;
+    {_, 129, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:129>>;
+    {_, 130, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:130>>;
+    {_, 131, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:131>>;
+    {_, 132, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:132>>;
+    {_, 133, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:133>>;
+    {_, 134, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:134>>;
+    {_, 135, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:135>>;
+    {_, 136, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:136>>;
+    {_, 137, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:137>>;
+    {_, 138, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:138>>;
+    {_, 139, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:139>>;
+    {_, 140, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:140>>;
+    {_, 141, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:141>>;
+    {_, 142, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:142>>;
+    {_, 143, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:143>>;
+    {_, 144, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:144>>;
+    {_, 145, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:145>>;
+    {_, 146, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:146>>;
+    {_, 147, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:147>>;
+    {_, 148, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:148>>;
+    {_, 149, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:149>>;
+    {_, 150, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:150>>;
+    {_, 151, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:151>>;
+    {_, 152, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:152>>;
+    {_, 153, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:153>>;
+    {_, 154, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:154>>;
+    {_, 155, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:155>>;
+    {_, 156, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:156>>;
+    {_, 157, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:157>>;
+    {_, 158, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:158>>;
+    {_, 159, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:159>>;
+    {_, 160, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:160>>;
+    {_, 161, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:161>>;
+    {_, 162, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:162>>;
+    {_, 163, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:163>>;
+    {_, 164, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:164>>;
+    {_, 165, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:165>>;
+    {_, 166, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:166>>;
+    {_, 167, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:167>>;
+    {_, 168, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:168>>;
+    {_, 169, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:169>>;
+    {_, 170, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:170>>;
+    {_, 171, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:171>>;
+    {_, 172, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:172>>;
+    {_, 173, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:173>>;
+    {_, 174, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:174>>;
+    {_, 175, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:175>>;
+    {_, 176, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:176>>;
+    {_, 177, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:177>>;
+    {_, 178, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:178>>;
+    {_, 179, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:179>>;
+    {_, 180, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:180>>;
+    {_, 181, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:181>>;
+    {_, 182, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:182>>;
+    {_, 183, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:183>>;
+    {_, 184, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:184>>;
+    {_, 185, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:185>>;
+    {_, 186, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:186>>;
+    {_, 187, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:187>>;
+    {_, 188, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:188>>;
+    {_, 189, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:189>>;
+    {_, 190, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:190>>;
+    {_, 191, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:191>>;
+    {_, 192, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:192>>;
+    {_, 193, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:193>>;
+    {_, 194, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:194>>;
+    {_, 195, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:195>>;
+    {_, 196, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:196>>;
+    {_, 197, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:197>>;
+    {_, 198, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:198>>;
+    {_, 199, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:199>>;
+    {_, 200, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:200>>;
+    {_, 201, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:201>>;
+    {_, 202, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:202>>;
+    {_, 203, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:203>>;
+    {_, 204, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:204>>;
+    {_, 205, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:205>>;
+    {_, 206, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:206>>;
+    {_, 207, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:207>>;
+    {_, 208, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:208>>;
+    {_, 209, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:209>>;
+    {_, 210, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:210>>;
+    {_, 211, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:211>>;
+    {_, 212, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:212>>;
+    {_, 213, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:213>>;
+    {_, 214, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:214>>;
+    {_, 215, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:215>>;
+    {_, 216, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:216>>;
+    {_, 217, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:217>>;
+    {_, 218, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:218>>;
+    {_, 219, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:219>>;
+    {_, 220, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:220>>;
+    {_, 221, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:221>>;
+    {_, 222, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:222>>;
+    {_, 223, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:223>>;
+    {_, 224, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:224>>;
+    {_, 225, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:225>>;
+    {_, 226, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:226>>;
+    {_, 227, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:227>>;
+    {_, 228, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:228>>;
+    {_, 229, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:229>>;
+    {_, 230, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:230>>;
+    {_, 231, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:231>>;
+    {_, 232, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:232>>;
+    {_, 233, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:233>>;
+    {_, 234, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:234>>;
+    {_, 235, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:235>>;
+    {_, 236, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:236>>;
+    {_, 237, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:237>>;
+    {_, 238, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:238>>;
+    {_, 239, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:239>>;
+    {_, 240, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:240>>;
+    {_, 241, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:241>>;
+    {_, 242, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:242>>;
+    {_, 243, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:243>>;
+    {_, 244, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:244>>;
+    {_, 245, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:245>>;
+    {_, 246, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:246>>;
+    {_, 247, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:247>>;
+    {_, 248, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:248>>;
+    {_, 249, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:249>>;
+    {_, 250, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:250>>;
+    {_, 251, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:251>>;
+    {_, 252, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:252>>;
+    {_, 253, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:253>>;
+    {_, 254, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:254>>;
+    {_, 255, binary, signed, big} ->
+      <<Val:Size/signed-big-binary-unit:255>>;
+    {_, 256, binary, signed, big} ->
       <<Val:Size/signed-big-binary-unit:256>>;
     {_, 1, integer, unsigned, big} ->
       <<Val:Size/unsigned-big-integer-unit:1>>;
@@ -3182,518 +3182,6 @@ make_bitstring(Val, Size, Unit, Type, Flags) ->
       <<Val:Size/unsigned-big-float-unit:255>>;
     {_, 256, float, unsigned, big} ->
       <<Val:Size/unsigned-big-float-unit:256>>;
-    {_, 1, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:1>>;
-    {_, 2, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:2>>;
-    {_, 3, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:3>>;
-    {_, 4, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:4>>;
-    {_, 5, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:5>>;
-    {_, 6, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:6>>;
-    {_, 7, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:7>>;
-    {_, 8, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:8>>;
-    {_, 9, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:9>>;
-    {_, 10, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:10>>;
-    {_, 11, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:11>>;
-    {_, 12, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:12>>;
-    {_, 13, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:13>>;
-    {_, 14, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:14>>;
-    {_, 15, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:15>>;
-    {_, 16, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:16>>;
-    {_, 17, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:17>>;
-    {_, 18, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:18>>;
-    {_, 19, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:19>>;
-    {_, 20, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:20>>;
-    {_, 21, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:21>>;
-    {_, 22, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:22>>;
-    {_, 23, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:23>>;
-    {_, 24, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:24>>;
-    {_, 25, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:25>>;
-    {_, 26, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:26>>;
-    {_, 27, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:27>>;
-    {_, 28, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:28>>;
-    {_, 29, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:29>>;
-    {_, 30, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:30>>;
-    {_, 31, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:31>>;
-    {_, 32, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:32>>;
-    {_, 33, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:33>>;
-    {_, 34, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:34>>;
-    {_, 35, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:35>>;
-    {_, 36, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:36>>;
-    {_, 37, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:37>>;
-    {_, 38, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:38>>;
-    {_, 39, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:39>>;
-    {_, 40, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:40>>;
-    {_, 41, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:41>>;
-    {_, 42, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:42>>;
-    {_, 43, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:43>>;
-    {_, 44, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:44>>;
-    {_, 45, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:45>>;
-    {_, 46, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:46>>;
-    {_, 47, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:47>>;
-    {_, 48, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:48>>;
-    {_, 49, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:49>>;
-    {_, 50, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:50>>;
-    {_, 51, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:51>>;
-    {_, 52, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:52>>;
-    {_, 53, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:53>>;
-    {_, 54, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:54>>;
-    {_, 55, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:55>>;
-    {_, 56, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:56>>;
-    {_, 57, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:57>>;
-    {_, 58, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:58>>;
-    {_, 59, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:59>>;
-    {_, 60, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:60>>;
-    {_, 61, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:61>>;
-    {_, 62, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:62>>;
-    {_, 63, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:63>>;
-    {_, 64, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:64>>;
-    {_, 65, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:65>>;
-    {_, 66, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:66>>;
-    {_, 67, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:67>>;
-    {_, 68, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:68>>;
-    {_, 69, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:69>>;
-    {_, 70, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:70>>;
-    {_, 71, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:71>>;
-    {_, 72, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:72>>;
-    {_, 73, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:73>>;
-    {_, 74, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:74>>;
-    {_, 75, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:75>>;
-    {_, 76, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:76>>;
-    {_, 77, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:77>>;
-    {_, 78, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:78>>;
-    {_, 79, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:79>>;
-    {_, 80, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:80>>;
-    {_, 81, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:81>>;
-    {_, 82, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:82>>;
-    {_, 83, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:83>>;
-    {_, 84, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:84>>;
-    {_, 85, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:85>>;
-    {_, 86, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:86>>;
-    {_, 87, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:87>>;
-    {_, 88, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:88>>;
-    {_, 89, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:89>>;
-    {_, 90, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:90>>;
-    {_, 91, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:91>>;
-    {_, 92, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:92>>;
-    {_, 93, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:93>>;
-    {_, 94, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:94>>;
-    {_, 95, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:95>>;
-    {_, 96, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:96>>;
-    {_, 97, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:97>>;
-    {_, 98, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:98>>;
-    {_, 99, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:99>>;
-    {_, 100, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:100>>;
-    {_, 101, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:101>>;
-    {_, 102, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:102>>;
-    {_, 103, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:103>>;
-    {_, 104, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:104>>;
-    {_, 105, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:105>>;
-    {_, 106, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:106>>;
-    {_, 107, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:107>>;
-    {_, 108, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:108>>;
-    {_, 109, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:109>>;
-    {_, 110, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:110>>;
-    {_, 111, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:111>>;
-    {_, 112, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:112>>;
-    {_, 113, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:113>>;
-    {_, 114, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:114>>;
-    {_, 115, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:115>>;
-    {_, 116, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:116>>;
-    {_, 117, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:117>>;
-    {_, 118, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:118>>;
-    {_, 119, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:119>>;
-    {_, 120, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:120>>;
-    {_, 121, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:121>>;
-    {_, 122, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:122>>;
-    {_, 123, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:123>>;
-    {_, 124, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:124>>;
-    {_, 125, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:125>>;
-    {_, 126, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:126>>;
-    {_, 127, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:127>>;
-    {_, 128, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:128>>;
-    {_, 129, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:129>>;
-    {_, 130, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:130>>;
-    {_, 131, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:131>>;
-    {_, 132, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:132>>;
-    {_, 133, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:133>>;
-    {_, 134, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:134>>;
-    {_, 135, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:135>>;
-    {_, 136, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:136>>;
-    {_, 137, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:137>>;
-    {_, 138, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:138>>;
-    {_, 139, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:139>>;
-    {_, 140, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:140>>;
-    {_, 141, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:141>>;
-    {_, 142, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:142>>;
-    {_, 143, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:143>>;
-    {_, 144, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:144>>;
-    {_, 145, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:145>>;
-    {_, 146, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:146>>;
-    {_, 147, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:147>>;
-    {_, 148, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:148>>;
-    {_, 149, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:149>>;
-    {_, 150, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:150>>;
-    {_, 151, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:151>>;
-    {_, 152, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:152>>;
-    {_, 153, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:153>>;
-    {_, 154, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:154>>;
-    {_, 155, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:155>>;
-    {_, 156, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:156>>;
-    {_, 157, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:157>>;
-    {_, 158, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:158>>;
-    {_, 159, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:159>>;
-    {_, 160, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:160>>;
-    {_, 161, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:161>>;
-    {_, 162, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:162>>;
-    {_, 163, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:163>>;
-    {_, 164, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:164>>;
-    {_, 165, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:165>>;
-    {_, 166, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:166>>;
-    {_, 167, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:167>>;
-    {_, 168, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:168>>;
-    {_, 169, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:169>>;
-    {_, 170, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:170>>;
-    {_, 171, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:171>>;
-    {_, 172, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:172>>;
-    {_, 173, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:173>>;
-    {_, 174, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:174>>;
-    {_, 175, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:175>>;
-    {_, 176, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:176>>;
-    {_, 177, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:177>>;
-    {_, 178, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:178>>;
-    {_, 179, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:179>>;
-    {_, 180, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:180>>;
-    {_, 181, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:181>>;
-    {_, 182, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:182>>;
-    {_, 183, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:183>>;
-    {_, 184, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:184>>;
-    {_, 185, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:185>>;
-    {_, 186, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:186>>;
-    {_, 187, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:187>>;
-    {_, 188, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:188>>;
-    {_, 189, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:189>>;
-    {_, 190, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:190>>;
-    {_, 191, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:191>>;
-    {_, 192, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:192>>;
-    {_, 193, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:193>>;
-    {_, 194, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:194>>;
-    {_, 195, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:195>>;
-    {_, 196, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:196>>;
-    {_, 197, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:197>>;
-    {_, 198, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:198>>;
-    {_, 199, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:199>>;
-    {_, 200, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:200>>;
-    {_, 201, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:201>>;
-    {_, 202, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:202>>;
-    {_, 203, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:203>>;
-    {_, 204, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:204>>;
-    {_, 205, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:205>>;
-    {_, 206, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:206>>;
-    {_, 207, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:207>>;
-    {_, 208, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:208>>;
-    {_, 209, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:209>>;
-    {_, 210, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:210>>;
-    {_, 211, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:211>>;
-    {_, 212, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:212>>;
-    {_, 213, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:213>>;
-    {_, 214, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:214>>;
-    {_, 215, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:215>>;
-    {_, 216, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:216>>;
-    {_, 217, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:217>>;
-    {_, 218, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:218>>;
-    {_, 219, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:219>>;
-    {_, 220, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:220>>;
-    {_, 221, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:221>>;
-    {_, 222, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:222>>;
-    {_, 223, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:223>>;
-    {_, 224, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:224>>;
-    {_, 225, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:225>>;
-    {_, 226, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:226>>;
-    {_, 227, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:227>>;
-    {_, 228, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:228>>;
-    {_, 229, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:229>>;
-    {_, 230, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:230>>;
-    {_, 231, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:231>>;
-    {_, 232, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:232>>;
-    {_, 233, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:233>>;
-    {_, 234, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:234>>;
-    {_, 235, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:235>>;
-    {_, 236, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:236>>;
-    {_, 237, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:237>>;
-    {_, 238, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:238>>;
-    {_, 239, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:239>>;
-    {_, 240, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:240>>;
-    {_, 241, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:241>>;
-    {_, 242, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:242>>;
-    {_, 243, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:243>>;
-    {_, 244, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:244>>;
-    {_, 245, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:245>>;
-    {_, 246, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:246>>;
-    {_, 247, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:247>>;
-    {_, 248, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:248>>;
-    {_, 249, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:249>>;
-    {_, 250, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:250>>;
-    {_, 251, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:251>>;
-    {_, 252, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:252>>;
-    {_, 253, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:253>>;
-    {_, 254, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:254>>;
-    {_, 255, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:255>>;
-    {_, 256, binary, unsigned, big} ->
-      <<Val:Size/unsigned-big-binary-unit:256>>;
     {all, 1, binary, unsigned, big} ->
       <<Val:Size/unsigned-big-binary-unit:1>>;
     {all, 2, binary, unsigned, big} ->
@@ -4205,6 +3693,518 @@ make_bitstring(Val, Size, Unit, Type, Flags) ->
     {all, 255, binary, unsigned, big} ->
       <<Val:Size/unsigned-big-binary-unit:255>>;
     {all, 256, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:256>>;
+    {_, 1, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:1>>;
+    {_, 2, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:2>>;
+    {_, 3, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:3>>;
+    {_, 4, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:4>>;
+    {_, 5, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:5>>;
+    {_, 6, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:6>>;
+    {_, 7, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:7>>;
+    {_, 8, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:8>>;
+    {_, 9, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:9>>;
+    {_, 10, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:10>>;
+    {_, 11, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:11>>;
+    {_, 12, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:12>>;
+    {_, 13, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:13>>;
+    {_, 14, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:14>>;
+    {_, 15, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:15>>;
+    {_, 16, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:16>>;
+    {_, 17, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:17>>;
+    {_, 18, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:18>>;
+    {_, 19, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:19>>;
+    {_, 20, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:20>>;
+    {_, 21, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:21>>;
+    {_, 22, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:22>>;
+    {_, 23, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:23>>;
+    {_, 24, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:24>>;
+    {_, 25, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:25>>;
+    {_, 26, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:26>>;
+    {_, 27, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:27>>;
+    {_, 28, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:28>>;
+    {_, 29, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:29>>;
+    {_, 30, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:30>>;
+    {_, 31, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:31>>;
+    {_, 32, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:32>>;
+    {_, 33, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:33>>;
+    {_, 34, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:34>>;
+    {_, 35, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:35>>;
+    {_, 36, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:36>>;
+    {_, 37, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:37>>;
+    {_, 38, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:38>>;
+    {_, 39, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:39>>;
+    {_, 40, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:40>>;
+    {_, 41, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:41>>;
+    {_, 42, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:42>>;
+    {_, 43, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:43>>;
+    {_, 44, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:44>>;
+    {_, 45, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:45>>;
+    {_, 46, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:46>>;
+    {_, 47, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:47>>;
+    {_, 48, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:48>>;
+    {_, 49, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:49>>;
+    {_, 50, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:50>>;
+    {_, 51, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:51>>;
+    {_, 52, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:52>>;
+    {_, 53, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:53>>;
+    {_, 54, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:54>>;
+    {_, 55, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:55>>;
+    {_, 56, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:56>>;
+    {_, 57, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:57>>;
+    {_, 58, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:58>>;
+    {_, 59, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:59>>;
+    {_, 60, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:60>>;
+    {_, 61, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:61>>;
+    {_, 62, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:62>>;
+    {_, 63, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:63>>;
+    {_, 64, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:64>>;
+    {_, 65, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:65>>;
+    {_, 66, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:66>>;
+    {_, 67, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:67>>;
+    {_, 68, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:68>>;
+    {_, 69, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:69>>;
+    {_, 70, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:70>>;
+    {_, 71, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:71>>;
+    {_, 72, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:72>>;
+    {_, 73, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:73>>;
+    {_, 74, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:74>>;
+    {_, 75, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:75>>;
+    {_, 76, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:76>>;
+    {_, 77, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:77>>;
+    {_, 78, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:78>>;
+    {_, 79, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:79>>;
+    {_, 80, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:80>>;
+    {_, 81, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:81>>;
+    {_, 82, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:82>>;
+    {_, 83, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:83>>;
+    {_, 84, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:84>>;
+    {_, 85, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:85>>;
+    {_, 86, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:86>>;
+    {_, 87, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:87>>;
+    {_, 88, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:88>>;
+    {_, 89, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:89>>;
+    {_, 90, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:90>>;
+    {_, 91, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:91>>;
+    {_, 92, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:92>>;
+    {_, 93, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:93>>;
+    {_, 94, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:94>>;
+    {_, 95, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:95>>;
+    {_, 96, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:96>>;
+    {_, 97, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:97>>;
+    {_, 98, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:98>>;
+    {_, 99, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:99>>;
+    {_, 100, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:100>>;
+    {_, 101, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:101>>;
+    {_, 102, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:102>>;
+    {_, 103, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:103>>;
+    {_, 104, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:104>>;
+    {_, 105, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:105>>;
+    {_, 106, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:106>>;
+    {_, 107, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:107>>;
+    {_, 108, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:108>>;
+    {_, 109, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:109>>;
+    {_, 110, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:110>>;
+    {_, 111, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:111>>;
+    {_, 112, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:112>>;
+    {_, 113, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:113>>;
+    {_, 114, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:114>>;
+    {_, 115, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:115>>;
+    {_, 116, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:116>>;
+    {_, 117, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:117>>;
+    {_, 118, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:118>>;
+    {_, 119, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:119>>;
+    {_, 120, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:120>>;
+    {_, 121, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:121>>;
+    {_, 122, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:122>>;
+    {_, 123, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:123>>;
+    {_, 124, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:124>>;
+    {_, 125, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:125>>;
+    {_, 126, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:126>>;
+    {_, 127, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:127>>;
+    {_, 128, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:128>>;
+    {_, 129, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:129>>;
+    {_, 130, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:130>>;
+    {_, 131, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:131>>;
+    {_, 132, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:132>>;
+    {_, 133, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:133>>;
+    {_, 134, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:134>>;
+    {_, 135, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:135>>;
+    {_, 136, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:136>>;
+    {_, 137, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:137>>;
+    {_, 138, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:138>>;
+    {_, 139, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:139>>;
+    {_, 140, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:140>>;
+    {_, 141, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:141>>;
+    {_, 142, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:142>>;
+    {_, 143, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:143>>;
+    {_, 144, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:144>>;
+    {_, 145, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:145>>;
+    {_, 146, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:146>>;
+    {_, 147, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:147>>;
+    {_, 148, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:148>>;
+    {_, 149, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:149>>;
+    {_, 150, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:150>>;
+    {_, 151, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:151>>;
+    {_, 152, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:152>>;
+    {_, 153, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:153>>;
+    {_, 154, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:154>>;
+    {_, 155, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:155>>;
+    {_, 156, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:156>>;
+    {_, 157, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:157>>;
+    {_, 158, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:158>>;
+    {_, 159, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:159>>;
+    {_, 160, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:160>>;
+    {_, 161, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:161>>;
+    {_, 162, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:162>>;
+    {_, 163, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:163>>;
+    {_, 164, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:164>>;
+    {_, 165, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:165>>;
+    {_, 166, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:166>>;
+    {_, 167, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:167>>;
+    {_, 168, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:168>>;
+    {_, 169, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:169>>;
+    {_, 170, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:170>>;
+    {_, 171, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:171>>;
+    {_, 172, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:172>>;
+    {_, 173, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:173>>;
+    {_, 174, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:174>>;
+    {_, 175, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:175>>;
+    {_, 176, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:176>>;
+    {_, 177, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:177>>;
+    {_, 178, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:178>>;
+    {_, 179, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:179>>;
+    {_, 180, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:180>>;
+    {_, 181, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:181>>;
+    {_, 182, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:182>>;
+    {_, 183, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:183>>;
+    {_, 184, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:184>>;
+    {_, 185, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:185>>;
+    {_, 186, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:186>>;
+    {_, 187, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:187>>;
+    {_, 188, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:188>>;
+    {_, 189, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:189>>;
+    {_, 190, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:190>>;
+    {_, 191, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:191>>;
+    {_, 192, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:192>>;
+    {_, 193, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:193>>;
+    {_, 194, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:194>>;
+    {_, 195, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:195>>;
+    {_, 196, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:196>>;
+    {_, 197, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:197>>;
+    {_, 198, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:198>>;
+    {_, 199, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:199>>;
+    {_, 200, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:200>>;
+    {_, 201, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:201>>;
+    {_, 202, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:202>>;
+    {_, 203, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:203>>;
+    {_, 204, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:204>>;
+    {_, 205, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:205>>;
+    {_, 206, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:206>>;
+    {_, 207, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:207>>;
+    {_, 208, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:208>>;
+    {_, 209, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:209>>;
+    {_, 210, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:210>>;
+    {_, 211, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:211>>;
+    {_, 212, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:212>>;
+    {_, 213, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:213>>;
+    {_, 214, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:214>>;
+    {_, 215, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:215>>;
+    {_, 216, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:216>>;
+    {_, 217, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:217>>;
+    {_, 218, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:218>>;
+    {_, 219, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:219>>;
+    {_, 220, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:220>>;
+    {_, 221, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:221>>;
+    {_, 222, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:222>>;
+    {_, 223, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:223>>;
+    {_, 224, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:224>>;
+    {_, 225, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:225>>;
+    {_, 226, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:226>>;
+    {_, 227, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:227>>;
+    {_, 228, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:228>>;
+    {_, 229, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:229>>;
+    {_, 230, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:230>>;
+    {_, 231, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:231>>;
+    {_, 232, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:232>>;
+    {_, 233, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:233>>;
+    {_, 234, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:234>>;
+    {_, 235, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:235>>;
+    {_, 236, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:236>>;
+    {_, 237, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:237>>;
+    {_, 238, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:238>>;
+    {_, 239, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:239>>;
+    {_, 240, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:240>>;
+    {_, 241, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:241>>;
+    {_, 242, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:242>>;
+    {_, 243, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:243>>;
+    {_, 244, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:244>>;
+    {_, 245, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:245>>;
+    {_, 246, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:246>>;
+    {_, 247, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:247>>;
+    {_, 248, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:248>>;
+    {_, 249, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:249>>;
+    {_, 250, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:250>>;
+    {_, 251, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:251>>;
+    {_, 252, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:252>>;
+    {_, 253, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:253>>;
+    {_, 254, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:254>>;
+    {_, 255, binary, unsigned, big} ->
+      <<Val:Size/unsigned-big-binary-unit:255>>;
+    {_, 256, binary, unsigned, big} ->
       <<Val:Size/unsigned-big-binary-unit:256>>;
     {_, 1, integer, signed, little} ->
       <<Val:Size/signed-little-integer-unit:1>>;
@@ -5230,518 +5230,6 @@ make_bitstring(Val, Size, Unit, Type, Flags) ->
       <<Val:Size/signed-little-float-unit:255>>;
     {_, 256, float, signed, little} ->
       <<Val:Size/signed-little-float-unit:256>>;
-    {_, 1, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:1>>;
-    {_, 2, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:2>>;
-    {_, 3, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:3>>;
-    {_, 4, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:4>>;
-    {_, 5, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:5>>;
-    {_, 6, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:6>>;
-    {_, 7, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:7>>;
-    {_, 8, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:8>>;
-    {_, 9, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:9>>;
-    {_, 10, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:10>>;
-    {_, 11, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:11>>;
-    {_, 12, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:12>>;
-    {_, 13, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:13>>;
-    {_, 14, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:14>>;
-    {_, 15, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:15>>;
-    {_, 16, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:16>>;
-    {_, 17, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:17>>;
-    {_, 18, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:18>>;
-    {_, 19, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:19>>;
-    {_, 20, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:20>>;
-    {_, 21, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:21>>;
-    {_, 22, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:22>>;
-    {_, 23, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:23>>;
-    {_, 24, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:24>>;
-    {_, 25, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:25>>;
-    {_, 26, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:26>>;
-    {_, 27, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:27>>;
-    {_, 28, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:28>>;
-    {_, 29, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:29>>;
-    {_, 30, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:30>>;
-    {_, 31, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:31>>;
-    {_, 32, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:32>>;
-    {_, 33, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:33>>;
-    {_, 34, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:34>>;
-    {_, 35, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:35>>;
-    {_, 36, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:36>>;
-    {_, 37, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:37>>;
-    {_, 38, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:38>>;
-    {_, 39, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:39>>;
-    {_, 40, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:40>>;
-    {_, 41, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:41>>;
-    {_, 42, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:42>>;
-    {_, 43, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:43>>;
-    {_, 44, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:44>>;
-    {_, 45, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:45>>;
-    {_, 46, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:46>>;
-    {_, 47, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:47>>;
-    {_, 48, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:48>>;
-    {_, 49, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:49>>;
-    {_, 50, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:50>>;
-    {_, 51, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:51>>;
-    {_, 52, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:52>>;
-    {_, 53, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:53>>;
-    {_, 54, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:54>>;
-    {_, 55, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:55>>;
-    {_, 56, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:56>>;
-    {_, 57, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:57>>;
-    {_, 58, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:58>>;
-    {_, 59, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:59>>;
-    {_, 60, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:60>>;
-    {_, 61, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:61>>;
-    {_, 62, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:62>>;
-    {_, 63, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:63>>;
-    {_, 64, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:64>>;
-    {_, 65, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:65>>;
-    {_, 66, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:66>>;
-    {_, 67, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:67>>;
-    {_, 68, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:68>>;
-    {_, 69, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:69>>;
-    {_, 70, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:70>>;
-    {_, 71, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:71>>;
-    {_, 72, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:72>>;
-    {_, 73, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:73>>;
-    {_, 74, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:74>>;
-    {_, 75, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:75>>;
-    {_, 76, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:76>>;
-    {_, 77, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:77>>;
-    {_, 78, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:78>>;
-    {_, 79, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:79>>;
-    {_, 80, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:80>>;
-    {_, 81, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:81>>;
-    {_, 82, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:82>>;
-    {_, 83, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:83>>;
-    {_, 84, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:84>>;
-    {_, 85, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:85>>;
-    {_, 86, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:86>>;
-    {_, 87, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:87>>;
-    {_, 88, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:88>>;
-    {_, 89, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:89>>;
-    {_, 90, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:90>>;
-    {_, 91, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:91>>;
-    {_, 92, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:92>>;
-    {_, 93, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:93>>;
-    {_, 94, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:94>>;
-    {_, 95, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:95>>;
-    {_, 96, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:96>>;
-    {_, 97, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:97>>;
-    {_, 98, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:98>>;
-    {_, 99, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:99>>;
-    {_, 100, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:100>>;
-    {_, 101, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:101>>;
-    {_, 102, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:102>>;
-    {_, 103, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:103>>;
-    {_, 104, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:104>>;
-    {_, 105, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:105>>;
-    {_, 106, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:106>>;
-    {_, 107, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:107>>;
-    {_, 108, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:108>>;
-    {_, 109, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:109>>;
-    {_, 110, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:110>>;
-    {_, 111, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:111>>;
-    {_, 112, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:112>>;
-    {_, 113, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:113>>;
-    {_, 114, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:114>>;
-    {_, 115, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:115>>;
-    {_, 116, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:116>>;
-    {_, 117, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:117>>;
-    {_, 118, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:118>>;
-    {_, 119, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:119>>;
-    {_, 120, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:120>>;
-    {_, 121, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:121>>;
-    {_, 122, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:122>>;
-    {_, 123, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:123>>;
-    {_, 124, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:124>>;
-    {_, 125, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:125>>;
-    {_, 126, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:126>>;
-    {_, 127, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:127>>;
-    {_, 128, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:128>>;
-    {_, 129, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:129>>;
-    {_, 130, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:130>>;
-    {_, 131, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:131>>;
-    {_, 132, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:132>>;
-    {_, 133, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:133>>;
-    {_, 134, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:134>>;
-    {_, 135, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:135>>;
-    {_, 136, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:136>>;
-    {_, 137, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:137>>;
-    {_, 138, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:138>>;
-    {_, 139, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:139>>;
-    {_, 140, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:140>>;
-    {_, 141, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:141>>;
-    {_, 142, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:142>>;
-    {_, 143, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:143>>;
-    {_, 144, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:144>>;
-    {_, 145, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:145>>;
-    {_, 146, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:146>>;
-    {_, 147, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:147>>;
-    {_, 148, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:148>>;
-    {_, 149, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:149>>;
-    {_, 150, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:150>>;
-    {_, 151, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:151>>;
-    {_, 152, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:152>>;
-    {_, 153, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:153>>;
-    {_, 154, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:154>>;
-    {_, 155, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:155>>;
-    {_, 156, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:156>>;
-    {_, 157, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:157>>;
-    {_, 158, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:158>>;
-    {_, 159, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:159>>;
-    {_, 160, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:160>>;
-    {_, 161, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:161>>;
-    {_, 162, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:162>>;
-    {_, 163, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:163>>;
-    {_, 164, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:164>>;
-    {_, 165, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:165>>;
-    {_, 166, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:166>>;
-    {_, 167, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:167>>;
-    {_, 168, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:168>>;
-    {_, 169, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:169>>;
-    {_, 170, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:170>>;
-    {_, 171, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:171>>;
-    {_, 172, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:172>>;
-    {_, 173, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:173>>;
-    {_, 174, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:174>>;
-    {_, 175, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:175>>;
-    {_, 176, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:176>>;
-    {_, 177, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:177>>;
-    {_, 178, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:178>>;
-    {_, 179, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:179>>;
-    {_, 180, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:180>>;
-    {_, 181, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:181>>;
-    {_, 182, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:182>>;
-    {_, 183, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:183>>;
-    {_, 184, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:184>>;
-    {_, 185, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:185>>;
-    {_, 186, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:186>>;
-    {_, 187, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:187>>;
-    {_, 188, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:188>>;
-    {_, 189, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:189>>;
-    {_, 190, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:190>>;
-    {_, 191, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:191>>;
-    {_, 192, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:192>>;
-    {_, 193, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:193>>;
-    {_, 194, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:194>>;
-    {_, 195, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:195>>;
-    {_, 196, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:196>>;
-    {_, 197, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:197>>;
-    {_, 198, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:198>>;
-    {_, 199, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:199>>;
-    {_, 200, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:200>>;
-    {_, 201, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:201>>;
-    {_, 202, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:202>>;
-    {_, 203, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:203>>;
-    {_, 204, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:204>>;
-    {_, 205, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:205>>;
-    {_, 206, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:206>>;
-    {_, 207, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:207>>;
-    {_, 208, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:208>>;
-    {_, 209, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:209>>;
-    {_, 210, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:210>>;
-    {_, 211, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:211>>;
-    {_, 212, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:212>>;
-    {_, 213, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:213>>;
-    {_, 214, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:214>>;
-    {_, 215, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:215>>;
-    {_, 216, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:216>>;
-    {_, 217, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:217>>;
-    {_, 218, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:218>>;
-    {_, 219, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:219>>;
-    {_, 220, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:220>>;
-    {_, 221, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:221>>;
-    {_, 222, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:222>>;
-    {_, 223, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:223>>;
-    {_, 224, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:224>>;
-    {_, 225, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:225>>;
-    {_, 226, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:226>>;
-    {_, 227, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:227>>;
-    {_, 228, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:228>>;
-    {_, 229, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:229>>;
-    {_, 230, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:230>>;
-    {_, 231, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:231>>;
-    {_, 232, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:232>>;
-    {_, 233, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:233>>;
-    {_, 234, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:234>>;
-    {_, 235, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:235>>;
-    {_, 236, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:236>>;
-    {_, 237, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:237>>;
-    {_, 238, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:238>>;
-    {_, 239, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:239>>;
-    {_, 240, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:240>>;
-    {_, 241, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:241>>;
-    {_, 242, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:242>>;
-    {_, 243, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:243>>;
-    {_, 244, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:244>>;
-    {_, 245, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:245>>;
-    {_, 246, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:246>>;
-    {_, 247, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:247>>;
-    {_, 248, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:248>>;
-    {_, 249, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:249>>;
-    {_, 250, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:250>>;
-    {_, 251, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:251>>;
-    {_, 252, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:252>>;
-    {_, 253, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:253>>;
-    {_, 254, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:254>>;
-    {_, 255, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:255>>;
-    {_, 256, binary, signed, little} ->
-      <<Val:Size/signed-little-binary-unit:256>>;
     {all, 1, binary, signed, little} ->
       <<Val:Size/signed-little-binary-unit:1>>;
     {all, 2, binary, signed, little} ->
@@ -6253,6 +5741,518 @@ make_bitstring(Val, Size, Unit, Type, Flags) ->
     {all, 255, binary, signed, little} ->
       <<Val:Size/signed-little-binary-unit:255>>;
     {all, 256, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:256>>;
+    {_, 1, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:1>>;
+    {_, 2, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:2>>;
+    {_, 3, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:3>>;
+    {_, 4, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:4>>;
+    {_, 5, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:5>>;
+    {_, 6, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:6>>;
+    {_, 7, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:7>>;
+    {_, 8, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:8>>;
+    {_, 9, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:9>>;
+    {_, 10, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:10>>;
+    {_, 11, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:11>>;
+    {_, 12, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:12>>;
+    {_, 13, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:13>>;
+    {_, 14, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:14>>;
+    {_, 15, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:15>>;
+    {_, 16, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:16>>;
+    {_, 17, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:17>>;
+    {_, 18, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:18>>;
+    {_, 19, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:19>>;
+    {_, 20, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:20>>;
+    {_, 21, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:21>>;
+    {_, 22, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:22>>;
+    {_, 23, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:23>>;
+    {_, 24, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:24>>;
+    {_, 25, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:25>>;
+    {_, 26, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:26>>;
+    {_, 27, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:27>>;
+    {_, 28, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:28>>;
+    {_, 29, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:29>>;
+    {_, 30, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:30>>;
+    {_, 31, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:31>>;
+    {_, 32, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:32>>;
+    {_, 33, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:33>>;
+    {_, 34, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:34>>;
+    {_, 35, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:35>>;
+    {_, 36, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:36>>;
+    {_, 37, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:37>>;
+    {_, 38, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:38>>;
+    {_, 39, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:39>>;
+    {_, 40, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:40>>;
+    {_, 41, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:41>>;
+    {_, 42, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:42>>;
+    {_, 43, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:43>>;
+    {_, 44, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:44>>;
+    {_, 45, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:45>>;
+    {_, 46, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:46>>;
+    {_, 47, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:47>>;
+    {_, 48, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:48>>;
+    {_, 49, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:49>>;
+    {_, 50, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:50>>;
+    {_, 51, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:51>>;
+    {_, 52, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:52>>;
+    {_, 53, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:53>>;
+    {_, 54, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:54>>;
+    {_, 55, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:55>>;
+    {_, 56, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:56>>;
+    {_, 57, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:57>>;
+    {_, 58, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:58>>;
+    {_, 59, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:59>>;
+    {_, 60, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:60>>;
+    {_, 61, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:61>>;
+    {_, 62, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:62>>;
+    {_, 63, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:63>>;
+    {_, 64, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:64>>;
+    {_, 65, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:65>>;
+    {_, 66, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:66>>;
+    {_, 67, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:67>>;
+    {_, 68, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:68>>;
+    {_, 69, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:69>>;
+    {_, 70, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:70>>;
+    {_, 71, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:71>>;
+    {_, 72, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:72>>;
+    {_, 73, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:73>>;
+    {_, 74, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:74>>;
+    {_, 75, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:75>>;
+    {_, 76, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:76>>;
+    {_, 77, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:77>>;
+    {_, 78, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:78>>;
+    {_, 79, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:79>>;
+    {_, 80, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:80>>;
+    {_, 81, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:81>>;
+    {_, 82, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:82>>;
+    {_, 83, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:83>>;
+    {_, 84, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:84>>;
+    {_, 85, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:85>>;
+    {_, 86, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:86>>;
+    {_, 87, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:87>>;
+    {_, 88, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:88>>;
+    {_, 89, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:89>>;
+    {_, 90, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:90>>;
+    {_, 91, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:91>>;
+    {_, 92, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:92>>;
+    {_, 93, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:93>>;
+    {_, 94, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:94>>;
+    {_, 95, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:95>>;
+    {_, 96, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:96>>;
+    {_, 97, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:97>>;
+    {_, 98, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:98>>;
+    {_, 99, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:99>>;
+    {_, 100, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:100>>;
+    {_, 101, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:101>>;
+    {_, 102, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:102>>;
+    {_, 103, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:103>>;
+    {_, 104, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:104>>;
+    {_, 105, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:105>>;
+    {_, 106, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:106>>;
+    {_, 107, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:107>>;
+    {_, 108, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:108>>;
+    {_, 109, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:109>>;
+    {_, 110, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:110>>;
+    {_, 111, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:111>>;
+    {_, 112, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:112>>;
+    {_, 113, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:113>>;
+    {_, 114, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:114>>;
+    {_, 115, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:115>>;
+    {_, 116, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:116>>;
+    {_, 117, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:117>>;
+    {_, 118, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:118>>;
+    {_, 119, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:119>>;
+    {_, 120, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:120>>;
+    {_, 121, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:121>>;
+    {_, 122, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:122>>;
+    {_, 123, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:123>>;
+    {_, 124, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:124>>;
+    {_, 125, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:125>>;
+    {_, 126, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:126>>;
+    {_, 127, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:127>>;
+    {_, 128, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:128>>;
+    {_, 129, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:129>>;
+    {_, 130, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:130>>;
+    {_, 131, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:131>>;
+    {_, 132, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:132>>;
+    {_, 133, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:133>>;
+    {_, 134, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:134>>;
+    {_, 135, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:135>>;
+    {_, 136, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:136>>;
+    {_, 137, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:137>>;
+    {_, 138, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:138>>;
+    {_, 139, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:139>>;
+    {_, 140, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:140>>;
+    {_, 141, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:141>>;
+    {_, 142, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:142>>;
+    {_, 143, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:143>>;
+    {_, 144, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:144>>;
+    {_, 145, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:145>>;
+    {_, 146, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:146>>;
+    {_, 147, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:147>>;
+    {_, 148, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:148>>;
+    {_, 149, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:149>>;
+    {_, 150, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:150>>;
+    {_, 151, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:151>>;
+    {_, 152, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:152>>;
+    {_, 153, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:153>>;
+    {_, 154, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:154>>;
+    {_, 155, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:155>>;
+    {_, 156, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:156>>;
+    {_, 157, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:157>>;
+    {_, 158, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:158>>;
+    {_, 159, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:159>>;
+    {_, 160, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:160>>;
+    {_, 161, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:161>>;
+    {_, 162, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:162>>;
+    {_, 163, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:163>>;
+    {_, 164, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:164>>;
+    {_, 165, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:165>>;
+    {_, 166, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:166>>;
+    {_, 167, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:167>>;
+    {_, 168, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:168>>;
+    {_, 169, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:169>>;
+    {_, 170, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:170>>;
+    {_, 171, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:171>>;
+    {_, 172, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:172>>;
+    {_, 173, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:173>>;
+    {_, 174, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:174>>;
+    {_, 175, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:175>>;
+    {_, 176, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:176>>;
+    {_, 177, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:177>>;
+    {_, 178, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:178>>;
+    {_, 179, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:179>>;
+    {_, 180, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:180>>;
+    {_, 181, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:181>>;
+    {_, 182, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:182>>;
+    {_, 183, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:183>>;
+    {_, 184, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:184>>;
+    {_, 185, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:185>>;
+    {_, 186, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:186>>;
+    {_, 187, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:187>>;
+    {_, 188, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:188>>;
+    {_, 189, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:189>>;
+    {_, 190, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:190>>;
+    {_, 191, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:191>>;
+    {_, 192, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:192>>;
+    {_, 193, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:193>>;
+    {_, 194, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:194>>;
+    {_, 195, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:195>>;
+    {_, 196, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:196>>;
+    {_, 197, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:197>>;
+    {_, 198, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:198>>;
+    {_, 199, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:199>>;
+    {_, 200, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:200>>;
+    {_, 201, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:201>>;
+    {_, 202, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:202>>;
+    {_, 203, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:203>>;
+    {_, 204, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:204>>;
+    {_, 205, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:205>>;
+    {_, 206, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:206>>;
+    {_, 207, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:207>>;
+    {_, 208, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:208>>;
+    {_, 209, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:209>>;
+    {_, 210, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:210>>;
+    {_, 211, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:211>>;
+    {_, 212, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:212>>;
+    {_, 213, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:213>>;
+    {_, 214, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:214>>;
+    {_, 215, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:215>>;
+    {_, 216, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:216>>;
+    {_, 217, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:217>>;
+    {_, 218, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:218>>;
+    {_, 219, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:219>>;
+    {_, 220, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:220>>;
+    {_, 221, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:221>>;
+    {_, 222, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:222>>;
+    {_, 223, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:223>>;
+    {_, 224, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:224>>;
+    {_, 225, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:225>>;
+    {_, 226, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:226>>;
+    {_, 227, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:227>>;
+    {_, 228, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:228>>;
+    {_, 229, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:229>>;
+    {_, 230, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:230>>;
+    {_, 231, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:231>>;
+    {_, 232, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:232>>;
+    {_, 233, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:233>>;
+    {_, 234, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:234>>;
+    {_, 235, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:235>>;
+    {_, 236, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:236>>;
+    {_, 237, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:237>>;
+    {_, 238, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:238>>;
+    {_, 239, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:239>>;
+    {_, 240, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:240>>;
+    {_, 241, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:241>>;
+    {_, 242, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:242>>;
+    {_, 243, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:243>>;
+    {_, 244, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:244>>;
+    {_, 245, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:245>>;
+    {_, 246, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:246>>;
+    {_, 247, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:247>>;
+    {_, 248, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:248>>;
+    {_, 249, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:249>>;
+    {_, 250, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:250>>;
+    {_, 251, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:251>>;
+    {_, 252, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:252>>;
+    {_, 253, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:253>>;
+    {_, 254, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:254>>;
+    {_, 255, binary, signed, little} ->
+      <<Val:Size/signed-little-binary-unit:255>>;
+    {_, 256, binary, signed, little} ->
       <<Val:Size/signed-little-binary-unit:256>>;
     {_, 1, integer, unsigned, little} ->
       <<Val:Size/unsigned-little-integer-unit:1>>;
@@ -7278,518 +7278,6 @@ make_bitstring(Val, Size, Unit, Type, Flags) ->
       <<Val:Size/unsigned-little-float-unit:255>>;
     {_, 256, float, unsigned, little} ->
       <<Val:Size/unsigned-little-float-unit:256>>;
-    {_, 1, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:1>>;
-    {_, 2, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:2>>;
-    {_, 3, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:3>>;
-    {_, 4, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:4>>;
-    {_, 5, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:5>>;
-    {_, 6, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:6>>;
-    {_, 7, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:7>>;
-    {_, 8, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:8>>;
-    {_, 9, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:9>>;
-    {_, 10, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:10>>;
-    {_, 11, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:11>>;
-    {_, 12, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:12>>;
-    {_, 13, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:13>>;
-    {_, 14, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:14>>;
-    {_, 15, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:15>>;
-    {_, 16, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:16>>;
-    {_, 17, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:17>>;
-    {_, 18, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:18>>;
-    {_, 19, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:19>>;
-    {_, 20, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:20>>;
-    {_, 21, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:21>>;
-    {_, 22, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:22>>;
-    {_, 23, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:23>>;
-    {_, 24, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:24>>;
-    {_, 25, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:25>>;
-    {_, 26, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:26>>;
-    {_, 27, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:27>>;
-    {_, 28, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:28>>;
-    {_, 29, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:29>>;
-    {_, 30, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:30>>;
-    {_, 31, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:31>>;
-    {_, 32, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:32>>;
-    {_, 33, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:33>>;
-    {_, 34, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:34>>;
-    {_, 35, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:35>>;
-    {_, 36, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:36>>;
-    {_, 37, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:37>>;
-    {_, 38, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:38>>;
-    {_, 39, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:39>>;
-    {_, 40, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:40>>;
-    {_, 41, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:41>>;
-    {_, 42, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:42>>;
-    {_, 43, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:43>>;
-    {_, 44, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:44>>;
-    {_, 45, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:45>>;
-    {_, 46, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:46>>;
-    {_, 47, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:47>>;
-    {_, 48, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:48>>;
-    {_, 49, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:49>>;
-    {_, 50, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:50>>;
-    {_, 51, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:51>>;
-    {_, 52, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:52>>;
-    {_, 53, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:53>>;
-    {_, 54, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:54>>;
-    {_, 55, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:55>>;
-    {_, 56, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:56>>;
-    {_, 57, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:57>>;
-    {_, 58, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:58>>;
-    {_, 59, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:59>>;
-    {_, 60, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:60>>;
-    {_, 61, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:61>>;
-    {_, 62, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:62>>;
-    {_, 63, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:63>>;
-    {_, 64, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:64>>;
-    {_, 65, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:65>>;
-    {_, 66, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:66>>;
-    {_, 67, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:67>>;
-    {_, 68, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:68>>;
-    {_, 69, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:69>>;
-    {_, 70, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:70>>;
-    {_, 71, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:71>>;
-    {_, 72, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:72>>;
-    {_, 73, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:73>>;
-    {_, 74, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:74>>;
-    {_, 75, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:75>>;
-    {_, 76, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:76>>;
-    {_, 77, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:77>>;
-    {_, 78, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:78>>;
-    {_, 79, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:79>>;
-    {_, 80, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:80>>;
-    {_, 81, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:81>>;
-    {_, 82, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:82>>;
-    {_, 83, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:83>>;
-    {_, 84, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:84>>;
-    {_, 85, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:85>>;
-    {_, 86, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:86>>;
-    {_, 87, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:87>>;
-    {_, 88, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:88>>;
-    {_, 89, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:89>>;
-    {_, 90, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:90>>;
-    {_, 91, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:91>>;
-    {_, 92, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:92>>;
-    {_, 93, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:93>>;
-    {_, 94, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:94>>;
-    {_, 95, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:95>>;
-    {_, 96, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:96>>;
-    {_, 97, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:97>>;
-    {_, 98, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:98>>;
-    {_, 99, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:99>>;
-    {_, 100, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:100>>;
-    {_, 101, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:101>>;
-    {_, 102, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:102>>;
-    {_, 103, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:103>>;
-    {_, 104, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:104>>;
-    {_, 105, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:105>>;
-    {_, 106, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:106>>;
-    {_, 107, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:107>>;
-    {_, 108, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:108>>;
-    {_, 109, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:109>>;
-    {_, 110, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:110>>;
-    {_, 111, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:111>>;
-    {_, 112, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:112>>;
-    {_, 113, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:113>>;
-    {_, 114, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:114>>;
-    {_, 115, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:115>>;
-    {_, 116, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:116>>;
-    {_, 117, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:117>>;
-    {_, 118, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:118>>;
-    {_, 119, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:119>>;
-    {_, 120, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:120>>;
-    {_, 121, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:121>>;
-    {_, 122, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:122>>;
-    {_, 123, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:123>>;
-    {_, 124, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:124>>;
-    {_, 125, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:125>>;
-    {_, 126, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:126>>;
-    {_, 127, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:127>>;
-    {_, 128, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:128>>;
-    {_, 129, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:129>>;
-    {_, 130, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:130>>;
-    {_, 131, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:131>>;
-    {_, 132, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:132>>;
-    {_, 133, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:133>>;
-    {_, 134, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:134>>;
-    {_, 135, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:135>>;
-    {_, 136, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:136>>;
-    {_, 137, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:137>>;
-    {_, 138, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:138>>;
-    {_, 139, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:139>>;
-    {_, 140, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:140>>;
-    {_, 141, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:141>>;
-    {_, 142, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:142>>;
-    {_, 143, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:143>>;
-    {_, 144, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:144>>;
-    {_, 145, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:145>>;
-    {_, 146, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:146>>;
-    {_, 147, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:147>>;
-    {_, 148, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:148>>;
-    {_, 149, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:149>>;
-    {_, 150, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:150>>;
-    {_, 151, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:151>>;
-    {_, 152, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:152>>;
-    {_, 153, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:153>>;
-    {_, 154, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:154>>;
-    {_, 155, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:155>>;
-    {_, 156, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:156>>;
-    {_, 157, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:157>>;
-    {_, 158, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:158>>;
-    {_, 159, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:159>>;
-    {_, 160, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:160>>;
-    {_, 161, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:161>>;
-    {_, 162, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:162>>;
-    {_, 163, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:163>>;
-    {_, 164, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:164>>;
-    {_, 165, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:165>>;
-    {_, 166, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:166>>;
-    {_, 167, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:167>>;
-    {_, 168, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:168>>;
-    {_, 169, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:169>>;
-    {_, 170, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:170>>;
-    {_, 171, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:171>>;
-    {_, 172, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:172>>;
-    {_, 173, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:173>>;
-    {_, 174, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:174>>;
-    {_, 175, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:175>>;
-    {_, 176, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:176>>;
-    {_, 177, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:177>>;
-    {_, 178, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:178>>;
-    {_, 179, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:179>>;
-    {_, 180, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:180>>;
-    {_, 181, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:181>>;
-    {_, 182, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:182>>;
-    {_, 183, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:183>>;
-    {_, 184, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:184>>;
-    {_, 185, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:185>>;
-    {_, 186, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:186>>;
-    {_, 187, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:187>>;
-    {_, 188, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:188>>;
-    {_, 189, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:189>>;
-    {_, 190, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:190>>;
-    {_, 191, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:191>>;
-    {_, 192, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:192>>;
-    {_, 193, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:193>>;
-    {_, 194, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:194>>;
-    {_, 195, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:195>>;
-    {_, 196, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:196>>;
-    {_, 197, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:197>>;
-    {_, 198, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:198>>;
-    {_, 199, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:199>>;
-    {_, 200, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:200>>;
-    {_, 201, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:201>>;
-    {_, 202, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:202>>;
-    {_, 203, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:203>>;
-    {_, 204, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:204>>;
-    {_, 205, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:205>>;
-    {_, 206, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:206>>;
-    {_, 207, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:207>>;
-    {_, 208, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:208>>;
-    {_, 209, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:209>>;
-    {_, 210, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:210>>;
-    {_, 211, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:211>>;
-    {_, 212, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:212>>;
-    {_, 213, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:213>>;
-    {_, 214, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:214>>;
-    {_, 215, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:215>>;
-    {_, 216, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:216>>;
-    {_, 217, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:217>>;
-    {_, 218, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:218>>;
-    {_, 219, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:219>>;
-    {_, 220, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:220>>;
-    {_, 221, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:221>>;
-    {_, 222, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:222>>;
-    {_, 223, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:223>>;
-    {_, 224, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:224>>;
-    {_, 225, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:225>>;
-    {_, 226, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:226>>;
-    {_, 227, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:227>>;
-    {_, 228, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:228>>;
-    {_, 229, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:229>>;
-    {_, 230, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:230>>;
-    {_, 231, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:231>>;
-    {_, 232, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:232>>;
-    {_, 233, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:233>>;
-    {_, 234, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:234>>;
-    {_, 235, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:235>>;
-    {_, 236, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:236>>;
-    {_, 237, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:237>>;
-    {_, 238, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:238>>;
-    {_, 239, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:239>>;
-    {_, 240, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:240>>;
-    {_, 241, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:241>>;
-    {_, 242, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:242>>;
-    {_, 243, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:243>>;
-    {_, 244, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:244>>;
-    {_, 245, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:245>>;
-    {_, 246, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:246>>;
-    {_, 247, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:247>>;
-    {_, 248, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:248>>;
-    {_, 249, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:249>>;
-    {_, 250, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:250>>;
-    {_, 251, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:251>>;
-    {_, 252, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:252>>;
-    {_, 253, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:253>>;
-    {_, 254, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:254>>;
-    {_, 255, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:255>>;
-    {_, 256, binary, unsigned, little} ->
-      <<Val:Size/unsigned-little-binary-unit:256>>;
     {all, 1, binary, unsigned, little} ->
       <<Val:Size/unsigned-little-binary-unit:1>>;
     {all, 2, binary, unsigned, little} ->
@@ -8301,6 +7789,518 @@ make_bitstring(Val, Size, Unit, Type, Flags) ->
     {all, 255, binary, unsigned, little} ->
       <<Val:Size/unsigned-little-binary-unit:255>>;
     {all, 256, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:256>>;
+    {_, 1, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:1>>;
+    {_, 2, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:2>>;
+    {_, 3, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:3>>;
+    {_, 4, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:4>>;
+    {_, 5, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:5>>;
+    {_, 6, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:6>>;
+    {_, 7, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:7>>;
+    {_, 8, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:8>>;
+    {_, 9, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:9>>;
+    {_, 10, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:10>>;
+    {_, 11, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:11>>;
+    {_, 12, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:12>>;
+    {_, 13, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:13>>;
+    {_, 14, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:14>>;
+    {_, 15, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:15>>;
+    {_, 16, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:16>>;
+    {_, 17, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:17>>;
+    {_, 18, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:18>>;
+    {_, 19, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:19>>;
+    {_, 20, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:20>>;
+    {_, 21, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:21>>;
+    {_, 22, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:22>>;
+    {_, 23, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:23>>;
+    {_, 24, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:24>>;
+    {_, 25, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:25>>;
+    {_, 26, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:26>>;
+    {_, 27, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:27>>;
+    {_, 28, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:28>>;
+    {_, 29, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:29>>;
+    {_, 30, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:30>>;
+    {_, 31, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:31>>;
+    {_, 32, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:32>>;
+    {_, 33, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:33>>;
+    {_, 34, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:34>>;
+    {_, 35, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:35>>;
+    {_, 36, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:36>>;
+    {_, 37, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:37>>;
+    {_, 38, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:38>>;
+    {_, 39, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:39>>;
+    {_, 40, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:40>>;
+    {_, 41, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:41>>;
+    {_, 42, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:42>>;
+    {_, 43, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:43>>;
+    {_, 44, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:44>>;
+    {_, 45, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:45>>;
+    {_, 46, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:46>>;
+    {_, 47, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:47>>;
+    {_, 48, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:48>>;
+    {_, 49, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:49>>;
+    {_, 50, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:50>>;
+    {_, 51, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:51>>;
+    {_, 52, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:52>>;
+    {_, 53, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:53>>;
+    {_, 54, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:54>>;
+    {_, 55, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:55>>;
+    {_, 56, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:56>>;
+    {_, 57, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:57>>;
+    {_, 58, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:58>>;
+    {_, 59, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:59>>;
+    {_, 60, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:60>>;
+    {_, 61, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:61>>;
+    {_, 62, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:62>>;
+    {_, 63, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:63>>;
+    {_, 64, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:64>>;
+    {_, 65, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:65>>;
+    {_, 66, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:66>>;
+    {_, 67, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:67>>;
+    {_, 68, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:68>>;
+    {_, 69, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:69>>;
+    {_, 70, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:70>>;
+    {_, 71, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:71>>;
+    {_, 72, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:72>>;
+    {_, 73, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:73>>;
+    {_, 74, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:74>>;
+    {_, 75, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:75>>;
+    {_, 76, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:76>>;
+    {_, 77, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:77>>;
+    {_, 78, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:78>>;
+    {_, 79, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:79>>;
+    {_, 80, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:80>>;
+    {_, 81, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:81>>;
+    {_, 82, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:82>>;
+    {_, 83, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:83>>;
+    {_, 84, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:84>>;
+    {_, 85, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:85>>;
+    {_, 86, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:86>>;
+    {_, 87, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:87>>;
+    {_, 88, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:88>>;
+    {_, 89, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:89>>;
+    {_, 90, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:90>>;
+    {_, 91, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:91>>;
+    {_, 92, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:92>>;
+    {_, 93, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:93>>;
+    {_, 94, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:94>>;
+    {_, 95, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:95>>;
+    {_, 96, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:96>>;
+    {_, 97, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:97>>;
+    {_, 98, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:98>>;
+    {_, 99, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:99>>;
+    {_, 100, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:100>>;
+    {_, 101, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:101>>;
+    {_, 102, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:102>>;
+    {_, 103, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:103>>;
+    {_, 104, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:104>>;
+    {_, 105, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:105>>;
+    {_, 106, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:106>>;
+    {_, 107, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:107>>;
+    {_, 108, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:108>>;
+    {_, 109, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:109>>;
+    {_, 110, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:110>>;
+    {_, 111, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:111>>;
+    {_, 112, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:112>>;
+    {_, 113, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:113>>;
+    {_, 114, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:114>>;
+    {_, 115, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:115>>;
+    {_, 116, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:116>>;
+    {_, 117, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:117>>;
+    {_, 118, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:118>>;
+    {_, 119, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:119>>;
+    {_, 120, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:120>>;
+    {_, 121, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:121>>;
+    {_, 122, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:122>>;
+    {_, 123, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:123>>;
+    {_, 124, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:124>>;
+    {_, 125, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:125>>;
+    {_, 126, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:126>>;
+    {_, 127, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:127>>;
+    {_, 128, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:128>>;
+    {_, 129, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:129>>;
+    {_, 130, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:130>>;
+    {_, 131, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:131>>;
+    {_, 132, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:132>>;
+    {_, 133, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:133>>;
+    {_, 134, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:134>>;
+    {_, 135, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:135>>;
+    {_, 136, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:136>>;
+    {_, 137, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:137>>;
+    {_, 138, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:138>>;
+    {_, 139, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:139>>;
+    {_, 140, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:140>>;
+    {_, 141, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:141>>;
+    {_, 142, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:142>>;
+    {_, 143, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:143>>;
+    {_, 144, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:144>>;
+    {_, 145, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:145>>;
+    {_, 146, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:146>>;
+    {_, 147, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:147>>;
+    {_, 148, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:148>>;
+    {_, 149, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:149>>;
+    {_, 150, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:150>>;
+    {_, 151, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:151>>;
+    {_, 152, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:152>>;
+    {_, 153, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:153>>;
+    {_, 154, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:154>>;
+    {_, 155, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:155>>;
+    {_, 156, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:156>>;
+    {_, 157, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:157>>;
+    {_, 158, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:158>>;
+    {_, 159, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:159>>;
+    {_, 160, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:160>>;
+    {_, 161, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:161>>;
+    {_, 162, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:162>>;
+    {_, 163, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:163>>;
+    {_, 164, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:164>>;
+    {_, 165, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:165>>;
+    {_, 166, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:166>>;
+    {_, 167, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:167>>;
+    {_, 168, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:168>>;
+    {_, 169, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:169>>;
+    {_, 170, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:170>>;
+    {_, 171, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:171>>;
+    {_, 172, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:172>>;
+    {_, 173, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:173>>;
+    {_, 174, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:174>>;
+    {_, 175, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:175>>;
+    {_, 176, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:176>>;
+    {_, 177, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:177>>;
+    {_, 178, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:178>>;
+    {_, 179, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:179>>;
+    {_, 180, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:180>>;
+    {_, 181, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:181>>;
+    {_, 182, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:182>>;
+    {_, 183, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:183>>;
+    {_, 184, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:184>>;
+    {_, 185, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:185>>;
+    {_, 186, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:186>>;
+    {_, 187, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:187>>;
+    {_, 188, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:188>>;
+    {_, 189, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:189>>;
+    {_, 190, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:190>>;
+    {_, 191, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:191>>;
+    {_, 192, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:192>>;
+    {_, 193, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:193>>;
+    {_, 194, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:194>>;
+    {_, 195, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:195>>;
+    {_, 196, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:196>>;
+    {_, 197, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:197>>;
+    {_, 198, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:198>>;
+    {_, 199, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:199>>;
+    {_, 200, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:200>>;
+    {_, 201, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:201>>;
+    {_, 202, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:202>>;
+    {_, 203, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:203>>;
+    {_, 204, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:204>>;
+    {_, 205, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:205>>;
+    {_, 206, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:206>>;
+    {_, 207, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:207>>;
+    {_, 208, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:208>>;
+    {_, 209, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:209>>;
+    {_, 210, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:210>>;
+    {_, 211, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:211>>;
+    {_, 212, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:212>>;
+    {_, 213, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:213>>;
+    {_, 214, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:214>>;
+    {_, 215, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:215>>;
+    {_, 216, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:216>>;
+    {_, 217, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:217>>;
+    {_, 218, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:218>>;
+    {_, 219, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:219>>;
+    {_, 220, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:220>>;
+    {_, 221, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:221>>;
+    {_, 222, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:222>>;
+    {_, 223, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:223>>;
+    {_, 224, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:224>>;
+    {_, 225, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:225>>;
+    {_, 226, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:226>>;
+    {_, 227, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:227>>;
+    {_, 228, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:228>>;
+    {_, 229, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:229>>;
+    {_, 230, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:230>>;
+    {_, 231, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:231>>;
+    {_, 232, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:232>>;
+    {_, 233, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:233>>;
+    {_, 234, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:234>>;
+    {_, 235, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:235>>;
+    {_, 236, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:236>>;
+    {_, 237, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:237>>;
+    {_, 238, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:238>>;
+    {_, 239, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:239>>;
+    {_, 240, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:240>>;
+    {_, 241, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:241>>;
+    {_, 242, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:242>>;
+    {_, 243, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:243>>;
+    {_, 244, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:244>>;
+    {_, 245, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:245>>;
+    {_, 246, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:246>>;
+    {_, 247, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:247>>;
+    {_, 248, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:248>>;
+    {_, 249, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:249>>;
+    {_, 250, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:250>>;
+    {_, 251, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:251>>;
+    {_, 252, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:252>>;
+    {_, 253, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:253>>;
+    {_, 254, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:254>>;
+    {_, 255, binary, unsigned, little} ->
+      <<Val:Size/unsigned-little-binary-unit:255>>;
+    {_, 256, binary, unsigned, little} ->
       <<Val:Size/unsigned-little-binary-unit:256>>;
     {_, 1, integer, signed, native} ->
       <<Val:Size/signed-native-integer-unit:1>>;
@@ -9326,518 +9326,6 @@ make_bitstring(Val, Size, Unit, Type, Flags) ->
       <<Val:Size/signed-native-float-unit:255>>;
     {_, 256, float, signed, native} ->
       <<Val:Size/signed-native-float-unit:256>>;
-    {_, 1, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:1>>;
-    {_, 2, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:2>>;
-    {_, 3, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:3>>;
-    {_, 4, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:4>>;
-    {_, 5, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:5>>;
-    {_, 6, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:6>>;
-    {_, 7, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:7>>;
-    {_, 8, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:8>>;
-    {_, 9, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:9>>;
-    {_, 10, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:10>>;
-    {_, 11, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:11>>;
-    {_, 12, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:12>>;
-    {_, 13, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:13>>;
-    {_, 14, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:14>>;
-    {_, 15, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:15>>;
-    {_, 16, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:16>>;
-    {_, 17, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:17>>;
-    {_, 18, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:18>>;
-    {_, 19, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:19>>;
-    {_, 20, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:20>>;
-    {_, 21, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:21>>;
-    {_, 22, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:22>>;
-    {_, 23, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:23>>;
-    {_, 24, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:24>>;
-    {_, 25, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:25>>;
-    {_, 26, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:26>>;
-    {_, 27, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:27>>;
-    {_, 28, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:28>>;
-    {_, 29, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:29>>;
-    {_, 30, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:30>>;
-    {_, 31, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:31>>;
-    {_, 32, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:32>>;
-    {_, 33, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:33>>;
-    {_, 34, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:34>>;
-    {_, 35, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:35>>;
-    {_, 36, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:36>>;
-    {_, 37, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:37>>;
-    {_, 38, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:38>>;
-    {_, 39, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:39>>;
-    {_, 40, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:40>>;
-    {_, 41, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:41>>;
-    {_, 42, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:42>>;
-    {_, 43, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:43>>;
-    {_, 44, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:44>>;
-    {_, 45, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:45>>;
-    {_, 46, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:46>>;
-    {_, 47, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:47>>;
-    {_, 48, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:48>>;
-    {_, 49, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:49>>;
-    {_, 50, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:50>>;
-    {_, 51, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:51>>;
-    {_, 52, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:52>>;
-    {_, 53, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:53>>;
-    {_, 54, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:54>>;
-    {_, 55, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:55>>;
-    {_, 56, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:56>>;
-    {_, 57, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:57>>;
-    {_, 58, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:58>>;
-    {_, 59, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:59>>;
-    {_, 60, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:60>>;
-    {_, 61, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:61>>;
-    {_, 62, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:62>>;
-    {_, 63, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:63>>;
-    {_, 64, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:64>>;
-    {_, 65, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:65>>;
-    {_, 66, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:66>>;
-    {_, 67, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:67>>;
-    {_, 68, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:68>>;
-    {_, 69, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:69>>;
-    {_, 70, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:70>>;
-    {_, 71, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:71>>;
-    {_, 72, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:72>>;
-    {_, 73, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:73>>;
-    {_, 74, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:74>>;
-    {_, 75, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:75>>;
-    {_, 76, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:76>>;
-    {_, 77, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:77>>;
-    {_, 78, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:78>>;
-    {_, 79, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:79>>;
-    {_, 80, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:80>>;
-    {_, 81, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:81>>;
-    {_, 82, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:82>>;
-    {_, 83, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:83>>;
-    {_, 84, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:84>>;
-    {_, 85, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:85>>;
-    {_, 86, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:86>>;
-    {_, 87, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:87>>;
-    {_, 88, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:88>>;
-    {_, 89, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:89>>;
-    {_, 90, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:90>>;
-    {_, 91, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:91>>;
-    {_, 92, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:92>>;
-    {_, 93, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:93>>;
-    {_, 94, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:94>>;
-    {_, 95, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:95>>;
-    {_, 96, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:96>>;
-    {_, 97, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:97>>;
-    {_, 98, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:98>>;
-    {_, 99, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:99>>;
-    {_, 100, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:100>>;
-    {_, 101, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:101>>;
-    {_, 102, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:102>>;
-    {_, 103, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:103>>;
-    {_, 104, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:104>>;
-    {_, 105, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:105>>;
-    {_, 106, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:106>>;
-    {_, 107, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:107>>;
-    {_, 108, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:108>>;
-    {_, 109, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:109>>;
-    {_, 110, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:110>>;
-    {_, 111, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:111>>;
-    {_, 112, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:112>>;
-    {_, 113, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:113>>;
-    {_, 114, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:114>>;
-    {_, 115, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:115>>;
-    {_, 116, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:116>>;
-    {_, 117, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:117>>;
-    {_, 118, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:118>>;
-    {_, 119, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:119>>;
-    {_, 120, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:120>>;
-    {_, 121, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:121>>;
-    {_, 122, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:122>>;
-    {_, 123, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:123>>;
-    {_, 124, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:124>>;
-    {_, 125, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:125>>;
-    {_, 126, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:126>>;
-    {_, 127, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:127>>;
-    {_, 128, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:128>>;
-    {_, 129, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:129>>;
-    {_, 130, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:130>>;
-    {_, 131, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:131>>;
-    {_, 132, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:132>>;
-    {_, 133, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:133>>;
-    {_, 134, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:134>>;
-    {_, 135, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:135>>;
-    {_, 136, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:136>>;
-    {_, 137, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:137>>;
-    {_, 138, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:138>>;
-    {_, 139, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:139>>;
-    {_, 140, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:140>>;
-    {_, 141, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:141>>;
-    {_, 142, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:142>>;
-    {_, 143, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:143>>;
-    {_, 144, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:144>>;
-    {_, 145, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:145>>;
-    {_, 146, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:146>>;
-    {_, 147, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:147>>;
-    {_, 148, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:148>>;
-    {_, 149, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:149>>;
-    {_, 150, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:150>>;
-    {_, 151, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:151>>;
-    {_, 152, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:152>>;
-    {_, 153, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:153>>;
-    {_, 154, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:154>>;
-    {_, 155, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:155>>;
-    {_, 156, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:156>>;
-    {_, 157, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:157>>;
-    {_, 158, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:158>>;
-    {_, 159, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:159>>;
-    {_, 160, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:160>>;
-    {_, 161, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:161>>;
-    {_, 162, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:162>>;
-    {_, 163, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:163>>;
-    {_, 164, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:164>>;
-    {_, 165, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:165>>;
-    {_, 166, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:166>>;
-    {_, 167, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:167>>;
-    {_, 168, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:168>>;
-    {_, 169, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:169>>;
-    {_, 170, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:170>>;
-    {_, 171, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:171>>;
-    {_, 172, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:172>>;
-    {_, 173, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:173>>;
-    {_, 174, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:174>>;
-    {_, 175, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:175>>;
-    {_, 176, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:176>>;
-    {_, 177, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:177>>;
-    {_, 178, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:178>>;
-    {_, 179, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:179>>;
-    {_, 180, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:180>>;
-    {_, 181, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:181>>;
-    {_, 182, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:182>>;
-    {_, 183, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:183>>;
-    {_, 184, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:184>>;
-    {_, 185, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:185>>;
-    {_, 186, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:186>>;
-    {_, 187, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:187>>;
-    {_, 188, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:188>>;
-    {_, 189, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:189>>;
-    {_, 190, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:190>>;
-    {_, 191, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:191>>;
-    {_, 192, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:192>>;
-    {_, 193, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:193>>;
-    {_, 194, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:194>>;
-    {_, 195, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:195>>;
-    {_, 196, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:196>>;
-    {_, 197, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:197>>;
-    {_, 198, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:198>>;
-    {_, 199, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:199>>;
-    {_, 200, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:200>>;
-    {_, 201, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:201>>;
-    {_, 202, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:202>>;
-    {_, 203, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:203>>;
-    {_, 204, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:204>>;
-    {_, 205, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:205>>;
-    {_, 206, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:206>>;
-    {_, 207, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:207>>;
-    {_, 208, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:208>>;
-    {_, 209, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:209>>;
-    {_, 210, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:210>>;
-    {_, 211, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:211>>;
-    {_, 212, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:212>>;
-    {_, 213, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:213>>;
-    {_, 214, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:214>>;
-    {_, 215, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:215>>;
-    {_, 216, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:216>>;
-    {_, 217, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:217>>;
-    {_, 218, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:218>>;
-    {_, 219, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:219>>;
-    {_, 220, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:220>>;
-    {_, 221, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:221>>;
-    {_, 222, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:222>>;
-    {_, 223, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:223>>;
-    {_, 224, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:224>>;
-    {_, 225, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:225>>;
-    {_, 226, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:226>>;
-    {_, 227, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:227>>;
-    {_, 228, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:228>>;
-    {_, 229, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:229>>;
-    {_, 230, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:230>>;
-    {_, 231, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:231>>;
-    {_, 232, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:232>>;
-    {_, 233, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:233>>;
-    {_, 234, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:234>>;
-    {_, 235, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:235>>;
-    {_, 236, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:236>>;
-    {_, 237, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:237>>;
-    {_, 238, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:238>>;
-    {_, 239, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:239>>;
-    {_, 240, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:240>>;
-    {_, 241, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:241>>;
-    {_, 242, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:242>>;
-    {_, 243, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:243>>;
-    {_, 244, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:244>>;
-    {_, 245, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:245>>;
-    {_, 246, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:246>>;
-    {_, 247, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:247>>;
-    {_, 248, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:248>>;
-    {_, 249, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:249>>;
-    {_, 250, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:250>>;
-    {_, 251, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:251>>;
-    {_, 252, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:252>>;
-    {_, 253, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:253>>;
-    {_, 254, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:254>>;
-    {_, 255, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:255>>;
-    {_, 256, binary, signed, native} ->
-      <<Val:Size/signed-native-binary-unit:256>>;
     {all, 1, binary, signed, native} ->
       <<Val:Size/signed-native-binary-unit:1>>;
     {all, 2, binary, signed, native} ->
@@ -10349,6 +9837,518 @@ make_bitstring(Val, Size, Unit, Type, Flags) ->
     {all, 255, binary, signed, native} ->
       <<Val:Size/signed-native-binary-unit:255>>;
     {all, 256, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:256>>;
+    {_, 1, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:1>>;
+    {_, 2, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:2>>;
+    {_, 3, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:3>>;
+    {_, 4, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:4>>;
+    {_, 5, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:5>>;
+    {_, 6, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:6>>;
+    {_, 7, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:7>>;
+    {_, 8, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:8>>;
+    {_, 9, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:9>>;
+    {_, 10, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:10>>;
+    {_, 11, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:11>>;
+    {_, 12, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:12>>;
+    {_, 13, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:13>>;
+    {_, 14, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:14>>;
+    {_, 15, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:15>>;
+    {_, 16, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:16>>;
+    {_, 17, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:17>>;
+    {_, 18, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:18>>;
+    {_, 19, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:19>>;
+    {_, 20, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:20>>;
+    {_, 21, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:21>>;
+    {_, 22, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:22>>;
+    {_, 23, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:23>>;
+    {_, 24, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:24>>;
+    {_, 25, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:25>>;
+    {_, 26, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:26>>;
+    {_, 27, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:27>>;
+    {_, 28, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:28>>;
+    {_, 29, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:29>>;
+    {_, 30, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:30>>;
+    {_, 31, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:31>>;
+    {_, 32, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:32>>;
+    {_, 33, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:33>>;
+    {_, 34, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:34>>;
+    {_, 35, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:35>>;
+    {_, 36, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:36>>;
+    {_, 37, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:37>>;
+    {_, 38, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:38>>;
+    {_, 39, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:39>>;
+    {_, 40, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:40>>;
+    {_, 41, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:41>>;
+    {_, 42, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:42>>;
+    {_, 43, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:43>>;
+    {_, 44, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:44>>;
+    {_, 45, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:45>>;
+    {_, 46, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:46>>;
+    {_, 47, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:47>>;
+    {_, 48, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:48>>;
+    {_, 49, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:49>>;
+    {_, 50, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:50>>;
+    {_, 51, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:51>>;
+    {_, 52, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:52>>;
+    {_, 53, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:53>>;
+    {_, 54, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:54>>;
+    {_, 55, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:55>>;
+    {_, 56, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:56>>;
+    {_, 57, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:57>>;
+    {_, 58, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:58>>;
+    {_, 59, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:59>>;
+    {_, 60, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:60>>;
+    {_, 61, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:61>>;
+    {_, 62, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:62>>;
+    {_, 63, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:63>>;
+    {_, 64, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:64>>;
+    {_, 65, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:65>>;
+    {_, 66, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:66>>;
+    {_, 67, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:67>>;
+    {_, 68, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:68>>;
+    {_, 69, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:69>>;
+    {_, 70, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:70>>;
+    {_, 71, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:71>>;
+    {_, 72, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:72>>;
+    {_, 73, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:73>>;
+    {_, 74, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:74>>;
+    {_, 75, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:75>>;
+    {_, 76, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:76>>;
+    {_, 77, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:77>>;
+    {_, 78, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:78>>;
+    {_, 79, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:79>>;
+    {_, 80, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:80>>;
+    {_, 81, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:81>>;
+    {_, 82, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:82>>;
+    {_, 83, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:83>>;
+    {_, 84, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:84>>;
+    {_, 85, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:85>>;
+    {_, 86, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:86>>;
+    {_, 87, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:87>>;
+    {_, 88, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:88>>;
+    {_, 89, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:89>>;
+    {_, 90, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:90>>;
+    {_, 91, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:91>>;
+    {_, 92, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:92>>;
+    {_, 93, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:93>>;
+    {_, 94, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:94>>;
+    {_, 95, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:95>>;
+    {_, 96, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:96>>;
+    {_, 97, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:97>>;
+    {_, 98, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:98>>;
+    {_, 99, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:99>>;
+    {_, 100, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:100>>;
+    {_, 101, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:101>>;
+    {_, 102, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:102>>;
+    {_, 103, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:103>>;
+    {_, 104, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:104>>;
+    {_, 105, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:105>>;
+    {_, 106, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:106>>;
+    {_, 107, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:107>>;
+    {_, 108, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:108>>;
+    {_, 109, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:109>>;
+    {_, 110, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:110>>;
+    {_, 111, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:111>>;
+    {_, 112, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:112>>;
+    {_, 113, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:113>>;
+    {_, 114, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:114>>;
+    {_, 115, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:115>>;
+    {_, 116, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:116>>;
+    {_, 117, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:117>>;
+    {_, 118, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:118>>;
+    {_, 119, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:119>>;
+    {_, 120, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:120>>;
+    {_, 121, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:121>>;
+    {_, 122, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:122>>;
+    {_, 123, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:123>>;
+    {_, 124, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:124>>;
+    {_, 125, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:125>>;
+    {_, 126, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:126>>;
+    {_, 127, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:127>>;
+    {_, 128, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:128>>;
+    {_, 129, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:129>>;
+    {_, 130, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:130>>;
+    {_, 131, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:131>>;
+    {_, 132, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:132>>;
+    {_, 133, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:133>>;
+    {_, 134, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:134>>;
+    {_, 135, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:135>>;
+    {_, 136, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:136>>;
+    {_, 137, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:137>>;
+    {_, 138, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:138>>;
+    {_, 139, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:139>>;
+    {_, 140, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:140>>;
+    {_, 141, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:141>>;
+    {_, 142, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:142>>;
+    {_, 143, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:143>>;
+    {_, 144, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:144>>;
+    {_, 145, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:145>>;
+    {_, 146, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:146>>;
+    {_, 147, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:147>>;
+    {_, 148, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:148>>;
+    {_, 149, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:149>>;
+    {_, 150, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:150>>;
+    {_, 151, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:151>>;
+    {_, 152, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:152>>;
+    {_, 153, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:153>>;
+    {_, 154, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:154>>;
+    {_, 155, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:155>>;
+    {_, 156, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:156>>;
+    {_, 157, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:157>>;
+    {_, 158, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:158>>;
+    {_, 159, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:159>>;
+    {_, 160, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:160>>;
+    {_, 161, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:161>>;
+    {_, 162, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:162>>;
+    {_, 163, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:163>>;
+    {_, 164, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:164>>;
+    {_, 165, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:165>>;
+    {_, 166, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:166>>;
+    {_, 167, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:167>>;
+    {_, 168, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:168>>;
+    {_, 169, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:169>>;
+    {_, 170, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:170>>;
+    {_, 171, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:171>>;
+    {_, 172, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:172>>;
+    {_, 173, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:173>>;
+    {_, 174, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:174>>;
+    {_, 175, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:175>>;
+    {_, 176, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:176>>;
+    {_, 177, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:177>>;
+    {_, 178, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:178>>;
+    {_, 179, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:179>>;
+    {_, 180, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:180>>;
+    {_, 181, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:181>>;
+    {_, 182, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:182>>;
+    {_, 183, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:183>>;
+    {_, 184, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:184>>;
+    {_, 185, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:185>>;
+    {_, 186, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:186>>;
+    {_, 187, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:187>>;
+    {_, 188, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:188>>;
+    {_, 189, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:189>>;
+    {_, 190, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:190>>;
+    {_, 191, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:191>>;
+    {_, 192, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:192>>;
+    {_, 193, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:193>>;
+    {_, 194, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:194>>;
+    {_, 195, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:195>>;
+    {_, 196, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:196>>;
+    {_, 197, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:197>>;
+    {_, 198, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:198>>;
+    {_, 199, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:199>>;
+    {_, 200, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:200>>;
+    {_, 201, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:201>>;
+    {_, 202, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:202>>;
+    {_, 203, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:203>>;
+    {_, 204, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:204>>;
+    {_, 205, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:205>>;
+    {_, 206, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:206>>;
+    {_, 207, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:207>>;
+    {_, 208, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:208>>;
+    {_, 209, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:209>>;
+    {_, 210, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:210>>;
+    {_, 211, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:211>>;
+    {_, 212, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:212>>;
+    {_, 213, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:213>>;
+    {_, 214, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:214>>;
+    {_, 215, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:215>>;
+    {_, 216, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:216>>;
+    {_, 217, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:217>>;
+    {_, 218, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:218>>;
+    {_, 219, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:219>>;
+    {_, 220, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:220>>;
+    {_, 221, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:221>>;
+    {_, 222, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:222>>;
+    {_, 223, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:223>>;
+    {_, 224, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:224>>;
+    {_, 225, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:225>>;
+    {_, 226, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:226>>;
+    {_, 227, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:227>>;
+    {_, 228, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:228>>;
+    {_, 229, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:229>>;
+    {_, 230, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:230>>;
+    {_, 231, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:231>>;
+    {_, 232, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:232>>;
+    {_, 233, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:233>>;
+    {_, 234, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:234>>;
+    {_, 235, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:235>>;
+    {_, 236, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:236>>;
+    {_, 237, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:237>>;
+    {_, 238, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:238>>;
+    {_, 239, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:239>>;
+    {_, 240, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:240>>;
+    {_, 241, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:241>>;
+    {_, 242, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:242>>;
+    {_, 243, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:243>>;
+    {_, 244, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:244>>;
+    {_, 245, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:245>>;
+    {_, 246, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:246>>;
+    {_, 247, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:247>>;
+    {_, 248, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:248>>;
+    {_, 249, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:249>>;
+    {_, 250, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:250>>;
+    {_, 251, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:251>>;
+    {_, 252, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:252>>;
+    {_, 253, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:253>>;
+    {_, 254, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:254>>;
+    {_, 255, binary, signed, native} ->
+      <<Val:Size/signed-native-binary-unit:255>>;
+    {_, 256, binary, signed, native} ->
       <<Val:Size/signed-native-binary-unit:256>>;
     {_, 1, integer, unsigned, native} ->
       <<Val:Size/unsigned-native-integer-unit:1>>;
@@ -11374,6 +11374,518 @@ make_bitstring(Val, Size, Unit, Type, Flags) ->
       <<Val:Size/unsigned-native-float-unit:255>>;
     {_, 256, float, unsigned, native} ->
       <<Val:Size/unsigned-native-float-unit:256>>;
+    {all, 1, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:1>>;
+    {all, 2, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:2>>;
+    {all, 3, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:3>>;
+    {all, 4, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:4>>;
+    {all, 5, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:5>>;
+    {all, 6, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:6>>;
+    {all, 7, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:7>>;
+    {all, 8, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:8>>;
+    {all, 9, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:9>>;
+    {all, 10, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:10>>;
+    {all, 11, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:11>>;
+    {all, 12, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:12>>;
+    {all, 13, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:13>>;
+    {all, 14, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:14>>;
+    {all, 15, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:15>>;
+    {all, 16, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:16>>;
+    {all, 17, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:17>>;
+    {all, 18, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:18>>;
+    {all, 19, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:19>>;
+    {all, 20, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:20>>;
+    {all, 21, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:21>>;
+    {all, 22, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:22>>;
+    {all, 23, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:23>>;
+    {all, 24, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:24>>;
+    {all, 25, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:25>>;
+    {all, 26, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:26>>;
+    {all, 27, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:27>>;
+    {all, 28, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:28>>;
+    {all, 29, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:29>>;
+    {all, 30, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:30>>;
+    {all, 31, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:31>>;
+    {all, 32, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:32>>;
+    {all, 33, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:33>>;
+    {all, 34, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:34>>;
+    {all, 35, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:35>>;
+    {all, 36, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:36>>;
+    {all, 37, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:37>>;
+    {all, 38, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:38>>;
+    {all, 39, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:39>>;
+    {all, 40, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:40>>;
+    {all, 41, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:41>>;
+    {all, 42, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:42>>;
+    {all, 43, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:43>>;
+    {all, 44, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:44>>;
+    {all, 45, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:45>>;
+    {all, 46, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:46>>;
+    {all, 47, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:47>>;
+    {all, 48, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:48>>;
+    {all, 49, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:49>>;
+    {all, 50, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:50>>;
+    {all, 51, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:51>>;
+    {all, 52, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:52>>;
+    {all, 53, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:53>>;
+    {all, 54, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:54>>;
+    {all, 55, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:55>>;
+    {all, 56, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:56>>;
+    {all, 57, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:57>>;
+    {all, 58, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:58>>;
+    {all, 59, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:59>>;
+    {all, 60, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:60>>;
+    {all, 61, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:61>>;
+    {all, 62, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:62>>;
+    {all, 63, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:63>>;
+    {all, 64, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:64>>;
+    {all, 65, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:65>>;
+    {all, 66, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:66>>;
+    {all, 67, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:67>>;
+    {all, 68, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:68>>;
+    {all, 69, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:69>>;
+    {all, 70, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:70>>;
+    {all, 71, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:71>>;
+    {all, 72, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:72>>;
+    {all, 73, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:73>>;
+    {all, 74, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:74>>;
+    {all, 75, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:75>>;
+    {all, 76, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:76>>;
+    {all, 77, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:77>>;
+    {all, 78, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:78>>;
+    {all, 79, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:79>>;
+    {all, 80, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:80>>;
+    {all, 81, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:81>>;
+    {all, 82, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:82>>;
+    {all, 83, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:83>>;
+    {all, 84, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:84>>;
+    {all, 85, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:85>>;
+    {all, 86, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:86>>;
+    {all, 87, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:87>>;
+    {all, 88, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:88>>;
+    {all, 89, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:89>>;
+    {all, 90, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:90>>;
+    {all, 91, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:91>>;
+    {all, 92, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:92>>;
+    {all, 93, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:93>>;
+    {all, 94, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:94>>;
+    {all, 95, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:95>>;
+    {all, 96, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:96>>;
+    {all, 97, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:97>>;
+    {all, 98, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:98>>;
+    {all, 99, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:99>>;
+    {all, 100, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:100>>;
+    {all, 101, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:101>>;
+    {all, 102, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:102>>;
+    {all, 103, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:103>>;
+    {all, 104, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:104>>;
+    {all, 105, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:105>>;
+    {all, 106, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:106>>;
+    {all, 107, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:107>>;
+    {all, 108, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:108>>;
+    {all, 109, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:109>>;
+    {all, 110, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:110>>;
+    {all, 111, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:111>>;
+    {all, 112, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:112>>;
+    {all, 113, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:113>>;
+    {all, 114, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:114>>;
+    {all, 115, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:115>>;
+    {all, 116, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:116>>;
+    {all, 117, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:117>>;
+    {all, 118, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:118>>;
+    {all, 119, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:119>>;
+    {all, 120, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:120>>;
+    {all, 121, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:121>>;
+    {all, 122, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:122>>;
+    {all, 123, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:123>>;
+    {all, 124, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:124>>;
+    {all, 125, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:125>>;
+    {all, 126, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:126>>;
+    {all, 127, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:127>>;
+    {all, 128, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:128>>;
+    {all, 129, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:129>>;
+    {all, 130, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:130>>;
+    {all, 131, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:131>>;
+    {all, 132, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:132>>;
+    {all, 133, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:133>>;
+    {all, 134, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:134>>;
+    {all, 135, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:135>>;
+    {all, 136, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:136>>;
+    {all, 137, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:137>>;
+    {all, 138, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:138>>;
+    {all, 139, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:139>>;
+    {all, 140, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:140>>;
+    {all, 141, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:141>>;
+    {all, 142, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:142>>;
+    {all, 143, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:143>>;
+    {all, 144, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:144>>;
+    {all, 145, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:145>>;
+    {all, 146, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:146>>;
+    {all, 147, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:147>>;
+    {all, 148, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:148>>;
+    {all, 149, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:149>>;
+    {all, 150, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:150>>;
+    {all, 151, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:151>>;
+    {all, 152, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:152>>;
+    {all, 153, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:153>>;
+    {all, 154, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:154>>;
+    {all, 155, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:155>>;
+    {all, 156, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:156>>;
+    {all, 157, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:157>>;
+    {all, 158, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:158>>;
+    {all, 159, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:159>>;
+    {all, 160, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:160>>;
+    {all, 161, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:161>>;
+    {all, 162, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:162>>;
+    {all, 163, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:163>>;
+    {all, 164, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:164>>;
+    {all, 165, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:165>>;
+    {all, 166, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:166>>;
+    {all, 167, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:167>>;
+    {all, 168, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:168>>;
+    {all, 169, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:169>>;
+    {all, 170, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:170>>;
+    {all, 171, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:171>>;
+    {all, 172, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:172>>;
+    {all, 173, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:173>>;
+    {all, 174, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:174>>;
+    {all, 175, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:175>>;
+    {all, 176, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:176>>;
+    {all, 177, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:177>>;
+    {all, 178, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:178>>;
+    {all, 179, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:179>>;
+    {all, 180, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:180>>;
+    {all, 181, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:181>>;
+    {all, 182, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:182>>;
+    {all, 183, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:183>>;
+    {all, 184, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:184>>;
+    {all, 185, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:185>>;
+    {all, 186, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:186>>;
+    {all, 187, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:187>>;
+    {all, 188, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:188>>;
+    {all, 189, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:189>>;
+    {all, 190, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:190>>;
+    {all, 191, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:191>>;
+    {all, 192, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:192>>;
+    {all, 193, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:193>>;
+    {all, 194, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:194>>;
+    {all, 195, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:195>>;
+    {all, 196, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:196>>;
+    {all, 197, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:197>>;
+    {all, 198, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:198>>;
+    {all, 199, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:199>>;
+    {all, 200, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:200>>;
+    {all, 201, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:201>>;
+    {all, 202, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:202>>;
+    {all, 203, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:203>>;
+    {all, 204, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:204>>;
+    {all, 205, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:205>>;
+    {all, 206, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:206>>;
+    {all, 207, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:207>>;
+    {all, 208, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:208>>;
+    {all, 209, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:209>>;
+    {all, 210, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:210>>;
+    {all, 211, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:211>>;
+    {all, 212, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:212>>;
+    {all, 213, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:213>>;
+    {all, 214, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:214>>;
+    {all, 215, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:215>>;
+    {all, 216, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:216>>;
+    {all, 217, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:217>>;
+    {all, 218, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:218>>;
+    {all, 219, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:219>>;
+    {all, 220, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:220>>;
+    {all, 221, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:221>>;
+    {all, 222, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:222>>;
+    {all, 223, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:223>>;
+    {all, 224, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:224>>;
+    {all, 225, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:225>>;
+    {all, 226, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:226>>;
+    {all, 227, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:227>>;
+    {all, 228, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:228>>;
+    {all, 229, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:229>>;
+    {all, 230, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:230>>;
+    {all, 231, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:231>>;
+    {all, 232, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:232>>;
+    {all, 233, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:233>>;
+    {all, 234, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:234>>;
+    {all, 235, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:235>>;
+    {all, 236, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:236>>;
+    {all, 237, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:237>>;
+    {all, 238, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:238>>;
+    {all, 239, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:239>>;
+    {all, 240, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:240>>;
+    {all, 241, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:241>>;
+    {all, 242, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:242>>;
+    {all, 243, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:243>>;
+    {all, 244, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:244>>;
+    {all, 245, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:245>>;
+    {all, 246, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:246>>;
+    {all, 247, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:247>>;
+    {all, 248, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:248>>;
+    {all, 249, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:249>>;
+    {all, 250, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:250>>;
+    {all, 251, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:251>>;
+    {all, 252, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:252>>;
+    {all, 253, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:253>>;
+    {all, 254, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:254>>;
+    {all, 255, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:255>>;
+    {all, 256, binary, unsigned, native} ->
+      <<Val:Size/unsigned-native-binary-unit:256>>;
     {_, 1, binary, unsigned, native} ->
       <<Val:Size/unsigned-native-binary-unit:1>>;
     {_, 2, binary, unsigned, native} ->
@@ -11886,517 +12398,5 @@ make_bitstring(Val, Size, Unit, Type, Flags) ->
       <<Val:Size/unsigned-native-binary-unit:255>>;
     {_, 256, binary, unsigned, native} ->
       <<Val:Size/unsigned-native-binary-unit:256>>;
-    {all, 1, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:1>>;
-    {all, 2, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:2>>;
-    {all, 3, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:3>>;
-    {all, 4, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:4>>;
-    {all, 5, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:5>>;
-    {all, 6, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:6>>;
-    {all, 7, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:7>>;
-    {all, 8, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:8>>;
-    {all, 9, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:9>>;
-    {all, 10, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:10>>;
-    {all, 11, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:11>>;
-    {all, 12, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:12>>;
-    {all, 13, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:13>>;
-    {all, 14, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:14>>;
-    {all, 15, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:15>>;
-    {all, 16, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:16>>;
-    {all, 17, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:17>>;
-    {all, 18, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:18>>;
-    {all, 19, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:19>>;
-    {all, 20, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:20>>;
-    {all, 21, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:21>>;
-    {all, 22, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:22>>;
-    {all, 23, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:23>>;
-    {all, 24, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:24>>;
-    {all, 25, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:25>>;
-    {all, 26, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:26>>;
-    {all, 27, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:27>>;
-    {all, 28, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:28>>;
-    {all, 29, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:29>>;
-    {all, 30, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:30>>;
-    {all, 31, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:31>>;
-    {all, 32, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:32>>;
-    {all, 33, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:33>>;
-    {all, 34, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:34>>;
-    {all, 35, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:35>>;
-    {all, 36, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:36>>;
-    {all, 37, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:37>>;
-    {all, 38, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:38>>;
-    {all, 39, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:39>>;
-    {all, 40, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:40>>;
-    {all, 41, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:41>>;
-    {all, 42, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:42>>;
-    {all, 43, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:43>>;
-    {all, 44, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:44>>;
-    {all, 45, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:45>>;
-    {all, 46, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:46>>;
-    {all, 47, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:47>>;
-    {all, 48, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:48>>;
-    {all, 49, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:49>>;
-    {all, 50, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:50>>;
-    {all, 51, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:51>>;
-    {all, 52, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:52>>;
-    {all, 53, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:53>>;
-    {all, 54, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:54>>;
-    {all, 55, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:55>>;
-    {all, 56, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:56>>;
-    {all, 57, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:57>>;
-    {all, 58, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:58>>;
-    {all, 59, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:59>>;
-    {all, 60, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:60>>;
-    {all, 61, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:61>>;
-    {all, 62, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:62>>;
-    {all, 63, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:63>>;
-    {all, 64, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:64>>;
-    {all, 65, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:65>>;
-    {all, 66, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:66>>;
-    {all, 67, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:67>>;
-    {all, 68, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:68>>;
-    {all, 69, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:69>>;
-    {all, 70, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:70>>;
-    {all, 71, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:71>>;
-    {all, 72, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:72>>;
-    {all, 73, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:73>>;
-    {all, 74, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:74>>;
-    {all, 75, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:75>>;
-    {all, 76, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:76>>;
-    {all, 77, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:77>>;
-    {all, 78, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:78>>;
-    {all, 79, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:79>>;
-    {all, 80, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:80>>;
-    {all, 81, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:81>>;
-    {all, 82, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:82>>;
-    {all, 83, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:83>>;
-    {all, 84, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:84>>;
-    {all, 85, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:85>>;
-    {all, 86, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:86>>;
-    {all, 87, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:87>>;
-    {all, 88, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:88>>;
-    {all, 89, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:89>>;
-    {all, 90, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:90>>;
-    {all, 91, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:91>>;
-    {all, 92, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:92>>;
-    {all, 93, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:93>>;
-    {all, 94, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:94>>;
-    {all, 95, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:95>>;
-    {all, 96, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:96>>;
-    {all, 97, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:97>>;
-    {all, 98, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:98>>;
-    {all, 99, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:99>>;
-    {all, 100, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:100>>;
-    {all, 101, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:101>>;
-    {all, 102, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:102>>;
-    {all, 103, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:103>>;
-    {all, 104, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:104>>;
-    {all, 105, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:105>>;
-    {all, 106, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:106>>;
-    {all, 107, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:107>>;
-    {all, 108, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:108>>;
-    {all, 109, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:109>>;
-    {all, 110, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:110>>;
-    {all, 111, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:111>>;
-    {all, 112, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:112>>;
-    {all, 113, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:113>>;
-    {all, 114, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:114>>;
-    {all, 115, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:115>>;
-    {all, 116, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:116>>;
-    {all, 117, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:117>>;
-    {all, 118, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:118>>;
-    {all, 119, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:119>>;
-    {all, 120, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:120>>;
-    {all, 121, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:121>>;
-    {all, 122, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:122>>;
-    {all, 123, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:123>>;
-    {all, 124, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:124>>;
-    {all, 125, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:125>>;
-    {all, 126, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:126>>;
-    {all, 127, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:127>>;
-    {all, 128, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:128>>;
-    {all, 129, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:129>>;
-    {all, 130, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:130>>;
-    {all, 131, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:131>>;
-    {all, 132, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:132>>;
-    {all, 133, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:133>>;
-    {all, 134, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:134>>;
-    {all, 135, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:135>>;
-    {all, 136, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:136>>;
-    {all, 137, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:137>>;
-    {all, 138, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:138>>;
-    {all, 139, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:139>>;
-    {all, 140, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:140>>;
-    {all, 141, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:141>>;
-    {all, 142, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:142>>;
-    {all, 143, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:143>>;
-    {all, 144, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:144>>;
-    {all, 145, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:145>>;
-    {all, 146, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:146>>;
-    {all, 147, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:147>>;
-    {all, 148, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:148>>;
-    {all, 149, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:149>>;
-    {all, 150, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:150>>;
-    {all, 151, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:151>>;
-    {all, 152, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:152>>;
-    {all, 153, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:153>>;
-    {all, 154, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:154>>;
-    {all, 155, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:155>>;
-    {all, 156, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:156>>;
-    {all, 157, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:157>>;
-    {all, 158, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:158>>;
-    {all, 159, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:159>>;
-    {all, 160, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:160>>;
-    {all, 161, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:161>>;
-    {all, 162, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:162>>;
-    {all, 163, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:163>>;
-    {all, 164, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:164>>;
-    {all, 165, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:165>>;
-    {all, 166, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:166>>;
-    {all, 167, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:167>>;
-    {all, 168, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:168>>;
-    {all, 169, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:169>>;
-    {all, 170, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:170>>;
-    {all, 171, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:171>>;
-    {all, 172, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:172>>;
-    {all, 173, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:173>>;
-    {all, 174, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:174>>;
-    {all, 175, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:175>>;
-    {all, 176, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:176>>;
-    {all, 177, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:177>>;
-    {all, 178, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:178>>;
-    {all, 179, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:179>>;
-    {all, 180, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:180>>;
-    {all, 181, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:181>>;
-    {all, 182, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:182>>;
-    {all, 183, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:183>>;
-    {all, 184, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:184>>;
-    {all, 185, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:185>>;
-    {all, 186, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:186>>;
-    {all, 187, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:187>>;
-    {all, 188, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:188>>;
-    {all, 189, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:189>>;
-    {all, 190, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:190>>;
-    {all, 191, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:191>>;
-    {all, 192, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:192>>;
-    {all, 193, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:193>>;
-    {all, 194, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:194>>;
-    {all, 195, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:195>>;
-    {all, 196, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:196>>;
-    {all, 197, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:197>>;
-    {all, 198, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:198>>;
-    {all, 199, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:199>>;
-    {all, 200, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:200>>;
-    {all, 201, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:201>>;
-    {all, 202, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:202>>;
-    {all, 203, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:203>>;
-    {all, 204, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:204>>;
-    {all, 205, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:205>>;
-    {all, 206, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:206>>;
-    {all, 207, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:207>>;
-    {all, 208, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:208>>;
-    {all, 209, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:209>>;
-    {all, 210, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:210>>;
-    {all, 211, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:211>>;
-    {all, 212, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:212>>;
-    {all, 213, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:213>>;
-    {all, 214, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:214>>;
-    {all, 215, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:215>>;
-    {all, 216, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:216>>;
-    {all, 217, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:217>>;
-    {all, 218, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:218>>;
-    {all, 219, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:219>>;
-    {all, 220, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:220>>;
-    {all, 221, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:221>>;
-    {all, 222, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:222>>;
-    {all, 223, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:223>>;
-    {all, 224, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:224>>;
-    {all, 225, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:225>>;
-    {all, 226, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:226>>;
-    {all, 227, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:227>>;
-    {all, 228, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:228>>;
-    {all, 229, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:229>>;
-    {all, 230, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:230>>;
-    {all, 231, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:231>>;
-    {all, 232, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:232>>;
-    {all, 233, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:233>>;
-    {all, 234, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:234>>;
-    {all, 235, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:235>>;
-    {all, 236, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:236>>;
-    {all, 237, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:237>>;
-    {all, 238, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:238>>;
-    {all, 239, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:239>>;
-    {all, 240, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:240>>;
-    {all, 241, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:241>>;
-    {all, 242, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:242>>;
-    {all, 243, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:243>>;
-    {all, 244, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:244>>;
-    {all, 245, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:245>>;
-    {all, 246, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:246>>;
-    {all, 247, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:247>>;
-    {all, 248, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:248>>;
-    {all, 249, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:249>>;
-    {all, 250, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:250>>;
-    {all, 251, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:251>>;
-    {all, 252, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:252>>;
-    {all, 253, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:253>>;
-    {all, 254, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:254>>;
-    {all, 255, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:255>>;
-    {all, 256, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:256>>
   end.
 
