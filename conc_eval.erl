@@ -28,7 +28,8 @@ i(M, F, A, CodeServer, TraceServer) ->
   end,
   erlang:spawn(I),
   receive
-    {R, Val} -> Val
+    {R, Val} -> Val;
+    {error, Msg} -> Msg
   end.
 
 %%-----------------------------------------------------------------------------------
@@ -238,15 +239,25 @@ eval_expr(M, concrete, CodeServer, TraceServer, {c_apply, _Anno, Op, Args}, Env)
   end;
   
 %%c_binary
-eval_expr(_M, concrete, _CodeServer, _TraceServer, {c_binary, _Anno, _Segments}, _Env) ->
-  io:format("c_binary not implemented yet!!~n"),
-  exception(error, c_binary);
+eval_expr(M, concrete, CodeServer, TraceServer, {c_binary, _Anno, Segments}, Env) ->
+  SegmVals = lists:map(
+    fun(S) -> eval_expr(M, concrete, CodeServer, TraceServer, S, Env) end,
+    Segments
+  ),
+  append_segments(SegmVals);
+%  io:format("c_binary not implemented yet!!~n"),
+%  exception(error, c_binary);
   
-%%c_bitstring
-eval_expr(_M, concrete, _CodeServer, _TraceServer, {c_bitstring, _Anno, _Val, _Size, _Unit, _Type, _Flags}, _Env) ->
-  io:format("c_bitstring not implemented yet!!~n"),
-  exception(error, c_bitstring);
-  
+%%c_bitstr
+eval_expr(M, concrete, CodeServer, TraceServer, {c_bitstr, _Anno, E, Size, Unit, Type, Flags}, Env) ->
+  EVal = eval_expr(M, concrete, CodeServer, TraceServer, E, Env),
+  SizeVal = eval_expr(M, concrete, CodeServer, TraceServer, Size, Env),
+  UnitVal = eval_expr(M, concrete, CodeServer, TraceServer, Unit, Env),
+  TypeVal = eval_expr(M, concrete, CodeServer, TraceServer, Type, Env),
+  FlagsVal = eval_expr(M, concrete, CodeServer, TraceServer, Flags, Env),
+%  io:format("EVal: ~w~nSize: ~w~nUnit: ~w~nType: ~w~nFlags: ~w~n", [EVal,SizeVal,UnitVal,TypeVal,FlagsVal]),
+  conc_lib:make_bitstring(EVal, SizeVal, UnitVal, TypeVal, FlagsVal);
+    
 %% c_call
 eval_expr(M, concrete, CodeServer, TraceServer, {c_call, _Anno, Mod, Fun, Args}, Env) ->
   ModVal = eval_expr(M, concrete, CodeServer, TraceServer, Mod, Env),
@@ -947,4 +958,15 @@ check_timeout(Timeout) when is_integer(Timeout) ->
   Timeout >= 0;
 check_timeout(Timeout) ->
   exception(error, {invalid_timeout, Timeout}).
+
+append_segments(Segs) ->
+  append_segments(Segs, <<>>).
+  
+append_segments([], Acc) ->
+  case is_binary(Acc) of
+    true -> Acc;
+    false -> exception(error, {not_binary, Acc})
+  end;
+append_segments([Seg | Segs], Acc) ->
+  append_segments(Segs, <<Acc/bitstring, Seg/bitstring>>).
   

@@ -87,14 +87,14 @@ handle_info({'DOWN', _Ref, process, Who, normal}, State) ->
   
 handle_info({'DOWN', _Ref, process, Who, Reason}, State) ->
   io:format("[conc_tserver]: Exception in ~p  : ~p~n", [Who, Reason]),
+  Super = State#state.super,
   Procs = State#state.procs,
   NewProcs = lists:delete(Who, Procs),
   io:format("Killings procs ~p~n", [NewProcs]),
   %% Killing all remaining alive processes
-  lists:map(
-    fun(P) -> exit(P, kill) end,
-    NewProcs
-  ),
+  kill_all_processes(NewProcs),
+  %% Send Msg to Super
+  Super ! {error, Reason},
   {stop, normal, State#state{procs=[]}};
   
 handle_info(Msg, State) ->
@@ -126,3 +126,14 @@ report([Proc|Procs], Traces, Ptree) ->
       NewProcs = lists:map(fun({_X, Y}) -> Y end, L),
       report(Procs ++ NewProcs, Traces, Ptree)
   end.
+  
+kill_all_processes(Procs) ->
+  KillOne = fun(P) ->
+    case is_process_alive(P) of
+      true ->
+        exit(P, kill);
+      false ->
+        ok
+    end
+  end,
+  lists:map(KillOne, Procs).

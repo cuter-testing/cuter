@@ -1,6 +1,6 @@
 -module(foo).
 -export([mymin/1, test/3, test/2, test/0, goo/1, boo/1, y/1, moo/0, test_fac/1, fac/1, r/1, loop/0, send/1, spawn/3, moo/1,
-  qoo/1]).
+  qoo/1, too/1]).
 
 mymin([H|T]) -> mymin(T, H).
 
@@ -21,7 +21,11 @@ test() ->
   
 moo() -> [X+Y || X <- [1,2], Y <- [2,3]].
 
-too(X) -> io:format("~p~n", [X]).
+too(X) -> 
+  <<X:4/little-signed-integer-unit:8>>.
+%  <<X:8/bitstring>>.
+%  Color = 16#F09A29,
+%  <<Color:24>>.
   
 test(A, B, {C, D}=E) ->
   case A of
