@@ -141,7 +141,7 @@ delete_stored_core_files(Dir) ->
   {ok, Filenames} = file:list_dir(Dir),
   lists:map(
     fun(File) ->
-      case File =/= "README" of
+      case File =/= ".gitignore" of
         true ->
           ok = file:delete(Dir ++ "/" ++ File);
         false ->

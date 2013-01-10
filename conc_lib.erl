@@ -60,11 +60,37 @@ add_mappings_to_environment([{Var, Val} | Ms], Env) ->
   add_mappings_to_environment(Ms, NEnv).
   
 %% Returns true if an MFA is an Erlang BIF
+%% Module erlang
 is_bif(erlang, _F, _A)    -> true;
-is_bif(net_kernel, dflag_unicode_io, 1) -> true;
+%% Module binary
+is_bif(binary, compile_pattern, 1) -> true;
+is_bif(binary, match, 2) -> true;
+is_bif(binary, match, 3) -> true;
+is_bif(binary, matches, 2) -> true;
+is_bif(binary, matches, 3) -> true;
+is_bif(binary, longest_common_prefix, 1) -> true;
+is_bif(binary, longest_common_suffix, 1) -> true;
+is_bif(binary, first, 1) -> true;
+is_bif(binary, last, 1) -> true;
+is_bif(binary, at, 2) -> true;
+is_bif(binary, part, 2) -> true;
+is_bif(binary, part, 3) -> true;
+is_bif(binary, bin_to_list, 1) -> true;
+is_bif(binary, bin_to_list, 2) -> true;
+is_bif(binary, bin_to_list, 3) -> true;
+is_bif(binary, list_to_bin, 1) -> true;
+is_bif(binary, copy, 1) -> true;
+is_bif(binary, copy, 2) -> true;
+is_bif(binary, referenced_byte_size, 1) -> true;
+is_bif(binary, decode_unsigned, 1) -> true;
+is_bif(binary, decode_unsigned, 2) -> true;
+%% Module lists
 is_bif(lists, member, 2)  -> true;
 is_bif(lists, reverse, 2) -> true;
 is_bif(lists, keymember, 3) -> true;
 is_bif(lists, keysearch, 3) -> true;
 is_bif(lists, keyfind, 3) -> true;
+%% Module net_kernel
+is_bif(net_kernel, dflag_unicode_io, 1) -> true;
+%% Rest are not BiFs
 is_bif(_M, _F, _A) -> false.

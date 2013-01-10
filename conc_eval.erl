@@ -616,7 +616,12 @@ pattern_match(concrete, _Type, _TraceServer, {c_var, _Anno, Name}, V, Maps) ->
 pattern_match(concrete, Type,  TraceServer, {c_tuple, _Anno, Es}, V, Maps)
   when is_tuple(V) ->
     Vs = tuple_to_list(V),
-    pattern_match_all(concrete, Type, TraceServer, Es, Vs, Maps);
+    case {length(Es), length(Vs)} of
+      {N, N} ->
+        pattern_match_all(concrete, Type, TraceServer, Es, Vs, Maps);
+      {_N1, _N2} ->
+        false
+    end;
 pattern_match(concrete, _Type, _TraceServer, {c_tuple, _Anno, _Es}, _V, _Maps) ->
   false;
   
@@ -649,10 +654,10 @@ pattern_match_all(concrete, Type, TraceServer, Pats, EVals) ->
   
 pattern_match_all(concrete, _Type, _TraceServer, [] ,[], Mappings) ->
   {true, Mappings};
-pattern_match_all(concrete, _Type, _TraceServer, _Pats, [], _Mappings) ->
-  false;
-pattern_match_all(concrete, _Type, _TraceServer, [], _EVals, _Mappings) ->
-  false;
+%pattern_match_all(concrete, _Type, _TraceServer, _Pats, [], _Mappings) ->
+%  false;
+%pattern_match_all(concrete, _Type, _TraceServer, [], _EVals, _Mappings) ->
+%  false;
 pattern_match_all(concrete, Type, TraceServer, [Pat|Pats], [EVal|EVals], Mappings) ->
   Match = pattern_match(concrete, Type, TraceServer, Pat, EVal, Mappings),
   case Match of
@@ -729,6 +734,24 @@ make_fun(Mod, _Func, Arity, concrete, CodeServer, TraceServer, Vars, Body, Outer
         Env = bind_parameters(Args, Vars, OuterEnv),
         eval_expr(Mod, concrete, CodeServer, TraceServer, Body, Env)
       end;
+    8 ->
+      fun(A, B, C, D, E, F, G, H) ->
+        Args = [A, B, C, D, E, F, G, H],
+        Env = bind_parameters(Args, Vars, OuterEnv),
+        eval_expr(Mod, concrete, CodeServer, TraceServer, Body, Env)
+      end;
+    9 ->
+      fun(A, B, C, D, E, F, G, H, I) ->
+        Args = [A, B, C, D, E, F, G, H, I],
+        Env = bind_parameters(Args, Vars, OuterEnv),
+        eval_expr(Mod, concrete, CodeServer, TraceServer, Body, Env)
+      end;
+    10 ->
+      fun(A, B, C, D, E, F, G, H, I, J) ->
+        Args = [A, B, C, D, E, F, G, H, I, J],
+        Env = bind_parameters(Args, Vars, OuterEnv),
+        eval_expr(Mod, concrete, CodeServer, TraceServer, Body, Env)
+      end;
     _ ->
       exception('error', {lambda_fun_argument_limit, Arity})
   end.
@@ -768,6 +791,26 @@ make_fun(Mod, Func, Arity, concrete, CodeServer, TraceServer) ->
     6 ->
       fun(A, B, C, D, E, F) ->
         Args = [A, B, C, D, E, F],
+        eval({named, {Mod, Func}}, Args, concrete, external, CodeServer, TraceServer)
+      end;
+    7 ->
+      fun(A, B, C, D, E, F, G) ->
+        Args = [A, B, C, D, E, F, G],
+        eval({named, {Mod, Func}}, Args, concrete, external, CodeServer, TraceServer)
+      end;
+    8 ->
+      fun(A, B, C, D, E, F, G, H) ->
+        Args = [A, B, C, D, E, F, G, H],
+        eval({named, {Mod, Func}}, Args, concrete, external, CodeServer, TraceServer)
+      end;
+    9 ->
+      fun(A, B, C, D, E, F, G, H, I) ->
+        Args = [A, B, C, D, E, F, G, H, I],
+        eval({named, {Mod, Func}}, Args, concrete, external, CodeServer, TraceServer)
+      end;
+    10 ->
+      fun(A, B, C, D, E, F, G, H, I, J) ->
+        Args = [A, B, C, D, E, F, G, H, I, J],
         eval({named, {Mod, Func}}, Args, concrete, external, CodeServer, TraceServer)
       end;
     _ ->
