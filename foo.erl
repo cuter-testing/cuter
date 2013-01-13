@@ -1,6 +1,6 @@
 -module(foo).
 -export([mymin/1, test/3, test/2, test/0, goo/1, boo/1, y/1, moo/0, test_fac/1, fac/1, r/1, loop/0, send/1, spawn/3, moo/1,
-  qoo/1, too/1, too/0, foo/0]).
+  qoo/1, too/1, too/0, foo/0, test/1]).
 
 mymin([H|T]) -> mymin(T, H).
 
@@ -19,6 +19,16 @@ test(A, B) ->
 test() ->
   lists:map(fun too/1, [1,{2,3},"546"]).
   
+test(X) ->
+  T = erlang:make_ref(),
+  P = self(),
+  F = fun() -> P ! {T, X} end,
+  spawn(F),
+  receive
+    {T, Msg} -> {ok, Msg};
+    Msg -> {error, Msg}
+  end.
+  
 moo() -> [X+Y || X <- [1,2], Y <- [2,3]].
 
 too(X) -> 
@@ -31,6 +41,8 @@ too() ->
   Pixels = <<213, 45, 132, 64, 76, 32, 76, 0, 0, 234, 32, 15>>,
   <<Pix1:24, Pix2:24, Pix3:24, Pix4:24>> = Pixels,
   {Pix1, Pix2, Pix3, Pix4}.
+%  <<X/bitstring>> = <<1:3>>,
+%  X.
   
 test(A, B, {C, D}=E) ->
   case A of

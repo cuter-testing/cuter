@@ -12,7 +12,8 @@
   super,    %% Supervisor process :: pid()
   procs,    %% List of Pids of Live Evaluator processes :: [pid()]
   traces,   %% ETS table where traces are stored :: ets:tid()
-  ptree     %% ETS table where {Parent, Child} process pids are stored :: {pid(), pid()}
+  ptree,    %% ETS table where {Parent, Child} process pids are stored :: {pid(), pid()}
+  logs
 }).
 
 %%====================================================================
@@ -23,12 +24,13 @@ init([Super]) ->
   process_flag(trap_exit, true),
   Traces = ets:new(?MODULE, [ordered_set, protected]),
   Ptree = ets:new(?MODULE, [bag, protected]),
-  {ok, #state{super=Super, procs=[], traces=Traces, ptree=Ptree}}.
+  {ok, #state{super=Super, procs=[], traces=Traces, ptree=Ptree, logs=[{procs, 0}]}}.
   
 terminate(_Reason, State) ->
   Super = State#state.super,
   Traces = State#state.traces,
   Ptree = State#state.ptree,
+  Logs = State#state.logs,
   %% TODO
   %% reconstruct Process Tree and Traces Tree
   %%
@@ -39,6 +41,7 @@ terminate(_Reason, State) ->
   %%
   ets:delete(Traces),
   ets:delete(Ptree),
+  io:format("~w processes were monitored.~n", [proplists:get_value(procs, Logs)]),
   %% inform super to shutdown codeserver
   Super ! {self(), State},
   ok.
@@ -50,6 +53,7 @@ code_change(_OldVsn, State, _Extra) ->
 handle_call({register_parent, Parent}, {From, _FromTag}, State) ->
   Procs = State#state.procs,
   Ptree = State#state.ptree,
+  Logs = State#state.logs,
   FromPid = 
     case is_atom(From) of
      true ->  whereis(From);
@@ -59,7 +63,9 @@ handle_call({register_parent, Parent}, {From, _FromTag}, State) ->
   io:format("[conc_tserver]: Monitoring ~p~n", [FromPid]),
   ets:insert(Ptree, {Parent, FromPid}),
   NewProcs = [FromPid|Procs],
-  {reply, ok, State#state{procs=NewProcs}};
+  {procs, P} = lists:keyfind(procs, 1, Logs),
+  NewLogs = lists:keyreplace(procs, 1, Logs, {procs, P+1}),
+  {reply, ok, State#state{procs=NewProcs, logs=NewLogs}};
   
 handle_call(terminate, _From, State) ->
   {stop, normal, stopped, State}.

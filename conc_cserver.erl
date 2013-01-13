@@ -37,10 +37,11 @@ terminate(_Reason, State) ->
   Db = State#state.db,
   Dir = State#state.dir,
   %% Delete all created ETS tables
-  delete_stored_modules(Db),
+  LoadedMods = delete_stored_modules(Db),
   ets:delete(Db),
   %% Clean up .core files dir
   delete_stored_core_files(Dir),
+  io:format("Loaded Modules: ~w~n", [LoadedMods]),
   ok.
   
 code_change(_OldVsn, State, _Extra) ->

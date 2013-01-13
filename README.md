@@ -1,7 +1,8 @@
 conc-test-ref
 =============
 
-c(rush), c(foo), c(conc), c(conc_cserver), c(conc_load), c(conc_eval), c(conc_tserver), c(conc_lib).
+c(rush), c(foo), c(conc), c(conc_cserver), c(conc_load), c(conc_eval), c(conc_tserver), c(conc_lib), c(bin_lib).
+f(), S = now(), c(bin_lib), E = now(), T = timer:now_diff(E, S)/1000000, io:format("~w secs~n", [T]), f().
 c(rush), c(foo), c(conc,[native]), c(conc_cserver,[native]), c(conc_load,[native]), c(conc_eval,[native]), c(conc_tserver,[native]), c(conc_lib,[native]).
 conc:start(foo,mymin,[[a,b,c]]).
 conc:start(foo,spawn,[lists,reverse,[[1,2,3]]]).

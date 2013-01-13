@@ -174,7 +174,7 @@ eval({named, {M, F}}, As, concrete, CallType, CodeServer, TraceServer) ->
         {ok, MDb} ->
           Key = {M, F, Arity},
           {Def, Exported} = retrieve_function(Key, MDb),
-          io:format("Def=~n~p~n", [Def]),
+%          io:format("Def=~n~p~n", [Def]),
           check_exported(Exported, CallType, Key),
           Env = bind_parameters(As, Def#c_fun.vars, conc_lib:new_environment()),
           eval_expr(M, concrete, CodeServer, TraceServer, Def#c_fun.body, Env)
@@ -254,8 +254,7 @@ eval_expr(M, concrete, CodeServer, TraceServer, {c_bitstr, _Anno, E, Size, Unit,
   UnitVal = eval_expr(M, concrete, CodeServer, TraceServer, Unit, Env),
   TypeVal = eval_expr(M, concrete, CodeServer, TraceServer, Type, Env),
   FlagsVal = eval_expr(M, concrete, CodeServer, TraceServer, Flags, Env),
-%  io:format("EVal: ~w~nSize: ~w~nUnit: ~w~nType: ~w~nFlags: ~w~n", [EVal,SizeVal,UnitVal,TypeVal,FlagsVal]),
-  conc_lib:make_bitstring(EVal, SizeVal, UnitVal, TypeVal, FlagsVal);
+  bin_lib:make_bitstring(EVal, SizeVal, UnitVal, TypeVal, FlagsVal);
     
 %% c_call
 eval_expr(M, concrete, CodeServer, TraceServer, {c_call, _Anno, Mod, Fun, Args}, Env) ->
@@ -534,7 +533,7 @@ find_clause(M, concrete, Type, CodeServer, TraceServer, Clauses, Val, Env) ->
 %% Helper function find_clause/8
 find_clause(_M, concrete, _Type,_CodeServer, _TraceServer, [], _Val, _Env, _Cnt) ->
   %% only may happen at receive expressions,
-  %% there is a match_fail clause at case expressions
+  %% there is an auto-generated match_fail clause at case expressions
   false;
 find_clause(M, concrete, Type, CodeServer, TraceServer, [Cl|Cls], Val, Env, Cnt) ->
   Match = match_clause(M, concrete, Type, CodeServer, TraceServer, Cl, Val, Env, Cnt),
@@ -577,12 +576,14 @@ match_clause(M, concrete, Type, CodeServer, TraceServer, {c_clause, _Anno, Pats,
             {valuelist, Vals, Degree} = ArgVal,
             Vals
         end,
-      Match = pattern_match_all(concrete, Type, TraceServer, Pats, EVals),
+      %% {M, CodeServer, Env} are needed for parameterized bit-syntax patterns
+      Match = pattern_match_all(concrete, Type, TraceServer, Pats, EVals, {M, CodeServer, Env}),
       case Match of
         false ->
           false;
         {true, Ms} ->
           NewEnv = conc_lib:add_mappings_to_environment(Ms, Env),
+          %% make silent guards ??
           GuardVal = eval_expr(M, concrete, CodeServer, TraceServer, Guard, NewEnv),
           case GuardVal of
             false ->
@@ -595,11 +596,12 @@ match_clause(M, concrete, Type, CodeServer, TraceServer, {c_clause, _Anno, Pats,
   
   
 %%----------------------------------------------------------------------
-%% pattern_match(Mode, TraceServer, Pat, Val, Maps) -> Match
+%% pattern_match(Mode, TraceServer, Pat, Val, Env, Maps) -> Match
 %%   Mode :: concrete | symbolic
 %%   TraceServer :: pid()
 %%   Pat :: cerl()
 %%   Val :: term()
+%%   Env :: conc_lib:envinronment()
 %%   Maps :: [{semantic_var(), semantic_value()}]
 %%   Match = {true, Map} | false
 %%    Map :: [{semantic_var(), semantic_value()}]
@@ -610,7 +612,7 @@ match_clause(M, concrete, Type, CodeServer, TraceServer, {c_clause, _Anno, Pats,
 %%----------------------------------------------------------------------
 
 %% AtomicLiteral pattern
-pattern_match(concrete, _Type, _TraceServer, {c_literal, _Anno, LitVal}, V, Maps) ->
+pattern_match(concrete, _Type, _TraceServer, {c_literal, _Anno, LitVal}, V, _EnvInfo, Maps) ->
   case LitVal =:= V of
     true ->
       {true, Maps};
@@ -619,36 +621,36 @@ pattern_match(concrete, _Type, _TraceServer, {c_literal, _Anno, LitVal}, V, Maps
   end;
   
 %% VariableName pattern
-pattern_match(concrete, _Type, _TraceServer, {c_var, _Anno, Name}, V, Maps) ->
+pattern_match(concrete, _Type, _TraceServer, {c_var, _Anno, Name}, V, _EnvInfo, Maps) ->
   {true, [{Name, V} | Maps]};
   
 %% Tuple pattern
-pattern_match(concrete, Type,  TraceServer, {c_tuple, _Anno, Es}, V, Maps)
+pattern_match(concrete, Type,  TraceServer, {c_tuple, _Anno, Es}, V, EnvInfo, Maps)
   when is_tuple(V) ->
     Vs = tuple_to_list(V),
     case {length(Es), length(Vs)} of
       {N, N} ->
-        pattern_match_all(concrete, Type, TraceServer, Es, Vs, Maps);
+        pattern_match_all(concrete, Type, TraceServer, Es, Vs, EnvInfo, Maps);
       {_N1, _N2} ->
         false
     end;
-pattern_match(concrete, _Type, _TraceServer, {c_tuple, _Anno, _Es}, _V, _Maps) ->
+pattern_match(concrete, _Type, _TraceServer, {c_tuple, _Anno, _Es}, _V, _EnvInfo, _Maps) ->
   false;
   
 %% List constructor pattern
-pattern_match(concrete, Type, TraceServer, {c_cons, _Anno, Hd, Tl}, [V|Vs], Maps) ->
-  case pattern_match(concrete, Type, TraceServer, Hd, V, Maps) of
+pattern_match(concrete, Type, TraceServer, {c_cons, _Anno, Hd, Tl}, [V|Vs], EnvInfo, Maps) ->
+  case pattern_match(concrete, Type, TraceServer, Hd, V, EnvInfo, Maps) of
     false ->
       false;
     {true, Mapping_Hd} ->
-      pattern_match(concrete, Type, TraceServer, Tl, Vs, Mapping_Hd)
+      pattern_match(concrete, Type, TraceServer, Tl, Vs, EnvInfo, Mapping_Hd)
   end;
-pattern_match(concrete, _Type, _TraceServer, {c_cons, _Anno, _Hd, _Tl}, _V, _Maps) ->
+pattern_match(concrete, _Type, _TraceServer, {c_cons, _Anno, _Hd, _Tl}, _V, _EnvInfo, _Maps) ->
   false;
   
 %% Alias pattern
-pattern_match(concrete, Type, TraceServer, {c_alias, _Anno, Var, Pat}, V, Maps) ->
-  Match = pattern_match(concrete, Type, TraceServer, Pat, V, Maps),
+pattern_match(concrete, Type, TraceServer, {c_alias, _Anno, Var, Pat}, V, EnvInfo, Maps) ->
+  Match = pattern_match(concrete, Type, TraceServer, Pat, V, EnvInfo, Maps),
   case Match of
     false ->
       false;
@@ -657,33 +659,77 @@ pattern_match(concrete, Type, TraceServer, {c_alias, _Anno, Var, Pat}, V, Maps) 
       {true, [{VarName, V}|Mappings]}
   end;
   
-pattern_match(concrete, _Type, _TraceServer, {c_binary, _Anno, _Segments}, _V, _Maps) ->
-  io:format("c_binary patmatch not supported"),
-  exception(error, c_binary);
+%% Binary pattern
+pattern_match(concrete, Type, TraceServer, {c_binary, _Anno, Segments}, V, EnvInfo, Maps) ->
+  bit_pattern_match(concrete, Type, TraceServer, Segments, V, EnvInfo, Maps).
   
-pattern_match(concrete, _Type, _TraceServer, {c_bistr, _Anno, _Val, _Size, _Unit, _Type, _Flags}, _V, _Maps) ->
-  io:format("c_bistr patmatch not supported"),
-  exception(error, c_bistr).
 
 %% Helper functions pattern_match_all/4 and pattern_match_all/5
 %% that apply pattern_matching to a sequence of patterns and values
-pattern_match_all(concrete, Type, TraceServer, Pats, EVals) ->
-  pattern_match_all(concrete, Type, TraceServer, Pats, EVals, []).
+pattern_match_all(concrete, Type, TraceServer, Pats, EVals, EnvInfo) ->
+  pattern_match_all(concrete, Type, TraceServer, Pats, EVals, EnvInfo, []).
   
-pattern_match_all(concrete, _Type, _TraceServer, [] ,[], Mappings) ->
+pattern_match_all(concrete, _Type, _TraceServer, [] ,[], _EnvInfo, Mappings) ->
   {true, Mappings};
-%pattern_match_all(concrete, _Type, _TraceServer, _Pats, [], _Mappings) ->
+%pattern_match_all(concrete, _Type, _TraceServer, _Pats, [], _Env, _Mappings) ->
 %  false;
-%pattern_match_all(concrete, _Type, _TraceServer, [], _EVals, _Mappings) ->
+%pattern_match_all(concrete, _Type, _TraceServer, [], _EVals, _Env, _Mappings) ->
 %  false;
-pattern_match_all(concrete, Type, TraceServer, [Pat|Pats], [EVal|EVals], Mappings) ->
-  Match = pattern_match(concrete, Type, TraceServer, Pat, EVal, Mappings),
+pattern_match_all(concrete, Type, TraceServer, [Pat|Pats], [EVal|EVals], EnvInfo, Mappings) ->
+  Match = pattern_match(concrete, Type, TraceServer, Pat, EVal, EnvInfo, Mappings),
   case Match of
     {true, Maps} ->
-      pattern_match_all(concrete, Type, TraceServer, Pats, EVals, Maps);
+      pattern_match_all(concrete, Type, TraceServer, Pats, EVals, EnvInfo, Maps);
     false ->
       false
   end.
+
+
+%%---------------------------------------------------------------------------------------------------
+%% bit_pattern_match(Mode, Type, TraceServer, BitPats, BitVal, {M, CodeServer, Env}, Maps)  -> Match
+%% Helper function for matching bitstring patterns
+%%---------------------------------------------------------------------------------------------------
+bit_pattern_match(concrete, _Type, _TraceServer, [], <<>>, _EnvInfo, Maps) ->
+  {true, Maps};
+  
+bit_pattern_match(concrete, PType, TraceServer, [{c_bitstr, _Anno, Val, Size, Unit, Type, Flags} | Bs], S, {M, CodeServer, Env}, Maps) ->
+  case Val of
+    {c_literal, _AnnoL, LitVal} ->
+      SizeVal = eval_expr(M, concrete, CodeServer, TraceServer, Size, Env),
+      UnitVal = eval_expr(M, concrete, CodeServer, TraceServer, Unit, Env),
+      TypeVal = eval_expr(M, concrete, CodeServer, TraceServer, Type, Env),
+      FlagsVal = eval_expr(M, concrete, CodeServer, TraceServer, Flags, Env),
+      try bin_lib:match_bitstring_const(LitVal, SizeVal, UnitVal, TypeVal, FlagsVal, S) of
+        Rest ->
+          bit_pattern_match(concrete, PType, TraceServer, Bs, Rest, {M, CodeServer, Env}, Maps)
+      catch
+        error:_E ->
+          false
+      end;
+    {c_var, _Anno, VarName} ->
+      SizeVal = eval_expr(M, concrete, CodeServer, TraceServer, Size, Env),
+      UnitVal = eval_expr(M, concrete, CodeServer, TraceServer, Unit, Env),
+      TypeVal = eval_expr(M, concrete, CodeServer, TraceServer, Type, Env),
+      FlagsVal = eval_expr(M, concrete, CodeServer, TraceServer, Flags, Env),
+      try bin_lib:match_bitstring_var(SizeVal, UnitVal, TypeVal, FlagsVal, S) of
+        {X, Rest} ->
+          NewMaps = 
+            case lists:keysearch(VarName, 1, Maps) of
+              {value, _} -> lists:keyreplace(VarName, 1, Maps, {VarName, X});
+              false      -> [{VarName, X} | Maps]
+            end,
+          NewEnv = conc_lib:add_binding(VarName, X, Env),
+          bit_pattern_match(concrete, PType, TraceServer, Bs, Rest, {M, CodeServer, NewEnv}, NewMaps)
+      catch
+        error:_E ->
+          false
+      end;
+    _ ->
+      false
+  end;
+  
+bit_pattern_match(concrete, _Type, _TraceServer, _BitPats, _V, _EnvInfo, _Maps) ->
+  false.
 
 %%====================================================================
 %% Helper functions
@@ -970,11 +1016,7 @@ append_segments(Segs) ->
   append_segments(Segs, <<>>).
   
 append_segments([], Acc) ->
-  case is_binary(Acc) of
-    true -> Acc;
-%    false -> exception(error, {not_binary, Acc})
-    false -> Acc
-  end;
+  Acc;
 append_segments([Seg | Segs], Acc) ->
   append_segments(Segs, <<Acc/bitstring, Seg/bitstring>>).
   
