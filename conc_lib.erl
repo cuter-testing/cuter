@@ -12397,6 +12397,6 @@ make_bitstring(Val, Size, Unit, Type, Flags) ->
     {_, 255, binary, unsigned, native} ->
       <<Val:Size/unsigned-native-binary-unit:255>>;
     {_, 256, binary, unsigned, native} ->
-      <<Val:Size/unsigned-native-binary-unit:256>>;
+      <<Val:Size/unsigned-native-binary-unit:256>>
   end.
 

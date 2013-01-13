@@ -140,9 +140,5 @@ store_module_funs(Mod, AST, Db) ->
 store_fun(Exps, Mod, {Fun, Def}, Db) ->
   {FunName, Arity} = Fun#c_var.name,
   Exported = lists:member({Mod, FunName, Arity}, Exps),
-%  case Mod of
-%      timer -> io:format("Timer:~p/~p~n",[FunName, Arity]);
-%      _ -> ok
-%  end,
   ets:insert(Db, {{Mod, FunName, Arity}, {Def, Exported}}).
 %  io:format("[conc_load]: Stored Function : ~p:~p/~p (~p) =~n~p~n", [Mod, FunName, Arity, Exported, Def]).

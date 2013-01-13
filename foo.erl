@@ -1,6 +1,6 @@
 -module(foo).
 -export([mymin/1, test/3, test/2, test/0, goo/1, boo/1, y/1, moo/0, test_fac/1, fac/1, r/1, loop/0, send/1, spawn/3, moo/1,
-  qoo/1, too/1]).
+  qoo/1, too/1, too/0, foo/0]).
 
 mymin([H|T]) -> mymin(T, H).
 
@@ -26,6 +26,11 @@ too(X) ->
 %  <<X:8/bitstring>>.
 %  Color = 16#F09A29,
 %  <<Color:24>>.
+
+too() ->
+  Pixels = <<213, 45, 132, 64, 76, 32, 76, 0, 0, 234, 32, 15>>,
+  <<Pix1:24, Pix2:24, Pix3:24, Pix4:24>> = Pixels,
+  {Pix1, Pix2, Pix3, Pix4}.
   
 test(A, B, {C, D}=E) ->
   case A of
@@ -94,3 +99,5 @@ qoo(Z) ->
   K = fun() -> timer:sleep(1000), io:format("K~n") end,
   erlang:spawn(G),erlang:spawn(K),erlang:spawn(F),
   ok.
+  
+foo() -> <<1:3>>.

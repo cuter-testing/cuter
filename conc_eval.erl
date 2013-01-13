@@ -174,6 +174,7 @@ eval({named, {M, F}}, As, concrete, CallType, CodeServer, TraceServer) ->
         {ok, MDb} ->
           Key = {M, F, Arity},
           {Def, Exported} = retrieve_function(Key, MDb),
+          io:format("Def=~n~p~n", [Def]),
           check_exported(Exported, CallType, Key),
           Env = bind_parameters(As, Def#c_fun.vars, conc_lib:new_environment()),
           eval_expr(M, concrete, CodeServer, TraceServer, Def#c_fun.body, Env)
@@ -245,8 +246,6 @@ eval_expr(M, concrete, CodeServer, TraceServer, {c_binary, _Anno, Segments}, Env
     Segments
   ),
   append_segments(SegmVals);
-%  io:format("c_binary not implemented yet!!~n"),
-%  exception(error, c_binary);
   
 %%c_bitstr
 eval_expr(M, concrete, CodeServer, TraceServer, {c_bitstr, _Anno, E, Size, Unit, Type, Flags}, Env) ->
@@ -656,7 +655,15 @@ pattern_match(concrete, Type, TraceServer, {c_alias, _Anno, Var, Pat}, V, Maps) 
     {true, Mappings} ->
       VarName = Var#c_var.name,
       {true, [{VarName, V}|Mappings]}
-  end.
+  end;
+  
+pattern_match(concrete, _Type, _TraceServer, {c_binary, _Anno, _Segments}, _V, _Maps) ->
+  io:format("c_binary patmatch not supported"),
+  exception(error, c_binary);
+  
+pattern_match(concrete, _Type, _TraceServer, {c_bistr, _Anno, _Val, _Size, _Unit, _Type, _Flags}, _V, _Maps) ->
+  io:format("c_bistr patmatch not supported"),
+  exception(error, c_bistr).
 
 %% Helper functions pattern_match_all/4 and pattern_match_all/5
 %% that apply pattern_matching to a sequence of patterns and values
@@ -965,7 +972,8 @@ append_segments(Segs) ->
 append_segments([], Acc) ->
   case is_binary(Acc) of
     true -> Acc;
-    false -> exception(error, {not_binary, Acc})
+%    false -> exception(error, {not_binary, Acc})
+    false -> Acc
   end;
 append_segments([Seg | Segs], Acc) ->
   append_segments(Segs, <<Acc/bitstring, Seg/bitstring>>).
