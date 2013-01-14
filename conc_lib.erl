@@ -85,6 +85,46 @@ is_bif(binary, copy, 2) -> true;
 is_bif(binary, referenced_byte_size, 1) -> true;
 is_bif(binary, decode_unsigned, 1) -> true;
 is_bif(binary, decode_unsigned, 2) -> true;
+% Module ets
+is_bif(ets, all, 0) -> true;
+is_bif(ets, new, 2) -> true;
+is_bif(ets, delete, 1) -> true;
+is_bif(ets, delete, 2) -> true;
+is_bif(ets, first, 1) -> true;
+is_bif(ets, info, 1) -> true;
+is_bif(ets, info, 2) -> true;
+is_bif(ets, safe_fixtable, 2) -> true;
+is_bif(ets, lookup, 2) -> true;
+is_bif(ets, lookup_element, 3) -> true;
+is_bif(ets, insert, 2) -> true;
+is_bif(ets, is_compiles_ms, 1) -> true;
+is_bif(ets, last, 1) -> true;
+is_bif(ets, member, 2) -> true;
+is_bif(ets, next, 2) -> true;
+is_bif(ets, prev, 2) -> true;
+is_bif(ets, rename, 2) -> true;
+is_bif(ets, slot, 2) -> true;
+is_bif(ets, match, 1) -> true;
+is_bif(ets, match, 2) -> true;
+is_bif(ets, match, 3) -> true;
+is_bif(ets, match_object, 1) -> true;
+is_bif(ets, match_object, 2) -> true;
+is_bif(ets, match_object, 3) -> true;
+is_bif(ets, match_spec_compile, 1) -> true;
+is_bif(ets, match_spec_run_r, 3) -> true;
+is_bif(ets, select, 1) -> true;
+is_bif(ets, select, 2) -> true;
+is_bif(ets, select, 3) -> true;
+is_bif(ets, select_count, 2) -> true;
+is_bif(ets, select_reverse, 1) -> true;
+is_bif(ets, select_reverse, 2) -> true;
+is_bif(ets, select_reverse, 3) -> true;
+is_bif(ets, select_delete, 2) -> true;
+is_bif(ets, setopts, 2) -> true;
+is_bif(ets, update_counter, 3) -> true;
+is_bif(ets, update_element, 3) -> true;
+%% Module file
+is_bif(file, native_name_encoding, 0) -> true;
 %% Module lists
 is_bif(lists, member, 2)  -> true;
 is_bif(lists, reverse, 2) -> true;
@@ -93,6 +133,7 @@ is_bif(lists, keysearch, 3) -> true;
 is_bif(lists, keyfind, 3) -> true;
 %% Module net_kernel
 is_bif(net_kernel, dflag_unicode_io, 1) -> true;
+%is_bif(dict, _, _) -> true;
 %% Rest are not BiFs
 is_bif(_M, _F, _A) -> false.
 

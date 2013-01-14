@@ -13,7 +13,8 @@
   procs,    %% List of Pids of Live Evaluator processes :: [pid()]
   traces,   %% ETS table where traces are stored :: ets:tid()
   ptree,    %% ETS table where {Parent, Child} process pids are stored :: {pid(), pid()}
-  logs
+  links,    %% ETS table where {Pid, Linked}
+  logs      %% Proplist to store log informations // currently only {procs, NumOfMonitoredProcs}
 }).
 
 %%====================================================================
@@ -24,12 +25,14 @@ init([Super]) ->
   process_flag(trap_exit, true),
   Traces = ets:new(?MODULE, [ordered_set, protected]),
   Ptree = ets:new(?MODULE, [bag, protected]),
-  {ok, #state{super=Super, procs=[], traces=Traces, ptree=Ptree, logs=[{procs, 0}]}}.
+  Links = ets:new(?MODULE, [ordered_set, protected]),
+  {ok, #state{super=Super, procs=[], traces=Traces, ptree=Ptree, links=Links, logs=[{procs, 0}]}}.
   
 terminate(_Reason, State) ->
   Super = State#state.super,
   Traces = State#state.traces,
   Ptree = State#state.ptree,
+  Links = State#state.links,
   Logs = State#state.logs,
   %% TODO
   %% reconstruct Process Tree and Traces Tree
@@ -41,7 +44,8 @@ terminate(_Reason, State) ->
   %%
   ets:delete(Traces),
   ets:delete(Ptree),
-  io:format("~w processes were monitored.~n", [proplists:get_value(procs, Logs)]),
+  ets:delete(Links),
+  io:format("Monitored Processes : ~w~n", [proplists:get_value(procs, Logs)]),
   %% inform super to shutdown codeserver
   Super ! {self(), State},
   ok.
@@ -50,9 +54,10 @@ code_change(_OldVsn, State, _Extra) ->
   %% No change planned.
   {ok, State}.
   
-handle_call({register_parent, Parent}, {From, _FromTag}, State) ->
+handle_call({register_parent, Parent, Link}, {From, _FromTag}, State) ->
   Procs = State#state.procs,
   Ptree = State#state.ptree,
+  Links = State#state.links,
   Logs = State#state.logs,
   FromPid = 
     case is_atom(From) of
@@ -61,6 +66,7 @@ handle_call({register_parent, Parent}, {From, _FromTag}, State) ->
     end,
   monitor(process, FromPid),
   io:format("[conc_tserver]: Monitoring ~p~n", [FromPid]),
+  ets:insert(Links, {FromPid, Link}),
   ets:insert(Ptree, {Parent, FromPid}),
   NewProcs = [FromPid|Procs],
   {procs, P} = lists:keyfind(procs, 1, Logs),
@@ -92,16 +98,28 @@ handle_info({'DOWN', _Ref, process, Who, normal}, State) ->
   end;
   
 handle_info({'DOWN', _Ref, process, Who, Reason}, State) ->
-  io:format("[conc_tserver]: Exception in ~p  : ~p~n", [Who, Reason]),
   Super = State#state.super,
   Procs = State#state.procs,
+  Links = State#state.links,
   NewProcs = lists:delete(Who, Procs),
-  io:format("Killings procs ~p~n", [NewProcs]),
-  %% Killing all remaining alive processes
-  kill_all_processes(NewProcs),
-  %% Send Msg to Super
-  Super ! {error, Reason},
-  {stop, normal, State#state{procs=[]}};
+  [{Who, Link}] = ets:lookup(Links, Who),
+  case Link of
+    %% If process is linked/monitored to another then do nothing
+    true ->
+      ets:delete(Links, Who),
+      {noreply, State#state{procs=NewProcs}};
+    %% If process is not linked/monitored to another
+    %% then report the exception and stop execution
+    false ->
+      io:format("[conc_tserver]: Exception in ~p  : ~p~n", [Who, Reason]),
+      io:format("Killings procs ~p~n", [NewProcs]),
+      %% Killing all remaining alive processes
+      kill_all_processes(NewProcs),
+      %% Send Msg to Super
+      Super ! {error, Reason},
+      {stop, normal, State#state{procs=[]}}
+  end;
+  
   
 handle_info(Msg, State) ->
   %% Just outputting unexpected messages for now
@@ -112,26 +130,26 @@ handle_info(Msg, State) ->
 %% Internal functions
 %%====================================================================
 
-report([], _Traces, _Ptree) ->
-  ok;
-  
-report(Super, Traces, Ptree) 
-  when is_pid(Super) ->
-    io:format("[conc_tserver]: Skipping Super ~p~n", [Super]),
-    L = ets:lookup(Ptree, Super),
-    Procs = lists:map(fun({_X, Y}) -> Y end, L),
-    report(Procs, Traces, Ptree);
-    
-report([Proc|Procs], Traces, Ptree) ->
-  [{Proc, Trace}] = ets:lookup(Traces, Proc),
-  io:format("[conc_tserver]: Trace of ~p:~n~p~n", [Proc, lists:reverse(Trace)]),
-  case ets:lookup(Ptree, Proc) of
-    [] ->
-      report(Procs, Traces, Ptree);
-    L ->
-      NewProcs = lists:map(fun({_X, Y}) -> Y end, L),
-      report(Procs ++ NewProcs, Traces, Ptree)
-  end.
+%report([], _Traces, _Ptree) ->
+%  ok;
+%  
+%report(Super, Traces, Ptree) 
+%  when is_pid(Super) ->
+%    io:format("[conc_tserver]: Skipping Super ~p~n", [Super]),
+%    L = ets:lookup(Ptree, Super),
+%    Procs = lists:map(fun({_X, Y}) -> Y end, L),
+%    report(Procs, Traces, Ptree);
+%    
+%report([Proc|Procs], Traces, Ptree) ->
+%  [{Proc, Trace}] = ets:lookup(Traces, Proc),
+%  io:format("[conc_tserver]: Trace of ~p:~n~p~n", [Proc, lists:reverse(Trace)]),
+%  case ets:lookup(Ptree, Proc) of
+%    [] ->
+%      report(Procs, Traces, Ptree);
+%    L ->
+%      NewProcs = lists:map(fun({_X, Y}) -> Y end, L),
+%      report(Procs ++ NewProcs, Traces, Ptree)
+%  end.
   
 kill_all_processes(Procs) ->
   KillOne = fun(P) ->

@@ -1,7 +1,7 @@
 -module(conc_load).
 
 %% External exports
--export([load/3, compile_core/2]).
+-export([load/3]).
 
 %% Will be using the records representation of
 %% the Core Erlang Abstract Syntax Tree
@@ -71,6 +71,12 @@ store_module(Mod, Db, Dir) ->
   
   ok.
   
+%% Core Erlang Scanner
+scan_file(File) ->
+  {ok, FileContents} = file:read_file(File),
+  Data = binary_to_list(FileContents),
+  core_scan:string(Data).
+  
 %% Compile the module source to Core Erlang
 compile_core(Mod, Dir) ->
   {ok, BeamPath} = ensure_mod_loaded(Mod),
@@ -97,12 +103,6 @@ ensure_mod_loaded(Mod) ->
     Path ->
       {ok, Path}
   end.
-    
-%% Core Erlang Scanner
-scan_file(File) ->
-  {ok, FileContents} = file:read_file(File),
-  Data = binary_to_list(FileContents),
-  core_scan:string(Data).
   
 %% Store Module Information
 store_module_info(anno, _Mod, AST, Db) ->

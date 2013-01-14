@@ -22,7 +22,7 @@ i(M, F, A, CodeServer, TraceServer) ->
   R = erlang:make_ref(),
   Args = [{named, {M, F}}, A, concrete, external, CodeServer, TraceServer],
   I = fun() ->
-    register_to_trace(TraceServer, Root),
+    register_to_trace(TraceServer, Root, false),
     Val = apply(conc_eval, eval, Args),
     Root ! {R, Val}
   end,
@@ -62,21 +62,21 @@ eval({named, {erlang, F}}, As, concrete, _CallType, CodeServer, TraceServer)
       case As of
         [Fun] ->
           EvalArgs = [{lambda, Fun}, [], concrete, local, CodeServer, TraceServer],
-          Child = register_and_apply(TraceServer, self(), EvalArgs),
+          Child = register_and_apply(TraceServer, self(), EvalArgs, F =:= spawn_link),
           erlang:F(Child);
         [Node, Fun] ->
           EvalArgs = [{lambda, Fun}, [], concrete, local, CodeServer, TraceServer],
-          Child = register_and_apply(TraceServer, self(), EvalArgs),
+          Child = register_and_apply(TraceServer, self(), EvalArgs, F =:= spawn_link),
           erlang:F(Node, Child);
         [Mod, Fun, Args] ->
           Call = find_call_type(erlang, Mod),
           EvalArgs = [{named, {Mod, Fun}}, Args, concrete, Call, CodeServer, TraceServer],
-          Child = register_and_apply(TraceServer, self(), EvalArgs),
+          Child = register_and_apply(TraceServer, self(), EvalArgs, F =:= spawn_link),
           erlang:F(Child);
         [Node, Mod, Fun, Args] ->
           Call = find_call_type(erlang, Mod),
           EvalArgs = [{named, {Mod, Fun}}, Args, concrete, Call, CodeServer, TraceServer],
-          Child = register_and_apply(TraceServer, self(), EvalArgs),
+          Child = register_and_apply(TraceServer, self(), EvalArgs, F =:= spawn_link),
           erlang:F(Node, Child);
         _ ->
           exception(error, {undef, {erlang, spawn, length(As)}})
@@ -98,7 +98,7 @@ eval({named, {erlang, spawn_monitor}}, As, concrete, _CallType, CodeServer, Trac
       _ ->
         exception(error, {undef, {erlang, spawn_monitor, length(As)}})
     end,
-  Child = register_and_apply(TraceServer, self(), EvalArgs),
+  Child = register_and_apply(TraceServer, self(), EvalArgs, true),
   {ChildPid, ChildRef} = erlang:spawn_monitor(Child),
   receive
     {ChildPid, registered} -> {ChildPid, ChildRef}
@@ -111,21 +111,25 @@ eval({named, {erlang, spawn_opt}}, As, concrete, _CallType, CodeServer, TraceSer
     case As of
       [Fun, Opts] ->
         EvalArgs = [{lambda, Fun}, [], concrete, local, CodeServer, TraceServer],
-        Child = register_and_apply(TraceServer, self(), EvalArgs),
+        Link = lists:member(link, Opts) orelse lists:member(monitor, Opts),
+        Child = register_and_apply(TraceServer, self(), EvalArgs, Link),
         erlang:spawn_opt(Child, Opts);
       [Node, Fun, Opts] ->
         EvalArgs = [{lambda, Fun}, [], concrete, local, CodeServer, TraceServer],
-        Child = register_and_apply(TraceServer, self(), EvalArgs),
+        Link = lists:member(link, Opts) orelse lists:member(monitor, Opts),
+        Child = register_and_apply(TraceServer, self(), EvalArgs, Link),
         erlang:spawn_opt(Node, Child, Opts);
       [Mod, Fun, Args, Opts] ->
         Call = find_call_type(erlang, Mod),
         EvalArgs = [{named, {Mod, Fun}}, Args, concrete, Call, CodeServer, TraceServer],
-        Child = register_and_apply(TraceServer, self(), EvalArgs),
+        Link = lists:member(link, Opts) orelse lists:member(monitor, Opts),
+        Child = register_and_apply(TraceServer, self(), EvalArgs, Link),
         erlang:spawn_opt(Child, Opts);
       [Node, Mod, Fun, Args, Opts] ->
         Call = find_call_type(erlang, Mod),
         EvalArgs = [{named, {Mod, Fun}}, Args, concrete, Call, CodeServer, TraceServer],
-        Child = register_and_apply(TraceServer, self(), EvalArgs),
+        Link = lists:member(link, Opts) orelse lists:member(monitor, Opts),
+        Child = register_and_apply(TraceServer, self(), EvalArgs, Link),
         erlang:spawn_opt(Node, Child, Opts);
       _ ->
         exception(error, {undef, {erlang, spawn_opt, length(As)}})
@@ -890,16 +894,16 @@ make_fun(Mod, Func, Arity, concrete, CodeServer, TraceServer) ->
 %% The process registers its parent to the TraceServer
 %% and proceeds with interpreting the MFA
 %% -------------------------------------------------------
-register_and_apply(TraceServer, Parent, Args) ->
+register_and_apply(TraceServer, Parent, Args, Link) ->
   fun() ->
-    register_to_trace(TraceServer, Parent),
+    register_to_trace(TraceServer, Parent, Link),
     Parent ! {self(), registered},
     erlang:apply(conc_eval, eval, Args)
   end.
  
 %% Helper function register_to_trace/2
-register_to_trace(TraceServer, Parent) ->
-  gen_server:call(TraceServer, {register_parent, Parent}).
+register_to_trace(TraceServer, Parent, Link) ->
+  gen_server:call(TraceServer, {register_parent, Parent, Link}).
   
 %% Send Trace Data to Trace Server
 send_trace(TraceServer, Msg, true) ->
@@ -1012,11 +1016,12 @@ check_timeout(Timeout) when is_integer(Timeout) ->
 check_timeout(Timeout) ->
   exception(error, {invalid_timeout, Timeout}).
 
+%% Concatenate a list of bistrings
 append_segments(Segs) ->
-  append_segments(Segs, <<>>).
+  append_segments(lists:reverse(Segs), <<>>).
   
 append_segments([], Acc) ->
   Acc;
 append_segments([Seg | Segs], Acc) ->
-  append_segments(Segs, <<Acc/bitstring, Seg/bitstring>>).
+  append_segments(Segs, <<Seg/bitstring, Acc/bitstring>>).
   
