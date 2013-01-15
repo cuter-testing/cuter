@@ -11,20 +11,6 @@
 %%====================================================================
 %% External exports
 %%====================================================================
-
-%load(Mod, Db) ->
-%  process_flag(trap_exit, true),
-%  Loader = spawn_link(
-%    fun() -> 
-%      store_module(Mod, Db),
-%      exit({ok, Mod})
-%    end
-%  ),
-%  receive
-%    {'EXIT', Loader, Msg} ->
-%      process_flag(trap_exit, false),
-%      Msg
-%  end.
   
 load(Mod, Db, Dir) ->
   try store_module(Mod, Db, Dir) of
@@ -79,11 +65,13 @@ scan_file(File) ->
   
 %% Compile the module source to Core Erlang
 compile_core(Mod, Dir) ->
+  ok = filelib:ensure_dir(Dir ++ "/"),
   {ok, BeamPath} = ensure_mod_loaded(Mod),
   {ok, {_, [{compile_info, Info}]}} = beam_lib:chunks(BeamPath, [compile_info]),
   Source = proplists:get_value(source, Info),
   Includes = proplists:lookup_all(i, proplists:get_value(options, Info)),
-  CompInfo = [to_core, return_errors, {outdir, Dir}] ++ Includes,
+  Macros = proplists:lookup_all(d, proplists:get_value(options, Info)),
+  CompInfo = [to_core, return_errors, {outdir, Dir}] ++ Includes ++ Macros,
   CompRet = compile:file(Source, CompInfo),
   case CompRet of
     {ok, Mod} ->

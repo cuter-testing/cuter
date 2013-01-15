@@ -1,11 +1,12 @@
 -module(conc_tserver).
 -behaviour(gen_server).
 
+%% External exports
+-export([init_traceserver/0]).
+
 %% gen_server callbacks
 -export([init/1, terminate/2, handle_call/3,
   code_change/3, handle_info/2, handle_cast/2]).
-
-%-compile([export_all]).
 
 %% gen_server state datatype
 -record(state, {
@@ -16,6 +17,14 @@
   links,    %% ETS table where {Pid, Linked}
   logs      %% Proplist to store log informations // currently only {procs, NumOfMonitoredProcs}
 }).
+
+%%====================================================================
+%% External exports
+%%====================================================================
+
+init_traceserver() ->
+  {ok, TraceServer} = gen_server:start_link(?MODULE, [self()], []),
+  TraceServer.
 
 %%====================================================================
 %% gen_server callbacks
@@ -45,9 +54,9 @@ terminate(_Reason, State) ->
   ets:delete(Traces),
   ets:delete(Ptree),
   ets:delete(Links),
-  io:format("Monitored Processes : ~w~n", [proplists:get_value(procs, Logs)]),
-  %% inform super to shutdown codeserver
-  Super ! {self(), State},
+  %% Send Logs to supervisor
+  Super ! {self(), Logs},
+  process_flag(trap_exit, false),
   ok.
 
 code_change(_OldVsn, State, _Extra) ->
@@ -65,7 +74,7 @@ handle_call({register_parent, Parent, Link}, {From, _FromTag}, State) ->
      false -> From
     end,
   monitor(process, FromPid),
-  io:format("[conc_tserver]: Monitoring ~p~n", [FromPid]),
+%  io:format("[conc_tserver]: Monitoring ~p~n", [FromPid]),
   ets:insert(Links, {FromPid, Link}),
   ets:insert(Ptree, {Parent, FromPid}),
   NewProcs = [FromPid|Procs],
@@ -111,12 +120,12 @@ handle_info({'DOWN', _Ref, process, Who, Reason}, State) ->
     %% If process is not linked/monitored to another
     %% then report the exception and stop execution
     false ->
-      io:format("[conc_tserver]: Exception in ~p  : ~p~n", [Who, Reason]),
-      io:format("Killings procs ~p~n", [NewProcs]),
+%      io:format("[TraceServer]: Exception in ~p  : ~p~n", [Who, Reason]),
+%      io:format("Killings procs ~p~n", [NewProcs]),
       %% Killing all remaining alive processes
       kill_all_processes(NewProcs),
       %% Send Msg to Super
-      Super ! {error, Reason},
+      Super ! {error, {Who, Reason}},
       {stop, normal, State#state{procs=[]}}
   end;
   

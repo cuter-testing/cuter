@@ -59,10 +59,17 @@ add_mappings_to_environment([{Var, Val} | Ms], Env) ->
   NEnv = add_binding(Var, Val, Env),
   add_mappings_to_environment(Ms, NEnv).
   
-  
+
+%% TODO BIFs I found during testing, may be more out there
 %% Returns true if an MFA is an Erlang BIF
+
 %% Module erlang
 is_bif(erlang, _F, _A)    -> true;
+
+%% TODO Not BIF but having probs with some primops
+%% Module beam_asm 
+is_bif(beam_asm, _, _) -> true;
+
 %% Module binary
 is_bif(binary, compile_pattern, 1) -> true;
 is_bif(binary, match, 2) -> true;
@@ -85,6 +92,7 @@ is_bif(binary, copy, 2) -> true;
 is_bif(binary, referenced_byte_size, 1) -> true;
 is_bif(binary, decode_unsigned, 1) -> true;
 is_bif(binary, decode_unsigned, 2) -> true;
+
 % Module ets
 is_bif(ets, all, 0) -> true;
 is_bif(ets, new, 2) -> true;
@@ -123,17 +131,32 @@ is_bif(ets, select_delete, 2) -> true;
 is_bif(ets, setopts, 2) -> true;
 is_bif(ets, update_counter, 3) -> true;
 is_bif(ets, update_element, 3) -> true;
+
 %% Module file
 is_bif(file, native_name_encoding, 0) -> true;
+
 %% Module lists
 is_bif(lists, member, 2)  -> true;
 is_bif(lists, reverse, 2) -> true;
 is_bif(lists, keymember, 3) -> true;
 is_bif(lists, keysearch, 3) -> true;
 is_bif(lists, keyfind, 3) -> true;
+
+%% Module math
+%% math:pi/0 is not a BIF but there is no point at interpreting it
+is_bif(math, _F, _A) -> true;
+
 %% Module net_kernel
 is_bif(net_kernel, dflag_unicode_io, 1) -> true;
-%is_bif(dict, _, _) -> true;
+
+%% Module os
+is_bif(os, getenv, 0) ->true;
+is_bif(os, getenv, 1) ->true;
+is_bif(os, getpid, 0) ->true;
+is_bif(os, putenv, 2) -> true;
+is_bif(os, timestamp, 0) -> true;
+
 %% Rest are not BiFs
 is_bif(_M, _F, _A) -> false.
+
 

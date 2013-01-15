@@ -4,7 +4,7 @@
 -include_lib("compiler/src/core_parse.hrl").
 -include("conc_lib.hrl").
 
--define(TRACE_CALLS, false).
+%-define(TRACE_CALLS, false).
 
 %%--------------------------------------------------------------------------
 %% i(M, F, A, CodeServer, TraceServer) -> Val
@@ -28,8 +28,8 @@ i(M, F, A, CodeServer, TraceServer) ->
   end,
   erlang:spawn(I),
   receive
-    {R, Val} -> Val;
-    {error, Msg} -> Msg
+    {R, Val} -> {ok, Val};
+    {error, Msg} -> {error, Msg}
   end.
 
 %%-----------------------------------------------------------------------------------
@@ -57,7 +57,6 @@ i(M, F, A, CodeServer, TraceServer) ->
 %% spawn_link/1 spawn_link/2, spawn_link/3, spawn_link/4
 eval({named, {erlang, F}}, As, concrete, _CallType, CodeServer, TraceServer)
   when F =:= spawn; F =:= spawn_link ->
-    send_trace(TraceServer, {func_call, {erlang, F, length(As), As}}, ?TRACE_CALLS),
     ChildPid = 
       case As of
         [Fun] ->
@@ -87,7 +86,6 @@ eval({named, {erlang, F}}, As, concrete, _CallType, CodeServer, TraceServer)
     
 %% Handle spawn_monitor/1, spawn_monitor/3
 eval({named, {erlang, spawn_monitor}}, As, concrete, _CallType, CodeServer, TraceServer) ->
-  send_trace(TraceServer, {func_call, {erlang, spawn_monitor, length(As), As}}, ?TRACE_CALLS),
   EvalArgs =
     case As of
       [Fun] ->
@@ -106,7 +104,6 @@ eval({named, {erlang, spawn_monitor}}, As, concrete, _CallType, CodeServer, Trac
   
 %% Handle spawn_opt/2, spawn_opt/3, spawn_opt/4, spawn_opt/5
 eval({named, {erlang, spawn_opt}}, As, concrete, _CallType, CodeServer, TraceServer) ->
-  send_trace(TraceServer, {func_call, {erlang, spawn_opt, length(As), As}}, ?TRACE_CALLS),
   {ChildPid, ChildRef} = 
     case As of
       [Fun, Opts] ->
@@ -141,7 +138,6 @@ eval({named, {erlang, spawn_opt}}, As, concrete, _CallType, CodeServer, TraceSer
   
 %% Handle apply/2, apply/3
 eval({named, {erlang, apply}}, As, concrete, _CallType, CodeServer, TraceServer) ->
-  send_trace(TraceServer, {func_call, {erlang, apply, length(As), As}}, ?TRACE_CALLS),
   EvalArgs =
     case As of
       [Fun, Args] ->
@@ -156,7 +152,6 @@ eval({named, {erlang, apply}}, As, concrete, _CallType, CodeServer, TraceServer)
 
 %% Handle make_fun/3  
 eval({named, {erlang, make_fun}}, As, concrete, _CallType, CodeServer, TraceServer) ->
-  send_trace(TraceServer, {func_call, {erlang, make_fun, length(As), As}}, ?TRACE_CALLS),
   case As of
     [M, F, Arity] ->
       make_fun(M, F, Arity, concrete, CodeServer, TraceServer);
@@ -167,7 +162,6 @@ eval({named, {erlang, make_fun}}, As, concrete, _CallType, CodeServer, TraceServ
 %% Handle an MFA
 eval({named, {M, F}}, As, concrete, CallType, CodeServer, TraceServer) ->
   Arity = length(As),
-  send_trace(TraceServer, {func_call, {M, F, Arity, As}}, ?TRACE_CALLS),
   case conc_lib:is_bif(M, F, Arity) of
     true ->
       apply(M, F, As);
@@ -204,7 +198,6 @@ eval({letrec_func, {M, _F, Def, Env}}, As, concrete, _CallType, CodeServer, Trac
 %%--------------------------------------------------------------------
 exception(Class, Reason) ->
   erlang:Class(Reason).
-
 
 %%--------------------------------------------------------------------
 %% eval_expr(M, Mode, CodeServer, TraceServer, Expr, Env) -> Sem
@@ -265,7 +258,7 @@ eval_expr(M, concrete, CodeServer, TraceServer, {c_call, _Anno, Mod, Fun, Args},
   ModVal = eval_expr(M, concrete, CodeServer, TraceServer, Mod, Env),
   FunVal = eval_expr(M, concrete, CodeServer, TraceServer, Fun, Env),
   ArgsVal = lists:map(
-    fun(Arg) ->
+    fun(Arg) -> %% Will create closures where appropriate
       case eval_expr(M, concrete, CodeServer, TraceServer, Arg, Env) of
         {func, {F, Arity}} ->
           create_closure(M, F, Arity, concrete, CodeServer, TraceServer);
@@ -295,8 +288,10 @@ eval_expr(M, concrete, CodeServer, TraceServer, {c_catch, _Anno, Body}, Env) ->
     exit:Exit ->
       {'EXIT', Exit};
     error:Error ->
-      %% CAUTION! Will not include stacktrace info
-      {'EXIT', {Error, []}}
+      %% CAUTION! Stacktrace info is not valid
+      %% It refers to the interpreter process's stacktrace
+      %% Used for internal debugging
+      {'EXIT', {Error, erlang:get_stacktrace()}}
   end;
 
 %% c_cons
@@ -332,6 +327,8 @@ eval_expr(M, concrete, CodeServer, TraceServer, {c_letrec, _Anno, Defs, Body}, E
       Env, Defs
     )
   end end,
+  %% NewEnv is now a /0 function
+  %% NewEnv() will create the necessary self-referenced environment
   NewEnv = (y(H))(),
   eval_expr(M, concrete, CodeServer, TraceServer, Body, NewEnv);
   
@@ -350,14 +347,18 @@ eval_expr(M, concrete, CodeServer, TraceServer, {c_primop, _Anno, Name, Args}, E
   ),
   %% Determine the primop
   PrimOp = Name#c_literal.val,
-  %% Call the local function TODO needs case for each primop
+  %% Does the proper action
+  %% TODO needs to records more primops
   case PrimOp of
     'raise' ->
       [Class, Reason] = ArgsVal,
       eval({named, {erlang, Class}}, [Reason], concrete, local, CodeServer, TraceServer);
-    'match_fail' -> %% TODO fix
-      [Reason] = ArgsVal,
-      eval({named, {erlang, error}}, [{badmatch, Reason}], concrete, local, CodeServer, TraceServer)
+    'match_fail' ->
+      eval({named, {erlang, error}}, [{badmatch, ArgsVal}], concrete, local, CodeServer, TraceServer);
+    'bs_init_writable' -> %% TODO fix
+      exception(error, {not_supported_primop, PrimOp});
+    _ ->
+      exception(error, {unknown_primop, PrimOp})
   end;
   
 %%c_receive
@@ -392,7 +393,11 @@ eval_expr(M, concrete, CodeServer, TraceServer, {c_try, _Anno, Arg, Vars, Body, 
   catch
     Class:Reason ->
       %% CAUTION!! 3rd Var, which should be stacktrace, is substituted by exception class
-      Vals = [Class, Reason, Class],
+      Vals =
+        case length(Evars) of
+          3 -> [Class, Reason, Class];
+          2 -> [Class, Reason]
+        end,
       ExcEnv = bind_parameters(Vals, Evars, Env),
       eval_expr(M, concrete, CodeServer, TraceServer, Handler, ExcEnv)
   end;
@@ -588,7 +593,13 @@ match_clause(M, concrete, Type, CodeServer, TraceServer, {c_clause, _Anno, Pats,
         {true, Ms} ->
           NewEnv = conc_lib:add_mappings_to_environment(Ms, Env),
           %% make silent guards ??
-          GuardVal = eval_expr(M, concrete, CodeServer, TraceServer, Guard, NewEnv),
+          GuardVal = 
+            try
+              eval_expr(M, concrete, CodeServer, TraceServer, Guard, NewEnv)
+            catch
+              error:_E -> false
+            end,
+%          GuardVal = eval_expr(M, concrete, CodeServer, TraceServer, Guard, NewEnv),
           case GuardVal of
             false ->
               false;
@@ -820,6 +831,36 @@ make_fun(Mod, _Func, Arity, concrete, CodeServer, TraceServer, Vars, Body, Outer
         Env = bind_parameters(Args, Vars, OuterEnv),
         eval_expr(Mod, concrete, CodeServer, TraceServer, Body, Env)
       end;
+    11 ->
+      fun(A, B, C, D, E, F, G, H, I, J, K) ->
+        Args = [A, B, C, D, E, F, G, H, I, J, K],
+        Env = bind_parameters(Args, Vars, OuterEnv),
+        eval_expr(Mod, concrete, CodeServer, TraceServer, Body, Env)
+      end;
+    12 ->
+      fun(A, B, C, D, E, F, G, H, I, J, K, L) ->
+        Args = [A, B, C, D, E, F, G, H, I, J, K, L],
+        Env = bind_parameters(Args, Vars, OuterEnv),
+        eval_expr(Mod, concrete, CodeServer, TraceServer, Body, Env)
+      end;
+    13 ->
+      fun(A, B, C, D, E, F, G, H, I, J, K, L, M) ->
+        Args = [A, B, C, D, E, F, G, H, I, J, K, L, M],
+        Env = bind_parameters(Args, Vars, OuterEnv),
+        eval_expr(Mod, concrete, CodeServer, TraceServer, Body, Env)
+      end;
+    14 ->
+      fun(A, B, C, D, E, F, G, H, I, J, K, L, M, N) ->
+        Args = [A, B, C, D, E, F, G, H, I, J, K, L, M, N],
+        Env = bind_parameters(Args, Vars, OuterEnv),
+        eval_expr(Mod, concrete, CodeServer, TraceServer, Body, Env)
+      end;
+    15 ->
+      fun(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O) ->
+        Args = [A, B, C, D, E, F, G, H, I, J, K, L, M, N, O],
+        Env = bind_parameters(Args, Vars, OuterEnv),
+        eval_expr(Mod, concrete, CodeServer, TraceServer, Body, Env)
+      end;
     _ ->
       exception('error', {lambda_fun_argument_limit, Arity})
   end.
@@ -881,6 +922,31 @@ make_fun(Mod, Func, Arity, concrete, CodeServer, TraceServer) ->
         Args = [A, B, C, D, E, F, G, H, I, J],
         eval({named, {Mod, Func}}, Args, concrete, external, CodeServer, TraceServer)
       end;
+    11 ->
+      fun(A, B, C, D, E, F, G, H, I, J, K) ->
+        Args = [A, B, C, D, E, F, G, H, I, J, K],
+        eval({named, {Mod, Func}}, Args, concrete, external, CodeServer, TraceServer)
+      end;
+    12 ->
+      fun(A, B, C, D, E, F, G, H, I, J, K, L) ->
+        Args = [A, B, C, D, E, F, G, H, I, J, K, L],
+        eval({named, {Mod, Func}}, Args, concrete, external, CodeServer, TraceServer)
+      end;
+    13 ->
+      fun(A, B, C, D, E, F, G, H, I, J, K, L, M) ->
+        Args = [A, B, C, D, E, F, G, H, I, J, K, L, M],
+        eval({named, {Mod, Func}}, Args, concrete, external, CodeServer, TraceServer)
+      end;
+    14 ->
+      fun(A, B, C, D, E, F, G, H, I, J, K, L, M, N) ->
+        Args = [A, B, C, D, E, F, G, H, I, J, K, L, M, N],
+        eval({named, {Mod, Func}}, Args, concrete, external, CodeServer, TraceServer)
+      end;
+    15 ->
+      fun(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O) ->
+        Args = [A, B, C, D, E, F, G, H, I, J, K, L, M, N, O],
+        eval({named, {Mod, Func}}, Args, concrete, external, CodeServer, TraceServer)
+      end;
     _ ->
       exception('error', {lambda_fun_argument_limit, Arity})
   end.
@@ -900,8 +966,7 @@ register_and_apply(TraceServer, Parent, Args, Link) ->
     Parent ! {self(), registered},
     erlang:apply(conc_eval, eval, Args)
   end.
- 
-%% Helper function register_to_trace/2
+  
 register_to_trace(TraceServer, Parent, Link) ->
   gen_server:call(TraceServer, {register_parent, Parent, Link}).
   
@@ -919,33 +984,36 @@ send_trace(_TraceServer, _Msg, false) ->
 %%    MDb :: ets:tid()
 %% Interacts with the CodeServer and asks for the ETS Table
 %% where the code of the module M is stored.
+%%
+%% Optimization : For caching purposes, the MDb is stored
+%% in the process dictionary for later lookups
 %% ----------------------------------------------------------
 get_module_db(M, CodeServer) ->
-  case get(M) of
+  case get({conc, M}) of
     undefined ->
       case gen_server:call(CodeServer, {load, M}) of
+        %% Module Code loaded
         {ok, MDb} ->
-          %% Module Code loaded
-          put(M, MDb),
+          put({conc, M}, MDb),
           {ok, MDb};
+        %% Preloaded Module
         preloaded ->
-          %% Preloaded Module
           preloaded;
+        %% Cover Compiled Module
         cover_compiled ->
-          %% Cover Compiled Module
           exception(error, {cover_compiled, M});
+        %% Invalid Module
         non_existing ->
-          %% Invalid Module
           exception(error, {undef, M});
+        %% Any Error during Code Loading
         {error, Error} ->
-          %% Any Error during Code Loading
           exception(error, Error)
       end;
     MDb ->
       {ok, MDb}
   end.
   
-%% ----------------------------------------------------------
+%% ---------------------------------------------------------------
 %% retrieve_function({M, F, Arity}, MDb) -> Info
 %%   M :: atom()
 %%   F :: atom()
@@ -953,15 +1021,18 @@ get_module_db(M, CodeServer) ->
 %%   MDb :: ets:tid()
 %%   Info :: {#c_def{}, boolean()}
 %% Retrieves the code and exported type of an MFA
-%% ----------------------------------------------------------
+%%
+%% Optimization : For caching purposes, the function definition
+%% is stored in the process dictionary for later lookups
+%% ---------------------------------------------------------------
 retrieve_function(FuncKey, ModDb) ->
-  case get(FuncKey) of
+  case get({conc, FuncKey}) of
     undefined ->
       case ets:lookup(ModDb, FuncKey) of
         [] ->
           exception(error, {undef, FuncKey});
         [{FuncKey, Val}] ->
-          put(FuncKey, Val),
+          put({conc, FuncKey}, Val),
           Val
       end;
     Val ->

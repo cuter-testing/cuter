@@ -2,7 +2,7 @@
 -behaviour(gen_server).
 
 %% External exports
-%-export([call/1, cast/1]).
+-export([init_codeserver/1]).
 
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_info/2,
@@ -14,34 +14,39 @@
   %% Creates an ETS table where it stores:
   %% {Key, Value} -> {Module, ModuleDb}
   %% ModDb :: ets:tid()
-  db,      % ETS table :: ets:tid()
-  dir      % Directory where .core files are saved
+  db,      %% ETS table :: ets:tid()
+  dir,     %% Directory where .core files are saved
+  super    %% Supervisor process :: pid()
+  
 }).
-
-
 
 %%====================================================================
 %% External exports
 %%====================================================================
 
+init_codeserver(CoreDir) ->
+  {ok, CodeServer} = gen_server:start_link(?MODULE, [CoreDir, self()], []),
+  CodeServer.
 
 %%====================================================================
 %% gen_server callbacks
 %%====================================================================
 
-init([Dir]) ->
+init([Dir, Super]) ->
   Db = ets:new(?MODULE, [ordered_set, protected]),
-  {ok, #state{db=Db, dir=Dir}}.
+  {ok, #state{db=Db, dir=Dir, super=Super}}.
   
 terminate(_Reason, State) ->
   Db = State#state.db,
   Dir = State#state.dir,
+  Super = State#state.super,
   %% Delete all created ETS tables
   LoadedMods = delete_stored_modules(Db),
   ets:delete(Db),
   %% Clean up .core files dir
   delete_stored_core_files(Dir),
-  io:format("Loaded Modules: ~w~n", [LoadedMods]),
+  %% Send statistics to supervisor
+  Super ! {self(), LoadedMods},
   ok.
   
 code_change(_OldVsn, State, _Extra) ->
@@ -62,7 +67,7 @@ handle_info(Msg, State) ->
 %% Module M is cover_compiled  -->  cover_compiled
 %% Module M does not exist     -->  non_existing
 handle_call({load, M}, _From, State) ->
-  io:format("[load]: Got request for module : ~p~n", [M]),
+%  io:format("[load]: Got request for module : ~p~n", [M]),
   case is_mod_stored(M, State) of
     {true, MDb} ->
       {reply, {ok, MDb}, State};
@@ -79,7 +84,7 @@ handle_call({load, M}, _From, State) ->
       %% Reply
       case Reply of
         {ok, M} ->
-          io:format("[load]: Loaded module ~p~n", [M]),
+%          io:format("[load]: Loaded module ~p~n", [M]),
           {reply, {ok, MDb}, State};
         _ ->
           {reply, Reply, State}
@@ -142,12 +147,7 @@ delete_stored_core_files(Dir) ->
   {ok, Filenames} = file:list_dir(Dir),
   lists:map(
     fun(File) ->
-      %% Do not delete .gitignore file
-      case File =/= ".gitignore" of
-        true ->
-          ok = file:delete(Dir ++ "/" ++ File);
-        false ->
-          ok
-      end
+      file:delete(Dir ++ "/" ++ File)
     end,
-  Filenames).
+  Filenames),
+  file:del_dir(Dir).
