@@ -30,7 +30,7 @@ Compile with:
 c(conc,[native]),c(conc_cserver,[native]),c(conc_load,[native]),c(conc_eval,[native]),c(conc_tserver,[native]),c(conc_lib).
 ```
 
-You can run with
+Either run
 ```erlang
 conc:run(Module, Function, Arguments).
 ```
@@ -40,7 +40,7 @@ or edit the M,F,A variables in conc.erl, recompile conc.erl and run
 conc:run().
 ```
 
-b) You can run from the Unix command line
+b) You can run from the Unix command line.
 
 First edit the M,F,A variables in conc.erl
 Then compile with
