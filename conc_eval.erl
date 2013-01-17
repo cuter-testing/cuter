@@ -349,31 +349,31 @@ eval_expr(M, concrete, CodeServer, TraceServer, {c_primop, _Anno, Name, Args}, E
   PrimOp = Name#c_literal.val,
   %% Does the proper action
   %% TODO needs to records more primops
+  %% and implement 'bs_context_to_binary', 'bs_init_writable'
   case PrimOp of
     'raise' ->
       [Class, Reason] = ArgsVal,
       eval({named, {erlang, Class}}, [Reason], concrete, local, CodeServer, TraceServer);
     'match_fail' ->
       eval({named, {erlang, error}}, [{badmatch, ArgsVal}], concrete, local, CodeServer, TraceServer);
-    'bs_init_writable' -> %% TODO fix
-      exception(error, {not_supported_primop, PrimOp});
     _ ->
-      exception(error, {unknown_primop, PrimOp})
+      exception(error, {not_supported_primop, PrimOp})
   end;
   
 %%c_receive
+%% receive ... after is supported though it's use is rendered moot since
+%% there is a significant slowdown in the execution
 eval_expr(M, concrete, CodeServer, TraceServer, {c_receive, _Anno, Clauses, Timeout, Action}, Env) ->
   TimeoutVal = eval_expr(M, concrete, CodeServer, TraceServer, Timeout, Env),
-  true = check_timeout(TimeoutVal),
-  %% Start Timer
-  Start = erlang:now(),
+  true = check_timeout(TimeoutVal),  %% Validate timeout value
+  Start = erlang:now(),  %% Start timeout timer
   {messages, Mailbox} = erlang:process_info(self(), messages),
   Message = find_message(M, concrete, CodeServer, TraceServer, Clauses, Env, Mailbox),
   case Message of
-    {Msg, Body, NewEnv, _Cnt} ->
+    {Msg, Body, NewEnv, _Cnt} ->  %% Matched a message already in the mailbox
       receive Msg -> ok end,
       eval_expr(M, concrete, CodeServer, TraceServer, Body, NewEnv);
-    false ->
+    false ->  %% No mailbox message matched, thus need to enter a receive loop
       CurrMsgs = length(Mailbox),
       find_message_loop(M, concrete, CodeServer, TraceServer, Clauses, TimeoutVal, Action, Env, Start, CurrMsgs)
   end;
@@ -475,6 +475,7 @@ find_message_loop(M, concrete, CodeServer, TraceServer, Clauses, Timeout, Action
 run_message_loop(M, concrete, CodeServer, TraceServer, Clauses, Timeout, Action, Env, Start, Msgs) ->
   erlang:yield(),
   {message_queue_len, CurrMsgs} = erlang:process_info(self(), message_queue_len),
+  %% New messages will appended at the end of the mailbox
   case CurrMsgs > Msgs of
     false ->
       find_message_loop(M, concrete, CodeServer, TraceServer, Clauses, Timeout, Action, Env, Start, Msgs);
@@ -484,7 +485,7 @@ run_message_loop(M, concrete, CodeServer, TraceServer, Clauses, Timeout, Action,
       Message = find_message(M, concrete, CodeServer, TraceServer, Clauses, Env, NewMsgs),
       case Message of
         {Msg, Body, NewEnv, _Cnt} ->
-          receive Msg -> ok end,
+          receive Msg -> ok end,  %% Just consume the matched message
           eval_expr(M, concrete, CodeServer, TraceServer, Body, NewEnv);
         false ->
           find_message_loop(M, concrete, CodeServer, TraceServer, Clauses, Timeout, Action, Env, Start, CurrMsgs)
@@ -592,19 +593,16 @@ match_clause(M, concrete, Type, CodeServer, TraceServer, {c_clause, _Anno, Pats,
           false;
         {true, Ms} ->
           NewEnv = conc_lib:add_mappings_to_environment(Ms, Env),
-          %% make silent guards ??
+          %% Silent guards
           GuardVal = 
-            try
+            try 
               eval_expr(M, concrete, CodeServer, TraceServer, Guard, NewEnv)
             catch
               error:_E -> false
             end,
-%          GuardVal = eval_expr(M, concrete, CodeServer, TraceServer, Guard, NewEnv),
           case GuardVal of
-            false ->
-              false;
-            true ->
-              {true, {Body, NewEnv, Cnt}}
+            false -> false;
+            true  -> {true, {Body, NewEnv, Cnt}}
           end
       end
   end.
@@ -644,7 +642,7 @@ pattern_match(concrete, Type,  TraceServer, {c_tuple, _Anno, Es}, V, EnvInfo, Ma
   when is_tuple(V) ->
     Vs = tuple_to_list(V),
     case {length(Es), length(Vs)} of
-      {N, N} ->
+      {_N, _N} ->
         pattern_match_all(concrete, Type, TraceServer, Es, Vs, EnvInfo, Maps);
       {_N1, _N2} ->
         false
@@ -751,7 +749,7 @@ bit_pattern_match(concrete, _Type, _TraceServer, _BitPats, _V, _EnvInfo, _Maps) 
 %%====================================================================
 
 
-%% Creates a Closure when the MFA code is loaded or is a function bound in a letrec
+%% Creates a Closure when the MFA code is loaded
 create_closure(M, F, Arity, concrete, CodeServer, TraceServer) ->
   %% Module is already loaded since create_closure is called by eval_expr/6
   {ok, MDb} = get_module_db(M, CodeServer),
@@ -760,6 +758,7 @@ create_closure(M, F, Arity, concrete, CodeServer, TraceServer) ->
   Env = conc_lib:new_environment(),
   make_fun(M, F, Arity, concrete, CodeServer, TraceServer, Def#c_fun.vars, Def#c_fun.body, Env, true).
   
+%% Creates a Closure when the MFA is a function bound in a letrec
 create_closure(M, F, Arity, concrete, CodeServer, TraceServer, Def, Env) ->
   make_fun(M, F, Arity, concrete, CodeServer, TraceServer, Def#c_fun.vars, Def#c_fun.body, Env, true).
 

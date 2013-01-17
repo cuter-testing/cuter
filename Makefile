@@ -7,8 +7,11 @@ BEAM_FILES=$(patsubst %.erl,%.beam,$(ERL_FILES))
 
 default: $(BEAM_FILES)
 
-$(BEAM_FILES): $(ERL_FILES) $(HRL_FILES)
-	$(ERLC) $(ERLC_FLAGS) $(ERL_FILES)
-  
+bin_lib.beam: bin_lib.erl
+	$(ERLC) $<
+
+%.beam: %.erl $(HRL_FILES)
+	$(ERLC) $(ERLC_FLAGS) $<
+
 clean:
 	rm $(BEAM_FILES)

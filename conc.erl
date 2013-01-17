@@ -1,8 +1,14 @@
 -module(conc).
--export([run/3]).
+-export([run/0, run/3]).
 
 -define(STOP_SERVER(Server), gen_server:call(Server, terminate)).
 -define(PROFILING_FLAG, false).
+
+run() ->
+  M = lists,
+  F = reverse,
+  A = [[a,b,c]],
+  run(M, F, A).
 
 run(M, F, As) ->
   
