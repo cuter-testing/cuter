@@ -31,22 +31,23 @@ c(conc,[native]),c(conc_cserver,[native]),c(conc_load,[native]),c(conc_eval,[nat
 ```
 
 You can run with
-
+```erlang
 conc:run(Module, Function, Arguments).
+```
 
 or edit the M,F,A variables in conc.erl, recompile conc.erl and run
-
+```erlang
 conc:run().
+```
 
 b) You can run from the Unix command line
 
 First edit the M,F,A variables in conc.erl
-
 Then compile with
-
+```
 make
-
+```
 And run with
-
+```
 erl -noshell -s conc run -s init stop
-
+```
