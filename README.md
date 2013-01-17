@@ -1,5 +1,5 @@
-conc-test-ref
-=============
+conc-test
+=========
 
 c(rush), c(foo), c(conc), c(conc_cserver), c(conc_load), c(conc_eval), c(conc_tserver), c(conc_lib).
 c(rush), c(foo), c(conc), c(conc_cserver), c(conc_load), c(conc_eval), c(conc_tserver), c(conc_lib), c(bin_lib).
@@ -18,36 +18,3 @@ errors
 {not_exported, MFA}
 {lambda_fun_argument_limit, Arity}
 {invalid_timeout, Timeout}
-
-
-How to Run
-----------
-
-a) You can run from within the interpreter
-
-Compile with:
-```erlang
-c(conc,[native]),c(conc_cserver,[native]),c(conc_load,[native]),c(conc_eval,[native]),c(conc_tserver,[native]),c(conc_lib).
-```
-
-Either run
-```erlang
-conc:run(Module, Function, Arguments).
-```
-
-or edit the M,F,A variables in conc.erl, recompile conc.erl and run
-```erlang
-conc:run().
-```
-
-b) You can run from the Unix command line.
-
-First edit the M,F,A variables in conc.erl
-Then compile with
-```
-make
-```
-And run with
-```
-erl -noshell -s conc run -s init stop
-```
