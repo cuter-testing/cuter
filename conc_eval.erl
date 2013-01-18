@@ -64,15 +64,17 @@ eval({named, {erlang, exit}}, CAs, SAs, _CallType, _CodeServer, _TraceServer)
 %% Handle error/1, error/2
 eval({named, {erlang, error}}, CAs, SAs, _CallType, _CodeServer, _TraceServer) ->
   case length(CAs) of
-  1 ->
-    [Error] = zip_vals(CAs, SAs),
-    erlang:error(Error);
-  2 ->
-    [CError, CArgs] = CAs,
-    [SError, _SArgs] = SAs,
-    Error = zip_vals(CError, SError),
-    erlang:error(Error, CArgs);
-  N ->
+    1 ->
+      [Error] = zip_vals(CAs, SAs),
+      erlang:error(Error);
+    2 ->
+      [CError, CArgs] = CAs,
+      [SError, _SArgs] = SAs,
+      %% TODO
+      %% create constraint CArgs=SArgs
+      Error = zip_vals(CError, SError),
+      erlang:error(Error, CArgs);
+    N ->
       exception(error, {undef, {erlang, error, N}})
   end;
   
@@ -85,7 +87,7 @@ eval({named, {erlang, raise}}, CAs, SAs, _CallType, _CodeServer, _TraceServer) -
       R = zip_vals(CReason, SReason),
       %% TODO
       %% Create constraint Class=SClass
-      io:format("[raise]: ~p = ~p~n", [CClass, _SClass]),
+%      io:format("[raise]: ~p = ~p~n", [CClass, _SClass]),
       erlang:raise(CClass, R, CStacktrace);
     N ->
         exception(error, {undef, {erlang, raise, N}})
@@ -184,7 +186,7 @@ eval_expr(M, CodeServer, TraceServer, {c_apply, _Anno, Op, Args}, Cenv, Senv) ->
     Closure ->
       %% TODO
       %% Will make constraint OPsv=OPcv (in case closure is made by make_fun)
-      io:format("[c_apply]: ~p = ~p~n", [OPcv, _OPsv]),
+%      io:format("[c_apply]: ~p = ~p~n", [OPcv, _OPsv]),
       eval({lambda, Closure}, CAs, SAs, local, CodeServer, TraceServer)
   end;
   
@@ -219,13 +221,15 @@ eval_expr(M, CodeServer, TraceServer, {c_call, _Anno, Mod, Name, Args}, Cenv, Se
   {CAs, SAs} = lists:unzip(ZAs),
   %% TODO
   %% Will make constraints Mcv=Msv and Fcv=Fsv
-  io:format("[c_call]: ~p = ~p~n", [Mcv, _Msv]),
-  io:format("[c_call]: ~p = ~p~n", [Fcv, _Fsv]),
+%  io:format("[c_call]: ~p = ~p~n", [Mcv, _Msv]),
+%  io:format("[c_call]: ~p = ~p~n", [Fcv, _Fsv]),
   eval({named, {Mcv, Fcv}}, CAs, SAs, find_call_type(M, Mcv), CodeServer, TraceServer);
 
 %c_case
-eval_expr(_M, _CodeServer, _TraceServer, {c_case, _Anno, _Arg, _Clauses}, _Cenv, _Senv) ->
-  exception(error, c_case);
+eval_expr(M, CodeServer, TraceServer, {c_case, _Anno, Arg, Clauses}, Cenv, Senv) ->
+  {Cv, Sv} = eval_expr(M, CodeServer, TraceServer, Arg, Cenv, Senv),
+  {Body, NCenv, NSenv, _Cnt} = find_clause(M, 'case', CodeServer, TraceServer, Clauses, Cv, Sv, Cenv, Senv),
+  eval_expr(M, CodeServer, TraceServer, Body, NCenv, NSenv);
 
 %c_catch
 eval_expr(M, CodeServer, TraceServer, {c_catch, _Anno, Body}, Cenv, Senv) ->
@@ -311,7 +315,7 @@ eval_expr(M, CodeServer, TraceServer, {c_primop, _Anno, Name, Args}, Cenv, Senv)
       [_SClass, SReason] = SAs,
       %% TODO
       %% Will create costraint CClass=SClass
-      io:format("~p = ~p~n", [CClass, _SClass]),
+%      io:format("~p = ~p~n", [CClass, _SClass]),
       eval({named, {erlang, CClass}}, [CReason], [SReason], external, CodeServer, TraceServer);
     'match_fail' ->
       [Cv]= CAs,
@@ -401,6 +405,151 @@ eval_expr(_M, _CodeServer, _TraceServer, {c_var, _Anno, Name}, Cenv, Senv) ->
 
 
 
+%% ===============
+%% find_clause
+%% ===============
+find_clause(M, Mode, CodeServer, TraceServer, Clauses, Cv, Sv, Cenv, Senv) ->
+  find_clause(M, Mode, CodeServer, TraceServer, Clauses, Cv, Sv, Cenv, Senv, 1).
+
+find_clause(_M, _Mode, _CodeServer, _TraceServer, [], _Cv, _Sv, _Cenv, _Senv, _Cnt) ->
+  false;
+find_clause(M, Mode, CodeServer, TraceServer, [Cl|Cls], Cv, Sv, Cenv, Senv, Cnt) ->
+  Match = match_clause(M, Mode, CodeServer, TraceServer, Cl, Cv, Sv, Cenv, Senv, Cnt),
+  case Match of
+    false ->
+      find_clause(M, Mode, CodeServer, TraceServer, Cls, Cv, Sv, Cenv, Senv, Cnt+1);
+    {true, {Body, NCenv, NSenv, Cnt}} ->
+      {Body, NCenv, NSenv, Cnt}
+  end.
+  
+%% ===============
+%% match_clause
+%% ===============
+match_clause(M, Mode, CodeServer, TraceServer, {c_clause, _Anno, Pats, Guard, Body}, Cv, Sv, Cenv, Senv, Cnt) ->
+  case is_patlist_compatible(Pats, Cv) of
+    false ->
+      false;
+    true ->
+      Degree = length(Pats),
+      case Degree of
+        1 ->
+          Cs = [Cv],
+          Ss = [Sv];
+        _ ->
+          {valuelist, Cs, Degree} = Cv,
+          {valuelist, Ss, Degree} = Sv
+      end,
+      %% BitInfo is needed for parameterized bit-syntax patterns
+      BitInfo = {M, CodeServer, Cenv, Senv},
+      Match = pattern_match_all(BitInfo, Mode, TraceServer, Pats, Cs, Ss),
+      case Match of
+        false ->
+          false;
+        {true, {CMs, SMs}} ->
+          NCenv = conc_lib:add_mappings_to_environment(CMs, Cenv),
+          NSenv = conc_lib:add_mappings_to_environment(SMs, Senv),
+          try eval_expr(M, CodeServer, TraceServer, Guard, NCenv, NSenv) of
+            {true, _SGv} ->
+              %% TODO
+              %% make constraint SGv=true
+%              io:format("[guard]: ~p = true~n", [_SGv]),
+              {true, {Body, NCenv, NSenv, Cnt}};
+            {false, _SGv} ->
+              %% TODO
+              %% make constraint SGv=false
+%              io:format("[guard]: ~p = false~n", [_SGv]),
+              false
+          catch
+            error:_E -> false
+          end
+      end
+  end.
+
+
+%% ===============
+%% pattern_match_all
+%% ===============
+
+pattern_match_all(BitInfo, Mode, TraceServer, Pats, Cvs, Svs) ->
+  pattern_match_all(BitInfo, Mode, TraceServer, Pats, Cvs, Svs, [], []).
+  
+pattern_match_all(_BitInfo, _Mode, _TraceServer, [], [], [], CMaps, SMaps) ->
+  {true, {CMaps, SMaps}};
+pattern_match_all(BitInfo, Mode, TraceServer, [P|Ps], [Cv|Cvs], [Sv|Svs], CMaps, SMaps) ->
+  Match = pattern_match(BitInfo, Mode, TraceServer, P, Cv, Sv, CMaps, SMaps),
+  case Match of
+    {true, {CMs, SMs}} ->
+      pattern_match_all(BitInfo, Mode, TraceServer, Ps, Cvs, Svs, CMs, SMs);
+    false ->
+      false
+  end.
+
+%% ===============
+%% pattern_match
+%% ===============
+
+%% AtomicLiteral pattern
+pattern_match(_BitInfo, _Mode, _TraceServer, {c_literal, _Anno, LitVal}, Cv, _Sv, CMaps, SMaps) ->
+  case LitVal =:= Cv of
+    true ->
+      %% TODO Constraint Sv == Litval
+      {true, {CMaps, SMaps}};
+    false ->
+      %% TODO Constraint Sv != Litval
+      false
+  end;
+  
+%% VariableName pattern
+pattern_match(_BitInfo, _Mode, _TraceServer, {c_var, _Anno, Name}, Cv, Sv, CMaps, SMaps) ->
+  CMs = [{Name, Cv}|CMaps],
+  SMs = [{Name, Sv}|SMaps],
+  {true, {CMs, SMs}};
+  
+%% Tuple pattern
+pattern_match(BitInfo, Mode, TraceServer, {c_tuple, _Anno, Es}, Cv, Sv, CMaps, SMaps)
+  when is_tuple(Cv) ->
+    Ne = length(Es),
+    Cs = tuple_to_list(Cv),
+    case length(Cs) of
+      Ne ->
+        %% TODO Constraint: Sv tuple with Ne elements
+        Ss = conc_symb:tuple_to_list(Sv, Ne),
+        pattern_match_all(BitInfo, Mode, TraceServer, Es, Cs, Ss, CMaps, SMaps);
+      _ ->
+        %% TODO Constraint: Sv not tuple with Ne elements
+        false
+    end;    
+pattern_match(_BitInfo, _Mode, _TraceServer, {c_tuple, _Anno, _Es}, _Cv, _Sv, _CMaps, _SMaps) ->
+  %% TODO Constraint: Sv not tuple
+  false;
+  
+%% List constructor pattern
+pattern_match(BitInfo, Mode, TraceServer, {c_cons, _Anno, Hd, Tl}, [Cv|Cvs], S, CMaps, SMaps) ->
+  %% TODO Constraing: Sv is non empty list
+  Sv = conc_symb:hd(S),
+  Svs = conc_symb:tl(S),
+  case pattern_match(BitInfo, Mode, TraceServer, Hd, Cv, Sv, CMaps, SMaps) of
+    {true, {CMs, SMs}} ->
+      pattern_match(BitInfo, Mode, TraceServer, Tl, Cvs, Svs, CMs, SMs);
+    false ->
+      false
+  end;  
+pattern_match(_BitInfo, _Mode, _TraceServer, {c_cons, _Anno, _Hd, _Tl}, _Cv, _Sv, _CMaps, _SMaps) ->
+  %% TODO Constraint: Sv not list
+  false;
+
+%% Alias pattern
+pattern_match(BitInfo, Mode, TraceServer, {c_alias, _Anno, Var, Pat}, Cv, Sv, CMaps, SMaps) ->
+  Match = pattern_match(BitInfo, Mode, TraceServer, Pat, Cv, Sv, CMaps, SMaps),
+  case Match of
+    {true, {CMs, SMs}} ->
+      VarName = Var#c_var.name,
+      C = [{VarName, Cv}|CMs],
+      S = [{VarName, Sv}|SMs],
+      {true, {C, S}};
+    false ->
+      false
+  end.
 
 
 
@@ -648,3 +797,19 @@ find_call_type(M1, M2) ->
 y(M) ->
   G = fun(F) -> M(fun() -> (F(F))() end) end,
   G(G).
+  
+%% Calculates if the number of patterns in a clause 
+%% is compatible to the numbers of actual values
+%% that are trying to be match to
+is_patlist_compatible(Pats, Values) ->
+  Degree = length(Pats),
+  case {Degree, Values} of
+    {1, {valuelist, _Vals, _N}} ->
+      false;
+    {1, _} ->
+      true;
+    {N, {valuelist, _Vals, N}} ->
+      true;
+    {_N, _} ->
+      false
+  end.
