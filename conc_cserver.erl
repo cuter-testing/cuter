@@ -144,10 +144,14 @@ delete_stored_modules(Db) ->
   ets:foldl(DeleteOne, [], Db).
   
 delete_stored_core_files(Dir) ->
-  {ok, Filenames} = file:list_dir(Dir),
-  lists:map(
-    fun(File) ->
-      file:delete(Dir ++ "/" ++ File)
-    end,
-  Filenames),
-  file:del_dir(Dir).
+  case file:list_dir(Dir) of
+    {ok, Filenames} ->
+      lists:map(
+        fun(File) ->
+          file:delete(Dir ++ "/" ++ File)
+        end,
+      Filenames),
+      file:del_dir(Dir);
+    {error, enoent} ->
+      ok
+  end.

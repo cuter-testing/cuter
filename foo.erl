@@ -1,6 +1,6 @@
 -module(foo).
 -export([mymin/1, test/3, test/2, test/0, goo/1, boo/1, y/1, moo/0, test_fac/1, fac/1, r/1, loop/0, send/1, spawn/3, moo/1,
-  qoo/1, too/1, too/0, foo/0, test/1]).
+  qoo/1, too/1, too/0, foo/0, test/1, e/1, g/2, t/1, h/2]).
 
 mymin([H|T]) -> mymin(T, H).
 
@@ -11,13 +11,28 @@ mymin([H|T], CurrentMin) ->
       false -> mymin(T, CurrentMin)
    end.
    
+e(X) ->
+  F = fun(Z) -> {1, Z} end,
+  Y = [2, X, 2],
+  {1, F(X), g(fun t/1, Y)}.
+  
+g(F, X) -> [1, F(X), 1].
+
+h(R, X) ->
+  S = erlang:get_stacktrace(),
+  erlang:raise(R, {X, X}, S).
+
+t(X) -> catch throw({X, X}).
+   
 test(A, B) ->
   X = fun(Y) -> Y end,
   Y = fun(F, XX) -> F(XX) + 4 end,
   {X(A), test(), Y(X, B), lists:reverse([1,2,3])}.
   
 test() ->
-  lists:map(fun too/1, [1,{2,3},"546"]).
+%  lists:map(fun too/1, [1,{2,3},"546"]).
+%  {2, 3, 4}.
+  g(fun lists:reverse/1, [1,2,3]).
   
 test(X) ->
   T = erlang:make_ref(),
@@ -29,7 +44,7 @@ test(X) ->
     Msg -> {error, Msg}
   end.
   
-moo() -> [X+Y || X <- [1,2], Y <- [2,3]].
+moo() -> [{X, Y} || X <- [1,2], Y <- [2,3]].
 
 too(X) -> 
   <<X:4/little-signed-integer-unit:8>>.

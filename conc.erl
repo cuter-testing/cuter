@@ -60,10 +60,15 @@ profiling_stop(true) ->
 profiling_stop(false) ->
   ok.
   
-report_result({ok, Result}) ->
-  io:format("Result = ~p~n", [Result]);
-report_result({error, {Who, Error}}) ->
-  io:format("Runtime Error in ~p = ~p~n", [Who, Error]).
+report_result({ok, {Mapping, {R, SymbR}}}) ->
+  io:format("Mapping = ~p~n", [Mapping]),
+  io:format("Concrete Result = ~p~n", [R]),
+  io:format("Symbolic Result = ~p~n", [SymbR]);
+report_result({error, {Mapping, {Who, CErr, SErr}}}) ->
+  io:format("Mapping = ~p~n", [Mapping]),
+  io:format("Runtime Error in ~p~n", [Who]),
+  io:format("Concrete Reason = ~p~n", [CErr]),
+  io:format("Semantic Reason = ~p~n", [SErr]).
   
 report_tlogs(Logs) ->
   io:format("Monitored Processes : ~w~n", [proplists:get_value(procs, Logs)]).
