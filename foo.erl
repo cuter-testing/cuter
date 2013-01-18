@@ -22,7 +22,10 @@ h(R, X) ->
   S = erlang:get_stacktrace(),
   erlang:raise(R, {X, X}, S).
 
-t(X) -> catch throw({X, X}).
+t(X) -> try exit({X, X}) 
+        catch 
+          Class:Error -> {Class, Error}
+        end.
    
 test(A, B) ->
   X = fun(Y) -> Y end,

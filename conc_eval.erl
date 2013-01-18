@@ -31,7 +31,7 @@ i(M, F, A, CodeServer, TraceServer) ->
     {R, Val} -> 
       {ok, {Mapping, Val}};
     {error, {Who, Error}} -> 
-      {Cv, Sv} = unzip_reason(Error),
+      {Cv, Sv} = unzip_vals(Error),
       {error, {Mapping, {Who, Cv, Sv}}}
   end.
   
@@ -70,7 +70,7 @@ eval({named, {erlang, error}}, CAs, SAs, _CallType, _CodeServer, _TraceServer) -
   2 ->
     [CError, CArgs] = CAs,
     [SError, _SArgs] = SAs,
-    [Error] = zip_vals([CError], [SError]),
+    Error = zip_vals(CError, SError),
     erlang:error(Error, CArgs);
   N ->
       exception(error, {undef, {erlang, error, N}})
@@ -82,7 +82,7 @@ eval({named, {erlang, raise}}, CAs, SAs, _CallType, _CodeServer, _TraceServer) -
     3 ->
       [CClass, CReason, CStacktrace] = CAs,
       [_SClass, SReason, _] = SAs,
-      [R] = zip_vals([CReason], [SReason]),
+      R = zip_vals(CReason, SReason),
       %% TODO
       %% Create constraint Class=SClass
       io:format("[raise]: ~p = ~p~n", [CClass, _SClass]),
@@ -233,16 +233,16 @@ eval_expr(M, CodeServer, TraceServer, {c_catch, _Anno, Body}, Cenv, Senv) ->
     eval_expr(M, CodeServer, TraceServer, Body, Cenv, Senv)
   catch
     throw:Throw ->
-      {Cv, Sv} = unzip_reason(Throw),
+      {Cv, Sv} = unzip_vals(Throw),
       {Cv, Sv};
     exit:Exit ->
-      {Cv, Sv} = unzip_reason(Exit),
+      {Cv, Sv} = unzip_vals(Exit),
       {{'EXIT', Cv}, {'EXIT', Sv}};
     error:Error ->
       %% CAUTION! Stacktrace info is not valid
       %% It refers to the interpreter process's stacktrace
       %% Used for internal debugging
-      {Cv, Sv} = unzip_reason(Error),
+      {Cv, Sv} = unzip_vals(Error),
       Stacktrace = erlang:get_stacktrace(),
       {{'EXIT', {Cv, Stacktrace}}, {'EXIT', {Sv, Stacktrace}}}
   end;
@@ -297,8 +297,29 @@ eval_expr(_M, _CodeServer, _TraceServer, {c_literal, _Anno, Val}, _Cenv, _Senv) 
   {Val, Val};
 
 %c_primop
-eval_expr(_M, _CodeServer, _TraceServer, {c_primop, _Anno, _Name, _Args}, _Cenv, _Senv) ->
-  exception(error, c_primop);
+eval_expr(M, CodeServer, TraceServer, {c_primop, _Anno, Name, Args}, Cenv, Senv) ->
+  Primop = Name#c_literal.val,
+  ZAs = lists:map(
+    fun(A) -> eval_expr(M, CodeServer, TraceServer, A, Cenv, Senv) end,
+    Args),
+  {CAs, SAs} = lists:unzip(ZAs),
+  %% TODO needs to records more primops
+  %% and implement 'bs_context_to_binary', 'bs_init_writable'
+  case Primop of
+    'raise' ->
+      [CClass, CReason] = CAs,
+      [_SClass, SReason] = SAs,
+      %% TODO
+      %% Will create costraint CClass=SClass
+      io:format("~p = ~p~n", [CClass, _SClass]),
+      eval({named, {erlang, CClass}}, [CReason], [SReason], external, CodeServer, TraceServer);
+    'match_fail' ->
+      [Cv]= CAs,
+      [Sv] = SAs,
+      eval({named, {erlang, error}}, [{badmatch, Cv}], [{badmatch, Sv}], external, CodeServer, TraceServer);
+    _ ->
+      exception(error, {not_supported_primop, Primop})
+  end;
 
 %c_receive
 eval_expr(_M, _CodeServer, _TraceServer, {c_receive, _Anno, _Clauses, _Timeout, _Action}, _Cenv, _Senv) ->
@@ -310,8 +331,33 @@ eval_expr(M, CodeServer, TraceServer, {c_seq, _Anno, Arg, Body}, Cenv, Senv) ->
   eval_expr(M, CodeServer, TraceServer, Body, Cenv, Senv);
 
 %c_try
-eval_expr(_M, _CodeServer, _TraceServer, {c_try, _Anno, _Arg, _Vars, _Body, _Evars, _Handler}, _Cenv, _Senv) ->
-  exception(error, c_try);
+eval_expr(M, CodeServer, TraceServer, {c_try, _Anno, Arg, Vars, Body, Evars, Handler}, Cenv, Senv) ->
+  try
+    Degree = length(Vars),
+    {C, S} = eval_expr(M, CodeServer, TraceServer, Arg, Cenv, Senv),
+    case Degree of
+      1 ->
+        CAs = [C],
+        SAs = [S];
+      _ ->
+        {valuelist, CAs, Degree} = C,
+        {valuelist, SAs, Degree} = S
+    end,
+    NCenv = bind_parameters(CAs, Vars, Cenv),
+    NSenv = bind_parameters(SAs, Vars, Senv),
+    eval_expr(M, CodeServer, TraceServer, Body, NCenv, NSenv)
+  catch
+    Class:Reason ->
+      {Cv, Sv} = unzip_vals(Reason),
+      {Cs, Ss} =
+        case length(Evars) of
+          3 -> {[Class, Cv, Class], [Class, Sv, Class]};
+          2 -> {[Class, Cv], [Class, Sv]}
+        end,
+      ECenv = bind_parameters(Cs, Evars, Cenv),
+      ESenv = bind_parameters(Ss, Evars, Senv),
+      eval_expr(M, CodeServer, TraceServer, Handler, ECenv, ESenv)
+  end;
 
 %c_tuple
 eval_expr(M, CodeServer, TraceServer, {c_tuple, _Anno, Es}, Cenv, Senv) ->
@@ -466,40 +512,30 @@ make_fun(Mod, Func, Arity, CodeServer, TraceServer) ->
   
 %% Zip and Unzip concrete-semantic values
 %% Zipped Args are [{'_zip', CA, SA}]
-zip_vals(CAs, SAs) ->
+zip_vals(CAs, SAs) when is_list(CAs), is_list(SAs) ->
   F = fun(C, S) ->
     {'_zip', C, S}
   end,
-  lists:zipwith(F, CAs, SAs).
+  lists:zipwith(F, CAs, SAs);
+zip_vals(Cv, Sv) ->
+  {'_zip', Cv, Sv}.
   
-unzip_vals(As) -> 
-  F = fun(A) ->
-    case A of
-      {'_zip', CA, SA} ->
-        {CA, SA};
-      _ ->
-        {A, A}
-    end
-  end,
-  ZAs = lists:map(F, As),
-  lists:unzip(ZAs).
-  
-unzip_reason({'_zip', Cv, Sv}) ->
+unzip_vals({'_zip', Cv, Sv}) ->
   {Cv, Sv};
-unzip_reason(R) when is_tuple(R) ->
-  L = tuple_to_list(R),
+unzip_vals(Vs) when is_tuple(Vs) ->
+  Ls = tuple_to_list(Vs),
   Zs = lists:map(
-    fun(X) -> unzip_reason(X) end,
-    L),
+    fun(V) -> unzip_vals(V) end,
+    Ls),
   {Cs, Ss} = lists:unzip(Zs),
   {list_to_tuple(Cs), list_to_tuple(Ss)};
-unzip_reason(R) when is_list(R) ->
+unzip_vals(Vs) when is_list(Vs) ->
   Zs = lists:map(
-    fun(X) -> unzip_reason(X) end,
-    R),
+    fun(V) -> unzip_vals(V) end,
+    Vs),
   lists:unzip(Zs);
-unzip_reason(R) ->
-  {R, R}.
+unzip_vals(V) ->
+  {V, V}.
   
 %% -------------------------------------------------------
 %% register_and_apply(TraceServer, Parent, Args)
