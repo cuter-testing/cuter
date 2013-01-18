@@ -42,6 +42,111 @@ i(M, F, A, CodeServer, TraceServer) ->
 %% Concrete Evaluation of MFA
 
 
+%% Handle spawns so that the spawned process
+%% will be interpreted
+
+%% Handle spawn/1, spawn/2, spawn/3, spawn/4,
+%% spawn_link/1 spawn_link/2, spawn_link/3, spawn_link/4
+eval({named, {erlang, F}}, CAs, SAs, _CallType, CodeServer, TraceServer)
+  when F =:= spawn; F =:= spawn_link ->
+    ChildPid =
+      case CAs of
+        [Fun] ->
+          [_SFun] = SAs,
+          %% TODO Constraint: SFun=Fun
+          EvalArgs = [{lambda, Fun}, [], [], local, CodeServer, TraceServer],
+          Child = register_and_apply(TraceServer, self(), EvalArgs, F =:= spawn_link),
+          erlang:F(Child);
+        [Node, Fun] ->
+          [_SNode, _SFun] = SAs,
+          %% TODO Constraints: SNode=Node, SFun=Fun
+          EvalArgs = [{lambda, Fun}, [], [], local, CodeServer, TraceServer],
+          Child = register_and_apply(TraceServer, self(), EvalArgs, F =:= spawn_link),
+          erlang:F(Node, Child);
+        [Mod, Fun, Args] ->
+          [_SMod, _SFun, SArgs] = SAs,
+          %% TODO Constraints: SMod = Mod, SFun=Fun
+          Call = find_call_type(erlang, Mod),
+          EvalArgs = [{named, {Mod, Fun}}, Args, SArgs, Call, CodeServer, TraceServer],
+          Child = register_and_apply(TraceServer, self(), EvalArgs, F =:= spawn_link),
+          erlang:F(Child);
+        [Node, Mod, Fun, Args] ->
+          [_SNode, _SMod, _SFun, SArgs] = SAs,
+          %% TODO Constraints: SNode=Node, SMod = Mod, SFun=Fun
+          Call = find_call_type(erlang, Mod),
+          EvalArgs = [{named, {Mod, Fun}}, Args, SArgs, Call, CodeServer, TraceServer],
+          Child = register_and_apply(TraceServer, self(), EvalArgs, F =:= spawn_link),
+          erlang:F(Node, Child);
+        _ ->
+          exception(error, {undef, {erlang, spawn, length(CAs)}})
+      end,
+    receive
+      {ChildPid, registered} -> {ChildPid, ChildPid}
+    end;
+
+%% Handle spawn_monitor/1, spawn_monitor/3
+eval({named, {erlang, spawn_monitor}}, CAs, SAs, _CallType, CodeServer, TraceServer) ->
+  EvalArgs =
+    case CAs of
+      [Fun] ->
+        [_SFun] = SAs,
+        %% TODO Constraint: SFun=Fun
+        [{lambda, Fun}, [], [], local, CodeServer, TraceServer];
+      [Mod, Fun, Args] ->
+        [_SMod, _SFun, SArgs] = SAs,
+        %% TODO Constraints: SMod = Mod, SFun=Fun
+        Call = find_call_type(erlang, Mod),
+        [{named, {Mod, Fun}}, Args, SArgs, Call, CodeServer, TraceServer];
+      _ ->
+        exception(error, {undef, {erlang, spawn_monitor, length(CAs)}})
+    end,
+  Child = register_and_apply(TraceServer, self(), EvalArgs, true),
+  {ChildPid, ChildRef} = erlang:spawn_monitor(Child),
+  receive
+    {ChildPid, registered} -> {{ChildPid, ChildRef}, {ChildPid, ChildRef}}
+  end;
+
+%% Handle spawn_opt/2, spawn_opt/3, spawn_opt/4, spawn_opt/5
+eval({named, {erlang, spawn_opt}}, CAs, SAs, _CallType, CodeServer, TraceServer) ->
+  {ChildPid, ChildRef} = 
+    case CAs of
+      [Fun, Opts] ->
+        [_SFun, _SOpts] = SAs,
+        %% TODO Constraints: SFun=Fun, SOpts=Opts
+        EvalArgs = [{lambda, Fun}, [], [], local, CodeServer, TraceServer],
+        Link = lists:member(link, Opts) orelse lists:member(monitor, Opts),
+        Child = register_and_apply(TraceServer, self(), EvalArgs, Link),
+        erlang:spawn_opt(Child, Opts);
+      [Node, Fun, Opts] ->
+        [_SNode, _SFun, _SOpts] = SAs,
+        %% TODO Constraints: SNode=Node, SFun=Fun, SOpts=Opts
+        EvalArgs = [{lambda, Fun}, [], [], local, CodeServer, TraceServer],
+        Link = lists:member(link, Opts) orelse lists:member(monitor, Opts),
+        Child = register_and_apply(TraceServer, self(), EvalArgs, Link),
+        erlang:spawn_opt(Node, Child, Opts);
+      [Mod, Fun, Args, Opts] ->
+        [_SMod, _SFun, SArgs, _SOpts] = SAs,
+        %% TODO Constraints: SMod=Mode, SFun=Fun, SOpts=Opts
+        Call = find_call_type(erlang, Mod),
+        EvalArgs = [{named, {Mod, Fun}}, Args, SArgs, Call, CodeServer, TraceServer],
+        Link = lists:member(link, Opts) orelse lists:member(monitor, Opts),
+        Child = register_and_apply(TraceServer, self(), EvalArgs, Link),
+        erlang:spawn_opt(Child, Opts);
+      [Node, Mod, Fun, Args, Opts] ->
+        [_SNode, _SMod, _SFun, SArgs, _SOpts] = SAs,
+        %% TODO Constraints: SNode=Node, SMod=Mode, SFun=Fun, SOpts=Opts
+        Call = find_call_type(erlang, Mod),
+        EvalArgs = [{named, {Mod, Fun}}, Args, SArgs, Call, CodeServer, TraceServer],
+        Link = lists:member(link, Opts) orelse lists:member(monitor, Opts),
+        Child = register_and_apply(TraceServer, self(), EvalArgs, Link),
+        erlang:spawn_opt(Node, Child, Opts);
+      _ ->
+        exception(error, {undef, {erlang, spawn_opt, length(CAs)}})
+    end,
+  receive
+    {ChildPid, registered} -> {{ChildPid, ChildRef}, {ChildPid, ChildRef}}
+  end;
+
 %% Handle functions that raise exceptions
 %% so as to zip the concrete and symbolic reason
 
@@ -93,6 +198,8 @@ eval({named, {erlang, raise}}, CAs, SAs, _CallType, _CodeServer, _TraceServer) -
         exception(error, {undef, {erlang, raise, N}})
   end;
 
+%% Handle other important functions
+
 %% Handle make_fun/3  
 eval({named, {erlang, make_fun}}, CAs, SAs, _CallType, CodeServer, TraceServer) ->
   case CAs of
@@ -103,6 +210,26 @@ eval({named, {erlang, make_fun}}, CAs, SAs, _CallType, CodeServer, TraceServer) 
     _ ->
       exception(error, {undef, {erlang, make_fun, length(CAs)}})
   end;
+  
+%% Handle apply/2, apply/3
+eval({named, {erlang, apply}}, CAs, SAs, _CallType, CodeServer, TraceServer) ->
+  EvalArgs =
+    case CAs of
+      [Fun, Args] ->
+        [_SFun, SArgs] = SAs,
+        %% TODO Constraint: Fun=SFun
+        io:format("[apply]: ~p=~p~n", [Fun, _SFun]),
+        [{lambda, Fun}, Args, SArgs, local, CodeServer, TraceServer];
+      [Mod, Fun, Args] ->
+        [_SMod, _SFun, SArgs] = SAs,
+        %% TODO Constraints: SMod = Mod, SFun=Fun
+        io:format("[apply]: ~p=~p, ~p=~p~n", [Mod, _SMod,Fun, _SFun]),
+        Call = find_call_type(erlang, Mod),
+        [{named, {Mod, Fun}}, Args, SArgs, Call, CodeServer, TraceServer];
+      _ ->
+        exception(error, {undef, {erlang, apply, length(CAs)}})
+    end,
+  erlang:apply(conc_eval, eval, EvalArgs);
   
 
 %% Handle an MFA

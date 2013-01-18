@@ -1,6 +1,6 @@
 -module(foo).
 -export([mymin/1, test/3, test/2, test/0, goo/1, boo/1, y/1, moo/0, test_fac/1, fac/1, r/1, loop/0, send/1, spawn/3, moo/1,
-  qoo/1, too/1, too/0, foo/0, test/1, e/1, g/2, t/1, h/2]).
+  qoo/1, too/1, too/0, foo/0, test/1, e/1, g/2, t/1, h/2, v/3]).
 
 mymin([H|T]) -> mymin(T, H).
 
@@ -13,19 +13,22 @@ mymin([H|T], CurrentMin) ->
    
 e(X) ->
   F = fun(Z) -> {1, Z} end,
-  Y = [2, X, 2],
+  Y = [{2, X, 2}],
   {1, F(X), g(fun t/1, Y)}.
   
-g(F, X) -> [1, F(X), 1].
+g(F, X) -> apply(F,X).
 
-h(R, X) ->
-  S = erlang:get_stacktrace(),
-  erlang:raise(R, {X, X}, S).
+v(M, F, A) ->
+  spawn_opt(M, F, [A], [monitor]).
 
 t(X) -> try exit({X, X}) 
         catch 
           Class:Error -> {Class, Error}
         end.
+
+h(R, X) ->
+  S = erlang:get_stacktrace(),
+  erlang:raise(R, {X, X}, S).
    
 test(A, B) ->
   X = fun(Y) -> Y end,
@@ -34,8 +37,8 @@ test(A, B) ->
   
 test() ->
 %  lists:map(fun too/1, [1,{2,3},"546"]).
-%  {2, 3, 4}.
-  g(fun lists:reverse/1, [1,2,3]).
+  {2, 3, 4}.
+%  g(fun lists:reverse/1, [1,2,3]).
   
 test(X) ->
   T = erlang:make_ref(),
@@ -73,7 +76,7 @@ moo(X) -> 2 * X.
 goo(X) ->
   Y = length(X),
   F = fun() -> lists:reverse([2,4]) end,
-  spawn_opt(F, [monitor]),
+  spawn(F),
   Y * Y.
   
 boo(X) ->
