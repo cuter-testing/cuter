@@ -60,4 +60,22 @@ tl(S) when is_list(S) ->
   erlang:tl(S);
 tl(S) ->
   {{erlang, tl, 1}, [S]}.
+  
+ensure_list(S, N) when is_list(S) ->
+  case length(S) of
+    N -> S;
+    _ -> listify(S, N)
+  end;
+ensure_list(S, N) ->
+  listify(S, N).
+  
+listify(S, N) ->
+  listify(S, N, []).
+  
+listify(_S, 0, Acc) ->
+  lists:reverse(Acc);
+listify(S, N, Acc) ->
+  H = {{erlang, hd, 1}, [S]},
+  T = {{erlang, tl, 1}, [S]},
+  listify(T, N-1, [H|Acc]).
 

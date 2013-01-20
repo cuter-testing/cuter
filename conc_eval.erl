@@ -49,29 +49,30 @@ i(M, F, A, CodeServer, TraceServer) ->
 %% spawn_link/1 spawn_link/2, spawn_link/3, spawn_link/4
 eval({named, {erlang, F}}, CAs, SAs, _CallType, CodeServer, TraceServer)
   when F =:= spawn; F =:= spawn_link ->
+    SAs_e = conc_symb:ensure_list(SAs, length(CAs)),
     ChildPid =
       case CAs of
         [Fun] ->
-          [_SFun] = SAs,
+          [_SFun] = SAs_e,
           %% TODO Constraint: SFun=Fun
           EvalArgs = [{lambda, Fun}, [], [], local, CodeServer, TraceServer],
           Child = register_and_apply(TraceServer, self(), EvalArgs, F =:= spawn_link),
           erlang:F(Child);
         [Node, Fun] ->
-          [_SNode, _SFun] = SAs,
+          [_SNode, _SFun] = SAs_e,
           %% TODO Constraints: SNode=Node, SFun=Fun
           EvalArgs = [{lambda, Fun}, [], [], local, CodeServer, TraceServer],
           Child = register_and_apply(TraceServer, self(), EvalArgs, F =:= spawn_link),
           erlang:F(Node, Child);
         [Mod, Fun, Args] ->
-          [_SMod, _SFun, SArgs] = SAs,
+          [_SMod, _SFun, SArgs] = SAs_e,
           %% TODO Constraints: SMod = Mod, SFun=Fun
           Call = find_call_type(erlang, Mod),
           EvalArgs = [{named, {Mod, Fun}}, Args, SArgs, Call, CodeServer, TraceServer],
           Child = register_and_apply(TraceServer, self(), EvalArgs, F =:= spawn_link),
           erlang:F(Child);
         [Node, Mod, Fun, Args] ->
-          [_SNode, _SMod, _SFun, SArgs] = SAs,
+          [_SNode, _SMod, _SFun, SArgs] = SAs_e,
           %% TODO Constraints: SNode=Node, SMod = Mod, SFun=Fun
           Call = find_call_type(erlang, Mod),
           EvalArgs = [{named, {Mod, Fun}}, Args, SArgs, Call, CodeServer, TraceServer],
@@ -86,14 +87,15 @@ eval({named, {erlang, F}}, CAs, SAs, _CallType, CodeServer, TraceServer)
 
 %% Handle spawn_monitor/1, spawn_monitor/3
 eval({named, {erlang, spawn_monitor}}, CAs, SAs, _CallType, CodeServer, TraceServer) ->
+  SAs_e = conc_symb:ensure_list(SAs, length(CAs)),
   EvalArgs =
     case CAs of
       [Fun] ->
-        [_SFun] = SAs,
+        [_SFun] = SAs_e,
         %% TODO Constraint: SFun=Fun
         [{lambda, Fun}, [], [], local, CodeServer, TraceServer];
       [Mod, Fun, Args] ->
-        [_SMod, _SFun, SArgs] = SAs,
+        [_SMod, _SFun, SArgs] = SAs_e,
         %% TODO Constraints: SMod = Mod, SFun=Fun
         Call = find_call_type(erlang, Mod),
         [{named, {Mod, Fun}}, Args, SArgs, Call, CodeServer, TraceServer];
@@ -108,24 +110,25 @@ eval({named, {erlang, spawn_monitor}}, CAs, SAs, _CallType, CodeServer, TraceSer
 
 %% Handle spawn_opt/2, spawn_opt/3, spawn_opt/4, spawn_opt/5
 eval({named, {erlang, spawn_opt}}, CAs, SAs, _CallType, CodeServer, TraceServer) ->
+  SAs_e = conc_symb:ensure_list(SAs, length(CAs)),
   {ChildPid, ChildRef} = 
     case CAs of
       [Fun, Opts] ->
-        [_SFun, _SOpts] = SAs,
+        [_SFun, _SOpts] = SAs_e,
         %% TODO Constraints: SFun=Fun, SOpts=Opts
         EvalArgs = [{lambda, Fun}, [], [], local, CodeServer, TraceServer],
         Link = lists:member(link, Opts) orelse lists:member(monitor, Opts),
         Child = register_and_apply(TraceServer, self(), EvalArgs, Link),
         erlang:spawn_opt(Child, Opts);
       [Node, Fun, Opts] ->
-        [_SNode, _SFun, _SOpts] = SAs,
+        [_SNode, _SFun, _SOpts] = SAs_e,
         %% TODO Constraints: SNode=Node, SFun=Fun, SOpts=Opts
         EvalArgs = [{lambda, Fun}, [], [], local, CodeServer, TraceServer],
         Link = lists:member(link, Opts) orelse lists:member(monitor, Opts),
         Child = register_and_apply(TraceServer, self(), EvalArgs, Link),
         erlang:spawn_opt(Node, Child, Opts);
       [Mod, Fun, Args, Opts] ->
-        [_SMod, _SFun, SArgs, _SOpts] = SAs,
+        [_SMod, _SFun, SArgs, _SOpts] = SAs_e,
         %% TODO Constraints: SMod=Mode, SFun=Fun, SOpts=Opts
         Call = find_call_type(erlang, Mod),
         EvalArgs = [{named, {Mod, Fun}}, Args, SArgs, Call, CodeServer, TraceServer],
@@ -133,7 +136,7 @@ eval({named, {erlang, spawn_opt}}, CAs, SAs, _CallType, CodeServer, TraceServer)
         Child = register_and_apply(TraceServer, self(), EvalArgs, Link),
         erlang:spawn_opt(Child, Opts);
       [Node, Mod, Fun, Args, Opts] ->
-        [_SNode, _SMod, _SFun, SArgs, _SOpts] = SAs,
+        [_SNode, _SMod, _SFun, SArgs, _SOpts] = SAs_e,
         %% TODO Constraints: SNode=Node, SMod=Mode, SFun=Fun, SOpts=Opts
         Call = find_call_type(erlang, Mod),
         EvalArgs = [{named, {Mod, Fun}}, Args, SArgs, Call, CodeServer, TraceServer],
@@ -153,16 +156,20 @@ eval({named, {erlang, '!'}}, CAs, SAs, CallType, CodeServer, TraceServer)
     eval({named, {erlang, send}}, CAs, SAs, CallType, CodeServer, TraceServer);
 
 %% Handle send/2,3
-eval({named, {erlang, send}}, CAs, SAs, _CallType, _CodeServer, _TraceServer) ->
+eval({named, {erlang, send}}, CAs, SAs, _CallType, _CodeServer, TraceServer) ->
+  SAs_e = conc_symb:ensure_list(SAs, length(CAs)),
   case CAs of
     [CDest, CMsg] ->
-      [_SDest, SMsg] = SAs,
+      [_SDest, SMsg] = SAs_e,
       %% TODO Constraint: CDest=SDest
       Msg = zip_vals(CMsg, SMsg),
-      CDest ! Msg,
+      case is_monitored(TraceServer, CDest) of
+        true  -> CDest ! Msg;
+        false -> CDest ! CMsg
+      end,
       {CMsg, SMsg};
     [CDest, CMsg, COpts] ->
-      [_SDest, SMsg, _SOpts] = SAs,
+      [_SDest, SMsg, _SOpts] = SAs_e,
       %% TODO Constraint: CDest=SDest, COpts=SOpts
       Msg = zip_vals(CMsg, SMsg),
       R = erlang:send(CDest, Msg, COpts),
@@ -170,6 +177,15 @@ eval({named, {erlang, send}}, CAs, SAs, _CallType, _CodeServer, _TraceServer) ->
     _ ->
         exception(error, {undef, {erlang, send, length(CAs)}})
   end;
+
+eval({named, {erlang, send_after}}, _CAs, _SAs, _CallType, _CodeServer, _TraceServer) ->
+  io:format("erlang:send_nosuspend~n"),
+  exception(error, send_after);
+
+eval({named, {erlang, send_nosuspend}}, _CAs, _SAs, _CallType, _CodeServer, _TraceServer) ->
+  io:format("erlang:send_nosuspend~n"),
+  exception(error, send_after);
+
 
 
 %% Handle functions that raise exceptions
@@ -179,7 +195,8 @@ eval({named, {erlang, send}}, CAs, SAs, _CallType, _CodeServer, _TraceServer) ->
 eval({named, {erlang, throw}}, CAs, SAs, _CallType, _CodeServer, _TraceServer) ->
   case length(CAs) of
     1 ->
-      [Throw] = zip_vals(CAs, SAs),
+      SAs_e = conc_symb:ensure_list(SAs, 1),
+      [Throw] = zip_vals(CAs, SAs_e),
       erlang:throw(Throw);
     N ->
       exception(error, {undef, {erlang, throw, N}})
@@ -188,18 +205,20 @@ eval({named, {erlang, throw}}, CAs, SAs, _CallType, _CodeServer, _TraceServer) -
 %% Handle exit/1
 eval({named, {erlang, exit}}, CAs, SAs, _CallType, _CodeServer, _TraceServer)
   when length(CAs) =:= 1 ->
-    [Exit] = zip_vals(CAs, SAs),
+    SAs_e = conc_symb:ensure_list(SAs, 1),
+    [Exit] = zip_vals(CAs, SAs_e),
     erlang:exit(Exit);
     
 %% Handle error/1, error/2
 eval({named, {erlang, error}}, CAs, SAs, _CallType, _CodeServer, _TraceServer) ->
+  SAs_e = conc_symb:ensure_list(SAs, length(CAs)),
   case length(CAs) of
     1 ->
-      [Error] = zip_vals(CAs, SAs),
+      [Error] = zip_vals(CAs, SAs_e),
       erlang:error(Error);
     2 ->
       [CError, CArgs] = CAs,
-      [SError, _SArgs] = SAs,
+      [SError, _SArgs] = SAs_e,
       %% TODO
       %% create constraint CArgs=SArgs
       Error = zip_vals(CError, SError),
@@ -212,8 +231,9 @@ eval({named, {erlang, error}}, CAs, SAs, _CallType, _CodeServer, _TraceServer) -
 eval({named, {erlang, raise}}, CAs, SAs, _CallType, _CodeServer, _TraceServer) ->
   case length(CAs) of
     3 ->
+      SAs_e = conc_symb:ensure_list(SAs, 3),
       [CClass, CReason, CStacktrace] = CAs,
-      [_SClass, SReason, _] = SAs,
+      [_SClass, SReason, _] = SAs_e,
       R = zip_vals(CReason, SReason),
       %% TODO
       %% Create constraint Class=SClass
@@ -230,7 +250,8 @@ eval({named, {erlang, make_fun}}, CAs, SAs, _CallType, CodeServer, TraceServer) 
   case CAs of
     [M, F, Arity] ->
       CR = make_fun(M, F, Arity, CodeServer, TraceServer),
-      SR = conc_symb:mock_bif({erlang, make_fun, 3}, SAs),
+      SAs_e = conc_symb:ensure_list(SAs, Arity),
+      SR = conc_symb:mock_bif({erlang, make_fun, 3}, SAs_e),
       {CR, SR};
     _ ->
       exception(error, {undef, {erlang, make_fun, length(CAs)}})
@@ -238,15 +259,16 @@ eval({named, {erlang, make_fun}}, CAs, SAs, _CallType, CodeServer, TraceServer) 
   
 %% Handle apply/2, apply/3
 eval({named, {erlang, apply}}, CAs, SAs, _CallType, CodeServer, TraceServer) ->
+  SAs_e = conc_symb:ensure_list(SAs, length(CAs)),
   EvalArgs =
     case CAs of
       [Fun, Args] ->
-        [_SFun, SArgs] = SAs,
+        [_SFun, SArgs] = SAs_e,
         %% TODO Constraint: Fun=SFun
         io:format("[apply]: ~p=~p~n", [Fun, _SFun]),
         [{lambda, Fun}, Args, SArgs, local, CodeServer, TraceServer];
       [Mod, Fun, Args] ->
-        [_SMod, _SFun, SArgs] = SAs,
+        [_SMod, _SFun, SArgs] = SAs_e,
         %% TODO Constraints: SMod = Mod, SFun=Fun
         io:format("[apply]: ~p=~p, ~p=~p~n", [Mod, _SMod,Fun, _SFun]),
         Call = find_call_type(erlang, Mod),
@@ -260,16 +282,17 @@ eval({named, {erlang, apply}}, CAs, SAs, _CallType, CodeServer, TraceServer) ->
 %% Handle an MFA
 eval({named, {M, F}}, CAs, SAs, CallType, CodeServer, TraceServer) ->
   Arity = length(CAs),
+  SAs_e = conc_symb:ensure_list(SAs, Arity),
   case conc_lib:is_bif(M, F, Arity) of
     true ->
       CR = apply(M, F, CAs),
-      SR = conc_symb:mock_bif({M, F, Arity}, SAs),
+      SR = conc_symb:mock_bif({M, F, Arity}, SAs_e),
       {CR, SR};
     false ->
       case get_module_db(M, CodeServer) of
         preloaded ->
           CR = apply(M, F, CAs),
-          SR = conc_symb:mock_bif({M, F, Arity}, SAs),
+          SR = conc_symb:mock_bif({M, F, Arity}, SAs_e),
           {CR, SR};
         {ok, MDb} ->
           Key = {M, F, Arity},
@@ -277,21 +300,23 @@ eval({named, {M, F}}, CAs, SAs, CallType, CodeServer, TraceServer) ->
 %          io:format("Def=~n~p~n", [Def]),
           check_exported(Exported, CallType, Key),
           Cenv = bind_parameters(CAs, Def#c_fun.vars, conc_lib:new_environment()),
-          Senv = bind_parameters(SAs, Def#c_fun.vars, conc_lib:new_environment()),
+          Senv = bind_parameters(SAs_e, Def#c_fun.vars, conc_lib:new_environment()),
           eval_expr(M, CodeServer, TraceServer, Def#c_fun.body, Cenv, Senv)
       end
   end;
   
 %% Handle a Closure
 eval({lambda, Closure}, CAs, SAs, _CallType, _CodeServer, _TraceServer) ->
-  ZAs = zip_vals(CAs, SAs),
+  SAs_e = conc_symb:ensure_list(SAs, length(CAs)),
+  ZAs = zip_vals(CAs, SAs_e),
   apply(Closure, ZAs);
   
 %% Handle a function bound in a letrec expression
 eval({letrec_func, {M, _F, Def, E}}, CAs, SAs, _CallType, CodeServer, TraceServer) ->
   {Cenv, Senv} = E(),
+  SAs_e = conc_symb:ensure_list(SAs, length(CAs)),
   NCenv = bind_parameters(CAs, Def#c_fun.vars, Cenv),
-  NSenv = bind_parameters(SAs, Def#c_fun.vars, Senv),
+  NSenv = bind_parameters(SAs_e, Def#c_fun.vars, Senv),
   eval_expr(M, CodeServer, TraceServer, Def#c_fun.body, NCenv, NSenv).
 
   
@@ -1042,3 +1067,6 @@ check_timeout(Timeout, _Sv) when is_integer(Timeout) ->
   Timeout >= 0;
 check_timeout(Timeout, _Sv) ->
   exception(error, {invalid_timeout, Timeout}).
+  
+is_monitored(TraceServer, Who) ->
+  gen_server:call(TraceServer, {is_monitored, Who}).

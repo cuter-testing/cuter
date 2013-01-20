@@ -82,6 +82,16 @@ handle_call({register_parent, Parent, Link}, {From, _FromTag}, State) ->
   NewLogs = lists:keyreplace(procs, 1, Logs, {procs, P+1}),
   {reply, ok, State#state{procs=NewProcs, logs=NewLogs}};
   
+handle_call({is_monitored, Who}, {_From, _FromTag}, State) ->
+  Procs = State#state.procs,
+  WhoPid = 
+    case is_atom(Who) of
+     true ->  whereis(Who);
+     false -> Who
+    end,
+  Monitored = lists:member(WhoPid, Procs),
+  {reply, Monitored, State};
+  
 handle_call(terminate, _From, State) ->
   {stop, normal, stopped, State}.
   

@@ -119,12 +119,15 @@ spawn(M, F, A) ->
   Fun = fun() ->
     io:format("Parent : ~p, Me : ~p~n", [Parent, self()]),
     R = apply(M, F, A),
-    io:format("Result = ~p~n", [R])
+    io:format("Result = ~p~n", [R]),
+    Parent ! R
   end,
   erlang:spawn_opt(Fun, [monitor]),
 %  dict:new(),
 %  timer:sleep(100),
-  ok.
+  receive
+    Msg -> Msg
+  end.
   
 qoo(Z) ->
   F = fun() -> exit(vgainw), io:format("F~n") end,
