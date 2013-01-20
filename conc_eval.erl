@@ -146,6 +146,31 @@ eval({named, {erlang, spawn_opt}}, CAs, SAs, _CallType, CodeServer, TraceServer)
   receive
     {ChildPid, registered} -> {{ChildPid, ChildRef}, {ChildPid, ChildRef}}
   end;
+  
+%% Handle '!'/2
+eval({named, {erlang, '!'}}, CAs, SAs, CallType, CodeServer, TraceServer)
+  when length(CAs) =:= 2 ->
+    eval({named, {erlang, send}}, CAs, SAs, CallType, CodeServer, TraceServer);
+
+%% Handle send/2,3
+eval({named, {erlang, send}}, CAs, SAs, _CallType, _CodeServer, _TraceServer) ->
+  case CAs of
+    [CDest, CMsg] ->
+      [_SDest, SMsg] = SAs,
+      %% TODO Constraint: CDest=SDest
+      Msg = zip_vals(CMsg, SMsg),
+      CDest ! Msg,
+      {CMsg, SMsg};
+    [CDest, CMsg, COpts] ->
+      [_SDest, SMsg, _SOpts] = SAs,
+      %% TODO Constraint: CDest=SDest, COpts=SOpts
+      Msg = zip_vals(CMsg, SMsg),
+      R = erlang:send(CDest, Msg, COpts),
+      {R, R};
+    _ ->
+        exception(error, {undef, {erlang, send, length(CAs)}})
+  end;
+
 
 %% Handle functions that raise exceptions
 %% so as to zip the concrete and symbolic reason
@@ -453,8 +478,20 @@ eval_expr(M, CodeServer, TraceServer, {c_primop, _Anno, Name, Args}, Cenv, Senv)
   end;
 
 %c_receive
-eval_expr(_M, _CodeServer, _TraceServer, {c_receive, _Anno, _Clauses, _Timeout, _Action}, _Cenv, _Senv) ->
-  exception(error, c_receive);
+eval_expr(M, CodeServer, TraceServer, {c_receive, _Anno, Clauses, Timeout, Action}, Cenv, Senv) ->
+  {CTimeout, STimeout} = eval_expr(M, CodeServer, TraceServer, Timeout, Cenv, Senv),
+  true = check_timeout(CTimeout, STimeout),
+  Start = erlang:now(),  %% Start timeout timer
+  {messages, Mailbox} = erlang:process_info(self(), messages),
+  Message = find_message(M, CodeServer, TraceServer, Clauses, Mailbox, Cenv, Senv),
+  case Message of
+    {Msg, Body, NCenv, NSenv, _Cnt} ->  %% Matched a message already in the mailbox
+      receive Msg -> ok end,  %% Just consume the message
+      eval_expr(M, CodeServer, TraceServer, Body, NCenv, NSenv);
+    false ->  %% No mailbox message matched, thus need to enter a receive loop
+      CurrMsgs = length(Mailbox),
+      find_message_loop(M, CodeServer, TraceServer, Clauses, Action, CTimeout, STimeout, Cenv, Senv, Start, CurrMsgs)
+  end;
   
 %c_seq
 eval_expr(M, CodeServer, TraceServer, {c_seq, _Anno, Arg, Body}, Cenv, Senv) ->
@@ -529,6 +566,61 @@ eval_expr(_M, _CodeServer, _TraceServer, {c_var, _Anno, Name}, Cenv, Senv) ->
   {ok, Cval} = conc_lib:get_value(Name, Cenv),
   {ok, Sval} = conc_lib:get_value(Name, Senv),
   {Cval, Sval}.
+
+
+%% ===============
+%% find_message_loop
+%% ===============
+find_message_loop(M, CodeServer, TraceServer, Clauses, Action, infinity, STimeout, Cenv, Senv, Start, Msgs) ->
+  %% TODO Constraint: STimeout=infinity but will have been made by chek_timeout
+  run_message_loop(M, CodeServer, TraceServer, Clauses, Action, infinity, STimeout, Cenv, Senv, Start, Msgs);
+  
+find_message_loop(M, CodeServer, TraceServer, Clauses, Action, CTimeout, STimeout, Cenv, Senv, Start, Msgs) ->
+  Now = erlang:now(),
+  Passed = timer:now_diff(Now, Start) / 1000,
+  case Passed >= CTimeout of
+    true ->
+      eval_expr(M, CodeServer, TraceServer, Action, Cenv, Senv);
+    false ->
+    run_message_loop(M, CodeServer, TraceServer, Clauses, Action, CTimeout, STimeout, Cenv, Senv, Start, Msgs)
+  end.
+
+%% Helper function run_message_loop/11
+run_message_loop(M, CodeServer, TraceServer, Clauses, Action, CTimeout, STimeout, Cenv, Senv, Start, Msgs) ->
+  erlang:yield(),
+  {message_queue_len, CurrMsgs} = erlang:process_info(self(), message_queue_len),
+  %% New messages will appended at the end of the mailbox
+  case CurrMsgs > Msgs of
+    false -> %% No new messages
+      find_message_loop(M, CodeServer, TraceServer, Clauses, Action, CTimeout, STimeout, Cenv, Senv, Start, Msgs);
+    true ->
+      {messages, Mailbox} = erlang:process_info(self(), messages),
+      NewMsgs = lists:nthtail(Msgs, Mailbox),
+      Message = find_message(M, CodeServer, TraceServer, Clauses, NewMsgs, Cenv, Senv),
+      case Message of
+        false ->
+          find_message_loop(M, CodeServer, TraceServer, Clauses, Action, CTimeout, STimeout, Cenv, Senv, Start, CurrMsgs);
+        {Msg, Body, NCenv, NSenv, _Cnt} ->
+          receive Msg -> ok end,  %% Just consume the matched message
+          eval_expr(M, CodeServer, TraceServer, Body, NCenv, NSenv)
+      end
+  end.
+  
+  
+
+%% ===============
+%% find_message
+%% ===============
+find_message(_M, _CodeServer, _TraceServer, _Clauses, [], _Cenv, _Senv) ->
+  false;
+find_message(M, CodeServer, TraceServer, Clauses, [Msg|Mailbox], Cenv, Senv) ->
+  {Cv, Sv} = unzip_vals(Msg),
+  case find_clause(M, 'receive', CodeServer, TraceServer, Clauses, Cv, Sv, Cenv, Senv) of
+    false ->
+      find_message(M, CodeServer, TraceServer, Clauses, Mailbox, Cenv, Senv);
+    {Body, NCenv, NSenv, Cnt} ->
+      {Msg, Body, NCenv, NSenv, Cnt}
+  end.
 
 
 
@@ -940,3 +1032,13 @@ is_patlist_compatible(Pats, Values) ->
     {_N, _} ->
       false
   end.
+  
+%% validate the timeout value of a receive expression
+check_timeout(infinity, _Sv) ->
+  %% TODO Constraint: Sv=infinity
+  true;
+check_timeout(Timeout, _Sv) when is_integer(Timeout) -> 
+  %% TODO Constraint: Sv is non_neg_int()
+  Timeout >= 0;
+check_timeout(Timeout, _Sv) ->
+  exception(error, {invalid_timeout, Timeout}).

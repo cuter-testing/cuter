@@ -1,5 +1,5 @@
 -module(foo).
--export([mymin/1, test/3, test/2, test/0, goo/1, boo/1, y/1, moo/0, test_fac/1, fac/1, r/1, loop/0, send/1, spawn/3, moo/1,
+-export([mymin/1, test/3, test/2, test/0, goo/1, boo/1, y/1, moo/0, test_fac/1, fac/1, r/1, loop/1, send/2, spawn/3, moo/1,
   qoo/1, too/1, too/0, foo/0, test/1, e/1, g/2, t/1, h/2, v/3]).
 
 mymin([H|T]) -> mymin(T, H).
@@ -102,13 +102,13 @@ r(X) ->
     ok -> X
   end.
   
-send(Pid) ->
+send(Pid, X) ->
 %  timer:sleep(100),
   Pid ! gello,
-  Pid ! {self(), test_msg}.
+  Pid ! {self(), X}.
   
-loop() ->
-  Pid = erlang:spawn(foo, send, [self()]),
+loop(X) ->
+  Pid = erlang:spawn(foo, send, [self(), X]),
   receive
     {Pid, Msg} -> Msg
   after 100 -> bored

@@ -84,7 +84,7 @@ handle_call({load, M}, _From, State) ->
       %% Reply
       case Reply of
         {ok, M} ->
-%          io:format("[load]: Loaded module ~p~n", [M]),
+          io:format("[load]: Loaded module ~p~n", [M]),
           {reply, {ok, MDb}, State};
         _ ->
           {reply, Reply, State}
