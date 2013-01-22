@@ -23,7 +23,7 @@ load(Mod, Db, Dir) ->
     throw:cover_compiled ->
       {error, {cover_compiled, Mod}};
     throw:{compile, Errors} ->
-      {error, {compile, {Mod, Errors}}}
+      {runtime_error, {compile, {Mod, Errors}}}
   end.
 
 %%====================================================================

@@ -22,6 +22,24 @@ abstract([_A|As], Acc, Id) ->
 %% ===============
 %% mock_bif
 %% ===============
+mock_bif({erlang, demonitor, 1}, _Args) -> true;
+mock_bif({erlang, display, 1}, _Args) -> true;
+mock_bif({erlang, exit, 2}, _Args) -> true;
+mock_bif({erlang, garbage_collect, 0}, _Args) -> true;
+mock_bif({erlang, group_leader, 2}, _Args) -> true;
+mock_bif({erlang, link, 1}, _Args) -> true;
+mock_bif({erlang, monitor_node, 2}, _Args) -> true;
+mock_bif({erlang, monitor_node, 3}, _Args) -> true;
+mock_bif({erlang, port_close, 1}, _Args) -> true;
+mock_bif({erlang, port_command, 2}, _Args) -> true;
+mock_bif({erlang, port_connect, 2}, _Args) -> true;
+mock_bif({erlang, register, 2}, _Args) -> true;
+mock_bif({erlang, resume_process, 1}, _Args) -> true;
+mock_bif({erlang, set_cookie, 2}, _Args) -> true;
+mock_bif({erlang, unlink, 1}, _Args) -> true;
+mock_bif({erlang, unregister, 1}, _Args) -> true;
+mock_bif({erlang, yield, 0}, _Args) -> true;
+
 mock_bif({M, F, A}, Args) ->
   {{M, F, A}, Args}.
   
@@ -61,6 +79,9 @@ tl(S) when is_list(S) ->
 tl(S) ->
   {{erlang, tl, 1}, [S]}.
   
+%% ===============
+%% ensure_list
+%% ===============
 ensure_list(S, N) when is_list(S) ->
   case length(S) of
     N -> S;
@@ -69,6 +90,9 @@ ensure_list(S, N) when is_list(S) ->
 ensure_list(S, N) ->
   listify(S, N).
   
+%% ===============
+%% listify
+%% ===============
 listify(S, N) ->
   listify(S, N, []).
   

@@ -74,13 +74,29 @@ handle_call({register_parent, Parent, Link}, {From, _FromTag}, State) ->
      false -> From
     end,
   monitor(process, FromPid),
-  io:format("[conc_tserver]: Monitoring ~p~n", [FromPid]),
+%  io:format("[conc_tserver]: Monitoring ~p~n", [FromPid]),
   ets:insert(Links, {FromPid, Link}),
   ets:insert(Ptree, {Parent, FromPid}),
   NewProcs = [FromPid|Procs],
   {procs, P} = lists:keyfind(procs, 1, Logs),
   NewLogs = lists:keyreplace(procs, 1, Logs, {procs, P+1}),
   {reply, ok, State#state{procs=NewProcs, logs=NewLogs}};
+  
+handle_call({linked, Pid}, {_From, _FromTag}, State) ->
+  Links = State#state.links,
+  ets:insert(Links, {Pid, true}),
+  {reply, ok, State};
+  
+handle_call({unlinked, Pid, Links, Monitors}, {_From, _FromTag}, State) ->
+%  io:format("Got unlinked req from ~w~n",[Pid]),
+  Lnk = State#state.links,
+  case {Links, Monitors -- [self()]} of
+    {[], []} ->
+      ets:insert(Lnk, {Pid, false});
+    _ ->
+      ok
+  end,
+  {reply, ok, State};
   
 handle_call({is_monitored, Who}, {_From, _FromTag}, State) ->
   Procs = State#state.procs,
@@ -117,6 +133,7 @@ handle_info({'DOWN', _Ref, process, Who, normal}, State) ->
   end;
   
 handle_info({'DOWN', _Ref, process, Who, Reason}, State) ->
+%  io:format("Got error from ~w => ~w~n",[Who,Reason]),
   Super = State#state.super,
   Procs = State#state.procs,
   Links = State#state.links,
@@ -125,8 +142,13 @@ handle_info({'DOWN', _Ref, process, Who, Reason}, State) ->
   case Link of
     %% If process is linked/monitored to another then do nothing
     true ->
-      ets:delete(Links, Who),
-      {noreply, State#state{procs=NewProcs}};
+      case NewProcs of 
+        [] ->
+          {stop, normal, State#state{procs=[]}};
+        _ ->
+          ets:delete(Links, Who),
+          {noreply, State#state{procs=NewProcs}}
+      end;
     %% If process is not linked/monitored to another
     %% then report the exception and stop execution
     false ->

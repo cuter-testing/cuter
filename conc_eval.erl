@@ -28,11 +28,11 @@ i(M, F, A, CodeServer, TraceServer) ->
   end,
   erlang:spawn(I),
   receive
-    {R, Val} -> 
-      {ok, {Mapping, Val}};
     {error, {Who, Error}} -> 
-      {Cv, Sv} = unzip_vals(Error),
-      {error, {Mapping, {Who, Cv, Sv}}}
+      {Cv, Sv} = unzip_error(Error),
+      {error, {Mapping, {Who, Cv, Sv}}};
+    {R, Val} -> 
+      {ok, {Mapping, Val}}
   end.
   
 %% ===============
@@ -87,7 +87,8 @@ eval({named, {erlang, F}}, CAs, SAs, _CallType, CodeServer, TraceServer)
 
 %% Handle spawn_monitor/1, spawn_monitor/3
 eval({named, {erlang, spawn_monitor}}, CAs, SAs, _CallType, CodeServer, TraceServer) ->
-  SAs_e = conc_symb:ensure_list(SAs, length(CAs)),
+  Arity = length(CAs),
+  SAs_e = conc_symb:ensure_list(SAs, Arity),
   EvalArgs =
     case CAs of
       [Fun] ->
@@ -100,7 +101,7 @@ eval({named, {erlang, spawn_monitor}}, CAs, SAs, _CallType, CodeServer, TraceSer
         Call = find_call_type(erlang, Mod),
         [{named, {Mod, Fun}}, Args, SArgs, Call, CodeServer, TraceServer];
       _ ->
-        exception(error, {undef, {erlang, spawn_monitor, length(CAs)}})
+        exception(error, {undef, {erlang, spawn_monitor, Arity}})
     end,
   Child = register_and_apply(TraceServer, self(), EvalArgs, true),
   {ChildPid, ChildRef} = erlang:spawn_monitor(Child),
@@ -110,8 +111,9 @@ eval({named, {erlang, spawn_monitor}}, CAs, SAs, _CallType, CodeServer, TraceSer
 
 %% Handle spawn_opt/2, spawn_opt/3, spawn_opt/4, spawn_opt/5
 eval({named, {erlang, spawn_opt}}, CAs, SAs, _CallType, CodeServer, TraceServer) ->
-  SAs_e = conc_symb:ensure_list(SAs, length(CAs)),
-  {ChildPid, ChildRef} = 
+  Arity = length(CAs),
+  SAs_e = conc_symb:ensure_list(SAs, Arity),
+  R =
     case CAs of
       [Fun, Opts] ->
         [_SFun, _SOpts] = SAs_e,
@@ -144,25 +146,74 @@ eval({named, {erlang, spawn_opt}}, CAs, SAs, _CallType, CodeServer, TraceServer)
         Child = register_and_apply(TraceServer, self(), EvalArgs, Link),
         erlang:spawn_opt(Node, Child, Opts);
       _ ->
-        exception(error, {undef, {erlang, spawn_opt, length(CAs)}})
+        exception(error, {undef, {erlang, spawn_opt, Arity}})
+    end,
+  ChildPid =
+    case R of
+      {Pid, _Ref} -> Pid;
+      Pid -> Pid
     end,
   receive
-    {ChildPid, registered} -> {{ChildPid, ChildRef}, {ChildPid, ChildRef}}
+    {ChildPid, registered} -> {R, R}
   end;
+  
+%% Handle monitors and links
+
+%%% link/1
+%eval({named, {erlang, link}}, CAs, SAs, _CallType, _CodeServer, TraceServer) ->
+%  Arity = length(CAs),
+%  SAs_e = conc_symb:ensure_list(SAs, Arity),
+%  case CAs of
+%    [CPid] ->
+%      [_SPid] = SAs_e,
+%      case {is_process_alive(CPid), self()} of
+%        {true, CPid} ->
+%          ok;
+%        {true, _} ->
+%          report_link(TraceServer);
+%        {false, _} ->
+%          ok
+%      end,
+%      erlang:link(CPid),
+%      {true, true};
+%    _ ->
+%        exception(error, {undef, {erlang, link, Arity}})
+%  end;
+
+%%% unlink/1
+%eval({named, {erlang, unlink}}, CAs, SAs, _CallType, _CodeServer, TraceServer) ->
+%  Arity = length(CAs),
+%  SAs_e = conc_symb:ensure_list(SAs, Arity),
+%  case CAs of
+%    [CPid] ->
+%      [_SPid] = SAs_e,
+%      erlang:unlink(CPid),
+%      report_unlink(TraceServer, CPid),
+%      {true, true};
+%    _ ->
+%        exception(error, {undef, {erlang, unlink, Arity}})
+%  end;
+
+
+
+%% Handle message sending primitives
+%% so as to zip the concrete and symbolic reason
   
 %% Handle '!'/2
 eval({named, {erlang, '!'}}, CAs, SAs, CallType, CodeServer, TraceServer)
   when length(CAs) =:= 2 ->
+%    io:format("erlang:'!'~n"),
     eval({named, {erlang, send}}, CAs, SAs, CallType, CodeServer, TraceServer);
 
 %% Handle send/2,3
 eval({named, {erlang, send}}, CAs, SAs, _CallType, _CodeServer, TraceServer) ->
-  SAs_e = conc_symb:ensure_list(SAs, length(CAs)),
+  Arity = length(CAs),
+  SAs_e = conc_symb:ensure_list(SAs, Arity),
   case CAs of
     [CDest, CMsg] ->
       [_SDest, SMsg] = SAs_e,
       %% TODO Constraint: CDest=SDest
-      Msg = zip_vals(CMsg, SMsg),
+      Msg = zip_one(CMsg, SMsg),
       case is_monitored(TraceServer, CDest) of
         true  -> CDest ! Msg;
         false -> CDest ! CMsg
@@ -171,11 +222,15 @@ eval({named, {erlang, send}}, CAs, SAs, _CallType, _CodeServer, TraceServer) ->
     [CDest, CMsg, COpts] ->
       [_SDest, SMsg, _SOpts] = SAs_e,
       %% TODO Constraint: CDest=SDest, COpts=SOpts
-      Msg = zip_vals(CMsg, SMsg),
-      R = erlang:send(CDest, Msg, COpts),
+      Msg = zip_one(CMsg, SMsg),
+      R = 
+        case is_monitored(TraceServer, CDest) of
+          true  -> erlang:send(CDest, Msg, COpts);
+          false -> erlang:send(CDest, CMsg, COpts)
+        end,
       {R, R};
     _ ->
-        exception(error, {undef, {erlang, send, length(CAs)}})
+        exception(error, {undef, {erlang, send, Arity}})
   end;
 
 eval({named, {erlang, send_after}}, _CAs, _SAs, _CallType, _CodeServer, _TraceServer) ->
@@ -193,54 +248,57 @@ eval({named, {erlang, send_nosuspend}}, _CAs, _SAs, _CallType, _CodeServer, _Tra
 
 %% Handle throw/1
 eval({named, {erlang, throw}}, CAs, SAs, _CallType, _CodeServer, _TraceServer) ->
-  case length(CAs) of
-    1 ->
+  case CAs of
+    [CThrow] ->
       SAs_e = conc_symb:ensure_list(SAs, 1),
-      [Throw] = zip_vals(CAs, SAs_e),
+      [SThrow] = SAs_e,
+      Throw = zip_one(CThrow, SThrow),
       erlang:throw(Throw);
-    N ->
-      exception(error, {undef, {erlang, throw, N}})
+    _ ->
+      exception(error, {undef, {erlang, throw, length(CAs)}})
   end;
   
 %% Handle exit/1
 eval({named, {erlang, exit}}, CAs, SAs, _CallType, _CodeServer, _TraceServer)
   when length(CAs) =:= 1 ->
     SAs_e = conc_symb:ensure_list(SAs, 1),
-    [Exit] = zip_vals(CAs, SAs_e),
-    erlang:exit(Exit);
+    [CExit] = CAs,
+    [SExit] = SAs_e,
+    Exit = zip_one(CExit, SExit),
+    case CExit of
+      normal -> erlang:exit(CExit);
+      _ -> erlang:exit(Exit)
+    end;
     
 %% Handle error/1, error/2
 eval({named, {erlang, error}}, CAs, SAs, _CallType, _CodeServer, _TraceServer) ->
-  SAs_e = conc_symb:ensure_list(SAs, length(CAs)),
-  case length(CAs) of
-    1 ->
-      [Error] = zip_vals(CAs, SAs_e),
+  Arity = length(CAs),
+  SAs_e = conc_symb:ensure_list(SAs, Arity),
+  case CAs of
+    [CError] ->
+      [SError] = SAs_e,
+      Error = zip_one(CError, SError),
       erlang:error(Error);
-    2 ->
-      [CError, CArgs] = CAs,
+    [CError, CArgs] ->
       [SError, _SArgs] = SAs_e,
-      %% TODO
-      %% create constraint CArgs=SArgs
-      Error = zip_vals(CError, SError),
+      %% TODO create constraint CArgs=SArgs
+      Error = zip_one(CError, SError),
       erlang:error(Error, CArgs);
-    N ->
-      exception(error, {undef, {erlang, error, N}})
+    _ ->
+      exception(error, {undef, {erlang, error, Arity}})
   end;
   
 %% Handle raise/3
 eval({named, {erlang, raise}}, CAs, SAs, _CallType, _CodeServer, _TraceServer) ->
-  case length(CAs) of
-    3 ->
+  case CAs of
+    [CClass, CReason, CStacktrace] ->
       SAs_e = conc_symb:ensure_list(SAs, 3),
-      [CClass, CReason, CStacktrace] = CAs,
       [_SClass, SReason, _] = SAs_e,
-      R = zip_vals(CReason, SReason),
-      %% TODO
-      %% Create constraint Class=SClass
-%      io:format("[raise]: ~p = ~p~n", [CClass, _SClass]),
+      R = zip_one(CReason, SReason),
+      %% TODO Create constraint Class=SClass
       erlang:raise(CClass, R, CStacktrace);
-    N ->
-        exception(error, {undef, {erlang, raise, N}})
+    _ ->
+        exception(error, {undef, {erlang, raise, length(CAs)}})
   end;
 
 %% Handle other important functions
@@ -265,12 +323,10 @@ eval({named, {erlang, apply}}, CAs, SAs, _CallType, CodeServer, TraceServer) ->
       [Fun, Args] ->
         [_SFun, SArgs] = SAs_e,
         %% TODO Constraint: Fun=SFun
-        io:format("[apply]: ~p=~p~n", [Fun, _SFun]),
         [{lambda, Fun}, Args, SArgs, local, CodeServer, TraceServer];
       [Mod, Fun, Args] ->
         [_SMod, _SFun, SArgs] = SAs_e,
         %% TODO Constraints: SMod = Mod, SFun=Fun
-        io:format("[apply]: ~p=~p, ~p=~p~n", [Mod, _SMod,Fun, _SFun]),
         Call = find_call_type(erlang, Mod),
         [{named, {Mod, Fun}}, Args, SArgs, Call, CodeServer, TraceServer];
       _ ->
@@ -308,7 +364,7 @@ eval({named, {M, F}}, CAs, SAs, CallType, CodeServer, TraceServer) ->
 %% Handle a Closure
 eval({lambda, Closure}, CAs, SAs, _CallType, _CodeServer, _TraceServer) ->
   SAs_e = conc_symb:ensure_list(SAs, length(CAs)),
-  ZAs = zip_vals(CAs, SAs_e),
+  ZAs = zip_args(CAs, SAs_e),
   apply(Closure, ZAs);
   
 %% Handle a function bound in a letrec expression
@@ -361,9 +417,7 @@ eval_expr(M, CodeServer, TraceServer, {c_apply, _Anno, Op, Args}, Cenv, Senv) ->
     {letrec_func, {Mod, Func, _Arity, Def, E}} ->
       eval({letrec_func, {Mod, Func, Def, E}}, CAs, SAs, local, CodeServer, TraceServer);
     Closure ->
-      %% TODO
-      %% Will make constraint OPsv=OPcv (in case closure is made by make_fun)
-%      io:format("[c_apply]: ~p = ~p~n", [OPcv, _OPsv]),
+      %% TODO Will make constraint OPsv=OPcv (in case closure is made by make_fun)
       eval({lambda, Closure}, CAs, SAs, local, CodeServer, TraceServer)
   end;
   
@@ -398,8 +452,6 @@ eval_expr(M, CodeServer, TraceServer, {c_call, _Anno, Mod, Name, Args}, Cenv, Se
   {CAs, SAs} = lists:unzip(ZAs),
   %% TODO
   %% Will make constraints Mcv=Msv and Fcv=Fsv
-%  io:format("[c_call]: ~p = ~p~n", [Mcv, _Msv]),
-%  io:format("[c_call]: ~p = ~p~n", [Fcv, _Fsv]),
   eval({named, {Mcv, Fcv}}, CAs, SAs, find_call_type(M, Mcv), CodeServer, TraceServer);
 
 %c_case
@@ -414,16 +466,15 @@ eval_expr(M, CodeServer, TraceServer, {c_catch, _Anno, Body}, Cenv, Senv) ->
     eval_expr(M, CodeServer, TraceServer, Body, Cenv, Senv)
   catch
     throw:Throw ->
-      {Cv, Sv} = unzip_vals(Throw),
-      {Cv, Sv};
+      unzip_one(Throw);
     exit:Exit ->
-      {Cv, Sv} = unzip_vals(Exit),
+      {Cv, Sv} = unzip_one(Exit),
       {{'EXIT', Cv}, {'EXIT', Sv}};
     error:Error ->
       %% CAUTION! Stacktrace info is not valid
       %% It refers to the interpreter process's stacktrace
       %% Used for internal debugging
-      {Cv, Sv} = unzip_vals(Error),
+      {Cv, Sv} = unzip_one(Error),
       Stacktrace = erlang:get_stacktrace(),
       {{'EXIT', {Cv, Stacktrace}}, {'EXIT', {Sv, Stacktrace}}}
   end;
@@ -492,7 +543,6 @@ eval_expr(M, CodeServer, TraceServer, {c_primop, _Anno, Name, Args}, Cenv, Senv)
       [_SClass, SReason] = SAs,
       %% TODO
       %% Will create costraint CClass=SClass
-%      io:format("~p = ~p~n", [CClass, _SClass]),
       eval({named, {erlang, CClass}}, [CReason], [SReason], external, CodeServer, TraceServer);
     'match_fail' ->
       [Cv]= CAs,
@@ -541,7 +591,7 @@ eval_expr(M, CodeServer, TraceServer, {c_try, _Anno, Arg, Vars, Body, Evars, Han
     eval_expr(M, CodeServer, TraceServer, Body, NCenv, NSenv)
   catch
     Class:Reason ->
-      {Cv, Sv} = unzip_vals(Reason),
+      {Cv, Sv} = unzip_one(Reason),
       {Cs, Ss} =
         case length(Evars) of
           3 -> {[Class, Cv, Class], [Class, Sv, Class]};
@@ -639,7 +689,7 @@ run_message_loop(M, CodeServer, TraceServer, Clauses, Action, CTimeout, STimeout
 find_message(_M, _CodeServer, _TraceServer, _Clauses, [], _Cenv, _Senv) ->
   false;
 find_message(M, CodeServer, TraceServer, Clauses, [Msg|Mailbox], Cenv, Senv) ->
-  {Cv, Sv} = unzip_vals(Msg),
+  {Cv, Sv} = unzip_msg(Msg),
   case find_clause(M, 'receive', CodeServer, TraceServer, Clauses, Cv, Sv, Cenv, Senv) of
     false ->
       find_message(M, CodeServer, TraceServer, Clauses, Mailbox, Cenv, Senv);
@@ -694,14 +744,10 @@ match_clause(M, Mode, CodeServer, TraceServer, {c_clause, _Anno, Pats, Guard, Bo
           NSenv = conc_lib:add_mappings_to_environment(SMs, Senv),
           try eval_expr(M, CodeServer, TraceServer, Guard, NCenv, NSenv) of
             {true, _SGv} ->
-              %% TODO
-              %% make constraint SGv=true
-%              io:format("[guard]: ~p = true~n", [_SGv]),
+              %% TODO make constraint SGv=true
               {true, {Body, NCenv, NSenv, Cnt}};
             {false, _SGv} ->
-              %% TODO
-              %% make constraint SGv=false
-%              io:format("[guard]: ~p = false~n", [_SGv]),
+              %% TODO make constraint SGv=false
               false
           catch
             error:_E -> false
@@ -834,7 +880,7 @@ make_fun(Mod, Arity, CodeServer, TraceServer, Vars, Body, Cenv, Senv) ->
     1 ->
       fun(A) ->
         Args = [A],
-        {CAs, SAs} = unzip_vals(Args),
+        {CAs, SAs} = unzip_args(Args),
         NCenv = bind_parameters(CAs, Vars, Cenv),
         NSenv = bind_parameters(SAs, Vars, Senv),
         eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv)
@@ -842,7 +888,7 @@ make_fun(Mod, Arity, CodeServer, TraceServer, Vars, Body, Cenv, Senv) ->
     2 ->
       fun(A, B) ->
         Args = [A, B],
-        {CAs, SAs} = unzip_vals(Args),
+        {CAs, SAs} = unzip_args(Args),
         NCenv = bind_parameters(CAs, Vars, Cenv),
         NSenv = bind_parameters(SAs, Vars, Senv),
         eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv)
@@ -850,7 +896,7 @@ make_fun(Mod, Arity, CodeServer, TraceServer, Vars, Body, Cenv, Senv) ->
     3 ->
       fun(A, B, C) ->
         Args = [A, B, C],
-        {CAs, SAs} = unzip_vals(Args),
+        {CAs, SAs} = unzip_args(Args),
         NCenv = bind_parameters(CAs, Vars, Cenv),
         NSenv = bind_parameters(SAs, Vars, Senv),
         eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv)
@@ -858,7 +904,7 @@ make_fun(Mod, Arity, CodeServer, TraceServer, Vars, Body, Cenv, Senv) ->
     4 ->
       fun(A, B, C, D) ->
         Args = [A, B, C, D],
-        {CAs, SAs} = unzip_vals(Args),
+        {CAs, SAs} = unzip_args(Args),
         NCenv = bind_parameters(CAs, Vars, Cenv),
         NSenv = bind_parameters(SAs, Vars, Senv),
         eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv)
@@ -877,25 +923,25 @@ make_fun(Mod, Func, Arity, CodeServer, TraceServer) ->
     1 ->
       fun(A) ->
         Args = [A],
-        {CAs, SAs} = unzip_vals(Args),
+        {CAs, SAs} = unzip_args(Args),
         eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer)
       end;
     2 ->
       fun(A, B) ->
         Args = [A, B],
-        {CAs, SAs} = unzip_vals(Args),
+        {CAs, SAs} = unzip_args(Args),
         eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer)
       end;
     3 ->
       fun(A, B, C) ->
         Args = [A, B, C],
-        {CAs, SAs} = unzip_vals(Args),
+        {CAs, SAs} = unzip_args(Args),
         eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer)
       end;
     4 ->
       fun(A, B, C, D) ->
         Args = [A, B, C, D],
-        {CAs, SAs} = unzip_vals(Args),
+        {CAs, SAs} = unzip_args(Args),
         eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer)
       end;
     _ ->
@@ -905,30 +951,55 @@ make_fun(Mod, Func, Arity, CodeServer, TraceServer) ->
   
 %% Zip and Unzip concrete-semantic values
 %% Zipped Args are [{'_zip', CA, SA}]
-zip_vals(CAs, SAs) when is_list(CAs), is_list(SAs) ->
-  F = fun(C, S) ->
-    {'_zip', C, S}
-  end,
-  lists:zipwith(F, CAs, SAs);
-zip_vals(Cv, Sv) ->
+zip_one(Cv, Sv) ->
   {'_zip', Cv, Sv}.
+
+zip_args(CAs, SAs) when is_list(CAs), is_list(SAs) ->
+  lists:zipwith(fun zip_one/2, CAs, SAs).
   
-unzip_vals({'_zip', Cv, Sv}) ->
+unzip_one({'_zip', Cv, Sv}) ->
   {Cv, Sv};
-unzip_vals(Vs) when is_tuple(Vs) ->
-  Ls = tuple_to_list(Vs),
-  Zs = lists:map(
-    fun(V) -> unzip_vals(V) end,
-    Ls),
-  {Cs, Ss} = lists:unzip(Zs),
-  {list_to_tuple(Cs), list_to_tuple(Ss)};
-unzip_vals(Vs) when is_list(Vs) ->
-  Zs = lists:map(
-    fun(V) -> unzip_vals(V) end,
-    Vs),
-  lists:unzip(Zs);
-unzip_vals(V) ->
+unzip_one(V) ->
   {V, V}.
+  
+unzip_error({nocatch, {'_zip', Cv, Sv}}) ->
+  {Cv, Sv};
+unzip_error(V) ->
+  unzip_one(V).
+  
+unzip_args(As) when is_list(As) ->
+  L = lists:map(fun unzip_one/1, As),
+  lists:unzip(L).
+  
+is_zipped([]) -> false;
+is_zipped(L) when is_list(L) ->
+  [H|T] = L,
+  case H of
+    {'_zip', _, _} -> true;
+    _ -> is_zipped(T)
+  end;
+is_zipped({'_zip', _, _}) -> true;
+is_zipped(_V) -> false.
+
+unzip_msg({'DOWN', MonitorRef, Type, Object, Info}) ->
+  {Cv, Sv} = unzip_one(Info),
+  CMsg = {'DOWN', MonitorRef, Type, Object, Cv},
+  SMsg = {'DOWN', MonitorRef, Type, Object, Sv},
+  {CMsg, SMsg};
+unzip_msg({'EXIT', {V, Stack}}) ->
+  {Cv, Sv} = unzip_one(V),
+  CMsg = {'EXIT', {Cv, Stack}},
+  SMsg = {'EXIT', {Sv, Stack}},
+  {CMsg, SMsg};
+unzip_msg({'EXIT', V}) ->
+  {Cv, Sv} = unzip_one(V),
+  CMsg = {'EXIT', Cv},
+  SMsg = {'EXIT', Sv},
+  {CMsg, SMsg};
+unzip_msg(V) ->
+  unzip_one(V).
+
+  
   
 %% -------------------------------------------------------
 %% register_and_apply(TraceServer, Parent, Args)
@@ -943,7 +1014,7 @@ register_and_apply(TraceServer, Parent, Args, Link) ->
   fun() ->
     register_to_trace(TraceServer, Parent, Link),
     Parent ! {self(), registered},
-    erlang:apply(conc_eval, eval, Args)
+    erlang:apply(?MODULE, eval, Args)
   end.
   
 register_to_trace(TraceServer, Parent, Link) ->
@@ -954,6 +1025,14 @@ send_trace(TraceServer, Msg, true) ->
   gen_server:cast(TraceServer, {trace, self(), Msg});
 send_trace(_TraceServer, _Msg, false) ->
   ok.
+  
+report_link(TraceServer) ->
+  gen_server:call(TraceServer, {linked, self()}).
+  
+report_unlink(TraceServer, Pid) ->
+  {links, Links} = erlang:process_info(Pid, links),
+  {monitored_by, Monitors} = erlang:process_info(Pid, monitored_by),
+  gen_server:call(TraceServer, {unlinked, Pid, Links, Monitors}).
   
 %% ----------------------------------------------------------
 %% get_module_db(M, CodeServer) -> Info

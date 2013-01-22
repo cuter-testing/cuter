@@ -28,8 +28,8 @@ i(M, F, A, CodeServer, TraceServer) ->
   end,
   erlang:spawn(I),
   receive
-    {R, Val} -> {ok, Val};
-    {error, Msg} -> {error, Msg}
+    {error, Msg} -> {error, Msg};
+    {R, Val} -> {ok, Val}
   end.
 
 %%-----------------------------------------------------------------------------------
