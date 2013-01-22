@@ -422,8 +422,12 @@ eval_expr(M, CodeServer, TraceServer, {c_apply, _Anno, Op, Args}, Cenv, Senv) ->
   end;
   
 %c_binary
-eval_expr(_M, _CodeServer, _TraceServer, {c_binary, _Anno, _Segments}, _Cenv, _Senv) ->
-  exception(error, c_binary);
+eval_expr(M, CodeServer, TraceServer, {c_binary, _Anno, Segments}, Cenv, Senv) ->
+  Segms = lists:map(
+    fun(S) -> eval_expr(M, CodeServer, TraceServer, S, Cenv, Senv) end,
+    Segments),
+  {Cs, Ss} = lists:unzip(Segms),
+  append_segments(Cs, Ss);
   
 %c_bitstr
 eval_expr(_M, _CodeServer, _TraceServer, {c_bitstr, _Anno, _Val, _Size, _Unit, _Type, _Flags}, _Cenv, _Senv) ->
@@ -1149,3 +1153,16 @@ check_timeout(Timeout, _Sv) ->
   
 is_monitored(TraceServer, Who) ->
   gen_server:call(TraceServer, {is_monitored, Who}).
+  
+%% Concatenate a list of bistrings
+append_segments(Cs, Ss) ->
+  append_segments(lists:reverse(Cs), <<>>, lists:reverse(Ss), conc_symb:empty_binary()).
+  
+append_segments([], CAcc, [], SAcc) ->
+  {CAcc, SAcc};
+append_segments([Cv|Cvs], CAcc, [Sv|Svs], SAcc) ->
+  Cbin = <<Cv/bitstring, CAcc/bitstring>>,
+  Sbin = conc_symb:append_binary(Sv, SAcc),
+  append_segments(Cvs, Cbin, Svs, Sbin).
+  
+

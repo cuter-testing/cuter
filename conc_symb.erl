@@ -103,3 +103,13 @@ listify(S, N, Acc) ->
   T = {{erlang, tl, 1}, [S]},
   listify(T, N-1, [H|Acc]).
 
+%% ===============
+%% binaries
+%% ===============
+  
+empty_binary() ->
+  {binary, []}.
+  
+append_binary(Sv, {binary, Acc}) when is_list(Acc) ->
+  {binary, [Sv|Acc]}.
+
