@@ -30,9 +30,9 @@ i(M, F, A, CodeServer, TraceServer) ->
   receive
     {error, {Who, Error}} -> 
       {Cv, Sv} = unzip_error(Error),
-      {error, {Mapping, {Who, Cv, Sv}}};
-    {R, Val} -> 
-      {ok, {Mapping, Val}}
+      {error, {Mapping, Who, Cv, Sv}};
+    {R, {Cv, Sv}} -> 
+      {ok, {Mapping, Cv, Sv}}
   end.
   
 %% ===============
@@ -49,7 +49,8 @@ i(M, F, A, CodeServer, TraceServer) ->
 %% spawn_link/1 spawn_link/2, spawn_link/3, spawn_link/4
 eval({named, {erlang, F}}, CAs, SAs, _CallType, CodeServer, TraceServer)
   when F =:= spawn; F =:= spawn_link ->
-    SAs_e = conc_symb:ensure_list(SAs, length(CAs)),
+    Arity = length(CAs),
+    SAs_e = conc_symb:ensure_list(SAs, Arity),
     ChildPid =
       case CAs of
         [Fun] ->
@@ -79,7 +80,7 @@ eval({named, {erlang, F}}, CAs, SAs, _CallType, CodeServer, TraceServer)
           Child = register_and_apply(TraceServer, self(), EvalArgs, F =:= spawn_link),
           erlang:F(Node, Child);
         _ ->
-          exception(error, {undef, {erlang, spawn, length(CAs)}})
+          exception(error, {undef, {erlang, spawn, Arity}})
       end,
     receive
       {ChildPid, registered} -> {ChildPid, ChildPid}
@@ -202,10 +203,9 @@ eval({named, {erlang, spawn_opt}}, CAs, SAs, _CallType, CodeServer, TraceServer)
 %% Handle '!'/2
 eval({named, {erlang, '!'}}, CAs, SAs, CallType, CodeServer, TraceServer)
   when length(CAs) =:= 2 ->
-%    io:format("erlang:'!'~n"),
     eval({named, {erlang, send}}, CAs, SAs, CallType, CodeServer, TraceServer);
 
-%% Handle send/2,3
+%% Handle send/2, send/3
 eval({named, {erlang, send}}, CAs, SAs, _CallType, _CodeServer, TraceServer) ->
   Arity = length(CAs),
   SAs_e = conc_symb:ensure_list(SAs, Arity),
@@ -213,34 +213,55 @@ eval({named, {erlang, send}}, CAs, SAs, _CallType, _CodeServer, TraceServer) ->
     [CDest, CMsg] ->
       [_SDest, SMsg] = SAs_e,
       %% TODO Constraint: CDest=SDest
-      Msg = zip_one(CMsg, SMsg),
-      case is_monitored(TraceServer, CDest) of
-        true  -> CDest ! Msg;
-        false -> CDest ! CMsg
-      end,
+      Msg = encode_msg(TraceServer, CDest, CMsg, SMsg),
+      erlang:send(CDest, Msg),
       {CMsg, SMsg};
     [CDest, CMsg, COpts] ->
       [_SDest, SMsg, _SOpts] = SAs_e,
       %% TODO Constraint: CDest=SDest, COpts=SOpts
-      Msg = zip_one(CMsg, SMsg),
-      R = 
-        case is_monitored(TraceServer, CDest) of
-          true  -> erlang:send(CDest, Msg, COpts);
-          false -> erlang:send(CDest, CMsg, COpts)
-        end,
+      Msg = encode_msg(TraceServer, CDest, CMsg, SMsg),
+      R = erlang:send(CDest, Msg, COpts),
       {R, R};
     _ ->
         exception(error, {undef, {erlang, send, Arity}})
   end;
 
-eval({named, {erlang, send_after}}, _CAs, _SAs, _CallType, _CodeServer, _TraceServer) ->
-  io:format("erlang:send_nosuspend~n"),
-  exception(error, send_after);
 
-eval({named, {erlang, send_nosuspend}}, _CAs, _SAs, _CallType, _CodeServer, _TraceServer) ->
-  io:format("erlang:send_nosuspend~n"),
-  exception(error, send_after);
-
+%% Handle send_after/3
+eval({named, {erlang, send_after}}, CAs, SAs, _CallType, _CodeServer, TraceServer) ->
+  Arity = length(CAs),
+  SAs_e = conc_symb:ensure_list(SAs, Arity),
+  case CAs of
+    [CTime, CDest, CMsg] ->
+      [_STime, _SDest, SMsg] = SAs_e,
+      %% TODO Constraint CTime=STime, CDest=SDest
+      Msg = encode_msg(TraceServer, CDest, CMsg, SMsg),
+      R = erlang:send_after(CTime, CDest, Msg),
+      {R, R};
+    _ ->
+      exception(error, {undef, {erlang, send_after, Arity}})
+  end;
+ 
+%% Handle send_nosuspend/2, send_nosuspend/3
+eval({named, {erlang, send_nosuspend}}, CAs, SAs, _CallType, _CodeServer, TraceServer) ->
+  Arity = length(CAs),
+  SAs_e = conc_symb:ensure_list(SAs, Arity),
+  case CAs of
+    [CDest, CMsg] ->
+      [_SDest, SMsg] = SAs_e,
+      %% TODO Constraint CDest=SDest
+      Msg = encode_msg(TraceServer, CDest, CMsg, SMsg),
+      R = erlang:send_nosuspend(CDest, Msg),
+      {R, R};
+    [CDest, CMsg, COpts] ->
+      [_SDest, SMsg, _SOpts] = SAs_e,
+      %% TODO Constraint CDest=SDest, COpts=SOpts
+      Msg = encode_msg(TraceServer, CDest, CMsg, SMsg),
+      R = erlang:send_nosuspend(CDest, Msg, COpts),
+      {R, R};
+    _ ->
+      exception(error, {undef, {erlang, send_nosuspend, Arity}})
+  end;
 
 
 %% Handle functions that raise exceptions
@@ -248,27 +269,52 @@ eval({named, {erlang, send_nosuspend}}, _CAs, _SAs, _CallType, _CodeServer, _Tra
 
 %% Handle throw/1
 eval({named, {erlang, throw}}, CAs, SAs, _CallType, _CodeServer, _TraceServer) ->
+  Arity = length(CAs),
+  SAs_e = conc_symb:ensure_list(SAs, Arity),
   case CAs of
     [CThrow] ->
-      SAs_e = conc_symb:ensure_list(SAs, 1),
       [SThrow] = SAs_e,
       Throw = zip_one(CThrow, SThrow),
       erlang:throw(Throw);
     _ ->
-      exception(error, {undef, {erlang, throw, length(CAs)}})
+      exception(error, {undef, {erlang, throw, Arity}})
   end;
   
 %% Handle exit/1
-eval({named, {erlang, exit}}, CAs, SAs, _CallType, _CodeServer, _TraceServer)
-  when length(CAs) =:= 1 ->
-    SAs_e = conc_symb:ensure_list(SAs, 1),
-    [CExit] = CAs,
-    [SExit] = SAs_e,
-    Exit = zip_one(CExit, SExit),
-    case CExit of
-      normal -> erlang:exit(CExit);
-      _ -> erlang:exit(Exit)
-    end;
+eval({named, {erlang, exit}}, CAs, SAs, _CallType, _CodeServer, _TraceServer) ->
+  Arity = length(CAs),
+  SAs_e = conc_symb:ensure_list(SAs, Arity),
+  case CAs of
+    [CExit] ->
+      [SExit] = SAs_e,
+      Exit = 
+        case CExit of
+          normal ->
+            %% TODO Constraint: SExit=normal
+            normal;
+          _ ->
+            zip_one(CExit, SExit)
+        end,
+      erlang:exit(Exit);
+    [CDest, CExit] ->
+      [_SDest, SExit] = SAs_e,
+      %% TODO Constraint CDest=SDest
+      Exit = 
+        case CExit of
+          normal ->
+            %% TODO Constraint: SExit=normal
+            normal;
+          kill ->
+            %% TODO Constraint: SExit=kill
+            kill;
+          _ ->
+            zip_one(CExit, SExit)
+        end,
+        erlang:exit(CDest, Exit);
+    _ ->
+      exception(error, {undef, {erlang, exit, Arity}})
+  end;
+
     
 %% Handle error/1, error/2
 eval({named, {erlang, error}}, CAs, SAs, _CallType, _CodeServer, _TraceServer) ->
@@ -290,34 +336,37 @@ eval({named, {erlang, error}}, CAs, SAs, _CallType, _CodeServer, _TraceServer) -
   
 %% Handle raise/3
 eval({named, {erlang, raise}}, CAs, SAs, _CallType, _CodeServer, _TraceServer) ->
+  Arity = length(CAs),
+  SAs_e = conc_symb:ensure_list(SAs, Arity),
   case CAs of
     [CClass, CReason, CStacktrace] ->
-      SAs_e = conc_symb:ensure_list(SAs, 3),
       [_SClass, SReason, _] = SAs_e,
-      R = zip_one(CReason, SReason),
       %% TODO Create constraint Class=SClass
+      R = zip_one(CReason, SReason),
       erlang:raise(CClass, R, CStacktrace);
     _ ->
-        exception(error, {undef, {erlang, raise, length(CAs)}})
+        exception(error, {undef, {erlang, raise, Arity}})
   end;
 
 %% Handle other important functions
 
 %% Handle make_fun/3  
 eval({named, {erlang, make_fun}}, CAs, SAs, _CallType, CodeServer, TraceServer) ->
+  Arity = length(CAs),
+  SAs_e = conc_symb:ensure_list(SAs, Arity),
   case CAs of
-    [M, F, Arity] ->
-      CR = make_fun(M, F, Arity, CodeServer, TraceServer),
-      SAs_e = conc_symb:ensure_list(SAs, Arity),
+    [M, F, A] ->
+      CR = make_fun(M, F, A, CodeServer, TraceServer),
       SR = conc_symb:mock_bif({erlang, make_fun, 3}, SAs_e),
       {CR, SR};
     _ ->
-      exception(error, {undef, {erlang, make_fun, length(CAs)}})
+      exception(error, {undef, {erlang, make_fun, Arity}})
   end;
   
 %% Handle apply/2, apply/3
 eval({named, {erlang, apply}}, CAs, SAs, _CallType, CodeServer, TraceServer) ->
-  SAs_e = conc_symb:ensure_list(SAs, length(CAs)),
+  Arity = length(CAs),
+  SAs_e = conc_symb:ensure_list(SAs, Arity),
   EvalArgs =
     case CAs of
       [Fun, Args] ->
@@ -330,7 +379,7 @@ eval({named, {erlang, apply}}, CAs, SAs, _CallType, CodeServer, TraceServer) ->
         Call = find_call_type(erlang, Mod),
         [{named, {Mod, Fun}}, Args, SArgs, Call, CodeServer, TraceServer];
       _ ->
-        exception(error, {undef, {erlang, apply, length(CAs)}})
+        exception(error, {undef, {erlang, apply, Arity}})
     end,
   erlang:apply(conc_eval, eval, EvalArgs);
   
@@ -374,7 +423,6 @@ eval({letrec_func, {M, _F, Def, E}}, CAs, SAs, _CallType, CodeServer, TraceServe
   NCenv = bind_parameters(CAs, Def#c_fun.vars, Cenv),
   NSenv = bind_parameters(SAs_e, Def#c_fun.vars, Senv),
   eval_expr(M, CodeServer, TraceServer, Def#c_fun.body, NCenv, NSenv).
-
   
   
 %%--------------------------------------------------------------------
@@ -392,16 +440,16 @@ exception(Class, Reason) ->
 
 %c_apply
 eval_expr(M, CodeServer, TraceServer, {c_apply, _Anno, Op, Args}, Cenv, Senv) ->
-  %% Will use OPsv for constraint OPsv=OPcv (maybe)
+  %% TODO Constraint: OPsv=OPcv
   {OPcv, _OPsv} = eval_expr(M, CodeServer, TraceServer, Op, Cenv, Senv),
   ZAs = lists:map(
     fun(A) -> %% Will create closures where appropriate
       {CA, SA} = eval_expr(M, CodeServer, TraceServer, A, Cenv, Senv),
       case CA of
-        {func, {F, Arity}} ->
+        {func, {F, Arity}} -> %% local func (external func is already in make_fun/3 in core erlang)
           Cl = create_closure(M, F, Arity, CodeServer, TraceServer, local),
           {Cl, Cl};
-        {letrec_func, {Mod, F, Arity, Def, E}} ->
+        {letrec_func, {Mod, F, Arity, Def, E}} -> %% letrec func
           {CE, SE} = E(),
           Cl = create_closure(Mod, F, Arity, CodeServer, TraceServer, {letrec_fun, {Def, CE, SE}}),
           {Cl, Cl};
@@ -430,8 +478,15 @@ eval_expr(M, CodeServer, TraceServer, {c_binary, _Anno, Segments}, Cenv, Senv) -
   append_segments(Cs, Ss);
   
 %c_bitstr
-eval_expr(_M, _CodeServer, _TraceServer, {c_bitstr, _Anno, _Val, _Size, _Unit, _Type, _Flags}, _Cenv, _Senv) ->
-  exception(error, c_bitstr);
+eval_expr(M, CodeServer, TraceServer, {c_bitstr, _Anno, Val, Size, Unit, Type, Flags}, Cenv, Senv) ->
+  {Cv, Sv} = eval_expr(M, CodeServer, TraceServer, Val, Cenv, Senv),
+  {CSize, SSize} = eval_expr(M, CodeServer, TraceServer, Size, Cenv, Senv),
+  {CUnit, SUnit} = eval_expr(M, CodeServer, TraceServer, Unit, Cenv, Senv),
+  {CType, SType} = eval_expr(M, CodeServer, TraceServer, Type, Cenv, Senv),
+  {CFlags, SFlags} = eval_expr(M, CodeServer, TraceServer, Flags, Cenv, Senv),
+  Cbin = bin_lib:make_bitstring(Cv, CSize, CUnit, CType, CFlags),
+  Sbin = conc_symb:make_bitstring(Sv, SSize, SUnit, SType, SFlags),
+  {Cbin, Sbin};
   
 %c_call
 eval_expr(M, CodeServer, TraceServer, {c_call, _Anno, Mod, Name, Args}, Cenv, Senv) ->
@@ -441,10 +496,10 @@ eval_expr(M, CodeServer, TraceServer, {c_call, _Anno, Mod, Name, Args}, Cenv, Se
     fun(A) -> %% Will create closures where appropriate
       {CA, SA} = eval_expr(M, CodeServer, TraceServer, A, Cenv, Senv),
       case CA of
-        {func, {F, Arity}} ->
+        {func, {F, Arity}} -> %% local func (external func is already in make_fun/3 in core erlang)
           Cl = create_closure(M, F, Arity, CodeServer, TraceServer, local),
           {Cl, Cl};
-        {letrec_func, {Mod, F, Arity, Def, E}} ->
+        {letrec_func, {Mod, F, Arity, Def, E}} -> %% letrec func
           {CE, SE} = E(),
           Cl = create_closure(Mod, F, Arity, CodeServer, TraceServer, {letrec_fun, {Def, CE, SE}}),
           {Cl, Cl};
@@ -680,6 +735,7 @@ run_message_loop(M, CodeServer, TraceServer, Clauses, Action, CTimeout, STimeout
         false ->
           find_message_loop(M, CodeServer, TraceServer, Clauses, Action, CTimeout, STimeout, Cenv, Senv, Start, CurrMsgs);
         {Msg, Body, NCenv, NSenv, _Cnt} ->
+%         io:format("r ~w  |  ",[Msg]), 
           receive Msg -> ok end,  %% Just consume the matched message
           eval_expr(M, CodeServer, TraceServer, Body, NCenv, NSenv)
       end
@@ -693,14 +749,18 @@ run_message_loop(M, CodeServer, TraceServer, Clauses, Action, CTimeout, STimeout
 find_message(_M, _CodeServer, _TraceServer, _Clauses, [], _Cenv, _Senv) ->
   false;
 find_message(M, CodeServer, TraceServer, Clauses, [Msg|Mailbox], Cenv, Senv) ->
-  {Cv, Sv} = unzip_msg(Msg),
+%  {Cv, Sv} = {Msg, Msg},
+  {Cv, Sv} = decode_msg(Msg),
+%    case is_binary(Msg) of
+%      true  -> unzip_msg(binary_to_term(Msg));
+%      false -> unzip_msg(Msg)
+%    end,
   case find_clause(M, 'receive', CodeServer, TraceServer, Clauses, Cv, Sv, Cenv, Senv) of
     false ->
       find_message(M, CodeServer, TraceServer, Clauses, Mailbox, Cenv, Senv);
     {Body, NCenv, NSenv, Cnt} ->
       {Msg, Body, NCenv, NSenv, Cnt}
   end.
-
 
 
 %% ===============
@@ -843,7 +903,64 @@ pattern_match(BitInfo, Mode, TraceServer, {c_alias, _Anno, Var, Pat}, Cv, Sv, CM
       {true, {C, S}};
     false ->
       false
+  end;
+  
+%% Binary pattern
+pattern_match(BitInfo, Mode, TraceServer, {c_binary, _Anno, Segments}, Cv, Sv, CMaps, SMaps) ->
+  bit_pattern_match(BitInfo, Mode, TraceServer, Segments, Cv, Sv, CMaps, SMaps).
+
+
+%% ===============
+%% bit_pattern_match
+%% ===============
+bit_pattern_match(_BitInfo, _Mode, _TraceServer, [], <<>>, _Sv, CMaps, SMaps) ->
+  %% TODO Constraint: Sv = <<>>
+  {true, {CMaps, SMaps}};
+
+bit_pattern_match({M, CodeServer, Cenv, Senv}, Mode, TraceServer, [{c_bitstr, _Anno, Val, Size, Unit, Type, Flags} | Bs], Cv, Sv, CMaps, SMaps) ->
+  case Val of
+    {c_literal, _AnnoL, LitVal} ->
+      {CSize, SSize} = eval_expr(M, CodeServer, TraceServer, Size, Cenv, Senv),
+      {CUnit, SUnit} = eval_expr(M, CodeServer, TraceServer, Unit, Cenv, Senv),
+      {CType, SType} = eval_expr(M, CodeServer, TraceServer, Type, Cenv, Senv),
+      {CFlags, SFlags} = eval_expr(M, CodeServer, TraceServer, Flags, Cenv, Senv),
+      try bin_lib:match_bitstring_const(LitVal, CSize, CUnit, CType, CFlags, Cv) of
+        CRest ->
+          SLit = conc_symb:make_bitstring(LitVal, SSize, SUnit, SType, SFlags),
+          %% TODO Constraint: SLit matched Sv
+          SRest = conc_symb:match_bitstring_const(SLit, Sv),
+          bit_pattern_match({M, CodeServer, Cenv, Senv}, Mode, TraceServer, Bs, CRest, SRest, CMaps, SMaps)
+      catch
+        error:_E ->
+          %% TODO Constraint: <<LitVal:CSize/CType-CFlags-unit:CUnit>> didn't match Sv
+          false
+      end;
+    {c_var, _Anno, VarName} ->
+      {CSize, SSize} = eval_expr(M, CodeServer, TraceServer, Size, Cenv, Senv),
+      {CUnit, SUnit} = eval_expr(M, CodeServer, TraceServer, Unit, Cenv, Senv),
+      {CType, SType} = eval_expr(M, CodeServer, TraceServer, Type, Cenv, Senv),
+      {CFlags, SFlags} = eval_expr(M, CodeServer, TraceServer, Flags, Cenv, Senv),
+      try bin_lib:match_bitstring_var(CSize, CUnit, CType, CFlags, Cv) of
+        {CX, CRest} ->
+          SEnc = {SSize, SUnit, SType, SFlags},
+          {SX, SRest} =  conc_symb:match_bitstring_var(SEnc, Sv),
+          {NewCMaps, NewSMaps} =
+            case lists:keysearch(VarName, 1, CMaps) of
+              {value, _} -> { lists:keyreplace(VarName, 1, CMaps, {VarName, CX}),
+                              lists:keyreplace(VarName, 1, SMaps, {VarName, SX}) };
+              false      -> { [{VarName, CX} | CMaps],
+                              [{VarName, SX} | SMaps] }
+            end,
+          NewCenv = conc_lib:add_binding(VarName, CX, Cenv),
+          NewSenv = conc_lib:add_binding(VarName, SX, Senv),
+          bit_pattern_match({M, CodeServer, NewCenv, NewSenv}, Mode, TraceServer, Bs, CRest, SRest, NewCMaps, NewSMaps)
+      catch
+        error:_E ->
+          %% TODO Constraint: (X is var) <<X:CSize/CType-CFlags-unit:CUnit>> didn't match Sv
+          false
+      end
   end.
+
 
 
 
@@ -913,6 +1030,14 @@ make_fun(Mod, Arity, CodeServer, TraceServer, Vars, Body, Cenv, Senv) ->
         NSenv = bind_parameters(SAs, Vars, Senv),
         eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv)
       end;
+    5 ->
+      fun(A, B, C, D, E) ->
+        Args = [A, B, C, D, E],
+        {CAs, SAs} = unzip_args(Args),
+        NCenv = bind_parameters(CAs, Vars, Cenv),
+        NSenv = bind_parameters(SAs, Vars, Senv),
+        eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv)
+      end;
     _ ->
       exception('error', {over_lambda_fun_argument_limit, Arity})
   end.
@@ -948,62 +1073,88 @@ make_fun(Mod, Func, Arity, CodeServer, TraceServer) ->
         {CAs, SAs} = unzip_args(Args),
         eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer)
       end;
+    5 ->
+      fun(A, B, C, D, E) ->
+        Args = [A, B, C, D, E],
+        {CAs, SAs} = unzip_args(Args),
+        eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer)
+      end;
     _ ->
       exception('error', {over_lambda_fun_argument_limit, Arity})
   end.
   
+%% Encode and Decode Msgs
+  
+%% Encode Msg
+encode_msg(TraceServer, Dest, CMsg, SMsg) ->
+  case is_monitored(TraceServer, Dest) of
+    true  ->
+      Msg = {conc, zip_one(CMsg, SMsg)},
+      term_to_binary(Msg, [{compressed, 1}]);
+    false ->
+      CMsg
+  end.
+
+%% Decode Msg
+decode_msg(Msg) when is_binary(Msg) ->
+  try binary_to_term(Msg) of
+    {conc, ActMsg} -> unzip_msg(ActMsg)
+  catch
+    error:badarg -> unzip_msg(Msg)
+  end;
+decode_msg(Msg) ->
+  unzip_msg(Msg).
+  
   
 %% Zip and Unzip concrete-semantic values
-%% Zipped Args are [{'_zip', CA, SA}]
+%% Zipped values are [{'_zip', CVal, SVal}]
+
+%% zip_one
 zip_one(Cv, Sv) ->
   {'_zip', Cv, Sv}.
-
-zip_args(CAs, SAs) when is_list(CAs), is_list(SAs) ->
-  lists:zipwith(fun zip_one/2, CAs, SAs).
   
+%% unzip_one
 unzip_one({'_zip', Cv, Sv}) ->
   {Cv, Sv};
 unzip_one(V) ->
   {V, V}.
+
+%% zip_args
+zip_args(CAs, SAs) when is_list(CAs), is_list(SAs) ->
+  lists:zipwith(fun zip_one/2, CAs, SAs).
   
-unzip_error({nocatch, {'_zip', Cv, Sv}}) ->
-  {Cv, Sv};
-unzip_error(V) ->
-  unzip_one(V).
-  
+%% unzip_args
 unzip_args(As) when is_list(As) ->
   L = lists:map(fun unzip_one/1, As),
   lists:unzip(L).
   
-is_zipped([]) -> false;
-is_zipped(L) when is_list(L) ->
-  [H|T] = L,
-  case H of
-    {'_zip', _, _} -> true;
-    _ -> is_zipped(T)
-  end;
-is_zipped({'_zip', _, _}) -> true;
-is_zipped(_V) -> false.
+%% unzip_error // for exception reasons
+unzip_error({nocatch, {'_zip', Cv, Sv}}) ->
+  {Cv, Sv};
+unzip_error(V) ->
+  unzip_one(V).
 
+%% unzip_msg
+%% Trapping exit and a monitored process died
 unzip_msg({'DOWN', MonitorRef, Type, Object, Info}) ->
-  {Cv, Sv} = unzip_one(Info),
+  {Cv, Sv} = unzip_error(Info),
   CMsg = {'DOWN', MonitorRef, Type, Object, Cv},
   SMsg = {'DOWN', MonitorRef, Type, Object, Sv},
   {CMsg, SMsg};
-unzip_msg({'EXIT', {V, Stack}}) ->
-  {Cv, Sv} = unzip_one(V),
-  CMsg = {'EXIT', {Cv, Stack}},
-  SMsg = {'EXIT', {Sv, Stack}},
+%% Trapping exit and got an exit signal
+unzip_msg({'EXIT', From, {Reason, Stack}}) ->
+  {Cv, Sv} = unzip_error(Reason),
+  CMsg = {'EXIT', From, {Cv, Stack}},
+  SMsg = {'EXIT', From, {Sv, Stack}},
   {CMsg, SMsg};
-unzip_msg({'EXIT', V}) ->
-  {Cv, Sv} = unzip_one(V),
-  CMsg = {'EXIT', Cv},
-  SMsg = {'EXIT', Sv},
+unzip_msg({'EXIT', From, Reason}) ->
+  {Cv, Sv} = unzip_error(Reason),
+  CMsg = {'EXIT', From, Cv},
+  SMsg = {'EXIT', From, Sv},
   {CMsg, SMsg};
+%% Any other message
 unzip_msg(V) ->
   unzip_one(V).
-
-  
   
 %% -------------------------------------------------------
 %% register_and_apply(TraceServer, Parent, Args)
@@ -1030,6 +1181,7 @@ send_trace(TraceServer, Msg, true) ->
 send_trace(_TraceServer, _Msg, false) ->
   ok.
   
+%% --
 report_link(TraceServer) ->
   gen_server:call(TraceServer, {linked, self()}).
   
@@ -1037,6 +1189,7 @@ report_unlink(TraceServer, Pid) ->
   {links, Links} = erlang:process_info(Pid, links),
   {monitored_by, Monitors} = erlang:process_info(Pid, monitored_by),
   gen_server:call(TraceServer, {unlinked, Pid, Links, Monitors}).
+%% --
   
 %% ----------------------------------------------------------
 %% get_module_db(M, CodeServer) -> Info
@@ -1114,11 +1267,8 @@ bind_parameters([Arg|Args], [Var|Vars], Env) ->
   bind_parameters(Args, Vars, NewEnv).
 
 %% calculated the calltype of an MFA from inside another function
-find_call_type(M1, M2) ->
-  case M1 =:= M2 of
-    true  -> local;
-    false -> external
-  end.
+find_call_type(M1, M2) when M1 =:= M2 -> local;
+find_call_type(_M1, _M2) -> external.
   
 %% Y combinator for a function with arity 0
 y(M) ->
@@ -1133,11 +1283,11 @@ is_patlist_compatible(Pats, Values) ->
   case {Degree, Values} of
     {1, {valuelist, _Vals, _N}} ->
       false;
-    {1, _} ->
+    {1, _Val} ->
       true;
     {N, {valuelist, _Vals, N}} ->
       true;
-    {_N, _} ->
+    {_N, _Val} ->
       false
   end.
   
@@ -1151,6 +1301,7 @@ check_timeout(Timeout, _Sv) when is_integer(Timeout) ->
 check_timeout(Timeout, _Sv) ->
   exception(error, {invalid_timeout, Timeout}).
   
+%% check if a process is monitored by TraceServer
 is_monitored(TraceServer, Who) ->
   gen_server:call(TraceServer, {is_monitored, Who}).
   

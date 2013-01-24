@@ -1,20 +1,19 @@
 -module(conc).
--export([run/0, run/3, run_tests/0]).
+-export([run/3, run_tests/0, run/2]).
 
 -define(STOP_SERVER(Server), gen_server:call(Server, terminate)).
 -define(PROFILING_FLAG, false).
-
-run() ->
-  B = timer_wheel,
-  Cores = erlang:system_info(schedulers_online),
-  Conf = [{number_of_cores, Cores}],
-  Args = B:bench_args(short, Conf),
+  
+run(B, {X, Y}) ->
+  Conf = [{number_of_cores, Y}],
+  Args = B:bench_args(X, Conf),
   lists:map(fun(A) -> conc:run(B, run, [A, foo, bar]) end, Args).
 
 run(M, F, As) ->
   
   %% Temporary directory to store Core Erlang code
-  CoreDir = filename:absname("core_temp"),
+  U = erlang:ref_to_list(erlang:make_ref()),
+  CoreDir = filename:absname("core_temp/core-" ++ U),
   %% Start Code and Trace Servers
   CodeServer = conc_cserver:init_codeserver(CoreDir),
   TraceServer = conc_tserver:init_traceserver(),
@@ -42,9 +41,9 @@ run(M, F, As) ->
 %  io:format("Execution Information~n"),
 %  io:format("---------------------~n"),
   report_result(Result),
-%  report_tlogs(TLogs),
+  report_tlogs(TLogs),
 %  report_clogs(CLogs),
-%  io:format("Time elapsed = ~w secs~n", [Time/1000000]),
+  io:format("Time elapsed = ~w secs~n", [Time/1000000]),
   ok.
 
   
@@ -61,11 +60,11 @@ profiling_stop(true) ->
 profiling_stop(false) ->
   ok.
   
-report_result({ok, {Mapping, {R, SymbR}}}) ->
+report_result({ok, {Mapping, CR, SR}}) ->
   io:format("%% Mapping = ~p~n", [Mapping]),
-  io:format("%% Concrete Result = ~p~n", [R]),
-  io:format("%% Symbolic Result = ~p~n", [SymbR]);
-report_result({error, {Mapping, {Who, CErr, SErr}}}) ->
+  io:format("%% Concrete Result = ~p~n", [CR]),
+  io:format("%% Symbolic Result = ~p~n", [SR]);
+report_result({error, {Mapping, Who, CErr, SErr}}) ->
   io:format("%% Mapping = ~p~n", [Mapping]),
   io:format("%% Runtime Error in ~p~n", [Who]),
   io:format("%% Concrete Reason = ~p~n", [CErr]),
@@ -90,4 +89,4 @@ run_tests() ->
       lists:map(fun(A) -> conc:run(Bench, run, [A, foo, bar]) end, Args)
     end,
   lists:map(RunOne, Benchmarks).
-  
+

@@ -46,11 +46,6 @@ terminate(_Reason, State) ->
   %% TODO
   %% reconstruct Process Tree and Traces Tree
   %%
-%    io:format("***** Traces *****~n"),
-%    report(Super, Traces, Ptree),
-%    io:format("******************~n"),
-  %%
-  %%
   ets:delete(Traces),
   ets:delete(Ptree),
   ets:delete(Links),
@@ -195,10 +190,8 @@ handle_info(Msg, State) ->
 kill_all_processes(Procs) ->
   KillOne = fun(P) ->
     case is_process_alive(P) of
-      true ->
-        exit(P, kill);
-      false ->
-        ok
+      true  -> exit(P, kill);
+      false -> ok
     end
   end,
   lists:map(KillOne, Procs).

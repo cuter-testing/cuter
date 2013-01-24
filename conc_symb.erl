@@ -41,7 +41,9 @@ mock_bif({erlang, unregister, 1}, _Args) -> true;
 mock_bif({erlang, yield, 0}, _Args) -> true;
 
 mock_bif({M, F, A}, Args) ->
-  {{M, F, A}, Args}.
+%  {{M, F, A}, Args}.
+%  X = erlang:hd(atom_to_list(M)),
+  {F,Args}.
   
 %% ===============
 %% tuple_to_list
@@ -60,7 +62,7 @@ tuple_to_list(S, N) ->
 tuple_to_list(_S, 0, Acc) ->
   Acc;
 tuple_to_list(S, N, Acc) ->
-  X = {{erlang, element, 2}, [N, S]},
+  X = mock_bif({erlang, element, 2}, [N, S]),
   tuple_to_list(S, N-1, [X|Acc]).
 
 %% ===============
@@ -69,7 +71,7 @@ tuple_to_list(S, N, Acc) ->
 hd(S) when is_list(S) ->
   erlang:hd(S);
 hd(S) ->
-  {{erlang, hd, 1}, [S]}.
+  mock_bif({erlang, hd, 1}, [S]).
 
 %% ===============
 %% tl
@@ -77,7 +79,7 @@ hd(S) ->
 tl(S) when is_list(S) ->
   erlang:tl(S);
 tl(S) ->
-  {{erlang, tl, 1}, [S]}.
+  mock_bif({erlang, tl, 1}, [S]).
   
 %% ===============
 %% ensure_list
@@ -94,14 +96,11 @@ ensure_list(S, N) ->
 %% listify
 %% ===============
 listify(S, N) ->
-  listify(S, N, []).
-  
-listify(_S, 0, Acc) ->
-  lists:reverse(Acc);
-listify(S, N, Acc) ->
-  H = {{erlang, hd, 1}, [S]},
-  T = {{erlang, tl, 1}, [S]},
-  listify(T, N-1, [H|Acc]).
+  L = lists:seq(1,N),
+  lists:map(
+    fun(X) -> {{lists,nth,X}, [S]} end,
+    L
+  ).
 
 %% ===============
 %% binaries
@@ -112,4 +111,26 @@ empty_binary() ->
   
 append_binary(Sv, {binary, Acc}) when is_list(Acc) ->
   {binary, [Sv|Acc]}.
+
+get_signedness([unsigned | _Fls]) -> unsigned;
+get_signedness([signed | _Fls]) -> signed;
+get_signedness([_Fl | Fls]) -> get_signedness(Fls).
+
+get_endianess([big | _Fls]) -> big;
+get_endianess([little | _Fls]) -> little;
+get_endianess([native | _Fls]) -> native;
+get_endianess([_Fl | Fls]) -> get_endianess(Fls).
+  
+make_bitstring(Sv, Size, Unit, Type, Flags) ->
+  Sign = get_signedness(Flags),
+  End = get_endianess(Flags),
+  {bitstring, {Sv, Size, Unit, Type, Sign, End}}.
+  
+match_bitstring_const(Cnst, Sv) ->
+  {bitstr_const_match_rest, {Cnst, Sv}}.
+  
+match_bitstring_var(SEnc, Sv) ->
+  X = {bitstr_var_match_x, {SEnc, Sv}},
+  Rest = {bitstr_var_match_rest, {SEnc, Sv}},
+  {X, Rest}.
 

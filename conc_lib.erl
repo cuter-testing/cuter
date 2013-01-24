@@ -12,7 +12,7 @@
 %% Type definitions
 -type environment() :: orddict:orddict().
 -type semantic_var() :: cerl:var_name().
--type semantic_value() :: term() | #valuelist{}.
+-type semantic_value() :: #valuelist{} | term().
 
 
 %%====================================================================
@@ -20,25 +20,40 @@
 %%====================================================================
 
 %% Creates a new empty environment
--spec new_environment() -> environment().
+-spec new_environment() -> Env
+  when Env :: environment().
+  
 new_environment() -> 
   orddict:new().
   
 %% Adds a new binding to the environment
 %% and returns the new environment
--spec add_binding(semantic_var(), semantic_value(), environment()) -> environment().
+-spec add_binding(Var, Value, Env) -> NewEnv
+  when Var :: semantic_var(),
+       Value :: semantic_value(),
+       Env :: environment(),
+       NewEnv :: environment().
+       
 add_binding(Var, Val, Env) ->
   orddict:store(Var, Val, Env).
   
 %% Checks if Var is bound in the environment
--spec is_bound(semantic_var(), environment()) -> boolean().
+-spec is_bound(Var, Env) -> Bound
+  when Var :: semantic_var(),
+       Env :: environment(),
+       Bound :: boolean().
+       
 is_bound(Var, Environment) ->
   orddict:is_key(Var, Environment).
   
 %% Gets the Value of a bound Variable
 %% Returns {ok, Value} if Var is bound,
 %% or error if Var is unbound.
--spec get_value(semantic_var(), environment()) -> semantic_value().
+-spec get_value(Var, Env) -> Value | error
+  when Var :: semantic_value(),
+       Env :: environment(),
+       Value :: semantic_value().
+       
 get_value(Var, Environment) ->
   try orddict:fetch(Var, Environment) of
     Val -> {ok, Val}
@@ -48,7 +63,13 @@ get_value(Var, Environment) ->
   
 %% Add new mappings to environment
 %% Mappings may be a deeply nested list
--spec add_mappings_to_environment([{semantic_var(), semantic_value()}], environment()) -> environment().
+-spec add_mappings_to_environment(Mappings, Env) -> NewEnv
+  when Mappings :: [{Var, Value}],
+         Var :: semantic_var(),
+         Value :: semantic_value(),
+       Env :: environment(),
+       NewEnv :: environment().
+       
 add_mappings_to_environment([], Env) ->
   Env;
 add_mappings_to_environment([M | Ms], Env)
@@ -63,6 +84,12 @@ add_mappings_to_environment([{Var, Val} | Ms], Env) ->
 %% TODO BIFs I found during testing, may be more out there
 %% Returns true if an MFA is an Erlang BIF
 
+-spec is_bif(M, F, A) -> boolean()
+  when M :: atom(),
+       F :: atom(),
+       A :: non_neg_integer().
+
+is_bif(io, _, _) -> true;
 %% Module erlang
 is_bif(erlang, _F, _A)    -> true;
 
