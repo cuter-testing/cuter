@@ -962,11 +962,6 @@ bit_pattern_match({M, CodeServer, Cenv, Senv}, Mode, TraceServer, [{c_bitstr, _A
   end.
 
 
-
-
-
-
-
 %% ===============
 %% create_closure
 %% ===============
@@ -1089,7 +1084,7 @@ make_fun(Mod, Func, Arity, CodeServer, TraceServer) ->
 encode_msg(TraceServer, Dest, CMsg, SMsg) ->
   case is_monitored(TraceServer, Dest) of
     true  ->
-      Msg = {conc, zip_one(CMsg, SMsg)},
+      Msg = {'_conc', zip_one(CMsg, SMsg)},
       term_to_binary(Msg, [{compressed, 1}]);
     false ->
       CMsg
@@ -1098,7 +1093,7 @@ encode_msg(TraceServer, Dest, CMsg, SMsg) ->
 %% Decode Msg
 decode_msg(Msg) when is_binary(Msg) ->
   try binary_to_term(Msg) of
-    {conc, ActMsg} -> unzip_msg(ActMsg)
+    {'_conc', ActMsg} -> unzip_msg(ActMsg)
   catch
     error:badarg -> unzip_msg(Msg)
   end;

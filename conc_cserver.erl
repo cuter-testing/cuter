@@ -25,8 +25,10 @@
 %%====================================================================
 
 init_codeserver(CoreDir) ->
-  {ok, CodeServer} = gen_server:start_link(?MODULE, [CoreDir, self()], []),
-  CodeServer.
+  case gen_server:start_link(?MODULE, [CoreDir, self()], []) of
+    {ok, CodeServer} -> CodeServer;
+    {error, Reason}  -> erlang:error({codeserver_init, Reason})
+  end.
 
 %%====================================================================
 %% gen_server callbacks

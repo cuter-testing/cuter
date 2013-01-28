@@ -23,8 +23,10 @@
 %%====================================================================
 
 init_traceserver() ->
-  {ok, TraceServer} = gen_server:start_link(?MODULE, [self()], []),
-  TraceServer.
+  case gen_server:start_link(?MODULE, [self()], []) of
+    {ok, TraceServer} -> TraceServer;
+    {error, Reason}   -> erlang:error({traceserver_init, Reason})
+  end.
 
 %%====================================================================
 %% gen_server callbacks
@@ -35,11 +37,13 @@ init([Super]) ->
   Traces = ets:new(?MODULE, [ordered_set, protected]),
   Ptree = ets:new(?MODULE, [bag, protected]),
   Links = ets:new(?MODULE, [ordered_set, protected]),
-  {ok, #state{super=Super, procs=[], traces=Traces, ptree=Ptree, links=Links, logs=[{procs, 0}]}}.
+  Procs = ets:new(?MODULE, [ordered_set, protected]),
+  {ok, #state{super=Super, procs=Procs, traces=Traces, ptree=Ptree, links=Links, logs=[{procs, 0}]}}.
   
 terminate(_Reason, State) ->
   Super = State#state.super,
   Traces = State#state.traces,
+  Procs =  State#state.procs,
   Ptree = State#state.ptree,
   Links = State#state.links,
   Logs = State#state.logs,
@@ -48,6 +52,7 @@ terminate(_Reason, State) ->
   %%
   ets:delete(Traces),
   ets:delete(Ptree),
+  ets:delete(Procs),
   ets:delete(Links),
   %% Send Logs to supervisor
   Super ! {self(), Logs},
@@ -72,26 +77,10 @@ handle_call({register_parent, Parent, Link}, {From, _FromTag}, State) ->
 %  io:format("[conc_tserver]: Monitoring ~p~n", [FromPid]),
   ets:insert(Links, {FromPid, Link}),
   ets:insert(Ptree, {Parent, FromPid}),
-  NewProcs = [FromPid|Procs],
+  ets:insert(Procs, {FromPid, true}),
   {procs, P} = lists:keyfind(procs, 1, Logs),
   NewLogs = lists:keyreplace(procs, 1, Logs, {procs, P+1}),
-  {reply, ok, State#state{procs=NewProcs, logs=NewLogs}};
-  
-handle_call({linked, Pid}, {_From, _FromTag}, State) ->
-  Links = State#state.links,
-  ets:insert(Links, {Pid, true}),
-  {reply, ok, State};
-  
-handle_call({unlinked, Pid, Links, Monitors}, {_From, _FromTag}, State) ->
-%  io:format("Got unlinked req from ~w~n",[Pid]),
-  Lnk = State#state.links,
-  case {Links, Monitors -- [self()]} of
-    {[], []} ->
-      ets:insert(Lnk, {Pid, false});
-    _ ->
-      ok
-  end,
-  {reply, ok, State};
+  {reply, ok, State#state{logs=NewLogs}};
   
 handle_call({is_monitored, Who}, {_From, _FromTag}, State) ->
   Procs = State#state.procs,
@@ -100,7 +89,11 @@ handle_call({is_monitored, Who}, {_From, _FromTag}, State) ->
      true ->  whereis(Who);
      false -> Who
     end,
-  Monitored = lists:member(WhoPid, Procs),
+  Monitored = 
+    case ets:lookup(Procs, WhoPid) of
+      [] -> false;
+      [{WhoPid, true}] -> true
+    end,
   {reply, Monitored, State};
   
 handle_call(terminate, _From, State) ->
@@ -119,12 +112,12 @@ handle_cast({trace, Who, Trace}, State) ->
 
 handle_info({'DOWN', _Ref, process, Who, normal}, State) ->
   Procs = State#state.procs,
-  NewProcs = lists:delete(Who, Procs),
-  case NewProcs of
-    [] ->
-      {stop, normal, State#state{procs=NewProcs}};
+  ets:delete(Procs, Who),
+  case ets:first(Procs) of
+    '$end_of_table' ->
+      {stop, normal, State};
     _  ->
-      {noreply, State#state{procs=NewProcs}}
+      {noreply, State}
   end;
   
 handle_info({'DOWN', _Ref, process, Who, Reason}, State) ->
@@ -132,17 +125,17 @@ handle_info({'DOWN', _Ref, process, Who, Reason}, State) ->
   Super = State#state.super,
   Procs = State#state.procs,
   Links = State#state.links,
-  NewProcs = lists:delete(Who, Procs),
+  ets:delete(Procs, Who),
   [{Who, Link}] = ets:lookup(Links, Who),
   case Link of
     %% If process is linked/monitored to another then do nothing
     true ->
-      case NewProcs of 
-        [] ->
-          {stop, normal, State#state{procs=[]}};
+      case ets:first(Procs) of 
+        '$end_of_table' ->
+          {stop, normal, State};
         _ ->
           ets:delete(Links, Who),
-          {noreply, State#state{procs=NewProcs}}
+          {noreply, State}
       end;
     %% If process is not linked/monitored to another
     %% then report the exception and stop execution
@@ -150,10 +143,10 @@ handle_info({'DOWN', _Ref, process, Who, Reason}, State) ->
 %      io:format("[TraceServer]: Exception in ~p  : ~p~n", [Who, Reason]),
 %      io:format("Killings procs ~p~n", [NewProcs]),
       %% Killing all remaining alive processes
-      kill_all_processes(NewProcs),
+      kill_all_processes(ets:tab2list(Procs)),
       %% Send Msg to Super
       Super ! {error, {Who, Reason}},
-      {stop, normal, State#state{procs=[]}}
+      {stop, normal, State}
   end;
   
   
