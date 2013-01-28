@@ -17,23 +17,16 @@
 %%--------------------------------------------------------------------------
 i(M, F, A, CodeServer, TraceServer) ->
   Root = self(),
-  R = erlang:make_ref(),
   SymbA = conc_symb:abstract(A),
   Mapping = conc_symb:generate_mapping(A, SymbA),
   Args = [{named, {M, F}}, A, SymbA, external, CodeServer, TraceServer],
   I = fun() ->
-    register_to_trace(TraceServer, Root, false),
+    conc_tserver:register_to_trace(TraceServer, Root, false),
     Val = apply(conc_eval, eval, Args),
-    Root ! {R, Val}
+    conc:send_return(Root, Mapping, Val)
   end,
-  erlang:spawn(I),
-  receive
-    {error, {Who, Error}} -> 
-      {Cv, Sv} = unzip_error(Error),
-      {error, {Mapping, Who, Cv, Sv}};
-    {R, {Cv, Sv}} -> 
-      {ok, {Mapping, Cv, Sv}}
-  end.
+  erlang:spawn(I).
+
   
 %% ===============
 %% eval
@@ -62,8 +55,9 @@ eval({named, {erlang, F}}, CAs, SAs, _CallType, CodeServer, TraceServer)
         [Node, Fun] ->
           [_SNode, _SFun] = SAs_e,
           %% TODO Constraints: SNode=Node, SFun=Fun
-          EvalArgs = [{lambda, Fun}, [], [], local, CodeServer, TraceServer],
-          Child = register_and_apply(TraceServer, self(), EvalArgs, F =:= spawn_link),
+          {CServer, TServer} = conc_tserver:node_servers(TraceServer, Node),
+          EvalArgs = [{lambda, Fun}, [], [], local, CServer, TServer],
+          Child = register_and_apply(TServer, self(), EvalArgs, F =:= spawn_link),
           erlang:F(Node, Child);
         [Mod, Fun, Args] ->
           [_SMod, _SFun, SArgs] = SAs_e,
@@ -75,9 +69,10 @@ eval({named, {erlang, F}}, CAs, SAs, _CallType, CodeServer, TraceServer)
         [Node, Mod, Fun, Args] ->
           [_SNode, _SMod, _SFun, SArgs] = SAs_e,
           %% TODO Constraints: SNode=Node, SMod = Mod, SFun=Fun
+          {CServer, TServer} = conc_tserver:node_servers(TraceServer, Node),
           Call = find_call_type(erlang, Mod),
-          EvalArgs = [{named, {Mod, Fun}}, Args, SArgs, Call, CodeServer, TraceServer],
-          Child = register_and_apply(TraceServer, self(), EvalArgs, F =:= spawn_link),
+          EvalArgs = [{named, {Mod, Fun}}, Args, SArgs, Call, CServer, TServer],
+          Child = register_and_apply(TServer, self(), EvalArgs, F =:= spawn_link),
           erlang:F(Node, Child);
         _ ->
           exception(error, {undef, {erlang, spawn, Arity}})
@@ -406,7 +401,7 @@ eval({named, {M, F}}, CAs, SAs, CallType, CodeServer, TraceServer) ->
           check_exported(Exported, CallType, Key),
           Cenv = bind_parameters(CAs, Def#c_fun.vars, conc_lib:new_environment()),
           Senv = bind_parameters(SAs_e, Def#c_fun.vars, conc_lib:new_environment()),
-          eval_expr(M, CodeServer, TraceServer, Def#c_fun.body, Cenv, Senv)
+          eval_expr(M, CodeServer, TraceServer, Def#c_fun.body, Cenv, Cenv)
       end
   end;
   
@@ -1082,7 +1077,7 @@ make_fun(Mod, Func, Arity, CodeServer, TraceServer) ->
   
 %% Encode Msg
 encode_msg(TraceServer, Dest, CMsg, SMsg) ->
-  case is_monitored(TraceServer, Dest) of
+  case conc_tserver:is_monitored(TraceServer, Dest) of
     true  ->
       Msg = {'_conc', zip_one(CMsg, SMsg)},
       term_to_binary(Msg, [{compressed, 1}]);
@@ -1162,29 +1157,16 @@ unzip_msg(V) ->
 %% -------------------------------------------------------
 register_and_apply(TraceServer, Parent, Args, Link) ->
   fun() ->
-    register_to_trace(TraceServer, Parent, Link),
+    conc_tserver:register_to_trace(TraceServer, Parent, Link),
     Parent ! {self(), registered},
     erlang:apply(?MODULE, eval, Args)
   end.
-  
-register_to_trace(TraceServer, Parent, Link) ->
-  gen_server:call(TraceServer, {register_parent, Parent, Link}).
   
 %% Send Trace Data to Trace Server
 send_trace(TraceServer, Msg, true) ->
   gen_server:cast(TraceServer, {trace, self(), Msg});
 send_trace(_TraceServer, _Msg, false) ->
   ok.
-  
-%% --
-report_link(TraceServer) ->
-  gen_server:call(TraceServer, {linked, self()}).
-  
-report_unlink(TraceServer, Pid) ->
-  {links, Links} = erlang:process_info(Pid, links),
-  {monitored_by, Monitors} = erlang:process_info(Pid, monitored_by),
-  gen_server:call(TraceServer, {unlinked, Pid, Links, Monitors}).
-%% --
   
 %% ----------------------------------------------------------
 %% get_module_db(M, CodeServer) -> Info
@@ -1201,7 +1183,7 @@ report_unlink(TraceServer, Pid) ->
 get_module_db(M, CodeServer) ->
   case get({conc, M}) of
     undefined ->
-      case gen_server:call(CodeServer, {load, M}) of
+      case conc_cserver:load(CodeServer, M) of
         %% Module Code loaded
         {ok, MDb} ->
           put({conc, M}, MDb),
@@ -1295,10 +1277,6 @@ check_timeout(Timeout, _Sv) when is_integer(Timeout) ->
   Timeout >= 0;
 check_timeout(Timeout, _Sv) ->
   exception(error, {invalid_timeout, Timeout}).
-  
-%% check if a process is monitored by TraceServer
-is_monitored(TraceServer, Who) ->
-  gen_server:call(TraceServer, {is_monitored, Who}).
   
 %% Concatenate a list of bistrings
 append_segments(Cs, Ss) ->

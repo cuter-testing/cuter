@@ -1,6 +1,6 @@
 -module(foo).
 -export([mymin/1, test/3, test/2, test/0, goo/1, boo/1, y/1, moo/0, test_fac/1, fac/1, r/1, loop/1, send/2, spawn/3, moo/1,
-  qoo/1, too/1, too/0, foo/0, test/1, e/1, g/2, t/1, h/2, v/3]).
+  qoo/1, too/1, too/0, foo/0, test/1, e/1, g/2, t/1, h/2, v/3, d1/0]).
 
 mymin([H|T]) -> mymin(T, H).
 
@@ -137,3 +137,26 @@ qoo(Z) ->
   ok.
   
 foo() -> <<1:3>>.
+
+
+d1() ->
+  N = n1@lambda,
+  Par = self(),
+  F = fun() -> 
+    receive
+      {From, ping} -> From ! {self(), pong}
+    end
+  end,
+  Fpid = spawn(N, F),
+  G = fun() ->
+    Fpid ! {self(), ping},
+    receive
+      {Fpid, pong} -> Par ! {self(), ok}
+    end
+  end,
+  Gpid = spawn(N, G),
+  receive
+    {Gpid, ok} -> all_ok
+  end.
+
+

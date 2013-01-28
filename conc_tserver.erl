@@ -2,7 +2,8 @@
 -behaviour(gen_server).
 
 %% External exports
--export([init_traceserver/0]).
+-export([init_traceserver/1, terminate/1, register_to_trace/3,
+  is_monitored/2, node_servers/2]).
 
 %% gen_server callbacks
 -export([init/1, terminate/2, handle_call/3,
@@ -22,11 +23,24 @@
 %% External exports
 %%====================================================================
 
-init_traceserver() ->
-  case gen_server:start_link(?MODULE, [self()], []) of
+init_traceserver(Super) ->
+  case gen_server:start(?MODULE, [Super], []) of
     {ok, TraceServer} -> TraceServer;
-    {error, Reason}   -> erlang:error({traceserver_init, Reason})
+    {error, Reason}   -> exit({traceserver_init, Reason})
   end.
+  
+terminate(TraceServer) ->
+  gen_server:cast(TraceServer, {terminate, self()}).
+  
+register_to_trace(TraceServer, Parent, Link) ->
+  gen_server:call(TraceServer, {register_parent, Parent, Link}).
+  
+%% check if a process is monitored by TraceServer
+is_monitored(TraceServer, Who) ->
+  gen_server:call(TraceServer, {is_monitored, Who}).
+  
+node_servers(TraceServer, Node) ->
+  gen_server:call(TraceServer, {node_servers, Node}).
 
 %%====================================================================
 %% gen_server callbacks
@@ -34,6 +48,7 @@ init_traceserver() ->
 
 init([Super]) ->
   process_flag(trap_exit, true),
+  link(Super),
   Traces = ets:new(?MODULE, [ordered_set, protected]),
   Ptree = ets:new(?MODULE, [bag, protected]),
   Links = ets:new(?MODULE, [ordered_set, protected]),
@@ -55,8 +70,7 @@ terminate(_Reason, State) ->
   ets:delete(Procs),
   ets:delete(Links),
   %% Send Logs to supervisor
-  Super ! {self(), Logs},
-  process_flag(trap_exit, false),
+  ok = conc:send_tlogs(Super, Logs),
   ok.
 
 code_change(_OldVsn, State, _Extra) ->
@@ -74,7 +88,7 @@ handle_call({register_parent, Parent, Link}, {From, _FromTag}, State) ->
      false -> From
     end,
   monitor(process, FromPid),
-%  io:format("[conc_tserver]: Monitoring ~p~n", [FromPid]),
+  io:format("[conc_tserver(~p)]: Monitoring ~p~n", [node(), FromPid]),
   ets:insert(Links, {FromPid, Link}),
   ets:insert(Ptree, {Parent, FromPid}),
   ets:insert(Procs, {FromPid, true}),
@@ -96,6 +110,11 @@ handle_call({is_monitored, Who}, {_From, _FromTag}, State) ->
     end,
   {reply, Monitored, State};
   
+handle_call({node_servers, Node}, _From, State) ->
+  Super = State#state.super,
+  Servers = conc:node_servers(Super, Node),
+  {reply, Servers, State};
+  
 handle_call(terminate, _From, State) ->
   {stop, normal, stopped, State}.
   
@@ -108,7 +127,18 @@ handle_cast({trace, Who, Trace}, State) ->
     [{Who, OldTrace}] ->
       ets:insert(Traces, {Who, [EncTrace | OldTrace]})
   end,
-  {noreply, State}.
+  {noreply, State};
+  
+handle_cast({terminate, FromWho}, State) ->
+  Super = State#state.super,
+  Procs = State#state.procs,
+  case FromWho =:= Super of
+    true ->
+      kill_all_processes(get_procs(Procs)),
+      {stop, normal, State};
+    false ->
+      {noreply, State}
+  end.
 
 handle_info({'DOWN', _Ref, process, Who, normal}, State) ->
   Procs = State#state.procs,
@@ -121,7 +151,6 @@ handle_info({'DOWN', _Ref, process, Who, normal}, State) ->
   end;
   
 handle_info({'DOWN', _Ref, process, Who, Reason}, State) ->
-%  io:format("Got error from ~w => ~w~n",[Who,Reason]),
   Super = State#state.super,
   Procs = State#state.procs,
   Links = State#state.links,
@@ -140,46 +169,23 @@ handle_info({'DOWN', _Ref, process, Who, Reason}, State) ->
     %% If process is not linked/monitored to another
     %% then report the exception and stop execution
     false ->
-%      io:format("[TraceServer]: Exception in ~p  : ~p~n", [Who, Reason]),
-%      io:format("Killings procs ~p~n", [NewProcs]),
       %% Killing all remaining alive processes
-      kill_all_processes(ets:tab2list(Procs)),
+      kill_all_processes(get_procs(Procs)),
       %% Send Msg to Super
-      Super ! {error, {Who, Reason}},
+      conc:send_error_report(Super, Who, conc_eval:unzip_error(Reason)),
       {stop, normal, State}
   end;
   
   
 handle_info(Msg, State) ->
   %% Just outputting unexpected messages for now
-  io:format("[conc_tserver]: Unexpected message ~p~n", [Msg]),
+  io:format("[conc_tserver(~p)]: Unexpected message ~p~n", [node(),Msg]),
   {noreply, State}.
   
 %%====================================================================
 %% Internal functions
 %%====================================================================
 
-%report([], _Traces, _Ptree) ->
-%  ok;
-%  
-%report(Super, Traces, Ptree) 
-%  when is_pid(Super) ->
-%    io:format("[conc_tserver]: Skipping Super ~p~n", [Super]),
-%    L = ets:lookup(Ptree, Super),
-%    Procs = lists:map(fun({_X, Y}) -> Y end, L),
-%    report(Procs, Traces, Ptree);
-%    
-%report([Proc|Procs], Traces, Ptree) ->
-%  [{Proc, Trace}] = ets:lookup(Traces, Proc),
-%  io:format("[conc_tserver]: Trace of ~p:~n~p~n", [Proc, lists:reverse(Trace)]),
-%  case ets:lookup(Ptree, Proc) of
-%    [] ->
-%      report(Procs, Traces, Ptree);
-%    L ->
-%      NewProcs = lists:map(fun({_X, Y}) -> Y end, L),
-%      report(Procs ++ NewProcs, Traces, Ptree)
-%  end.
-  
 kill_all_processes(Procs) ->
   KillOne = fun(P) ->
     case is_process_alive(P) of
@@ -188,3 +194,11 @@ kill_all_processes(Procs) ->
     end
   end,
   lists:map(KillOne, Procs).
+  
+get_procs(Tab) ->
+  ets:foldl(
+   fun({P, true}, Acc) -> [P|Acc] end,
+   [], Tab
+  ).
+  
+  

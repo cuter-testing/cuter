@@ -2,7 +2,7 @@
 -behaviour(gen_server).
 
 %% External exports
--export([init_codeserver/1]).
+-export([init_codeserver/2, terminate/1, load/2]).
 
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_info/2,
@@ -24,19 +24,28 @@
 %% External exports
 %%====================================================================
 
-init_codeserver(CoreDir) ->
-  case gen_server:start_link(?MODULE, [CoreDir, self()], []) of
+init_codeserver(CoreDir, Super) ->
+  case gen_server:start(?MODULE, [CoreDir, Super], []) of
     {ok, CodeServer} -> CodeServer;
-    {error, Reason}  -> erlang:error({codeserver_init, Reason})
+    {error, Reason}  -> exit({codeserver_init, Reason})
   end.
+  
+terminate(CodeServer) ->
+  gen_server:cast(CodeServer, {terminate, self()}).
+  
+load(CodeServer, M) ->
+  gen_server:call(CodeServer, {load, M}).
 
 %%====================================================================
 %% gen_server callbacks
 %%====================================================================
 
-init([Dir, Super]) ->
+init([Dir, Super]) when is_list(Dir) ->
+  link(Super),
   Db = ets:new(?MODULE, [ordered_set, protected]),
-  {ok, #state{db=Db, dir=Dir, super=Super}}.
+  U = erlang:ref_to_list(erlang:make_ref()),
+  CoreDir = filename:absname(Dir ++ "/core-" ++ U),
+  {ok, #state{db=Db, dir=CoreDir, super=Super}}.
   
 terminate(_Reason, State) ->
   Db = State#state.db,
@@ -48,7 +57,7 @@ terminate(_Reason, State) ->
   %% Clean up .core files dir
   delete_stored_core_files(Dir),
   %% Send statistics to supervisor
-  Super ! {self(), LoadedMods},
+  ok = conc:send_clogs(Super, LoadedMods),
   ok.
   
 code_change(_OldVsn, State, _Extra) ->
@@ -101,15 +110,15 @@ handle_call({load, M}, _From, State) ->
   
 %% Handle a "Is a Module stored in the Db?" call
 handle_call({is_stored, Mod}, _From, State) ->
-  {reply, is_mod_stored(Mod, State), State};
+  {reply, is_mod_stored(Mod, State), State}.
   
-%% Handle a "Stop code server" call
-handle_call(terminate, _From, State) ->
-  {stop, normal, stopped, State}.
-  
-handle_cast(_Msg, State) ->
-  %% Not handling any casts
-  {noreply, State}.
+handle_cast({terminate, FromWho}, State) ->
+  Super = State#state.super,
+  case FromWho =:= Super of
+    true  -> {stop, normal, State};
+    false -> {noreply, State}
+  end.
+
 
 %%====================================================================
 %% Internal functions

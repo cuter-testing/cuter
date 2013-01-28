@@ -1,7 +1,7 @@
 conc-test
 =========
 
-c(rush), c(foo), c(conc), c(conc_cserver), c(conc_load), c(conc_eval), c(conc_tserver), c(conc_lib), c(conc_symb).
+c(rush), c(foo), c(conc), c(conc_cserver), c(conc_load), c(conc_eval), c(conc_tserver), c(conc_lib), c(conc_symb), c(coord).
 c(rush), c(foo), c(conc), c(conc_cserver), c(conc_load), c(conc_eval), c(conc_tserver), c(conc_lib), c(conc_symb), c(bin_lib).
 f(), S = now(), c(bin_lib), E = now(), T = timer:now_diff(E, S)/1000000, io:format("~w secs~n", [T]), f().
 c(rush), c(foo), c(conc,[native]), c(conc_cserver,[native]), c(conc_load,[native]), c(conc_eval,[native]), c(conc_tserver,[native]), c(conc_lib,[native]),c(conc_symb,[native]).
@@ -24,3 +24,5 @@ conc:run_tests(short).
 conc:run_tests(intermediate).
 conc:run_tests(long).
 
+coord:run(foo,mymin,[[a,b,c]]).
+coord:run(foo, d1, []).

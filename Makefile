@@ -3,7 +3,7 @@
 ERLC = erlc
 ERLC_FLAGS = +native
 ERL_FILES = conc.erl conc_cserver.erl conc_tserver.erl conc_symb.erl \
-  conc_eval.erl conc_load.erl conc_lib.erl bin_lib.erl
+  conc_eval.erl conc_load.erl conc_lib.erl bin_lib.erl coord.erl
 BENCH_BIN = bench/ebin
 BENCH_SRC = bench/src
 ERL_BENCH = genstress.erl bang.erl big.erl ehb.erl ets_test.erl mbrot.erl \
