@@ -1,27 +1,18 @@
 -module(bin_lib).
 
-%% Ln 22
+%% Ln 13
 %% make_bitstring(Val, Size, Unit, Type, Flags) -> Bin
 %%
-%% Ln 12316
+%% Ln 12307
 %% match_bitstring_const(Val, Size, Unit, Type, Flags, MatchVal) -> Bin
 %%
-%% Ln 30754
+%% Ln 30745
 %% match_bitstring_var(Size, Unit, Type, Flags, MatchVal) -> {Bin, Bin}
 -export([make_bitstring/5, match_bitstring_const/6, match_bitstring_var/5]).
 
-get_signedness([unsigned | _Fls]) -> unsigned;
-get_signedness([signed | _Fls]) -> signed;
-get_signedness([_Fl | Fls]) -> get_signedness(Fls).
-
-get_endianess([big | _Fls]) -> big;
-get_endianess([little | _Fls]) -> little;
-get_endianess([native | _Fls]) -> native;
-get_endianess([_Fl | Fls]) -> get_endianess(Fls).
-
 make_bitstring(Val, Size, Unit, Type, Flags) ->
-  Sign = get_signedness(Flags),
-  End = get_endianess(Flags),
+  Sign = conc_lib:get_signedness(Flags),
+  End = conc_lib:get_endianess(Flags),
   case {Size, Unit, Type, Sign, End} of
     {_, 1, integer, signed, big} ->
       <<Val:Size/signed-big-integer-unit:1>>;
@@ -12314,8 +12305,8 @@ make_bitstring(Val, Size, Unit, Type, Flags) ->
   end.
   
 match_bitstring_const(Val, Size, Unit, Type, Flags, MatchVal) ->
-  Sign = get_signedness(Flags),
-  End = get_endianess(Flags),
+  Sign = conc_lib:get_signedness(Flags),
+  End = conc_lib:get_endianess(Flags),
   case {Size, Unit, Type, Sign, End} of
     {_, 1, integer, signed, big} ->
       <<Val:Size/signed-big-integer-unit:1, Rest/bitstring>> = MatchVal,
@@ -30752,8 +30743,8 @@ match_bitstring_const(Val, Size, Unit, Type, Flags, MatchVal) ->
   end.
   
 match_bitstring_var(Size, Unit, Type, Flags, MatchVal) ->
-  Sign = get_signedness(Flags),
-  End = get_endianess(Flags),
+  Sign = conc_lib:get_signedness(Flags),
+  End = conc_lib:get_endianess(Flags),
   case {Size, Unit, Type, Sign, End} of
     {_, 1, integer, signed, big} ->
       <<X:Size/signed-big-integer-unit:1, Rest/bitstring>> = MatchVal,

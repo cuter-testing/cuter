@@ -13,10 +13,11 @@
   %%-- Modules' database -------------------
   %% Creates an ETS table where it stores:
   %% {Key, Value} -> {Module, ModuleDb}
-  %% ModDb :: ets:tid()
-  db,      %% ETS table :: ets:tid()
-  dir,     %% Directory where .core files are saved
-  super    %% Supervisor process :: pid()
+  %%   Module   :: atom()
+  %%   ModuleDb :: ets:tid()
+  db    :: ets:tab(),      %% Database of the modules and their stored code
+  dir   :: string(),       %% Directory where .core files are saved
+  super :: pid()           %% Concolic Server (supervisor) process
   
 }).
 
@@ -24,15 +25,18 @@
 %% External exports
 %%====================================================================
 
+%% Initialize a CodeServer
 init_codeserver(CoreDir, Super) ->
   case gen_server:start(?MODULE, [CoreDir, Super], []) of
     {ok, CodeServer} -> CodeServer;
     {error, Reason}  -> exit({codeserver_init, Reason})
   end.
   
+%% Terminate a CodeServer
 terminate(CodeServer) ->
   gen_server:cast(CodeServer, {terminate, self()}).
   
+%% Request the ETS table where the code of a module M is stored
 load(CodeServer, M) ->
   gen_server:call(CodeServer, {load, M}).
 
@@ -95,7 +99,7 @@ handle_call({load, M}, _From, State) ->
       %% Reply
       case Reply of
         {ok, M} ->
-          io:format("[load]: Loaded module ~p~n", [M]),
+%          io:format("[load]: Loaded module ~p~n", [M]),
           {reply, {ok, MDb}, State};
         _ ->
           {reply, Reply, State}
@@ -106,19 +110,15 @@ handle_call({load, M}, _From, State) ->
       {reply, cover_compiled, State};
     non_existing ->
       {reply, non_existing, State}
-  end;
+  end.
   
-%% Handle a "Is a Module stored in the Db?" call
-handle_call({is_stored, Mod}, _From, State) ->
-  {reply, is_mod_stored(Mod, State), State}.
-  
+%% Cast Request : {terminate, FromWho}
 handle_cast({terminate, FromWho}, State) ->
   Super = State#state.super,
   case FromWho =:= Super of
     true  -> {stop, normal, State};
     false -> {noreply, State}
   end.
-
 
 %%====================================================================
 %% Internal functions
@@ -132,6 +132,11 @@ handle_cast({terminate, FromWho}, State) ->
 %% Module M is preloaded       -->  preloaded
 %% Module M is cover_compiled  -->  cover_compiled
 %% Module M does not exist     -->  non_existing
+-spec is_mod_stored(Mod, State) -> {true, MDb} | false | preloaded | cover_compiled | non_existing
+  when Mod   :: atom(),
+       State :: #state{},
+       MDb   :: ets:tab().
+       
 is_mod_stored(M, State) ->
   Db = State#state.db,
   case ets:lookup(Db, M) of
@@ -146,6 +151,11 @@ is_mod_stored(M, State) ->
       end
   end.
 
+%% Delete all ETS tables that contain the code of modules
+-spec delete_stored_modules(Db) -> Mods
+  when Db   :: ets:tab(),
+       Mods :: [atom()].
+       
 delete_stored_modules(Db) ->
   DeleteOne = 
     fun ({Mod, ModDb}, Acc) ->
@@ -153,6 +163,10 @@ delete_stored_modules(Db) ->
       [Mod | Acc]
     end,
   ets:foldl(DeleteOne, [], Db).
+  
+%% Delete all the creted .core files during the execution
+-spec delete_stored_core_files(Dir) -> ok
+  when Dir :: file:name().
   
 delete_stored_core_files(Dir) ->
   case file:list_dir(Dir) of
@@ -165,4 +179,5 @@ delete_stored_core_files(Dir) ->
       file:del_dir(Dir);
     {error, enoent} ->
       ok
-  end.
+  end,
+  ok.

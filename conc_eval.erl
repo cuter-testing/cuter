@@ -4,6 +4,8 @@
 -include_lib("compiler/src/core_parse.hrl").
 -include("conc_lib.hrl").
 
+%% TODO Missing Specs and Comments! Will be added soon!
+
 %%--------------------------------------------------------------------------
 %% i(M, F, A, CodeServer, TraceServer) -> Val
 %%   M :: atom()
@@ -13,12 +15,12 @@
 %%   TraceServer :: pid()
 %%   Val :: term()
 %% Wrapper exported function that spawns an interpreter process
-%% and returns the value of MFA
+%% that returns the value of MFA to the Concolic Server
 %%--------------------------------------------------------------------------
 i(M, F, A, CodeServer, TraceServer) ->
   Root = self(),
   SymbA = conc_symb:abstract(A),
-  Mapping = conc_symb:generate_mapping(A, SymbA),
+  Mapping = conc_symb:generate_mapping(SymbA, A),
   Args = [{named, {M, F}}, A, SymbA, external, CodeServer, TraceServer],
   I = fun() ->
     conc_tserver:register_to_trace(TraceServer, Root, false),
@@ -33,7 +35,6 @@ i(M, F, A, CodeServer, TraceServer) ->
 %% ===============
 
 %% Concrete Evaluation of MFA
-
 
 %% Handle spawns so that the spawned process
 %% will be interpreted
@@ -121,9 +122,10 @@ eval({named, {erlang, spawn_opt}}, CAs, SAs, _CallType, CodeServer, TraceServer)
       [Node, Fun, Opts] ->
         [_SNode, _SFun, _SOpts] = SAs_e,
         %% TODO Constraints: SNode=Node, SFun=Fun, SOpts=Opts
-        EvalArgs = [{lambda, Fun}, [], [], local, CodeServer, TraceServer],
+        {CServer, TServer} = conc_tserver:node_servers(TraceServer, Node),
+        EvalArgs = [{lambda, Fun}, [], [], local, CServer, TServer],
         Link = lists:member(link, Opts) orelse lists:member(monitor, Opts),
-        Child = register_and_apply(TraceServer, self(), EvalArgs, Link),
+        Child = register_and_apply(TServer, self(), EvalArgs, Link),
         erlang:spawn_opt(Node, Child, Opts);
       [Mod, Fun, Args, Opts] ->
         [_SMod, _SFun, SArgs, _SOpts] = SAs_e,
@@ -137,9 +139,10 @@ eval({named, {erlang, spawn_opt}}, CAs, SAs, _CallType, CodeServer, TraceServer)
         [_SNode, _SMod, _SFun, SArgs, _SOpts] = SAs_e,
         %% TODO Constraints: SNode=Node, SMod=Mode, SFun=Fun, SOpts=Opts
         Call = find_call_type(erlang, Mod),
-        EvalArgs = [{named, {Mod, Fun}}, Args, SArgs, Call, CodeServer, TraceServer],
+        {CServer, TServer} = conc_tserver:node_servers(TraceServer, Node),
+        EvalArgs = [{named, {Mod, Fun}}, Args, SArgs, Call, CServer, TServer],
         Link = lists:member(link, Opts) orelse lists:member(monitor, Opts),
-        Child = register_and_apply(TraceServer, self(), EvalArgs, Link),
+        Child = register_and_apply(TServer, self(), EvalArgs, Link),
         erlang:spawn_opt(Node, Child, Opts);
       _ ->
         exception(error, {undef, {erlang, spawn_opt, Arity}})
@@ -152,45 +155,6 @@ eval({named, {erlang, spawn_opt}}, CAs, SAs, _CallType, CodeServer, TraceServer)
   receive
     {ChildPid, registered} -> {R, R}
   end;
-  
-%% Handle monitors and links
-
-%%% link/1
-%eval({named, {erlang, link}}, CAs, SAs, _CallType, _CodeServer, TraceServer) ->
-%  Arity = length(CAs),
-%  SAs_e = conc_symb:ensure_list(SAs, Arity),
-%  case CAs of
-%    [CPid] ->
-%      [_SPid] = SAs_e,
-%      case {is_process_alive(CPid), self()} of
-%        {true, CPid} ->
-%          ok;
-%        {true, _} ->
-%          report_link(TraceServer);
-%        {false, _} ->
-%          ok
-%      end,
-%      erlang:link(CPid),
-%      {true, true};
-%    _ ->
-%        exception(error, {undef, {erlang, link, Arity}})
-%  end;
-
-%%% unlink/1
-%eval({named, {erlang, unlink}}, CAs, SAs, _CallType, _CodeServer, TraceServer) ->
-%  Arity = length(CAs),
-%  SAs_e = conc_symb:ensure_list(SAs, Arity),
-%  case CAs of
-%    [CPid] ->
-%      [_SPid] = SAs_e,
-%      erlang:unlink(CPid),
-%      report_unlink(TraceServer, CPid),
-%      {true, true};
-%    _ ->
-%        exception(error, {undef, {erlang, unlink, Arity}})
-%  end;
-
-
 
 %% Handle message sending primitives
 %% so as to zip the concrete and symbolic reason
@@ -383,6 +347,9 @@ eval({named, {erlang, apply}}, CAs, SAs, _CallType, CodeServer, TraceServer) ->
 eval({named, {M, F}}, CAs, SAs, CallType, CodeServer, TraceServer) ->
   Arity = length(CAs),
   SAs_e = conc_symb:ensure_list(SAs, Arity),
+%  io:format("~n~nCalling ~w:~w/~w~n",[M,F,Arity]),
+%  io:format("CAs = ~w~n", [CAs]),
+%  io:format("SAs = ~w~n", [SAs_e]),
   case conc_lib:is_bif(M, F, Arity) of
     true ->
       CR = apply(M, F, CAs),
@@ -399,9 +366,9 @@ eval({named, {M, F}}, CAs, SAs, CallType, CodeServer, TraceServer) ->
           {Def, Exported} = retrieve_function(Key, MDb),
 %          io:format("Def=~n~p~n", [Def]),
           check_exported(Exported, CallType, Key),
-          Cenv = bind_parameters(CAs, Def#c_fun.vars, conc_lib:new_environment()),
-          Senv = bind_parameters(SAs_e, Def#c_fun.vars, conc_lib:new_environment()),
-          eval_expr(M, CodeServer, TraceServer, Def#c_fun.body, Cenv, Cenv)
+          Cenv = conc_lib:bind_parameters(CAs, Def#c_fun.vars, conc_lib:new_environment()),
+          Senv = conc_lib:bind_parameters(SAs_e, Def#c_fun.vars, conc_lib:new_environment()),
+          eval_expr(M, CodeServer, TraceServer, Def#c_fun.body, Cenv, Senv)
       end
   end;
   
@@ -415,8 +382,8 @@ eval({lambda, Closure}, CAs, SAs, _CallType, _CodeServer, _TraceServer) ->
 eval({letrec_func, {M, _F, Def, E}}, CAs, SAs, _CallType, CodeServer, TraceServer) ->
   {Cenv, Senv} = E(),
   SAs_e = conc_symb:ensure_list(SAs, length(CAs)),
-  NCenv = bind_parameters(CAs, Def#c_fun.vars, Cenv),
-  NSenv = bind_parameters(SAs_e, Def#c_fun.vars, Senv),
+  NCenv = conc_lib:bind_parameters(CAs, Def#c_fun.vars, Cenv),
+  NSenv = conc_lib:bind_parameters(SAs_e, Def#c_fun.vars, Senv),
   eval_expr(M, CodeServer, TraceServer, Def#c_fun.body, NCenv, NSenv).
   
   
@@ -424,7 +391,7 @@ eval({letrec_func, {M, _F, Def, E}}, CAs, SAs, _CallType, CodeServer, TraceServe
 %% exception(Class, Reason)
 %%   Class :: error | exit | throw
 %%   Reason :: term()
-%% Raises the exception.
+%% Raises the desired exception.
 %%--------------------------------------------------------------------
 exception(Class, Reason) ->
   erlang:Class(Reason).
@@ -557,8 +524,8 @@ eval_expr(M, CodeServer, TraceServer, {c_let, _Anno, Vars, Arg, Body}, Cenv, Sen
       {valuelist, CAs, Degree} = C,
       {valuelist, SAs, Degree} = S
   end,
-  NCenv = bind_parameters(CAs, Vars, Cenv),
-  NSenv = bind_parameters(SAs, Vars, Senv),
+  NCenv = conc_lib:bind_parameters(CAs, Vars, Cenv),
+  NSenv = conc_lib:bind_parameters(SAs, Vars, Senv),
   eval_expr(M, CodeServer, TraceServer, Body, NCenv, NSenv);
 
 %c_letrec
@@ -640,8 +607,8 @@ eval_expr(M, CodeServer, TraceServer, {c_try, _Anno, Arg, Vars, Body, Evars, Han
         {valuelist, CAs, Degree} = C,
         {valuelist, SAs, Degree} = S
     end,
-    NCenv = bind_parameters(CAs, Vars, Cenv),
-    NSenv = bind_parameters(SAs, Vars, Senv),
+    NCenv = conc_lib:bind_parameters(CAs, Vars, Cenv),
+    NSenv = conc_lib:bind_parameters(SAs, Vars, Senv),
     eval_expr(M, CodeServer, TraceServer, Body, NCenv, NSenv)
   catch
     Class:Reason ->
@@ -651,8 +618,8 @@ eval_expr(M, CodeServer, TraceServer, {c_try, _Anno, Arg, Vars, Body, Evars, Han
           3 -> {[Class, Cv, Class], [Class, Sv, Class]};
           2 -> {[Class, Cv], [Class, Sv]}
         end,
-      ECenv = bind_parameters(Cs, Evars, Cenv),
-      ESenv = bind_parameters(Ss, Evars, Senv),
+      ECenv = conc_lib:bind_parameters(Cs, Evars, Cenv),
+      ESenv = conc_lib:bind_parameters(Ss, Evars, Senv),
       eval_expr(M, CodeServer, TraceServer, Handler, ECenv, ESenv)
   end;
 
@@ -992,40 +959,80 @@ make_fun(Mod, Arity, CodeServer, TraceServer, Vars, Body, Cenv, Senv) ->
       fun(A) ->
         Args = [A],
         {CAs, SAs} = unzip_args(Args),
-        NCenv = bind_parameters(CAs, Vars, Cenv),
-        NSenv = bind_parameters(SAs, Vars, Senv),
+        NCenv = conc_lib:bind_parameters(CAs, Vars, Cenv),
+        NSenv = conc_lib:bind_parameters(SAs, Vars, Senv),
         eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv)
       end;
     2 ->
       fun(A, B) ->
         Args = [A, B],
         {CAs, SAs} = unzip_args(Args),
-        NCenv = bind_parameters(CAs, Vars, Cenv),
-        NSenv = bind_parameters(SAs, Vars, Senv),
+        NCenv = conc_lib:bind_parameters(CAs, Vars, Cenv),
+        NSenv = conc_lib:bind_parameters(SAs, Vars, Senv),
         eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv)
       end;
     3 ->
       fun(A, B, C) ->
         Args = [A, B, C],
         {CAs, SAs} = unzip_args(Args),
-        NCenv = bind_parameters(CAs, Vars, Cenv),
-        NSenv = bind_parameters(SAs, Vars, Senv),
+        NCenv = conc_lib:bind_parameters(CAs, Vars, Cenv),
+        NSenv = conc_lib:bind_parameters(SAs, Vars, Senv),
         eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv)
       end;
     4 ->
       fun(A, B, C, D) ->
         Args = [A, B, C, D],
         {CAs, SAs} = unzip_args(Args),
-        NCenv = bind_parameters(CAs, Vars, Cenv),
-        NSenv = bind_parameters(SAs, Vars, Senv),
+        NCenv = conc_lib:bind_parameters(CAs, Vars, Cenv),
+        NSenv = conc_lib:bind_parameters(SAs, Vars, Senv),
         eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv)
       end;
     5 ->
       fun(A, B, C, D, E) ->
         Args = [A, B, C, D, E],
         {CAs, SAs} = unzip_args(Args),
-        NCenv = bind_parameters(CAs, Vars, Cenv),
-        NSenv = bind_parameters(SAs, Vars, Senv),
+        NCenv = conc_lib:bind_parameters(CAs, Vars, Cenv),
+        NSenv = conc_lib:bind_parameters(SAs, Vars, Senv),
+        eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv)
+      end;
+    6 ->
+      fun(A, B, C, D, E, F) ->
+        Args = [A, B, C, D, E, F],
+        {CAs, SAs} = unzip_args(Args),
+        NCenv = conc_lib:bind_parameters(CAs, Vars, Cenv),
+        NSenv = conc_lib:bind_parameters(SAs, Vars, Senv),
+        eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv)
+      end;
+    7 ->
+      fun(A, B, C, D, E, F, G) ->
+        Args = [A, B, C, D, E, F, G],
+        {CAs, SAs} = unzip_args(Args),
+        NCenv = conc_lib:bind_parameters(CAs, Vars, Cenv),
+        NSenv = conc_lib:bind_parameters(SAs, Vars, Senv),
+        eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv)
+      end;
+    8 ->
+      fun(A, B, C, D, E, F, G, H) ->
+        Args = [A, B, C, D, E, F, G, H],
+        {CAs, SAs} = unzip_args(Args),
+        NCenv = conc_lib:bind_parameters(CAs, Vars, Cenv),
+        NSenv = conc_lib:bind_parameters(SAs, Vars, Senv),
+        eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv)
+      end;
+    9 ->
+      fun(A, B, C, D, E, F, G, H, I) ->
+        Args = [A, B, C, D, E, F, G, H, I],
+        {CAs, SAs} = unzip_args(Args),
+        NCenv = conc_lib:bind_parameters(CAs, Vars, Cenv),
+        NSenv = conc_lib:bind_parameters(SAs, Vars, Senv),
+        eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv)
+      end;
+    10 ->
+      fun(A, B, C, D, E, F, G, H, I, J) ->
+        Args = [A, B, C, D, E, F, G, H, I, J],
+        {CAs, SAs} = unzip_args(Args),
+        NCenv = conc_lib:bind_parameters(CAs, Vars, Cenv),
+        NSenv = conc_lib:bind_parameters(SAs, Vars, Senv),
         eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv)
       end;
     _ ->
@@ -1066,6 +1073,36 @@ make_fun(Mod, Func, Arity, CodeServer, TraceServer) ->
     5 ->
       fun(A, B, C, D, E) ->
         Args = [A, B, C, D, E],
+        {CAs, SAs} = unzip_args(Args),
+        eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer)
+      end;
+    6 ->
+      fun(A, B, C, D, E, F) ->
+        Args = [A, B, C, D, E, F],
+        {CAs, SAs} = unzip_args(Args),
+        eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer)
+      end;
+    7 ->
+      fun(A, B, C, D, E, F, G) ->
+        Args = [A, B, C, D, E, F, G],
+        {CAs, SAs} = unzip_args(Args),
+        eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer)
+      end;
+    8 ->
+      fun(A, B, C, D, E, F, G, H) ->
+        Args = [A, B, C, D, E, F, G, H],
+        {CAs, SAs} = unzip_args(Args),
+        eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer)
+      end;
+    9 ->
+      fun(A, B, C, D, E, F, G, H, I) ->
+        Args = [A, B, C, D, E, F, G, H, I],
+        {CAs, SAs} = unzip_args(Args),
+        eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer)
+      end;
+    10 ->
+      fun(A, B, C, D, E, F, G, H, I, J) ->
+        Args = [A, B, C, D, E, F, G, H, I, J],
         {CAs, SAs} = unzip_args(Args),
         eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer)
       end;
@@ -1162,12 +1199,6 @@ register_and_apply(TraceServer, Parent, Args, Link) ->
     erlang:apply(?MODULE, eval, Args)
   end.
   
-%% Send Trace Data to Trace Server
-send_trace(TraceServer, Msg, true) ->
-  gen_server:cast(TraceServer, {trace, self(), Msg});
-send_trace(_TraceServer, _Msg, false) ->
-  ok.
-  
 %% ----------------------------------------------------------
 %% get_module_db(M, CodeServer) -> Info
 %%   M :: atom()
@@ -1234,14 +1265,7 @@ retrieve_function(FuncKey, ModDb) ->
 %% Ensures compatibility between calltype and exported type
 check_exported(true, _CallType, _MFA) -> ok;
 check_exported(false, local, _MFA)    -> ok;
-check_exported(false, external, MFA) -> exception(error, {not_exported, MFA}).
-
-%% Bind the parametres of a function to their actual values
-bind_parameters([], [], Env) ->
-  Env;
-bind_parameters([Arg|Args], [Var|Vars], Env) ->
-  NewEnv = conc_lib:add_binding(Var#c_var.name, Arg, Env),
-  bind_parameters(Args, Vars, NewEnv).
+check_exported(false, external, MFA)  -> exception(error, {not_exported, MFA}).
 
 %% calculated the calltype of an MFA from inside another function
 find_call_type(M1, M2) when M1 =:= M2 -> local;

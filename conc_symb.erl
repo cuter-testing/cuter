@@ -1,16 +1,29 @@
 -module(conc_symb).
 -compile(export_all).
 
-generate_mapping (Vs, Ss) ->
-  generate_mapping (Vs, Ss, []).
-  
-generate_mapping ([], [], Acc) ->
-  lists:reverse(Acc);
-generate_mapping ([V|Vs], [S|Ss], Acc) ->
-  generate_mapping (Vs, Ss, [{S, V}|Acc]).
+%% Generate a mapping between the concrete values
+%% and their symbolic abstraction
+-spec generate_mapping(Ss, Vs) -> Maps
+  when Ss   :: [atom()],
+       Vs   :: [term()],
+       Maps :: [{atom(), term()}].
+       
+generate_mapping(Ss, Vs) ->
+  lists:zip(Ss, Vs).
 
+%% Abstract a list of concrete values
+-spec abstract(Vs) -> Ss
+  when Vs :: [term()],
+       Ss :: [atom()].
+       
 abstract(As) -> abstract(As, [], 1).
 
+-spec abstract(Vs, Acc, Id) -> Ss
+  when Vs  :: [term()],
+       Acc :: [atom()],
+       Id  :: pos_integer(),
+       Ss  :: [atom()].
+       
 abstract([], Acc, _Id) ->
   lists:reverse(Acc);
 abstract([_A|As], Acc, Id) ->
@@ -19,9 +32,18 @@ abstract([_A|As], Acc, Id) ->
   abstract(As, [SymbA|Acc], Id+1).
   
   
-%% ===============
-%% mock_bif
-%% ===============
+%% ------------------------------------------------------------------------
+%% mock_bif/2
+%% Mocks the execution of an erlang bif and returns a symbolic 
+%% represenation of its result
+%% ------------------------------------------------------------------------
+-spec mock_bif({M, F, A}, Args) -> Res
+  when M    :: atom(),
+       F    :: atom(),
+       A    :: non_neg_integer(),
+       Args :: [term()],
+       Res  :: term().
+
 mock_bif({erlang, demonitor, 1}, _Args) -> true;
 mock_bif({erlang, display, 1}, _Args) -> true;
 mock_bif({erlang, exit, 2}, _Args) -> true;
@@ -41,21 +63,20 @@ mock_bif({erlang, unregister, 1}, _Args) -> true;
 mock_bif({erlang, yield, 0}, _Args) -> true;
 
 mock_bif({M, F, A}, Args) ->
-%  {{M, F, A}, Args}.
-%  X = erlang:hd(atom_to_list(M)),
-  {F,Args}.
+  X = atom_to_list(M) ++ ":" ++ atom_to_list(F) ++ "/" ++ integer_to_list(A),
+  {list_to_atom(X), Args}.
   
-%% ===============
-%% tuple_to_list
-%% ===============
-tuple_to_list(S, N) when is_tuple(S) ->
-  Ss = tuple_to_list(S),
-  case length(Ss) of
-    N ->
-      Ss;
-    _ ->
-      tuple_to_list(S, N, [])
-  end;
+%% ------------------------------------------------------------------------
+%% tuple_to_list/2
+%% tuple_to_list/3 (helper function)
+%% To create a list of N elements from a symbolic term
+%% that represents a tuple (N is user defined)
+%% ------------------------------------------------------------------------
+-spec tuple_to_list(S, N) -> L
+  when S :: term(),
+       N :: non_neg_integer(),
+       L :: [term()].
+
 tuple_to_list(S, N) ->
   tuple_to_list(S, N, []).
   
@@ -65,25 +86,42 @@ tuple_to_list(S, N, Acc) ->
   X = mock_bif({erlang, element, 2}, [N, S]),
   tuple_to_list(S, N-1, [X|Acc]).
 
-%% ===============
-%% hd
-%% ===============
+%% ------------------------------------------------------------------------
+%% hd/1
+%% Get the head of a symbolic term that represents a list
+%% ------------------------------------------------------------------------
+-spec hd(S) -> Hd
+  when S  :: term(),
+       Hd :: term().
+       
 hd(S) when is_list(S) ->
   erlang:hd(S);
 hd(S) ->
   mock_bif({erlang, hd, 1}, [S]).
 
-%% ===============
-%% tl
-%% ===============
+%% ------------------------------------------------------------------------
+%% tl/1
+%% Get the tail of a symbolic term that represents a list
+%% ------------------------------------------------------------------------
+-spec tl(S) -> Tl
+  when S  :: term(),
+       Tl :: term().
+       
 tl(S) when is_list(S) ->
   erlang:tl(S);
 tl(S) ->
   mock_bif({erlang, tl, 1}, [S]).
   
-%% ===============
-%% ensure_list
-%% ===============
+%% ------------------------------------------------------------------------
+%% ensure_list/2
+%% Ensures that a symbolic term is a list of N elements
+%% (N is user defined)
+%% ------------------------------------------------------------------------
+-spec ensure_list(S, N) -> L
+  when S :: term(),
+       N :: pos_integer(),
+       L :: [term()].
+       
 ensure_list(S, N) when is_list(S) ->
   case length(S) of
     N -> S;
@@ -92,38 +130,36 @@ ensure_list(S, N) when is_list(S) ->
 ensure_list(S, N) ->
   listify(S, N).
   
-%% ===============
-%% listify
-%% ===============
+%% ------------------------------------------------------------------------
+%% listify/2
+%% Creates a list of N elements from a symbolic term
+%% (N is user defined)
+%% ------------------------------------------------------------------------
+-spec listify(S, N) -> L
+  when S :: term(),
+       N :: pos_integer(),
+       L :: [term()].
+       
 listify(S, N) ->
   L = lists:seq(1,N),
   lists:map(
-    fun(X) -> {{lists,nth,X}, [S]} end,
+    fun(X) -> mock_bif({lists, nth, 2}, [X, S]) end,
     L
   ).
 
-%% ===============
-%% binaries
-%% ===============
-  
+%% ========================
+%% for use in binaries
+%% TODO Needs Revision !!!
+%% ========================
 empty_binary() ->
   {binary, []}.
   
 append_binary(Sv, {binary, Acc}) when is_list(Acc) ->
   {binary, [Sv|Acc]}.
-
-get_signedness([unsigned | _Fls]) -> unsigned;
-get_signedness([signed | _Fls]) -> signed;
-get_signedness([_Fl | Fls]) -> get_signedness(Fls).
-
-get_endianess([big | _Fls]) -> big;
-get_endianess([little | _Fls]) -> little;
-get_endianess([native | _Fls]) -> native;
-get_endianess([_Fl | Fls]) -> get_endianess(Fls).
   
 make_bitstring(Sv, Size, Unit, Type, Flags) ->
-  Sign = get_signedness(Flags),
-  End = get_endianess(Flags),
+  Sign = conc_lib:get_signedness(Flags),
+  End = conc_lib:get_endianess(Flags),
   {bitstring, {Sv, Size, Unit, Type, Sign, End}}.
   
 match_bitstring_const(Cnst, Sv) ->

@@ -1,10 +1,12 @@
 -module(conc_lib).
 
 -include("conc_lib.hrl").
+-include_lib("compiler/src/core_parse.hrl").
 
 %% External exported functions
 -export([new_environment/0, add_binding/3, is_bound/2, get_value/2,
-  add_mappings_to_environment/2, is_bif/3]).
+  bind_parameters/3, add_mappings_to_environment/2, is_bif/3,
+  get_signedness/1, get_endianess/1]).
 
 %% External exported types
 -export_type([environment/0, semantic_var/0, semantic_value/0]).
@@ -13,7 +15,6 @@
 -type environment() :: orddict:orddict().
 -type semantic_var() :: cerl:var_name().
 -type semantic_value() :: #valuelist{} | term().
-
 
 %%====================================================================
 %% External exports
@@ -61,7 +62,20 @@ get_value(Var, Environment) ->
     error:_Error -> error
   end.
   
-%% Add new mappings to environment
+%% Binds the parameters of a function to their actual values
+-spec bind_parameters(Vals, Vars, OldEnv) -> Env
+  when Vals   :: semantic_value(),
+       Vars   :: semantic_var(),
+       OldEnv :: environment(),
+       Env    :: environment().
+
+bind_parameters([], [], Env) ->
+  Env;
+bind_parameters([Arg|Args], [Var|Vars], Env) ->
+  NewEnv = conc_lib:add_binding(Var#c_var.name, Arg, Env),
+  bind_parameters(Args, Vars, NewEnv).
+  
+%% Add new mappings to the environment
 %% Mappings may be a deeply nested list
 -spec add_mappings_to_environment(Mappings, Env) -> NewEnv
   when Mappings :: [{Var, Value}],
@@ -80,8 +94,26 @@ add_mappings_to_environment([{Var, Val} | Ms], Env) ->
   NEnv = add_binding(Var, Val, Env),
   add_mappings_to_environment(Ms, NEnv).
   
+%% Returns the type of signedness from a list of options
+-spec get_signedness(List) -> unsigned | signed
+  when List :: [atom()].
 
-%% TODO BIFs I found during testing, may be more out there
+get_signedness([unsigned | _Fls]) -> unsigned;
+get_signedness([signed | _Fls]) -> signed;
+get_signedness([_Fl | Fls]) -> get_signedness(Fls).
+
+%% Returns the type of endianess from a list of options
+-spec get_endianess(List) -> big | little | native
+  when List :: [atom()].
+  
+get_endianess([big | _Fls]) -> big;
+get_endianess([little | _Fls]) -> little;
+get_endianess([native | _Fls]) -> native;
+get_endianess([_Fl | Fls]) -> get_endianess(Fls).
+  
+
+%% TODO
+%% BIFs I found during testing, may be more out there
 %% Returns true if an MFA is an Erlang BIF
 
 -spec is_bif(M, F, A) -> boolean()
@@ -89,7 +121,6 @@ add_mappings_to_environment([{Var, Val} | Ms], Env) ->
        F :: atom(),
        A :: non_neg_integer().
 
-is_bif(io, _, _) -> true;
 %% Module erlang
 is_bif(erlang, _F, _A)    -> true;
 

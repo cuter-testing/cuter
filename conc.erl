@@ -1,5 +1,4 @@
 -module(conc).
--compile(export_all).
 
 -behaviour(gen_server).
 
@@ -11,15 +10,15 @@
 -export([init/1, terminate/2, code_change/3,
   handle_call/3, handle_cast/2, handle_info/2]).
 
-
+%% gen_server state datatype
 -record(state, {
-  coord,
-  coredir,
-  cpids,
-  tpids,
-  results,
-  int,
-  error
+  coord    :: pid(),                     %% Pid of the Coordinator Process
+  coredir  :: string(),                  %% Directory to store .core files
+  cpids    :: [{node(), pid()}],         %% Proplist of CodeServers
+  tpids    :: [{node(), pid()}],         %% Proplist of TraceServers
+  results  :: orddict:orddict(),         %% Info about the concolic execution
+  int      :: pid() | ok,                %% First interpreted process that returns its result
+  error    :: {atom(), term()} | false   %% Flag for when errors occur
 }).
 
 
@@ -27,24 +26,30 @@
 %% External exports
 %%====================================================================
 
+%% Initialize the Concolic Server
 init_concolic(M, F, As, CoreDir) ->
   case gen_server:start_link(?MODULE, [M, F, As, CoreDir, self()], []) of
     {ok, Concolic}  -> Concolic;
     {error, Reason} -> {error, Reason}
   end.
   
+%% Send the result of the first interpreted process
 send_return(ConcServer, Mapping, Return) ->
   gen_server:call(ConcServer, {int_return, Mapping, Return}).
   
+%% Send the report of a Runtime Error
 send_error_report(ConcServer, Who, Error) ->
   gen_server:call(ConcServer, {error_report, Who, Error}).
-  
+ 
+%% Send the logs of a CodeServer
 send_clogs(ConcServer, Logs) ->
   gen_server:call(ConcServer, {clogs, Logs}).
   
+%% Send the logs of a TraceServer
 send_tlogs(ConcServer, Logs) ->
   gen_server:call(ConcServer, {tlogs, Logs}).
   
+%% Request the CodeServer and TraceServer of a specific node
 node_servers(ConcServer, Node) ->
   gen_server:call(ConcServer, {node_servers, Node}).
   
@@ -220,7 +225,6 @@ handle_info({'EXIT', Who, Reason}, State) ->
 %% Internal functions
 %%====================================================================
 
-
 %% Determine whether the concolic execution has ended or not
 -spec execution_completed(State) -> boolean()
   when State :: #state{}.
@@ -233,7 +237,6 @@ execution_completed(State) ->
     {[], [], ok} -> true;
     _ -> false
   end.
-
 
 %% Send terminate requests to all the live CodeServers and TraceServers
 -spec force_terminate(CPids, TPids) -> ok
@@ -264,7 +267,6 @@ locate(Who, CPids, TPids) ->
           false
       end
   end.
-  
   
 %% Check whether a node has beend assigned a TraceServer and a CodeServer
 -spec node_monitored(Node, CPids, TPids) -> {true, Servers} | false
