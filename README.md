@@ -1,7 +1,7 @@
 conc-test
 =========
 
-*  Compile the source code and the demos with `make all`. You can simulate of an execution of an MFA with `coord:run(Module, Function, Arguments).`
+*  Compile the source code and the demos with `make all`. You can simulate the execution of an MFA with `coord:run(Module, Function, Arguments).`
 
    e.g. `coord:run(orddict,store,[key,val,orddict:new()]).`
 
