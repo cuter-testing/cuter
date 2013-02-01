@@ -150,20 +150,20 @@ handle_info({'DOWN', _Ref, process, Who, Reason}, State) ->
   Procs = State#state.procs,
   Links = State#state.links,
   ets:delete(Procs, Who),
-  [{Who, Link}] = ets:lookup(Links, Who),
-  case Link of
-    %% If process is linked/monitored to another then do nothing
-    true ->
-      case ets:first(Procs) of 
-        '$end_of_table' ->
-          {stop, normal, State};
-        _ ->
-          ets:delete(Links, Who),
-          {noreply, State}
-      end;
-    %% If process is not linked/monitored to another
-    %% then report the exception and stop execution
-    false ->
+%  [{Who, Link}] = ets:lookup(Links, Who),
+%  case Link of
+%    %% If process is linked/monitored to another then do nothing
+%    true ->
+%      case ets:first(Procs) of 
+%        '$end_of_table' ->
+%          {stop, normal, State};
+%        _ ->
+%          ets:delete(Links, Who),
+%          {noreply, State}
+%      end;
+%    %% If process is not linked/monitored to another
+%    %% then report the exception and stop execution
+%    false ->
       %% Killing all remaining alive processes
       kill_all_processes(get_procs(Procs)),
       %% Send the Error Report to the supervisor
