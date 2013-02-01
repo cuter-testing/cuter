@@ -79,7 +79,9 @@ init([M, F, As, CoreDir, TraceDir, Coord]) ->
 terminate(_Reason, State) ->
   Coord = State#state.coord,
   Results = State#state.results,
+  CoreDir = State#state.coredir,
   Error = State#state.error,
+  file:del_dir(filename:absname(CoreDir)),   %% Directory will only be deleted if it's empty
   case Error of
     {internalc, Node} ->
       Coord ! {self(), {internal_codeserver_error, Node, Results}};

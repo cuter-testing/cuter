@@ -22,6 +22,7 @@ run(M, F, As) ->
     {Concolic, Results} ->
       R = Results
   end,
+  file:del_dir(filename:absname(TraceDir)),  %% Directory will only be deleted if it's empty
   
   profiling_stop(?PROFILING_FLAG),
 %  End  = now(),
