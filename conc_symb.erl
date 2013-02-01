@@ -31,7 +31,6 @@ abstract([_A|As], Acc, Id) ->
   SymbA = erlang:list_to_atom(X),
   abstract(As, [SymbA|Acc], Id+1).
   
-  
 %% ------------------------------------------------------------------------
 %% mock_bif/2
 %% Mocks the execution of an erlang bif and returns a symbolic 
