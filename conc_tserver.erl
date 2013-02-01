@@ -148,7 +148,7 @@ handle_info({'DOWN', _Ref, process, Who, normal}, State) ->
 handle_info({'DOWN', _Ref, process, Who, Reason}, State) ->
   Super = State#state.super,
   Procs = State#state.procs,
-  Links = State#state.links,
+%  Links = State#state.links,
   ets:delete(Procs, Who),
 %  [{Who, Link}] = ets:lookup(Links, Who),
 %  case Link of
@@ -168,8 +168,8 @@ handle_info({'DOWN', _Ref, process, Who, Reason}, State) ->
       kill_all_processes(get_procs(Procs)),
       %% Send the Error Report to the supervisor
       conc:send_error_report(Super, Who, conc_eval:unzip_error(Reason)),
-      {stop, normal, State}
-  end;
+      {stop, normal, State};
+%  end;
 
 handle_info(Msg, State) ->
   %% Just outputting unexpected messages for now
