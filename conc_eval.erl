@@ -239,7 +239,7 @@ eval({named, {erlang, throw}}, CAs, SAs, _CallType, _CodeServer, _TraceServer) -
       exception(error, {undef, {erlang, throw, Arity}})
   end;
   
-%% Handle exit/1
+%% Handle exit/1, exit2
 eval({named, {erlang, exit}}, CAs, SAs, _CallType, _CodeServer, _TraceServer) ->
   Arity = length(CAs),
   SAs_e = conc_symb:ensure_list(SAs, Arity),
@@ -269,7 +269,8 @@ eval({named, {erlang, exit}}, CAs, SAs, _CallType, _CodeServer, _TraceServer) ->
           _ ->
             zip_one(CExit, SExit)
         end,
-        erlang:exit(CDest, Exit);
+        R = erlang:exit(CDest, Exit),
+        {R, R};
     _ ->
       exception(error, {undef, {erlang, exit, Arity}})
   end;
