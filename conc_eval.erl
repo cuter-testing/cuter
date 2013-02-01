@@ -7,21 +7,21 @@
 %% TODO Missing Specs and Comments! Will be added soon!
 
 %%--------------------------------------------------------------------------
-%% i(M, F, A, CodeServer, TraceServer) -> Val
+%% i(M, F, A, CodeServer, TraceServer) -> Pid
 %%   M :: atom()
 %%   F :: atom()
 %%   A :: [term()]
 %%   CodeServer :: pid()
 %%   TraceServer :: pid()
-%%   Val :: term()
+%%   Pid :: pid()
 %% Wrapper exported function that spawns an interpreter process
 %% that returns the value of MFA to the Concolic Server
 %%--------------------------------------------------------------------------
-i(M, F, A, CodeServer, TraceServer) ->
+i(M, F, As, CodeServer, TraceServer) ->
   Root = self(),
-  SymbA = conc_symb:abstract(A),
-  Mapping = conc_symb:generate_mapping(SymbA, A),
-  Args = [{named, {M, F}}, A, SymbA, external, CodeServer, TraceServer],
+  SymbAs = conc_symb:abstract(As),
+  Mapping = conc_symb:generate_mapping(SymbAs, As),
+  Args = [{named, {M, F}}, As, SymbAs, external, CodeServer, TraceServer],
   I = fun() ->
     conc_tserver:register_to_trace(TraceServer, Root, false),
     Val = apply(conc_eval, eval, Args),

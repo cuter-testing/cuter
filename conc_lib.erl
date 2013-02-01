@@ -12,8 +12,12 @@
 -export_type([environment/0, semantic_var/0, semantic_value/0]).
 
 %% Type definitions
--type environment() :: orddict:orddict().
--type semantic_var() :: cerl:var_name().
+
+%% Environments are rather small so orddict is more efficient
+-type environment()    :: orddict:orddict().
+%% cerl:var_name() :: integer() | atom() | {atom(), integer()}.
+-type semantic_var()   :: cerl:var_name().
+%% #valuelist{} is actually a term but this definition is more descriptive
 -type semantic_value() :: #valuelist{} | term().
 
 %%====================================================================
@@ -30,19 +34,18 @@ new_environment() ->
 %% Adds a new binding to the environment
 %% and returns the new environment
 -spec add_binding(Var, Value, Env) -> NewEnv
-  when Var :: semantic_var(),
-       Value :: semantic_value(),
-       Env :: environment(),
+  when Var    :: semantic_var(),
+       Value  :: semantic_value(),
+       Env    :: environment(),
        NewEnv :: environment().
        
 add_binding(Var, Val, Env) ->
   orddict:store(Var, Val, Env).
   
 %% Checks if Var is bound in the environment
--spec is_bound(Var, Env) -> Bound
+-spec is_bound(Var, Env) -> boolean()
   when Var :: semantic_var(),
-       Env :: environment(),
-       Bound :: boolean().
+       Env :: environment().
        
 is_bound(Var, Environment) ->
   orddict:is_key(Var, Environment).
@@ -51,8 +54,8 @@ is_bound(Var, Environment) ->
 %% Returns {ok, Value} if Var is bound,
 %% or error if Var is unbound.
 -spec get_value(Var, Env) -> Value | error
-  when Var :: semantic_value(),
-       Env :: environment(),
+  when Var   :: semantic_value(),
+       Env   :: environment(),
        Value :: semantic_value().
        
 get_value(Var, Environment) ->
@@ -77,12 +80,12 @@ bind_parameters([Arg|Args], [Var|Vars], Env) ->
   
 %% Add new mappings to the environment
 %% Mappings may be a deeply nested list
--spec add_mappings_to_environment(Mappings, Env) -> NewEnv
-  when Mappings :: [{Var, Value}],
-         Var :: semantic_var(),
+-spec add_mappings_to_environment(Mapps, Env) -> NewEnv
+  when Mapps   :: [{Var, Value}],
+         Var   :: semantic_var(),
          Value :: semantic_value(),
-       Env :: environment(),
-       NewEnv :: environment().
+       Env     :: environment(),
+       NewEnv  :: environment().
        
 add_mappings_to_environment([], Env) ->
   Env;
