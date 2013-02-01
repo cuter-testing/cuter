@@ -26,7 +26,7 @@ bin_lib.beam: bin_lib.erl
 	$(ERLC) $(ERLC_FLAGS) $<
 
 $(DEMO_BIN)/%.beam: $(DEMO_SRC)/%.erl
-	$(ERLC) $(ERLC_FLAGS) -o $(DEMO_BIN) $<
+	$(ERLC) -o $(DEMO_BIN) $<
 
 $(BEAM_DEMO): | $(DEMO_BIN)
 
