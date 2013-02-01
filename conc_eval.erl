@@ -21,9 +21,9 @@ i(M, F, As, CodeServer, TraceServer) ->
   Root = self(),
   SymbAs = conc_symb:abstract(As),
   Mapping = conc_symb:generate_mapping(SymbAs, As),
-  Args = [{named, {M, F}}, As, SymbAs, external, CodeServer, TraceServer],
   I = fun() ->
-    conc_tserver:register_to_trace(TraceServer, Root, false),
+    {ok, _File} = conc_tserver:register_to_trace(TraceServer, Root, false),
+    Args = [{named, {M, F}}, As, SymbAs, external, CodeServer, TraceServer],
     Val = apply(conc_eval, eval, Args),
     conc:send_return(Root, Mapping, Val)
   end,
@@ -1195,7 +1195,7 @@ unzip_msg(V) ->
 %% -------------------------------------------------------
 register_and_apply(TraceServer, Parent, Args, Link) ->
   fun() ->
-    conc_tserver:register_to_trace(TraceServer, Parent, Link),
+    {ok, _File} = conc_tserver:register_to_trace(TraceServer, Parent, Link),
     Parent ! {self(), registered},
     erlang:apply(?MODULE, eval, Args)
   end.

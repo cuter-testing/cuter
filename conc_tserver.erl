@@ -36,7 +36,11 @@ terminate(TraceServer) ->
   
 %% Register a new process so that the TraceServer can monitor it
 register_to_trace(TraceServer, Parent, Link) ->
-  gen_server:call(TraceServer, {register_parent, Parent, Link}).
+  {ok, Filename} = gen_server:call(TraceServer, {register_parent, Parent, Link}),
+  {ok, File} = encdec:create_file(Filename),
+  ok = encdec:log_term(File, {pid, self()}),
+%  ok = encdec:close_file(File),
+  {ok, File}.
   
 %% Check if a process is monitored by TraceServer
 is_monitored(TraceServer, Who) ->
@@ -58,6 +62,7 @@ init([Dir, Super]) ->
   Procs = ets:new(?MODULE, [ordered_set, protected]),
   U = erlang:ref_to_list(erlang:make_ref()),
   TraceDir = filename:absname(Dir ++ "/trace-" ++ U),
+  ok = filelib:ensure_dir(TraceDir ++ "/"),  %% Create the directory
   {ok, #state{super=Super, procs=Procs, ptree=Ptree, links=Links, dir=TraceDir, logs=[{procs, 0}, {dir, TraceDir}]}}.
   
 terminate(_Reason, State) ->
@@ -86,6 +91,7 @@ handle_call({register_parent, Parent, Link}, {From, _FromTag}, State) ->
   Procs = State#state.procs,
   Ptree = State#state.ptree,
   Links = State#state.links,
+  Dir = State#state.dir,
   Logs = State#state.logs,
   FromPid = 
     case is_atom(From) of
@@ -97,9 +103,12 @@ handle_call({register_parent, Parent, Link}, {From, _FromTag}, State) ->
   ets:insert(Links, {FromPid, Link}),
   ets:insert(Ptree, {Parent, FromPid}),
   ets:insert(Procs, {FromPid, true}),
+  %% Update Logs - Number of monitored processes
   {procs, P} = lists:keyfind(procs, 1, Logs),
   NewLogs = lists:keyreplace(procs, 1, Logs, {procs, P+1}),
-  {reply, ok, State#state{logs=NewLogs}};
+  F = erlang:pid_to_list(FromPid),
+  Filename = filename:absname(Dir ++ "/proc-" ++ F),
+  {reply, {ok, Filename}, State#state{logs=NewLogs}};
   
 %% Call Request : {is_monitored, Who}
 %% Ret Msg : boolean()

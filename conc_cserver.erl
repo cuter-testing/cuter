@@ -18,7 +18,6 @@
   db    :: ets:tab(),      %% Database of the modules and their stored code
   dir   :: string(),       %% Directory where .core files are saved
   super :: pid()           %% Concolic Server (supervisor) process
-  
 }).
 
 %%====================================================================

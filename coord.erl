@@ -22,14 +22,16 @@ run(M, F, As) ->
     {Concolic, Results} ->
       R = Results
   end,
-  file:del_dir(filename:absname(TraceDir)),  %% Directory will only be deleted if it's empty
   
   profiling_stop(?PROFILING_FLAG),
 %  End  = now(),
 %  Time = timer:now_diff(End, Start),
 %  io:format("%% Time elapsed = ~w secs~n", [Time/1000000]),
   
-  analyze(R).
+  analyze(R),
+  clear_dir(filename:absname(TraceDir)),
+  file:del_dir(filename:absname(TraceDir)),  %% Directory will only be deleted if it's empty
+  ok.
   
 %% ---------------------------------------------------------------------------------
 %% Run demos
@@ -117,5 +119,25 @@ report_result({tlogs, Logs}) ->
 report_result({codeserver_error, Error}) ->
   io:format("%%   CodeServer Error = ~p~n", [Error]);
 report_result({traceserver_error, Error}) ->
-  io:format("%%   TraceServer Error = ~p~n", [Error]).
+  io:format("%%   TraceServer Error = ~p~n", [Error]);
+report_result(X) ->
+  io:format("Unexpected ~w~n", [X]).
+
+%% --------------------------------------------------------------------------------------
+  
+%% temporary deleting all traces
+clear_dir(D) ->
+  case filelib:is_regular(D) of
+    true -> file:delete(D);
+    false ->
+      case file:del_dir(D) of
+        ok -> ok;
+        {error, eexist} ->
+          {ok, L} = file:list_dir(D),
+          LL = lists:map(fun(X) -> D ++ "/" ++ X end, L),
+          lists:foreach(fun clear_dir/1, LL),
+          file:del_dir(D);
+        _ -> ok
+      end
+  end.
   
