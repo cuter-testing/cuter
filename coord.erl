@@ -10,11 +10,12 @@
 run(M, F, As) ->
   process_flag(trap_exit, true),
   CoreDir = "core_temp",
+  TraceDir = "traces",
   
 %  Start = now(),
   profiling_start(?PROFILING_FLAG),
   
-  Concolic = conc:init_concolic(M, F, As, CoreDir),
+  Concolic = conc:init_concolic(M, F, As, CoreDir, TraceDir),
   receive
     {'EXIT', Concolic, Why} ->
       R = {error, Why};
@@ -110,7 +111,8 @@ report_result({runtime_error, {_Node, Who, {CErr, SErr}}}) ->
 report_result({clogs, Logs}) ->
   io:format("%%   Loaded ~w Modules: ~w~n", [length(Logs), Logs]);
 report_result({tlogs, Logs}) ->
-  io:format("%%   Monitored Processes : ~w~n", [proplists:get_value(procs, Logs)]);
+  io:format("%%   Monitored Processes : ~w~n", [proplists:get_value(procs, Logs)]),
+  io:format("%%   Traces Directory : ~p~n", [proplists:get_value(dir, Logs)]);
 report_result({codeserver_error, Error}) ->
   io:format("%%   CodeServer Error = ~p~n", [Error]);
 report_result({traceserver_error, Error}) ->

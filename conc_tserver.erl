@@ -2,7 +2,7 @@
 -behaviour(gen_server).
 
 %% External exports
--export([init_traceserver/1, terminate/1, register_to_trace/3,
+-export([init_traceserver/2, terminate/1, register_to_trace/3,
   is_monitored/2, node_servers/2]).
 
 %% gen_server callbacks
@@ -15,6 +15,7 @@
   procs :: ets:tab(),                 %% Pids of Live Evaluator processes
   ptree :: ets:tab(),                 %% ETS table where {Parent, Child} process pids are stored
   links :: ets:tab(),                 %% ETS table where {Pid, Linked} are stored
+  dir   :: string(),                  %% Directory where traces are saved
   logs  :: [proplists:property()]     %% Proplist to store log informations // currently only {procs, NumOfMonitoredProcs}
 }).
 
@@ -23,8 +24,8 @@
 %%====================================================================
 
 %% Initialize a TraceServer
-init_traceserver(Super) ->
-  case gen_server:start(?MODULE, [Super], []) of
+init_traceserver(TraceDir, Super) ->
+  case gen_server:start(?MODULE, [TraceDir, Super], []) of
     {ok, TraceServer} -> TraceServer;
     {error, Reason}   -> exit({traceserver_init, Reason})
   end.
@@ -49,13 +50,15 @@ node_servers(TraceServer, Node) ->
 %% gen_server callbacks
 %%====================================================================
 
-init([Super]) ->
+init([Dir, Super]) ->
   process_flag(trap_exit, true),
   link(Super),
   Ptree = ets:new(?MODULE, [bag, protected]),
   Links = ets:new(?MODULE, [ordered_set, protected]),
   Procs = ets:new(?MODULE, [ordered_set, protected]),
-  {ok, #state{super=Super, procs=Procs, ptree=Ptree, links=Links, logs=[{procs, 0}]}}.
+  U = erlang:ref_to_list(erlang:make_ref()),
+  TraceDir = filename:absname(Dir ++ "/trace-" ++ U),
+  {ok, #state{super=Super, procs=Procs, ptree=Ptree, links=Links, dir=TraceDir, logs=[{procs, 0}, {dir, TraceDir}]}}.
   
 terminate(_Reason, State) ->
   Super = State#state.super,

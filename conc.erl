@@ -3,7 +3,7 @@
 -behaviour(gen_server).
 
 %% External exports
--export([init_concolic/4, send_return/3, send_error_report/3,
+-export([init_concolic/5, send_return/3, send_error_report/3,
   send_clogs/2, send_tlogs/2, node_servers/2]).
 
 %% gen_server callbacks
@@ -14,6 +14,7 @@
 -record(state, {
   coord    :: pid(),                     %% Pid of the Coordinator Process
   coredir  :: string(),                  %% Directory to store .core files
+  tracedir :: string(),                  %% Directory to store trace files
   cpids    :: [{node(), pid()}],         %% Proplist of CodeServers
   tpids    :: [{node(), pid()}],         %% Proplist of TraceServers
   results  :: orddict:orddict(),         %% Info about the concolic execution
@@ -27,8 +28,8 @@
 %%====================================================================
 
 %% Initialize the Concolic Server
-init_concolic(M, F, As, CoreDir) ->
-  case gen_server:start_link(?MODULE, [M, F, As, CoreDir, self()], []) of
+init_concolic(M, F, As, CoreDir, TraceDir) ->
+  case gen_server:start_link(?MODULE, [M, F, As, CoreDir, TraceDir, self()], []) of
     {ok, Concolic}  -> Concolic;
     {error, Reason} -> {error, Reason}
   end.
@@ -57,15 +58,16 @@ node_servers(ConcServer, Node) ->
 %% gen_server callbacks
 %%====================================================================
 
-init([M, F, As, CoreDir, Coord]) ->
+init([M, F, As, CoreDir, TraceDir, Coord]) ->
   process_flag(trap_exit, true),
   Node = node(),
   CodeServer = conc_cserver:init_codeserver(CoreDir, self()),
-  TraceServer = conc_tserver:init_traceserver(self()),
+  TraceServer = conc_tserver:init_traceserver(TraceDir, self()),
   Ipid = conc_eval:i(M, F, As, CodeServer, TraceServer),
   InitState = #state{
     coord = Coord,
     coredir = CoreDir,
+    tracedir = TraceDir,
     cpids = [{Node, CodeServer}],
     tpids = [{Node, TraceServer}],
     results = orddict:new(),
