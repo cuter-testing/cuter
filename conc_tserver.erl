@@ -15,6 +15,7 @@
   procs :: ets:tab(),                 %% Pids of Live Evaluator processes
   ptree :: ets:tab(),                 %% ETS table where {Parent, Child} process pids are stored
   links :: ets:tab(),                 %% ETS table where {Pid, Linked} are stored
+  fds   :: ets:tab(),                 %% ETS table where {Pid, Fd} are stored
   dir   :: string(),                  %% Directory where traces are saved
   logs  :: [proplists:property()]     %% Proplist to store log informations // currently only {procs, NumOfMonitoredProcs}
 }).
@@ -38,6 +39,7 @@ terminate(TraceServer) ->
 register_to_trace(TraceServer, Parent, Link) ->
   {ok, Filename} = gen_server:call(TraceServer, {register_parent, Parent, Link}),
   {ok, File} = encdec:create_file(Filename),
+  store_file_descriptor(TraceServer, File),
   ok = encdec:log_term(File, {pid, self()}),
 %  ok = encdec:close_file(File),
   {ok, File}.
@@ -59,17 +61,19 @@ init([Dir, Super]) ->
   link(Super),
   Ptree = ets:new(?MODULE, [bag, protected]),
   Links = ets:new(?MODULE, [ordered_set, protected]),
+  Fds = ets:new(?MODULE, [ordered_set, protected]),
   Procs = ets:new(?MODULE, [ordered_set, protected]),
   U = erlang:ref_to_list(erlang:make_ref()),
   TraceDir = filename:absname(Dir ++ "/trace-" ++ U),
   ok = filelib:ensure_dir(TraceDir ++ "/"),  %% Create the directory
-  {ok, #state{super=Super, procs=Procs, ptree=Ptree, links=Links, dir=TraceDir, logs=[{procs, 0}, {dir, TraceDir}]}}.
+  {ok, #state{super=Super, procs=Procs, ptree=Ptree, links=Links, fds=Fds, dir=TraceDir, logs=[{procs, 0}, {dir, TraceDir}]}}.
   
 terminate(_Reason, State) ->
   Super = State#state.super,
   Procs =  State#state.procs,
   Ptree = State#state.ptree,
   Links = State#state.links,
+  Fds = State#state.fds,
   Logs = State#state.logs,
   %% TODO
   %% reconstruct Process Tree and Traces Tree
@@ -77,6 +81,7 @@ terminate(_Reason, State) ->
   ets:delete(Ptree),
   ets:delete(Procs),
   ets:delete(Links),
+  ets:delete(Fds),
   %% Send Logs to supervisor
   ok = conc:send_tlogs(Super, Logs),
   ok.
@@ -133,6 +138,11 @@ handle_call({node_servers, Node}, _From, State) ->
   Servers = conc:node_servers(Super, Node),
   {reply, Servers, State}.
   
+handle_cast({store_fd, From, Fd}, State) ->
+  Fds = State#state.fds,
+  ets:insert(Fds, {From, Fd}),
+  {noreply, State};
+  
 %% Cast Request : {terminate, FromWho}
 handle_cast({terminate, FromWho}, State) ->
   Super = State#state.super,
@@ -148,6 +158,8 @@ handle_cast({terminate, FromWho}, State) ->
 %% Msg when a monitored process exited normally
 handle_info({'DOWN', _Ref, process, Who, normal}, State) ->
   Procs = State#state.procs,
+  Fds = State#state.fds,
+  ets:delete(Fds, Who),
   ets:delete(Procs, Who),
   case ets:first(Procs) of
     '$end_of_table' ->
@@ -160,8 +172,10 @@ handle_info({'DOWN', _Ref, process, Who, normal}, State) ->
 handle_info({'DOWN', _Ref, process, Who, Reason}, State) ->
   Super = State#state.super,
   Procs = State#state.procs,
+  Fds = State#state.fds,
 %  Links = State#state.links,
   ets:delete(Procs, Who),
+  ets:delete(Fds, Who),
 %  [{Who, Link}] = ets:lookup(Links, Who),
 %  case Link of
 %    %% If process is linked/monitored to another then do nothing
@@ -191,6 +205,10 @@ handle_info(Msg, State) ->
 %%====================================================================
 %% Internal functions
 %%====================================================================
+
+%% Stores the file descriptor of a process's trace
+store_file_descriptor(TraceServer, Fd) ->
+  gen_server:cast(TraceServer, {store_fd, self(), Fd}).
 
 %% Kill all monitored processes
 -spec kill_all_processes(Procs) -> ok
