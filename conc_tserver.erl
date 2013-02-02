@@ -3,7 +3,7 @@
 
 %% External exports
 -export([init_traceserver/2, terminate/1, register_to_trace/3,
-  is_monitored/2, node_servers/2]).
+  is_monitored/2, node_servers/2, file_descriptor/1]).
 
 %% gen_server callbacks
 -export([init/1, terminate/2, handle_call/3,
@@ -50,7 +50,13 @@ is_monitored(TraceServer, Who) ->
   
 %% Request the CodeServer and TraceServer of a specific node
 node_servers(TraceServer, Node) ->
-  gen_server:call(TraceServer, {node_servers, Node}).
+  {ok, Servers} = gen_server:call(TraceServer, {node_servers, Node}),
+  Servers.
+  
+%% Request the file descriptor of a this process's trace file
+file_descriptor(TraceServer) ->
+  {ok, Fd} = gen_server:call(TraceServer, {get_fd, self()}),
+  Fd.
 
 %%====================================================================
 %% gen_server callbacks
@@ -132,12 +138,20 @@ handle_call({is_monitored, Who}, {_From, _FromTag}, State) ->
   {reply, Monitored, State};
   
 %% Call Request : {node_servers, Node}
-%% Ret Msg : {CodeServer, TraceServer}
+%% Ret Msg : {ok, {CodeServer, TraceServer}}
 handle_call({node_servers, Node}, _From, State) ->
   Super = State#state.super,
   Servers = conc:node_servers(Super, Node),
-  {reply, Servers, State}.
+  {reply, {ok, Servers}, State};
   
+%% Call Request : {get_fd, Who}
+%% Ret Msg : {ok, FileDescriptor}
+handle_call({get_fd, Who}, _From, State) ->
+  Fds = State#state.fds,
+  [{Who, Fd}] = ets:lookup(Fds, Who),
+  {reply, {ok, Fd}, State}.
+
+%% Cast Request : {store_fd, FromWho}
 handle_cast({store_fd, From, Fd}, State) ->
   Fds = State#state.fds,
   ets:insert(Fds, {From, Fd}),
