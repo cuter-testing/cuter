@@ -22,7 +22,7 @@ i(M, F, As, CodeServer, TraceServer) ->
   SymbAs = conc_symb:abstract(As),
   Mapping = conc_symb:generate_mapping(SymbAs, As),
   I = fun() ->
-    {ok, _File} = conc_tserver:register_to_trace(TraceServer, Root, false),
+    {ok, _Fd} = conc_tserver:register_to_trace(TraceServer, Root),
     Args = [{named, {M, F}}, As, SymbAs, external, CodeServer, TraceServer],
     Val = apply(conc_eval, eval, Args),
     conc:send_return(Root, Mapping, Val)
@@ -51,21 +51,21 @@ eval({named, {erlang, F}}, CAs, SAs, _CallType, CodeServer, TraceServer)
           [_SFun] = SAs_e,
           %% TODO Constraint: SFun=Fun
           EvalArgs = [{lambda, Fun}, [], [], local, CodeServer, TraceServer],
-          Child = register_and_apply(TraceServer, self(), EvalArgs, F =:= spawn_link),
+          Child = register_and_apply(TraceServer, self(), EvalArgs),
           erlang:F(Child);
         [Node, Fun] ->
           [_SNode, _SFun] = SAs_e,
           %% TODO Constraints: SNode=Node, SFun=Fun
           {CServer, TServer} = conc_tserver:node_servers(TraceServer, Node),
           EvalArgs = [{lambda, Fun}, [], [], local, CServer, TServer],
-          Child = register_and_apply(TServer, self(), EvalArgs, F =:= spawn_link),
+          Child = register_and_apply(TServer, self(), EvalArgs),
           erlang:F(Node, Child);
         [Mod, Fun, Args] ->
           [_SMod, _SFun, SArgs] = SAs_e,
           %% TODO Constraints: SMod = Mod, SFun=Fun
           Call = find_call_type(erlang, Mod),
           EvalArgs = [{named, {Mod, Fun}}, Args, SArgs, Call, CodeServer, TraceServer],
-          Child = register_and_apply(TraceServer, self(), EvalArgs, F =:= spawn_link),
+          Child = register_and_apply(TraceServer, self(), EvalArgs),
           erlang:F(Child);
         [Node, Mod, Fun, Args] ->
           [_SNode, _SMod, _SFun, SArgs] = SAs_e,
@@ -73,7 +73,7 @@ eval({named, {erlang, F}}, CAs, SAs, _CallType, CodeServer, TraceServer)
           {CServer, TServer} = conc_tserver:node_servers(TraceServer, Node),
           Call = find_call_type(erlang, Mod),
           EvalArgs = [{named, {Mod, Fun}}, Args, SArgs, Call, CServer, TServer],
-          Child = register_and_apply(TServer, self(), EvalArgs, F =:= spawn_link),
+          Child = register_and_apply(TServer, self(), EvalArgs),
           erlang:F(Node, Child);
         _ ->
           exception(error, {undef, {erlang, spawn, Arity}})
@@ -100,7 +100,7 @@ eval({named, {erlang, spawn_monitor}}, CAs, SAs, _CallType, CodeServer, TraceSer
       _ ->
         exception(error, {undef, {erlang, spawn_monitor, Arity}})
     end,
-  Child = register_and_apply(TraceServer, self(), EvalArgs, true),
+  Child = register_and_apply(TraceServer, self(), EvalArgs),
   {ChildPid, ChildRef} = erlang:spawn_monitor(Child),
   receive
     {ChildPid, registered} -> {{ChildPid, ChildRef}, {ChildPid, ChildRef}}
@@ -116,24 +116,21 @@ eval({named, {erlang, spawn_opt}}, CAs, SAs, _CallType, CodeServer, TraceServer)
         [_SFun, _SOpts] = SAs_e,
         %% TODO Constraints: SFun=Fun, SOpts=Opts
         EvalArgs = [{lambda, Fun}, [], [], local, CodeServer, TraceServer],
-        Link = lists:member(link, Opts) orelse lists:member(monitor, Opts),
-        Child = register_and_apply(TraceServer, self(), EvalArgs, Link),
+        Child = register_and_apply(TraceServer, self(), EvalArgs),
         erlang:spawn_opt(Child, Opts);
       [Node, Fun, Opts] ->
         [_SNode, _SFun, _SOpts] = SAs_e,
         %% TODO Constraints: SNode=Node, SFun=Fun, SOpts=Opts
         {CServer, TServer} = conc_tserver:node_servers(TraceServer, Node),
         EvalArgs = [{lambda, Fun}, [], [], local, CServer, TServer],
-        Link = lists:member(link, Opts) orelse lists:member(monitor, Opts),
-        Child = register_and_apply(TServer, self(), EvalArgs, Link),
+        Child = register_and_apply(TServer, self(), EvalArgs),
         erlang:spawn_opt(Node, Child, Opts);
       [Mod, Fun, Args, Opts] ->
         [_SMod, _SFun, SArgs, _SOpts] = SAs_e,
         %% TODO Constraints: SMod=Mode, SFun=Fun, SOpts=Opts
         Call = find_call_type(erlang, Mod),
         EvalArgs = [{named, {Mod, Fun}}, Args, SArgs, Call, CodeServer, TraceServer],
-        Link = lists:member(link, Opts) orelse lists:member(monitor, Opts),
-        Child = register_and_apply(TraceServer, self(), EvalArgs, Link),
+        Child = register_and_apply(TraceServer, self(), EvalArgs),
         erlang:spawn_opt(Child, Opts);
       [Node, Mod, Fun, Args, Opts] ->
         [_SNode, _SMod, _SFun, SArgs, _SOpts] = SAs_e,
@@ -141,8 +138,7 @@ eval({named, {erlang, spawn_opt}}, CAs, SAs, _CallType, CodeServer, TraceServer)
         Call = find_call_type(erlang, Mod),
         {CServer, TServer} = conc_tserver:node_servers(TraceServer, Node),
         EvalArgs = [{named, {Mod, Fun}}, Args, SArgs, Call, CServer, TServer],
-        Link = lists:member(link, Opts) orelse lists:member(monitor, Opts),
-        Child = register_and_apply(TServer, self(), EvalArgs, Link),
+        Child = register_and_apply(TServer, self(), EvalArgs),
         erlang:spawn_opt(Node, Child, Opts);
       _ ->
         exception(error, {undef, {erlang, spawn_opt, Arity}})
@@ -1133,6 +1129,8 @@ make_fun(Mod, Func, Arity, CServer, TServer) ->
       exception('error', {over_lambda_fun_argument_limit, Arity})
   end.
 
+%% Check if the given servers correspond to the current node
+%% If not, get the pids of the proper servers
 validate_servers(CodeServer, TraceServer) ->
   Node = node(),
   case Node =:= node(TraceServer) of
@@ -1222,9 +1220,9 @@ unzip_msg(V) ->
 %% The process registers its parent to the TraceServer
 %% and proceeds with interpreting the MFA
 %% -------------------------------------------------------
-register_and_apply(TraceServer, Parent, Args, Link) ->
+register_and_apply(TraceServer, Parent, Args) ->
   fun() ->
-    {ok, _File} = conc_tserver:register_to_trace(TraceServer, Parent, Link),
+    {ok, _Fd} = conc_tserver:register_to_trace(TraceServer, Parent),
     Parent ! {self(), registered},
     erlang:apply(?MODULE, eval, Args)
   end.

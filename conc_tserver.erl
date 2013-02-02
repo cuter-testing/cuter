@@ -2,7 +2,7 @@
 -behaviour(gen_server).
 
 %% External exports
--export([init_traceserver/2, terminate/1, register_to_trace/3,
+-export([init_traceserver/2, terminate/1, register_to_trace/2,
   is_monitored/2, node_servers/2, file_descriptor/1]).
 
 %% gen_server callbacks
@@ -14,7 +14,6 @@
   super :: pid(),                     %% Concolic Server (supervisor) process
   procs :: ets:tab(),                 %% Pids of Live Evaluator processes
   ptree :: ets:tab(),                 %% ETS table where {Parent, Child} process pids are stored
-  links :: ets:tab(),                 %% ETS table where {Pid, Linked} are stored
   fds   :: ets:tab(),                 %% ETS table where {Pid, Fd} are stored
   dir   :: string(),                  %% Directory where traces are saved
   logs  :: [proplists:property()]     %% Proplist to store log informations // currently only {procs, NumOfMonitoredProcs}
@@ -36,8 +35,8 @@ terminate(TraceServer) ->
   gen_server:cast(TraceServer, {terminate, self()}).
   
 %% Register a new process so that the TraceServer can monitor it
-register_to_trace(TraceServer, Parent, Link) ->
-  {ok, Filename} = gen_server:call(TraceServer, {register_parent, Parent, Link}),
+register_to_trace(TraceServer, Parent) ->
+  {ok, Filename} = gen_server:call(TraceServer, {register_parent, Parent}),
   {ok, File} = encdec:create_file(Filename),
   store_file_descriptor(TraceServer, File),
   ok = encdec:log_term(File, {pid, self()}),
@@ -66,19 +65,25 @@ init([Dir, Super]) ->
   process_flag(trap_exit, true),
   link(Super),
   Ptree = ets:new(?MODULE, [bag, protected]),
-  Links = ets:new(?MODULE, [ordered_set, protected]),
   Fds = ets:new(?MODULE, [ordered_set, protected]),
   Procs = ets:new(?MODULE, [ordered_set, protected]),
   U = erlang:ref_to_list(erlang:make_ref()),
   TraceDir = filename:absname(Dir ++ "/trace-" ++ U),
   ok = filelib:ensure_dir(TraceDir ++ "/"),  %% Create the directory
-  {ok, #state{super=Super, procs=Procs, ptree=Ptree, links=Links, fds=Fds, dir=TraceDir, logs=[{procs, 0}, {dir, TraceDir}]}}.
+  InitState = #state{
+    super = Super,
+    procs = Procs,
+    ptree = Ptree,
+    fds = Fds,
+    dir = TraceDir,
+    logs = [{procs, 0}, {dir, TraceDir}]
+  },
+  {ok, InitState}.
   
 terminate(_Reason, State) ->
   Super = State#state.super,
   Procs =  State#state.procs,
   Ptree = State#state.ptree,
-  Links = State#state.links,
   Fds = State#state.fds,
   Logs = State#state.logs,
   %% TODO
@@ -86,7 +91,6 @@ terminate(_Reason, State) ->
   %%
   ets:delete(Ptree),
   ets:delete(Procs),
-  ets:delete(Links),
   ets:delete(Fds),
   %% Send Logs to supervisor
   ok = conc:send_tlogs(Super, Logs),
@@ -98,10 +102,9 @@ code_change(_OldVsn, State, _Extra) ->
   
 %% Call Request : {register_parent, Parent, Link}
 %% Ret Msg : ok
-handle_call({register_parent, Parent, Link}, {From, _FromTag}, State) ->
+handle_call({register_parent, Parent}, {From, _FromTag}, State) ->
   Procs = State#state.procs,
   Ptree = State#state.ptree,
-  Links = State#state.links,
   Dir = State#state.dir,
   Logs = State#state.logs,
   FromPid = 
@@ -111,7 +114,6 @@ handle_call({register_parent, Parent, Link}, {From, _FromTag}, State) ->
     end,
   monitor(process, FromPid),
 %  io:format("[conc_tserver(~p)]: Monitoring ~p~n", [node(), FromPid]),
-  ets:insert(Links, {FromPid, Link}),
   ets:insert(Ptree, {Parent, FromPid}),
   ets:insert(Procs, {FromPid, true}),
   %% Update Logs - Number of monitored processes
@@ -187,29 +189,13 @@ handle_info({'DOWN', _Ref, process, Who, Reason}, State) ->
   Super = State#state.super,
   Procs = State#state.procs,
   Fds = State#state.fds,
-%  Links = State#state.links,
   ets:delete(Procs, Who),
   ets:delete(Fds, Who),
-%  [{Who, Link}] = ets:lookup(Links, Who),
-%  case Link of
-%    %% If process is linked/monitored to another then do nothing
-%    true ->
-%      case ets:first(Procs) of 
-%        '$end_of_table' ->
-%          {stop, normal, State};
-%        _ ->
-%          ets:delete(Links, Who),
-%          {noreply, State}
-%      end;
-%    %% If process is not linked/monitored to another
-%    %% then report the exception and stop execution
-%    false ->
-      %% Killing all remaining alive processes
-      kill_all_processes(get_procs(Procs)),
-      %% Send the Error Report to the supervisor
-      conc:send_error_report(Super, Who, conc_eval:unzip_error(Reason)),
-      {stop, normal, State};
-%  end;
+  %% Killing all remaining alive processes
+  kill_all_processes(get_procs(Procs)),
+  %% Send the Error Report to the supervisor
+  conc:send_error_report(Super, Who, conc_eval:unzip_error(Reason)),
+  {stop, normal, State};
 
 handle_info(Msg, State) ->
   %% Just outputting unexpected messages for now
