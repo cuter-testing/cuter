@@ -12,7 +12,7 @@ run(M, F, As) ->
   CoreDir = "core_temp",
   TraceDir = "traces",
   
-%  Start = now(),
+  Start = now(),
   profiling_start(?PROFILING_FLAG),
   
   Concolic = conc:init_concolic(M, F, As, CoreDir, TraceDir),
@@ -24,9 +24,9 @@ run(M, F, As) ->
   end,
   
   profiling_stop(?PROFILING_FLAG),
-%  End  = now(),
-%  Time = timer:now_diff(End, Start),
-%  io:format("%% Time elapsed = ~w secs~n", [Time/1000000]),
+  End  = now(),
+  Time = timer:now_diff(End, Start),
+  io:format("%% Time elapsed = ~w secs~n", [Time/1000000]),
   
   analyze(R),
   clear_dir(filename:absname(TraceDir)),
@@ -128,7 +128,12 @@ report_result(X) ->
 %% temporary deleting all traces
 clear_dir(D) ->
   case filelib:is_regular(D) of
-    true -> file:delete(D);
+    true ->
+      io:format("%% Contents of ~p~n", [D]),
+      {ok, F} = encdec:open_file(D),
+      encdec:print(F),
+      encdec:close_file(F),
+      file:delete(D);
     false ->
       case file:del_dir(D) of
         ok -> ok;
