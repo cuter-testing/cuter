@@ -22,8 +22,8 @@ i(M, F, As, CodeServer, TraceServer) ->
   SymbAs = conc_symb:abstract(As),
   Mapping = conc_symb:generate_mapping(SymbAs, As),
   I = fun() ->
-    {ok, _Fd} = conc_tserver:register_to_trace(TraceServer, Root),
-    Args = [{named, {M, F}}, As, SymbAs, external, CodeServer, TraceServer],
+    {ok, Fd} = conc_tserver:register_to_trace(TraceServer, Root),
+    Args = [{named, {M, F}}, As, SymbAs, external, CodeServer, TraceServer, Fd],
     Val = apply(conc_eval, eval, Args),
     conc:send_return(Root, Mapping, Val)
   end,
@@ -41,7 +41,7 @@ i(M, F, As, CodeServer, TraceServer) ->
 
 %% Handle spawn/1, spawn/2, spawn/3, spawn/4,
 %% spawn_link/1 spawn_link/2, spawn_link/3, spawn_link/4
-eval({named, {erlang, F}}, CAs, SAs, _CallType, CodeServer, TraceServer)
+eval({named, {erlang, F}}, CAs, SAs, _CallType, CodeServer, TraceServer, _Fd)
   when F =:= spawn; F =:= spawn_link ->
     Arity = length(CAs),
     SAs_e = conc_symb:ensure_list(SAs, Arity),
@@ -83,7 +83,7 @@ eval({named, {erlang, F}}, CAs, SAs, _CallType, CodeServer, TraceServer)
     end;
 
 %% Handle spawn_monitor/1, spawn_monitor/3
-eval({named, {erlang, spawn_monitor}}, CAs, SAs, _CallType, CodeServer, TraceServer) ->
+eval({named, {erlang, spawn_monitor}}, CAs, SAs, _CallType, CodeServer, TraceServer, _Fd) ->
   Arity = length(CAs),
   SAs_e = conc_symb:ensure_list(SAs, Arity),
   EvalArgs =
@@ -107,7 +107,7 @@ eval({named, {erlang, spawn_monitor}}, CAs, SAs, _CallType, CodeServer, TraceSer
   end;
 
 %% Handle spawn_opt/2, spawn_opt/3, spawn_opt/4, spawn_opt/5
-eval({named, {erlang, spawn_opt}}, CAs, SAs, _CallType, CodeServer, TraceServer) ->
+eval({named, {erlang, spawn_opt}}, CAs, SAs, _CallType, CodeServer, TraceServer, _Fd) ->
   Arity = length(CAs),
   SAs_e = conc_symb:ensure_list(SAs, Arity),
   R =
@@ -156,12 +156,12 @@ eval({named, {erlang, spawn_opt}}, CAs, SAs, _CallType, CodeServer, TraceServer)
 %% so as to zip the concrete and symbolic reason
   
 %% Handle '!'/2
-eval({named, {erlang, '!'}}, CAs, SAs, CallType, CodeServer, TraceServer)
+eval({named, {erlang, '!'}}, CAs, SAs, CallType, CodeServer, TraceServer, Fd)
   when length(CAs) =:= 2 ->
-    eval({named, {erlang, send}}, CAs, SAs, CallType, CodeServer, TraceServer);
+    eval({named, {erlang, send}}, CAs, SAs, CallType, CodeServer, TraceServer, Fd);
 
 %% Handle send/2, send/3
-eval({named, {erlang, send}}, CAs, SAs, _CallType, _CodeServer, TraceServer) ->
+eval({named, {erlang, send}}, CAs, SAs, _CallType, _CodeServer, TraceServer, _Fd) ->
   Arity = length(CAs),
   SAs_e = conc_symb:ensure_list(SAs, Arity),
   case CAs of
@@ -183,7 +183,7 @@ eval({named, {erlang, send}}, CAs, SAs, _CallType, _CodeServer, TraceServer) ->
 
 
 %% Handle send_after/3
-eval({named, {erlang, send_after}}, CAs, SAs, _CallType, _CodeServer, TraceServer) ->
+eval({named, {erlang, send_after}}, CAs, SAs, _CallType, _CodeServer, TraceServer, _Fd) ->
   Arity = length(CAs),
   SAs_e = conc_symb:ensure_list(SAs, Arity),
   case CAs of
@@ -198,7 +198,7 @@ eval({named, {erlang, send_after}}, CAs, SAs, _CallType, _CodeServer, TraceServe
   end;
  
 %% Handle send_nosuspend/2, send_nosuspend/3
-eval({named, {erlang, send_nosuspend}}, CAs, SAs, _CallType, _CodeServer, TraceServer) ->
+eval({named, {erlang, send_nosuspend}}, CAs, SAs, _CallType, _CodeServer, TraceServer, _Fd) ->
   Arity = length(CAs),
   SAs_e = conc_symb:ensure_list(SAs, Arity),
   case CAs of
@@ -223,7 +223,7 @@ eval({named, {erlang, send_nosuspend}}, CAs, SAs, _CallType, _CodeServer, TraceS
 %% so as to zip the concrete and symbolic reason
 
 %% Handle throw/1
-eval({named, {erlang, throw}}, CAs, SAs, _CallType, _CodeServer, _TraceServer) ->
+eval({named, {erlang, throw}}, CAs, SAs, _CallType, _CodeServer, _TraceServer, _Fd) ->
   Arity = length(CAs),
   SAs_e = conc_symb:ensure_list(SAs, Arity),
   case CAs of
@@ -236,7 +236,7 @@ eval({named, {erlang, throw}}, CAs, SAs, _CallType, _CodeServer, _TraceServer) -
   end;
   
 %% Handle exit/1, exit2
-eval({named, {erlang, exit}}, CAs, SAs, _CallType, _CodeServer, _TraceServer) ->
+eval({named, {erlang, exit}}, CAs, SAs, _CallType, _CodeServer, _TraceServer, _Fd) ->
   Arity = length(CAs),
   SAs_e = conc_symb:ensure_list(SAs, Arity),
   case CAs of
@@ -273,7 +273,7 @@ eval({named, {erlang, exit}}, CAs, SAs, _CallType, _CodeServer, _TraceServer) ->
 
     
 %% Handle error/1, error/2
-eval({named, {erlang, error}}, CAs, SAs, _CallType, _CodeServer, _TraceServer) ->
+eval({named, {erlang, error}}, CAs, SAs, _CallType, _CodeServer, _TraceServer, _Fd) ->
   Arity = length(CAs),
   SAs_e = conc_symb:ensure_list(SAs, Arity),
   case CAs of
@@ -291,7 +291,7 @@ eval({named, {erlang, error}}, CAs, SAs, _CallType, _CodeServer, _TraceServer) -
   end;
   
 %% Handle raise/3
-eval({named, {erlang, raise}}, CAs, SAs, _CallType, _CodeServer, _TraceServer) ->
+eval({named, {erlang, raise}}, CAs, SAs, _CallType, _CodeServer, _TraceServer, _Fd) ->
   Arity = length(CAs),
   SAs_e = conc_symb:ensure_list(SAs, Arity),
   case CAs of
@@ -307,12 +307,12 @@ eval({named, {erlang, raise}}, CAs, SAs, _CallType, _CodeServer, _TraceServer) -
 %% Handle other important functions
 
 %% Handle make_fun/3  
-eval({named, {erlang, make_fun}}, CAs, SAs, _CallType, CodeServer, TraceServer) ->
+eval({named, {erlang, make_fun}}, CAs, SAs, _CallType, CodeServer, TraceServer, Fd) ->
   Arity = length(CAs),
   SAs_e = conc_symb:ensure_list(SAs, Arity),
   case CAs of
     [M, F, A] ->
-      CR = make_fun(M, F, A, CodeServer, TraceServer),
+      CR = make_fun(M, F, A, CodeServer, TraceServer, Fd),
       SR = conc_symb:mock_bif({erlang, make_fun, 3}, SAs_e),
       {CR, SR};
     _ ->
@@ -320,7 +320,7 @@ eval({named, {erlang, make_fun}}, CAs, SAs, _CallType, CodeServer, TraceServer) 
   end;
   
 %% Handle apply/2, apply/3
-eval({named, {erlang, apply}}, CAs, SAs, _CallType, CodeServer, TraceServer) ->
+eval({named, {erlang, apply}}, CAs, SAs, _CallType, CodeServer, TraceServer, Fd) ->
   Arity = length(CAs),
   SAs_e = conc_symb:ensure_list(SAs, Arity),
   EvalArgs =
@@ -328,12 +328,12 @@ eval({named, {erlang, apply}}, CAs, SAs, _CallType, CodeServer, TraceServer) ->
       [Fun, Args] ->
         [_SFun, SArgs] = SAs_e,
         %% TODO Constraint: Fun=SFun
-        [{lambda, Fun}, Args, SArgs, local, CodeServer, TraceServer];
+        [{lambda, Fun}, Args, SArgs, local, CodeServer, TraceServer, Fd];
       [Mod, Fun, Args] ->
         [_SMod, _SFun, SArgs] = SAs_e,
         %% TODO Constraints: SMod = Mod, SFun=Fun
         Call = find_call_type(erlang, Mod),
-        [{named, {Mod, Fun}}, Args, SArgs, Call, CodeServer, TraceServer];
+        [{named, {Mod, Fun}}, Args, SArgs, Call, CodeServer, TraceServer, Fd];
       _ ->
         exception(error, {undef, {erlang, apply, Arity}})
     end,
@@ -341,8 +341,9 @@ eval({named, {erlang, apply}}, CAs, SAs, _CallType, CodeServer, TraceServer) ->
   
 
 %% Handle an MFA
-eval({named, {M, F}}, CAs, SAs, CallType, CodeServer, TraceServer) ->
+eval({named, {M, F}}, CAs, SAs, CallType, CodeServer, TraceServer, Fd) ->
   Arity = length(CAs),
+%  ok = conc_encdec:log_term(Fd, {{M, F, Arity}, self()}),
   SAs_e = conc_symb:ensure_list(SAs, Arity),
 %  io:format("~n~nCalling ~w:~w/~w~n",[M,F,Arity]),
 %  io:format("CAs = ~w~n", [CAs]),
@@ -365,23 +366,24 @@ eval({named, {M, F}}, CAs, SAs, CallType, CodeServer, TraceServer) ->
           check_exported(Exported, CallType, Key),
           Cenv = conc_lib:bind_parameters(CAs, Def#c_fun.vars, conc_lib:new_environment()),
           Senv = conc_lib:bind_parameters(SAs_e, Def#c_fun.vars, conc_lib:new_environment()),
-          eval_expr(M, CodeServer, TraceServer, Def#c_fun.body, Cenv, Senv)
+          eval_expr(M, CodeServer, TraceServer, Def#c_fun.body, Cenv, Senv, Fd)
       end
   end;
   
 %% Handle a Closure
-eval({lambda, Closure}, CAs, SAs, _CallType, _CodeServer, _TraceServer) ->
+eval({lambda, Closure}, CAs, SAs, _CallType, _CodeServer, _TraceServer, Fd) ->
+%  ok = conc_encdec:log_term(Fd, {closure, self()}),
   SAs_e = conc_symb:ensure_list(SAs, length(CAs)),
   ZAs = zip_args(CAs, SAs_e),
   apply(Closure, ZAs);
   
 %% Handle a function bound in a letrec expression
-eval({letrec_func, {M, _F, Def, E}}, CAs, SAs, _CallType, CodeServer, TraceServer) ->
+eval({letrec_func, {M, _F, Def, E}}, CAs, SAs, _CallType, CodeServer, TraceServer, Fd) ->
   {Cenv, Senv} = E(),
   SAs_e = conc_symb:ensure_list(SAs, length(CAs)),
   NCenv = conc_lib:bind_parameters(CAs, Def#c_fun.vars, Cenv),
   NSenv = conc_lib:bind_parameters(SAs_e, Def#c_fun.vars, Senv),
-  eval_expr(M, CodeServer, TraceServer, Def#c_fun.body, NCenv, NSenv).
+  eval_expr(M, CodeServer, TraceServer, Def#c_fun.body, NCenv, NSenv, Fd).
   
   
 %%--------------------------------------------------------------------
@@ -398,19 +400,19 @@ exception(Class, Reason) ->
 %% ===============
 
 %c_apply
-eval_expr(M, CodeServer, TraceServer, {c_apply, _Anno, Op, Args}, Cenv, Senv) ->
+eval_expr(M, CodeServer, TraceServer, {c_apply, _Anno, Op, Args}, Cenv, Senv, Fd) ->
   %% TODO Constraint: OPsv=OPcv
-  {OPcv, _OPsv} = eval_expr(M, CodeServer, TraceServer, Op, Cenv, Senv),
+  {OPcv, _OPsv} = eval_expr(M, CodeServer, TraceServer, Op, Cenv, Senv, Fd),
   ZAs = lists:map(
     fun(A) -> %% Will create closures where appropriate
-      {CA, SA} = eval_expr(M, CodeServer, TraceServer, A, Cenv, Senv),
+      {CA, SA} = eval_expr(M, CodeServer, TraceServer, A, Cenv, Senv, Fd),
       case CA of
         {func, {F, Arity}} -> %% local func (external func is already in make_fun/3 in core erlang)
-          Cl = create_closure(M, F, Arity, CodeServer, TraceServer, local),
+          Cl = create_closure(M, F, Arity, CodeServer, TraceServer, local, Fd),
           {Cl, Cl};
         {letrec_func, {Mod, F, Arity, Def, E}} -> %% letrec func
           {CE, SE} = E(),
-          Cl = create_closure(Mod, F, Arity, CodeServer, TraceServer, {letrec_fun, {Def, CE, SE}}),
+          Cl = create_closure(Mod, F, Arity, CodeServer, TraceServer, {letrec_fun, {Def, CE, SE}}, Fd),
           {Cl, Cl};
         _ ->
           {CA, SA}
@@ -420,47 +422,47 @@ eval_expr(M, CodeServer, TraceServer, {c_apply, _Anno, Op, Args}, Cenv, Senv) ->
   {CAs, SAs} = lists:unzip(ZAs),
   case OPcv of %% Check eval_expr(..., #c_var{}, ...) output for reference
     {func, {Func, _Arity}} ->
-      eval({named, {M, Func}}, CAs, SAs, local, CodeServer, TraceServer);
+      eval({named, {M, Func}}, CAs, SAs, local, CodeServer, TraceServer, Fd);
     {letrec_func, {Mod, Func, _Arity, Def, E}} ->
-      eval({letrec_func, {Mod, Func, Def, E}}, CAs, SAs, local, CodeServer, TraceServer);
+      eval({letrec_func, {Mod, Func, Def, E}}, CAs, SAs, local, CodeServer, TraceServer, Fd);
     Closure ->
       %% TODO Will make constraint OPsv=OPcv (in case closure is made by make_fun)
-      eval({lambda, Closure}, CAs, SAs, local, CodeServer, TraceServer)
+      eval({lambda, Closure}, CAs, SAs, local, CodeServer, TraceServer, Fd)
   end;
   
 %c_binary
-eval_expr(M, CodeServer, TraceServer, {c_binary, _Anno, Segments}, Cenv, Senv) ->
+eval_expr(M, CodeServer, TraceServer, {c_binary, _Anno, Segments}, Cenv, Senv, Fd) ->
   Segms = lists:map(
-    fun(S) -> eval_expr(M, CodeServer, TraceServer, S, Cenv, Senv) end,
+    fun(S) -> eval_expr(M, CodeServer, TraceServer, S, Cenv, Senv, Fd) end,
     Segments),
   {Cs, Ss} = lists:unzip(Segms),
   append_segments(Cs, Ss);
   
 %c_bitstr
-eval_expr(M, CodeServer, TraceServer, {c_bitstr, _Anno, Val, Size, Unit, Type, Flags}, Cenv, Senv) ->
-  {Cv, Sv} = eval_expr(M, CodeServer, TraceServer, Val, Cenv, Senv),
-  {CSize, SSize} = eval_expr(M, CodeServer, TraceServer, Size, Cenv, Senv),
-  {CUnit, SUnit} = eval_expr(M, CodeServer, TraceServer, Unit, Cenv, Senv),
-  {CType, SType} = eval_expr(M, CodeServer, TraceServer, Type, Cenv, Senv),
-  {CFlags, SFlags} = eval_expr(M, CodeServer, TraceServer, Flags, Cenv, Senv),
+eval_expr(M, CodeServer, TraceServer, {c_bitstr, _Anno, Val, Size, Unit, Type, Flags}, Cenv, Senv, Fd) ->
+  {Cv, Sv} = eval_expr(M, CodeServer, TraceServer, Val, Cenv, Senv, Fd),
+  {CSize, SSize} = eval_expr(M, CodeServer, TraceServer, Size, Cenv, Senv, Fd),
+  {CUnit, SUnit} = eval_expr(M, CodeServer, TraceServer, Unit, Cenv, Senv, Fd),
+  {CType, SType} = eval_expr(M, CodeServer, TraceServer, Type, Cenv, Senv, Fd),
+  {CFlags, SFlags} = eval_expr(M, CodeServer, TraceServer, Flags, Cenv, Senv, Fd),
   Cbin = bin_lib:make_bitstring(Cv, CSize, CUnit, CType, CFlags),
   Sbin = conc_symb:make_bitstring(Sv, SSize, SUnit, SType, SFlags),
   {Cbin, Sbin};
   
 %c_call
-eval_expr(M, CodeServer, TraceServer, {c_call, _Anno, Mod, Name, Args}, Cenv, Senv) ->
-  {Mcv, _Msv} = eval_expr(M, CodeServer, TraceServer, Mod, Cenv, Senv),
-  {Fcv, _Fsv} = eval_expr(M, CodeServer, TraceServer, Name, Cenv, Senv),
+eval_expr(M, CodeServer, TraceServer, {c_call, _Anno, Mod, Name, Args}, Cenv, Senv, Fd) ->
+  {Mcv, _Msv} = eval_expr(M, CodeServer, TraceServer, Mod, Cenv, Senv, Fd),
+  {Fcv, _Fsv} = eval_expr(M, CodeServer, TraceServer, Name, Cenv, Senv, Fd),
   ZAs = lists:map(
     fun(A) -> %% Will create closures where appropriate
-      {CA, SA} = eval_expr(M, CodeServer, TraceServer, A, Cenv, Senv),
+      {CA, SA} = eval_expr(M, CodeServer, TraceServer, A, Cenv, Senv, Fd),
       case CA of
         {func, {F, Arity}} -> %% local func (external func is already in make_fun/3 in core erlang)
-          Cl = create_closure(M, F, Arity, CodeServer, TraceServer, local),
+          Cl = create_closure(M, F, Arity, CodeServer, TraceServer, local, Fd),
           {Cl, Cl};
         {letrec_func, {Mod, F, Arity, Def, E}} -> %% letrec func
           {CE, SE} = E(),
-          Cl = create_closure(Mod, F, Arity, CodeServer, TraceServer, {letrec_fun, {Def, CE, SE}}),
+          Cl = create_closure(Mod, F, Arity, CodeServer, TraceServer, {letrec_fun, {Def, CE, SE}}, Fd),
           {Cl, Cl};
         _ ->
           {CA, SA}
@@ -470,18 +472,18 @@ eval_expr(M, CodeServer, TraceServer, {c_call, _Anno, Mod, Name, Args}, Cenv, Se
   {CAs, SAs} = lists:unzip(ZAs),
   %% TODO
   %% Will make constraints Mcv=Msv and Fcv=Fsv
-  eval({named, {Mcv, Fcv}}, CAs, SAs, find_call_type(M, Mcv), CodeServer, TraceServer);
+  eval({named, {Mcv, Fcv}}, CAs, SAs, find_call_type(M, Mcv), CodeServer, TraceServer, Fd);
 
 %c_case
-eval_expr(M, CodeServer, TraceServer, {c_case, _Anno, Arg, Clauses}, Cenv, Senv) ->
-  {Cv, Sv} = eval_expr(M, CodeServer, TraceServer, Arg, Cenv, Senv),
-  {Body, NCenv, NSenv, _Cnt} = find_clause(M, 'case', CodeServer, TraceServer, Clauses, Cv, Sv, Cenv, Senv),
-  eval_expr(M, CodeServer, TraceServer, Body, NCenv, NSenv);
+eval_expr(M, CodeServer, TraceServer, {c_case, _Anno, Arg, Clauses}, Cenv, Senv, Fd) ->
+  {Cv, Sv} = eval_expr(M, CodeServer, TraceServer, Arg, Cenv, Senv, Fd),
+  {Body, NCenv, NSenv, _Cnt} = find_clause(M, 'case', CodeServer, TraceServer, Clauses, Cv, Sv, Cenv, Senv, Fd),
+  eval_expr(M, CodeServer, TraceServer, Body, NCenv, NSenv, Fd);
 
 %c_catch
-eval_expr(M, CodeServer, TraceServer, {c_catch, _Anno, Body}, Cenv, Senv) ->
+eval_expr(M, CodeServer, TraceServer, {c_catch, _Anno, Body}, Cenv, Senv, Fd) ->
   try
-    eval_expr(M, CodeServer, TraceServer, Body, Cenv, Senv)
+    eval_expr(M, CodeServer, TraceServer, Body, Cenv, Senv, Fd)
   catch
     throw:Throw ->
       unzip_one(Throw);
@@ -498,21 +500,21 @@ eval_expr(M, CodeServer, TraceServer, {c_catch, _Anno, Body}, Cenv, Senv) ->
   end;
 
 %c_cons
-eval_expr(M, CodeServer, TraceServer, {c_cons, _Anno, Hd, Tl}, Cenv, Senv) ->
-  {Hdcv, Hdsv} = eval_expr(M, CodeServer, TraceServer, Hd, Cenv, Senv),
-  {Tlcv, Tlsv} = eval_expr(M, CodeServer, TraceServer, Tl, Cenv, Senv),
+eval_expr(M, CodeServer, TraceServer, {c_cons, _Anno, Hd, Tl}, Cenv, Senv, Fd) ->
+  {Hdcv, Hdsv} = eval_expr(M, CodeServer, TraceServer, Hd, Cenv, Senv, Fd),
+  {Tlcv, Tlsv} = eval_expr(M, CodeServer, TraceServer, Tl, Cenv, Senv, Fd),
   {[Hdcv|Tlcv], [Hdsv|Tlsv]};
 
 %c_fun
-eval_expr(M, CodeServer, TraceServer, {c_fun, _Anno, Vars, Body}, Cenv, Senv) ->
+eval_expr(M, CodeServer, TraceServer, {c_fun, _Anno, Vars, Body}, Cenv, Senv, Fd) ->
   Arity = length(Vars),
-  Lambda = make_fun(M, Arity, CodeServer, TraceServer, Vars, Body, Cenv, Senv),
+  Lambda = make_fun(M, Arity, CodeServer, TraceServer, Vars, Body, Cenv, Senv, Fd),
   {Lambda, Lambda};
 
 %c_let
-eval_expr(M, CodeServer, TraceServer, {c_let, _Anno, Vars, Arg, Body}, Cenv, Senv) ->
+eval_expr(M, CodeServer, TraceServer, {c_let, _Anno, Vars, Arg, Body}, Cenv, Senv, Fd) ->
   Degree = length(Vars),
-  {C, S} = eval_expr(M, CodeServer, TraceServer, Arg, Cenv, Senv),
+  {C, S} = eval_expr(M, CodeServer, TraceServer, Arg, Cenv, Senv, Fd),
   case Degree of
     1 ->
       CAs = [C],
@@ -523,10 +525,10 @@ eval_expr(M, CodeServer, TraceServer, {c_let, _Anno, Vars, Arg, Body}, Cenv, Sen
   end,
   NCenv = conc_lib:bind_parameters(CAs, Vars, Cenv),
   NSenv = conc_lib:bind_parameters(SAs, Vars, Senv),
-  eval_expr(M, CodeServer, TraceServer, Body, NCenv, NSenv);
+  eval_expr(M, CodeServer, TraceServer, Body, NCenv, NSenv, Fd);
 
 %c_letrec
-eval_expr(M, CodeServer, TraceServer, {c_letrec, _Anno, Defs, Body}, Cenv, Senv) ->
+eval_expr(M, CodeServer, TraceServer, {c_letrec, _Anno, Defs, Body}, Cenv, Senv, Fd) ->
   H = fun(F) -> fun() ->
     lists:foldl(
       fun({Func, Def}, {Ce, Se}) ->
@@ -540,17 +542,17 @@ eval_expr(M, CodeServer, TraceServer, {c_letrec, _Anno, Defs, Body}, Cenv, Senv)
   %% NewEnv is now a /0 function
   %% NewEnv() will create the necessary self-referenced environment
   {NCenv, NSenv} = (y(H))(),
-  eval_expr(M, CodeServer, TraceServer, Body, NCenv, NSenv);
+  eval_expr(M, CodeServer, TraceServer, Body, NCenv, NSenv, Fd);
 
 %c_literal
-eval_expr(_M, _CodeServer, _TraceServer, {c_literal, _Anno, Val}, _Cenv, _Senv) ->
+eval_expr(_M, _CodeServer, _TraceServer, {c_literal, _Anno, Val}, _Cenv, _Senv, _Fd) ->
   {Val, Val};
 
 %c_primop
-eval_expr(M, CodeServer, TraceServer, {c_primop, _Anno, Name, Args}, Cenv, Senv) ->
+eval_expr(M, CodeServer, TraceServer, {c_primop, _Anno, Name, Args}, Cenv, Senv, Fd) ->
   Primop = Name#c_literal.val,
   ZAs = lists:map(
-    fun(A) -> eval_expr(M, CodeServer, TraceServer, A, Cenv, Senv) end,
+    fun(A) -> eval_expr(M, CodeServer, TraceServer, A, Cenv, Senv, Fd) end,
     Args),
   {CAs, SAs} = lists:unzip(ZAs),
   %% TODO needs to records more primops
@@ -561,41 +563,41 @@ eval_expr(M, CodeServer, TraceServer, {c_primop, _Anno, Name, Args}, Cenv, Senv)
       [_SClass, SReason] = SAs,
       %% TODO
       %% Will create costraint CClass=SClass
-      eval({named, {erlang, CClass}}, [CReason], [SReason], external, CodeServer, TraceServer);
+      eval({named, {erlang, CClass}}, [CReason], [SReason], external, CodeServer, TraceServer, Fd);
     'match_fail' ->
       [Cv]= CAs,
       [Sv] = SAs,
-      eval({named, {erlang, error}}, [{badmatch, Cv}], [{badmatch, Sv}], external, CodeServer, TraceServer);
+      eval({named, {erlang, error}}, [{badmatch, Cv}], [{badmatch, Sv}], external, CodeServer, TraceServer, Fd);
     _ ->
       exception(error, {not_supported_primop, Primop})
   end;
 
 %c_receive
-eval_expr(M, CodeServer, TraceServer, {c_receive, _Anno, Clauses, Timeout, Action}, Cenv, Senv) ->
-  {CTimeout, STimeout} = eval_expr(M, CodeServer, TraceServer, Timeout, Cenv, Senv),
-  true = check_timeout(CTimeout, STimeout),
+eval_expr(M, CodeServer, TraceServer, {c_receive, _Anno, Clauses, Timeout, Action}, Cenv, Senv, Fd) ->
+  {CTimeout, STimeout} = eval_expr(M, CodeServer, TraceServer, Timeout, Cenv, Senv, Fd),
+  true = check_timeout(CTimeout, STimeout, Fd),
   Start = erlang:now(),  %% Start timeout timer
   {messages, Mailbox} = erlang:process_info(self(), messages),
-  Message = find_message(M, CodeServer, TraceServer, Clauses, Mailbox, Cenv, Senv),
+  Message = find_message(M, CodeServer, TraceServer, Clauses, Mailbox, Cenv, Senv, Fd),
   case Message of
     {Msg, Body, NCenv, NSenv, _Cnt} ->  %% Matched a message already in the mailbox
       receive Msg -> ok end,  %% Just consume the message
-      eval_expr(M, CodeServer, TraceServer, Body, NCenv, NSenv);
+      eval_expr(M, CodeServer, TraceServer, Body, NCenv, NSenv, Fd);
     false ->  %% No mailbox message matched, thus need to enter a receive loop
       CurrMsgs = length(Mailbox),
-      find_message_loop(M, CodeServer, TraceServer, Clauses, Action, CTimeout, STimeout, Cenv, Senv, Start, CurrMsgs)
+      find_message_loop(M, CodeServer, TraceServer, Clauses, Action, CTimeout, STimeout, Cenv, Senv, Start, CurrMsgs, Fd)
   end;
   
 %c_seq
-eval_expr(M, CodeServer, TraceServer, {c_seq, _Anno, Arg, Body}, Cenv, Senv) ->
-  _Val = eval_expr(M, CodeServer, TraceServer, Arg, Cenv, Senv),
-  eval_expr(M, CodeServer, TraceServer, Body, Cenv, Senv);
+eval_expr(M, CodeServer, TraceServer, {c_seq, _Anno, Arg, Body}, Cenv, Senv, Fd) ->
+  _Val = eval_expr(M, CodeServer, TraceServer, Arg, Cenv, Senv, Fd),
+  eval_expr(M, CodeServer, TraceServer, Body, Cenv, Senv, Fd);
 
 %c_try
-eval_expr(M, CodeServer, TraceServer, {c_try, _Anno, Arg, Vars, Body, Evars, Handler}, Cenv, Senv) ->
+eval_expr(M, CodeServer, TraceServer, {c_try, _Anno, Arg, Vars, Body, Evars, Handler}, Cenv, Senv, Fd) ->
   try
     Degree = length(Vars),
-    {C, S} = eval_expr(M, CodeServer, TraceServer, Arg, Cenv, Senv),
+    {C, S} = eval_expr(M, CodeServer, TraceServer, Arg, Cenv, Senv, Fd),
     case Degree of
       1 ->
         CAs = [C],
@@ -606,7 +608,7 @@ eval_expr(M, CodeServer, TraceServer, {c_try, _Anno, Arg, Vars, Body, Evars, Han
     end,
     NCenv = conc_lib:bind_parameters(CAs, Vars, Cenv),
     NSenv = conc_lib:bind_parameters(SAs, Vars, Senv),
-    eval_expr(M, CodeServer, TraceServer, Body, NCenv, NSenv)
+    eval_expr(M, CodeServer, TraceServer, Body, NCenv, NSenv, Fd)
   catch
     Class:Reason ->
       {Cv, Sv} = unzip_one(Reason),
@@ -617,28 +619,28 @@ eval_expr(M, CodeServer, TraceServer, {c_try, _Anno, Arg, Vars, Body, Evars, Han
         end,
       ECenv = conc_lib:bind_parameters(Cs, Evars, Cenv),
       ESenv = conc_lib:bind_parameters(Ss, Evars, Senv),
-      eval_expr(M, CodeServer, TraceServer, Handler, ECenv, ESenv)
+      eval_expr(M, CodeServer, TraceServer, Handler, ECenv, ESenv, Fd)
   end;
 
 %c_tuple
-eval_expr(M, CodeServer, TraceServer, {c_tuple, _Anno, Es}, Cenv, Senv) ->
+eval_expr(M, CodeServer, TraceServer, {c_tuple, _Anno, Es}, Cenv, Senv, Fd) ->
   ZEs = lists:map(
-    fun(E) -> eval_expr(M, CodeServer, TraceServer, E, Cenv, Senv) end,
+    fun(E) -> eval_expr(M, CodeServer, TraceServer, E, Cenv, Senv, Fd) end,
     Es),
   {CEs, SEs} = lists:unzip(ZEs),
   {list_to_tuple(CEs), list_to_tuple(SEs)};
 
 %c_values
-eval_expr(M, CodeServer, TraceServer, {c_values, _Anno, Es}, Cenv, Senv) ->
+eval_expr(M, CodeServer, TraceServer, {c_values, _Anno, Es}, Cenv, Senv, Fd) ->
   Degree = length(Es),
   ZEs = lists:map(
-    fun(E) -> eval_expr(M, CodeServer, TraceServer, E, Cenv, Senv) end,
+    fun(E) -> eval_expr(M, CodeServer, TraceServer, E, Cenv, Senv, Fd) end,
     Es),
   {CEs, SEs} = lists:unzip(ZEs),
   {#valuelist{values=CEs, degree=Degree}, #valuelist{values=SEs, degree=Degree}};
 
 %c_var
-eval_expr(_M, _CodeServer, _TraceServer, {c_var, _Anno, Name}, Cenv, Senv)
+eval_expr(_M, _CodeServer, _TraceServer, {c_var, _Anno, Name}, Cenv, Senv, _Fd)
   when is_tuple(Name) ->
     %% If Name is a function
     case conc_lib:get_value(Name, Cenv) of
@@ -654,7 +656,7 @@ eval_expr(_M, _CodeServer, _TraceServer, {c_var, _Anno, Name}, Cenv, Senv)
         R = {func, {Fun, Arity}},
         {R, R}
     end;
-eval_expr(_M, _CodeServer, _TraceServer, {c_var, _Anno, Name}, Cenv, Senv) ->
+eval_expr(_M, _CodeServer, _TraceServer, {c_var, _Anno, Name}, Cenv, Senv, _Fd) ->
   %% If it's a variable then return its value
   {ok, Cval} = conc_lib:get_value(Name, Cenv),
   {ok, Sval} = conc_lib:get_value(Name, Senv),
@@ -664,39 +666,39 @@ eval_expr(_M, _CodeServer, _TraceServer, {c_var, _Anno, Name}, Cenv, Senv) ->
 %% ===============
 %% find_message_loop
 %% ===============
-find_message_loop(M, CodeServer, TraceServer, Clauses, Action, infinity, STimeout, Cenv, Senv, Start, Msgs) ->
+find_message_loop(M, CodeServer, TraceServer, Clauses, Action, infinity, STimeout, Cenv, Senv, Start, Msgs, Fd) ->
   %% TODO Constraint: STimeout=infinity but will have been made by chek_timeout
-  run_message_loop(M, CodeServer, TraceServer, Clauses, Action, infinity, STimeout, Cenv, Senv, Start, Msgs);
+  run_message_loop(M, CodeServer, TraceServer, Clauses, Action, infinity, STimeout, Cenv, Senv, Start, Msgs, Fd);
   
-find_message_loop(M, CodeServer, TraceServer, Clauses, Action, CTimeout, STimeout, Cenv, Senv, Start, Msgs) ->
+find_message_loop(M, CodeServer, TraceServer, Clauses, Action, CTimeout, STimeout, Cenv, Senv, Start, Msgs, Fd) ->
   Now = erlang:now(),
   Passed = timer:now_diff(Now, Start) / 1000,
   case Passed >= CTimeout of
     true ->
-      eval_expr(M, CodeServer, TraceServer, Action, Cenv, Senv);
+      eval_expr(M, CodeServer, TraceServer, Action, Cenv, Senv, Fd);
     false ->
-    run_message_loop(M, CodeServer, TraceServer, Clauses, Action, CTimeout, STimeout, Cenv, Senv, Start, Msgs)
+    run_message_loop(M, CodeServer, TraceServer, Clauses, Action, CTimeout, STimeout, Cenv, Senv, Start, Msgs, Fd)
   end.
 
 %% Helper function run_message_loop/11
-run_message_loop(M, CodeServer, TraceServer, Clauses, Action, CTimeout, STimeout, Cenv, Senv, Start, Msgs) ->
+run_message_loop(M, CodeServer, TraceServer, Clauses, Action, CTimeout, STimeout, Cenv, Senv, Start, Msgs, Fd) ->
   erlang:yield(),
   {message_queue_len, CurrMsgs} = erlang:process_info(self(), message_queue_len),
   %% New messages will appended at the end of the mailbox
   case CurrMsgs > Msgs of
     false -> %% No new messages
-      find_message_loop(M, CodeServer, TraceServer, Clauses, Action, CTimeout, STimeout, Cenv, Senv, Start, Msgs);
+      find_message_loop(M, CodeServer, TraceServer, Clauses, Action, CTimeout, STimeout, Cenv, Senv, Start, Msgs, Fd);
     true ->
       {messages, Mailbox} = erlang:process_info(self(), messages),
       NewMsgs = lists:nthtail(Msgs, Mailbox),
-      Message = find_message(M, CodeServer, TraceServer, Clauses, NewMsgs, Cenv, Senv),
+      Message = find_message(M, CodeServer, TraceServer, Clauses, NewMsgs, Cenv, Senv, Fd),
       case Message of
         false ->
-          find_message_loop(M, CodeServer, TraceServer, Clauses, Action, CTimeout, STimeout, Cenv, Senv, Start, CurrMsgs);
+          find_message_loop(M, CodeServer, TraceServer, Clauses, Action, CTimeout, STimeout, Cenv, Senv, Start, CurrMsgs, Fd);
         {Msg, Body, NCenv, NSenv, _Cnt} ->
 %         io:format("r ~w  |  ",[Msg]), 
           receive Msg -> ok end,  %% Just consume the matched message
-          eval_expr(M, CodeServer, TraceServer, Body, NCenv, NSenv)
+          eval_expr(M, CodeServer, TraceServer, Body, NCenv, NSenv, Fd)
       end
   end.
   
@@ -705,18 +707,13 @@ run_message_loop(M, CodeServer, TraceServer, Clauses, Action, CTimeout, STimeout
 %% ===============
 %% find_message
 %% ===============
-find_message(_M, _CodeServer, _TraceServer, _Clauses, [], _Cenv, _Senv) ->
+find_message(_M, _CodeServer, _TraceServer, _Clauses, [], _Cenv, _Senv, _Fd) ->
   false;
-find_message(M, CodeServer, TraceServer, Clauses, [Msg|Mailbox], Cenv, Senv) ->
-%  {Cv, Sv} = {Msg, Msg},
+find_message(M, CodeServer, TraceServer, Clauses, [Msg|Mailbox], Cenv, Senv, Fd) ->
   {Cv, Sv} = decode_msg(Msg),
-%    case is_binary(Msg) of
-%      true  -> unzip_msg(binary_to_term(Msg));
-%      false -> unzip_msg(Msg)
-%    end,
-  case find_clause(M, 'receive', CodeServer, TraceServer, Clauses, Cv, Sv, Cenv, Senv) of
+  case find_clause(M, 'receive', CodeServer, TraceServer, Clauses, Cv, Sv, Cenv, Senv, Fd) of
     false ->
-      find_message(M, CodeServer, TraceServer, Clauses, Mailbox, Cenv, Senv);
+      find_message(M, CodeServer, TraceServer, Clauses, Mailbox, Cenv, Senv, Fd);
     {Body, NCenv, NSenv, Cnt} ->
       {Msg, Body, NCenv, NSenv, Cnt}
   end.
@@ -725,16 +722,16 @@ find_message(M, CodeServer, TraceServer, Clauses, [Msg|Mailbox], Cenv, Senv) ->
 %% ===============
 %% find_clause
 %% ===============
-find_clause(M, Mode, CodeServer, TraceServer, Clauses, Cv, Sv, Cenv, Senv) ->
-  find_clause(M, Mode, CodeServer, TraceServer, Clauses, Cv, Sv, Cenv, Senv, 1).
+find_clause(M, Mode, CodeServer, TraceServer, Clauses, Cv, Sv, Cenv, Senv, Fd) ->
+  find_clause(M, Mode, CodeServer, TraceServer, Clauses, Cv, Sv, Cenv, Senv, Fd, 1).
 
-find_clause(_M, _Mode, _CodeServer, _TraceServer, [], _Cv, _Sv, _Cenv, _Senv, _Cnt) ->
+find_clause(_M, _Mode, _CodeServer, _TraceServer, [], _Cv, _Sv, _Cenv, _Senv, _Fd, _Cnt) ->
   false;
-find_clause(M, Mode, CodeServer, TraceServer, [Cl|Cls], Cv, Sv, Cenv, Senv, Cnt) ->
-  Match = match_clause(M, Mode, CodeServer, TraceServer, Cl, Cv, Sv, Cenv, Senv, Cnt),
+find_clause(M, Mode, CodeServer, TraceServer, [Cl|Cls], Cv, Sv, Cenv, Senv, Fd, Cnt) ->
+  Match = match_clause(M, Mode, CodeServer, TraceServer, Cl, Cv, Sv, Cenv, Senv, Fd, Cnt),
   case Match of
     false ->
-      find_clause(M, Mode, CodeServer, TraceServer, Cls, Cv, Sv, Cenv, Senv, Cnt+1);
+      find_clause(M, Mode, CodeServer, TraceServer, Cls, Cv, Sv, Cenv, Senv, Fd, Cnt+1);
     {true, {Body, NCenv, NSenv, Cnt}} ->
       {Body, NCenv, NSenv, Cnt}
   end.
@@ -742,7 +739,7 @@ find_clause(M, Mode, CodeServer, TraceServer, [Cl|Cls], Cv, Sv, Cenv, Senv, Cnt)
 %% ===============
 %% match_clause
 %% ===============
-match_clause(M, Mode, CodeServer, TraceServer, {c_clause, _Anno, Pats, Guard, Body}, Cv, Sv, Cenv, Senv, Cnt) ->
+match_clause(M, Mode, CodeServer, TraceServer, {c_clause, _Anno, Pats, Guard, Body}, Cv, Sv, Cenv, Senv, Fd, Cnt) ->
   case is_patlist_compatible(Pats, Cv) of
     false ->
       false;
@@ -758,14 +755,14 @@ match_clause(M, Mode, CodeServer, TraceServer, {c_clause, _Anno, Pats, Guard, Bo
       end,
       %% BitInfo is needed for parameterized bit-syntax patterns
       BitInfo = {M, CodeServer, Cenv, Senv},
-      Match = pattern_match_all(BitInfo, Mode, TraceServer, Pats, Cs, Ss),
+      Match = pattern_match_all(BitInfo, Mode, TraceServer, Pats, Cs, Ss, Fd),
       case Match of
         false ->
           false;
         {true, {CMs, SMs}} ->
           NCenv = conc_lib:add_mappings_to_environment(CMs, Cenv),
           NSenv = conc_lib:add_mappings_to_environment(SMs, Senv),
-          try eval_expr(M, CodeServer, TraceServer, Guard, NCenv, NSenv) of
+          try eval_expr(M, CodeServer, TraceServer, Guard, NCenv, NSenv, Fd) of
             {true, _SGv} ->
               %% TODO make constraint SGv=true
               {true, {Body, NCenv, NSenv, Cnt}};
@@ -783,16 +780,16 @@ match_clause(M, Mode, CodeServer, TraceServer, {c_clause, _Anno, Pats, Guard, Bo
 %% pattern_match_all
 %% ===============
 
-pattern_match_all(BitInfo, Mode, TraceServer, Pats, Cvs, Svs) ->
-  pattern_match_all(BitInfo, Mode, TraceServer, Pats, Cvs, Svs, [], []).
+pattern_match_all(BitInfo, Mode, TraceServer, Pats, Cvs, Svs, Fd) ->
+  pattern_match_all(BitInfo, Mode, TraceServer, Pats, Cvs, Svs, [], [], Fd).
   
-pattern_match_all(_BitInfo, _Mode, _TraceServer, [], [], [], CMaps, SMaps) ->
+pattern_match_all(_BitInfo, _Mode, _TraceServer, [], [], [], CMaps, SMaps, _Fd) ->
   {true, {CMaps, SMaps}};
-pattern_match_all(BitInfo, Mode, TraceServer, [P|Ps], [Cv|Cvs], [Sv|Svs], CMaps, SMaps) ->
-  Match = pattern_match(BitInfo, Mode, TraceServer, P, Cv, Sv, CMaps, SMaps),
+pattern_match_all(BitInfo, Mode, TraceServer, [P|Ps], [Cv|Cvs], [Sv|Svs], CMaps, SMaps, Fd) ->
+  Match = pattern_match(BitInfo, Mode, TraceServer, P, Cv, Sv, CMaps, SMaps, Fd),
   case Match of
     {true, {CMs, SMs}} ->
-      pattern_match_all(BitInfo, Mode, TraceServer, Ps, Cvs, Svs, CMs, SMs);
+      pattern_match_all(BitInfo, Mode, TraceServer, Ps, Cvs, Svs, CMs, SMs, Fd);
     false ->
       false
   end.
@@ -802,7 +799,7 @@ pattern_match_all(BitInfo, Mode, TraceServer, [P|Ps], [Cv|Cvs], [Sv|Svs], CMaps,
 %% ===============
 
 %% AtomicLiteral pattern
-pattern_match(_BitInfo, _Mode, _TraceServer, {c_literal, _Anno, LitVal}, Cv, _Sv, CMaps, SMaps) ->
+pattern_match(_BitInfo, _Mode, _TraceServer, {c_literal, _Anno, LitVal}, Cv, _Sv, CMaps, SMaps, _Fd) ->
   case LitVal =:= Cv of
     true ->
       %% TODO Constraint Sv == Litval
@@ -813,13 +810,13 @@ pattern_match(_BitInfo, _Mode, _TraceServer, {c_literal, _Anno, LitVal}, Cv, _Sv
   end;
   
 %% VariableName pattern
-pattern_match(_BitInfo, _Mode, _TraceServer, {c_var, _Anno, Name}, Cv, Sv, CMaps, SMaps) ->
+pattern_match(_BitInfo, _Mode, _TraceServer, {c_var, _Anno, Name}, Cv, Sv, CMaps, SMaps, _Fd) ->
   CMs = [{Name, Cv}|CMaps],
   SMs = [{Name, Sv}|SMaps],
   {true, {CMs, SMs}};
   
 %% Tuple pattern
-pattern_match(BitInfo, Mode, TraceServer, {c_tuple, _Anno, Es}, Cv, Sv, CMaps, SMaps)
+pattern_match(BitInfo, Mode, TraceServer, {c_tuple, _Anno, Es}, Cv, Sv, CMaps, SMaps, Fd)
   when is_tuple(Cv) ->
     Ne = length(Es),
     Cs = tuple_to_list(Cv),
@@ -827,33 +824,33 @@ pattern_match(BitInfo, Mode, TraceServer, {c_tuple, _Anno, Es}, Cv, Sv, CMaps, S
       Ne ->
         %% TODO Constraint: Sv tuple with Ne elements
         Ss = conc_symb:tuple_to_list(Sv, Ne),
-        pattern_match_all(BitInfo, Mode, TraceServer, Es, Cs, Ss, CMaps, SMaps);
+        pattern_match_all(BitInfo, Mode, TraceServer, Es, Cs, Ss, CMaps, SMaps, Fd);
       _ ->
         %% TODO Constraint: Sv not tuple with Ne elements
         false
     end;    
-pattern_match(_BitInfo, _Mode, _TraceServer, {c_tuple, _Anno, _Es}, _Cv, _Sv, _CMaps, _SMaps) ->
+pattern_match(_BitInfo, _Mode, _TraceServer, {c_tuple, _Anno, _Es}, _Cv, _Sv, _CMaps, _SMaps, _Fd) ->
   %% TODO Constraint: Sv not tuple
   false;
   
 %% List constructor pattern
-pattern_match(BitInfo, Mode, TraceServer, {c_cons, _Anno, Hd, Tl}, [Cv|Cvs], S, CMaps, SMaps) ->
+pattern_match(BitInfo, Mode, TraceServer, {c_cons, _Anno, Hd, Tl}, [Cv|Cvs], S, CMaps, SMaps, Fd) ->
   %% TODO Constraing: Sv is non empty list
   Sv = conc_symb:hd(S),
   Svs = conc_symb:tl(S),
-  case pattern_match(BitInfo, Mode, TraceServer, Hd, Cv, Sv, CMaps, SMaps) of
+  case pattern_match(BitInfo, Mode, TraceServer, Hd, Cv, Sv, CMaps, SMaps, Fd) of
     {true, {CMs, SMs}} ->
-      pattern_match(BitInfo, Mode, TraceServer, Tl, Cvs, Svs, CMs, SMs);
+      pattern_match(BitInfo, Mode, TraceServer, Tl, Cvs, Svs, CMs, SMs, Fd);
     false ->
       false
   end;  
-pattern_match(_BitInfo, _Mode, _TraceServer, {c_cons, _Anno, _Hd, _Tl}, _Cv, _Sv, _CMaps, _SMaps) ->
+pattern_match(_BitInfo, _Mode, _TraceServer, {c_cons, _Anno, _Hd, _Tl}, _Cv, _Sv, _CMaps, _SMaps, _Fd) ->
   %% TODO Constraint: Sv not list
   false;
 
 %% Alias pattern
-pattern_match(BitInfo, Mode, TraceServer, {c_alias, _Anno, Var, Pat}, Cv, Sv, CMaps, SMaps) ->
-  Match = pattern_match(BitInfo, Mode, TraceServer, Pat, Cv, Sv, CMaps, SMaps),
+pattern_match(BitInfo, Mode, TraceServer, {c_alias, _Anno, Var, Pat}, Cv, Sv, CMaps, SMaps, Fd) ->
+  Match = pattern_match(BitInfo, Mode, TraceServer, Pat, Cv, Sv, CMaps, SMaps, Fd),
   case Match of
     {true, {CMs, SMs}} ->
       VarName = Var#c_var.name,
@@ -865,40 +862,40 @@ pattern_match(BitInfo, Mode, TraceServer, {c_alias, _Anno, Var, Pat}, Cv, Sv, CM
   end;
   
 %% Binary pattern
-pattern_match(BitInfo, Mode, TraceServer, {c_binary, _Anno, Segments}, Cv, Sv, CMaps, SMaps) ->
-  bit_pattern_match(BitInfo, Mode, TraceServer, Segments, Cv, Sv, CMaps, SMaps).
+pattern_match(BitInfo, Mode, TraceServer, {c_binary, _Anno, Segments}, Cv, Sv, CMaps, SMaps, Fd) ->
+  bit_pattern_match(BitInfo, Mode, TraceServer, Segments, Cv, Sv, CMaps, SMaps, Fd).
 
 
 %% ===============
 %% bit_pattern_match
 %% ===============
-bit_pattern_match(_BitInfo, _Mode, _TraceServer, [], <<>>, _Sv, CMaps, SMaps) ->
+bit_pattern_match(_BitInfo, _Mode, _TraceServer, [], <<>>, _Sv, CMaps, SMaps, _Fd) ->
   %% TODO Constraint: Sv = <<>>
   {true, {CMaps, SMaps}};
 
-bit_pattern_match({M, CodeServer, Cenv, Senv}, Mode, TraceServer, [{c_bitstr, _Anno, Val, Size, Unit, Type, Flags} | Bs], Cv, Sv, CMaps, SMaps) ->
+bit_pattern_match({M, CodeServer, Cenv, Senv}, Mode, TraceServer, [{c_bitstr, _Anno, Val, Size, Unit, Type, Flags} | Bs], Cv, Sv, CMaps, SMaps, Fd) ->
   case Val of
     {c_literal, _AnnoL, LitVal} ->
-      {CSize, SSize} = eval_expr(M, CodeServer, TraceServer, Size, Cenv, Senv),
-      {CUnit, SUnit} = eval_expr(M, CodeServer, TraceServer, Unit, Cenv, Senv),
-      {CType, SType} = eval_expr(M, CodeServer, TraceServer, Type, Cenv, Senv),
-      {CFlags, SFlags} = eval_expr(M, CodeServer, TraceServer, Flags, Cenv, Senv),
+      {CSize, SSize} = eval_expr(M, CodeServer, TraceServer, Size, Cenv, Senv, Fd),
+      {CUnit, SUnit} = eval_expr(M, CodeServer, TraceServer, Unit, Cenv, Senv, Fd),
+      {CType, SType} = eval_expr(M, CodeServer, TraceServer, Type, Cenv, Senv, Fd),
+      {CFlags, SFlags} = eval_expr(M, CodeServer, TraceServer, Flags, Cenv, Senv, Fd),
       try bin_lib:match_bitstring_const(LitVal, CSize, CUnit, CType, CFlags, Cv) of
         CRest ->
           SLit = conc_symb:make_bitstring(LitVal, SSize, SUnit, SType, SFlags),
           %% TODO Constraint: SLit matched Sv
           SRest = conc_symb:match_bitstring_const(SLit, Sv),
-          bit_pattern_match({M, CodeServer, Cenv, Senv}, Mode, TraceServer, Bs, CRest, SRest, CMaps, SMaps)
+          bit_pattern_match({M, CodeServer, Cenv, Senv}, Mode, TraceServer, Bs, CRest, SRest, CMaps, SMaps, Fd)
       catch
         error:_E ->
           %% TODO Constraint: <<LitVal:CSize/CType-CFlags-unit:CUnit>> didn't match Sv
           false
       end;
     {c_var, _Anno, VarName} ->
-      {CSize, SSize} = eval_expr(M, CodeServer, TraceServer, Size, Cenv, Senv),
-      {CUnit, SUnit} = eval_expr(M, CodeServer, TraceServer, Unit, Cenv, Senv),
-      {CType, SType} = eval_expr(M, CodeServer, TraceServer, Type, Cenv, Senv),
-      {CFlags, SFlags} = eval_expr(M, CodeServer, TraceServer, Flags, Cenv, Senv),
+      {CSize, SSize} = eval_expr(M, CodeServer, TraceServer, Size, Cenv, Senv, Fd),
+      {CUnit, SUnit} = eval_expr(M, CodeServer, TraceServer, Unit, Cenv, Senv, Fd),
+      {CType, SType} = eval_expr(M, CodeServer, TraceServer, Type, Cenv, Senv, Fd),
+      {CFlags, SFlags} = eval_expr(M, CodeServer, TraceServer, Flags, Cenv, Senv, Fd),
       try bin_lib:match_bitstring_var(CSize, CUnit, CType, CFlags, Cv) of
         {CX, CRest} ->
           SEnc = {SSize, SUnit, SType, SFlags},
@@ -912,7 +909,7 @@ bit_pattern_match({M, CodeServer, Cenv, Senv}, Mode, TraceServer, [{c_bitstr, _A
             end,
           NewCenv = conc_lib:add_binding(VarName, CX, Cenv),
           NewSenv = conc_lib:add_binding(VarName, SX, Senv),
-          bit_pattern_match({M, CodeServer, NewCenv, NewSenv}, Mode, TraceServer, Bs, CRest, SRest, NewCMaps, NewSMaps)
+          bit_pattern_match({M, CodeServer, NewCenv, NewSenv}, Mode, TraceServer, Bs, CRest, SRest, NewCMaps, NewSMaps, Fd)
       catch
         error:_E ->
           %% TODO Constraint: (X is var) <<X:CSize/CType-CFlags-unit:CUnit>> didn't match Sv
@@ -926,18 +923,18 @@ bit_pattern_match({M, CodeServer, Cenv, Senv}, Mode, TraceServer, [{c_bitstr, _A
 %% ===============
 
 %% Creates a Closure of a local function
-create_closure(M, F, Arity, CodeServer, TraceServer, local) ->
+create_closure(M, F, Arity, CodeServer, TraceServer, local, Fd) ->
   %% Module is already loaded since create_closure is called by eval_expr
   {ok, MDb} = get_module_db(M, CodeServer),
   Key = {M, F, Arity},
   {Def, _Exported} = retrieve_function(Key, MDb),
   Cenv = conc_lib:new_environment(),
   Senv = conc_lib:new_environment(),
-  make_fun(M, Arity, CodeServer, TraceServer, Def#c_fun.vars, Def#c_fun.body, Cenv, Senv);
+  make_fun(M, Arity, CodeServer, TraceServer, Def#c_fun.vars, Def#c_fun.body, Cenv, Senv, Fd);
   
 %% Creates a Closure when the MFA is a function bound in a letrec
-create_closure(M, _F, Arity, CodeServer, TraceServer, {letrec_fun, {Def, Cenv, Senv}}) ->
-  make_fun(M, Arity, CodeServer, TraceServer, Def#c_fun.vars, Def#c_fun.body, Cenv, Senv).
+create_closure(M, _F, Arity, CodeServer, TraceServer, {letrec_fun, {Def, Cenv, Senv}}, Fd) ->
+  make_fun(M, Arity, CodeServer, TraceServer, Def#c_fun.vars, Def#c_fun.body, Cenv, Senv, Fd).
 
 
 
@@ -946,12 +943,14 @@ create_closure(M, _F, Arity, CodeServer, TraceServer, {letrec_fun, {Def, Cenv, S
 %% ===============
 %% Manually creating anonymous func and not use a list Args for parameters
 %% since the problem is that high order functions don't always expect a /1 function
-make_fun(Mod, Arity, CServer, TServer, Vars, Body, Cenv, Senv) ->
+make_fun(Mod, Arity, CServer, TServer, Vars, Body, Cenv, Senv, FileDescr) ->
+  Creator = self(),
   case Arity of
     0 ->
       fun() ->
         {CodeServer, TraceServer} = validate_servers(CServer, TServer),
-        eval_expr(Mod, CodeServer, TraceServer, Body, Cenv, Senv)
+        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
+        eval_expr(Mod, CodeServer, TraceServer, Body, Cenv, Senv, Fd)
       end;
     1 ->
       fun(A) ->
@@ -960,7 +959,8 @@ make_fun(Mod, Arity, CServer, TServer, Vars, Body, Cenv, Senv) ->
         NCenv = conc_lib:bind_parameters(CAs, Vars, Cenv),
         NSenv = conc_lib:bind_parameters(SAs, Vars, Senv),
         {CodeServer, TraceServer} = validate_servers(CServer, TServer),
-        eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv)
+        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
+        eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv, Fd)
       end;
     2 ->
       fun(A, B) ->
@@ -969,7 +969,8 @@ make_fun(Mod, Arity, CServer, TServer, Vars, Body, Cenv, Senv) ->
         NCenv = conc_lib:bind_parameters(CAs, Vars, Cenv),
         NSenv = conc_lib:bind_parameters(SAs, Vars, Senv),
         {CodeServer, TraceServer} = validate_servers(CServer, TServer),
-        eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv)
+        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
+        eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv, Fd)
       end;
     3 ->
       fun(A, B, C) ->
@@ -978,7 +979,8 @@ make_fun(Mod, Arity, CServer, TServer, Vars, Body, Cenv, Senv) ->
         NCenv = conc_lib:bind_parameters(CAs, Vars, Cenv),
         NSenv = conc_lib:bind_parameters(SAs, Vars, Senv),
         {CodeServer, TraceServer} = validate_servers(CServer, TServer),
-        eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv)
+        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
+        eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv, Fd)
       end;
     4 ->
       fun(A, B, C, D) ->
@@ -987,7 +989,8 @@ make_fun(Mod, Arity, CServer, TServer, Vars, Body, Cenv, Senv) ->
         NCenv = conc_lib:bind_parameters(CAs, Vars, Cenv),
         NSenv = conc_lib:bind_parameters(SAs, Vars, Senv),
         {CodeServer, TraceServer} = validate_servers(CServer, TServer),
-        eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv)
+        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
+        eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv, Fd)
       end;
     5 ->
       fun(A, B, C, D, E) ->
@@ -996,7 +999,8 @@ make_fun(Mod, Arity, CServer, TServer, Vars, Body, Cenv, Senv) ->
         NCenv = conc_lib:bind_parameters(CAs, Vars, Cenv),
         NSenv = conc_lib:bind_parameters(SAs, Vars, Senv),
         {CodeServer, TraceServer} = validate_servers(CServer, TServer),
-        eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv)
+        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
+        eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv, Fd)
       end;
     6 ->
       fun(A, B, C, D, E, F) ->
@@ -1005,7 +1009,8 @@ make_fun(Mod, Arity, CServer, TServer, Vars, Body, Cenv, Senv) ->
         NCenv = conc_lib:bind_parameters(CAs, Vars, Cenv),
         NSenv = conc_lib:bind_parameters(SAs, Vars, Senv),
         {CodeServer, TraceServer} = validate_servers(CServer, TServer),
-        eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv)
+        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
+        eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv, Fd)
       end;
     7 ->
       fun(A, B, C, D, E, F, G) ->
@@ -1014,7 +1019,8 @@ make_fun(Mod, Arity, CServer, TServer, Vars, Body, Cenv, Senv) ->
         NCenv = conc_lib:bind_parameters(CAs, Vars, Cenv),
         NSenv = conc_lib:bind_parameters(SAs, Vars, Senv),
         {CodeServer, TraceServer} = validate_servers(CServer, TServer),
-        eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv)
+        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
+        eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv, Fd)
       end;
     8 ->
       fun(A, B, C, D, E, F, G, H) ->
@@ -1023,7 +1029,8 @@ make_fun(Mod, Arity, CServer, TServer, Vars, Body, Cenv, Senv) ->
         NCenv = conc_lib:bind_parameters(CAs, Vars, Cenv),
         NSenv = conc_lib:bind_parameters(SAs, Vars, Senv),
         {CodeServer, TraceServer} = validate_servers(CServer, TServer),
-        eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv)
+        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
+        eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv, Fd)
       end;
     9 ->
       fun(A, B, C, D, E, F, G, H, I) ->
@@ -1032,7 +1039,8 @@ make_fun(Mod, Arity, CServer, TServer, Vars, Body, Cenv, Senv) ->
         NCenv = conc_lib:bind_parameters(CAs, Vars, Cenv),
         NSenv = conc_lib:bind_parameters(SAs, Vars, Senv),
         {CodeServer, TraceServer} = validate_servers(CServer, TServer),
-        eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv)
+        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
+        eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv, Fd)
       end;
     10 ->
       fun(A, B, C, D, E, F, G, H, I, J) ->
@@ -1041,89 +1049,102 @@ make_fun(Mod, Arity, CServer, TServer, Vars, Body, Cenv, Senv) ->
         NCenv = conc_lib:bind_parameters(CAs, Vars, Cenv),
         NSenv = conc_lib:bind_parameters(SAs, Vars, Senv),
         {CodeServer, TraceServer} = validate_servers(CServer, TServer),
-        eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv)
+        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
+        eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv, Fd)
       end;
     _ ->
       exception('error', {over_lambda_fun_argument_limit, Arity})
   end.
 
 %% Creates a closure for make_fun when no information on MFA is available
-make_fun(Mod, Func, Arity, CServer, TServer) ->
+make_fun(Mod, Func, Arity, CServer, TServer, FileDescr) ->
+  Creator = self(),
   case Arity of
     0 ->
       fun() ->
         {CodeServer, TraceServer} = validate_servers(CServer, TServer),
-        eval({named, {Mod, Func}}, [], [], external, CodeServer, TraceServer)
+        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
+        eval({named, {Mod, Func}}, [], [], external, CodeServer, TraceServer, Fd)
       end;
     1 ->
       fun(A) ->
         Args = [A],
         {CAs, SAs} = unzip_args(Args),
         {CodeServer, TraceServer} = validate_servers(CServer, TServer),
-        eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer)
+        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
+        eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer, Fd)
       end;
     2 ->
       fun(A, B) ->
         Args = [A, B],
         {CAs, SAs} = unzip_args(Args),
         {CodeServer, TraceServer} = validate_servers(CServer, TServer),
-        eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer)
+        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
+        eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer, Fd)
       end;
     3 ->
       fun(A, B, C) ->
         Args = [A, B, C],
         {CAs, SAs} = unzip_args(Args),
         {CodeServer, TraceServer} = validate_servers(CServer, TServer),
-        eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer)
+        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
+        eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer, Fd)
       end;
     4 ->
       fun(A, B, C, D) ->
         Args = [A, B, C, D],
         {CAs, SAs} = unzip_args(Args),
         {CodeServer, TraceServer} = validate_servers(CServer, TServer),
-        eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer)
+        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
+        eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer, Fd)
       end;
     5 ->
       fun(A, B, C, D, E) ->
         Args = [A, B, C, D, E],
         {CAs, SAs} = unzip_args(Args),
         {CodeServer, TraceServer} = validate_servers(CServer, TServer),
-        eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer)
+        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
+        eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer, Fd)
       end;
     6 ->
       fun(A, B, C, D, E, F) ->
         Args = [A, B, C, D, E, F],
         {CAs, SAs} = unzip_args(Args),
         {CodeServer, TraceServer} = validate_servers(CServer, TServer),
-        eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer)
+        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
+        eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer, Fd)
       end;
     7 ->
       fun(A, B, C, D, E, F, G) ->
         Args = [A, B, C, D, E, F, G],
         {CAs, SAs} = unzip_args(Args),
         {CodeServer, TraceServer} = validate_servers(CServer, TServer),
-        eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer)
+        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
+        eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer, Fd)
       end;
     8 ->
       fun(A, B, C, D, E, F, G, H) ->
         Args = [A, B, C, D, E, F, G, H],
         {CAs, SAs} = unzip_args(Args),
         {CodeServer, TraceServer} = validate_servers(CServer, TServer),
-        eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer)
+        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
+        eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer, Fd)
       end;
     9 ->
       fun(A, B, C, D, E, F, G, H, I) ->
         Args = [A, B, C, D, E, F, G, H, I],
         {CAs, SAs} = unzip_args(Args),
         {CodeServer, TraceServer} = validate_servers(CServer, TServer),
-        eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer)
+        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
+        eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer, Fd)
       end;
     10 ->
       fun(A, B, C, D, E, F, G, H, I, J) ->
         Args = [A, B, C, D, E, F, G, H, I, J],
         {CAs, SAs} = unzip_args(Args),
         {CodeServer, TraceServer} = validate_servers(CServer, TServer),
-        eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer)
+        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
+        eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer, Fd)
       end;
     _ ->
       exception('error', {over_lambda_fun_argument_limit, Arity})
@@ -1136,6 +1157,14 @@ validate_servers(CodeServer, TraceServer) ->
   case Node =:= node(TraceServer) of
     true  -> {CodeServer, TraceServer};
     false -> conc_tserver:node_servers(TraceServer, Node)
+  end.
+  
+%% Check if the given file descriptor correponds to this process
+%% If not get the proper file descriptor
+validate_file_descriptor(TraceServer, Pid, Fd) ->
+  case Pid =:= self() of
+    true  -> Fd;
+    false -> conc_tserver:file_descriptor(TraceServer)
   end.
   
 %% Encode and Decode Msgs
@@ -1222,9 +1251,9 @@ unzip_msg(V) ->
 %% -------------------------------------------------------
 register_and_apply(TraceServer, Parent, Args) ->
   fun() ->
-    {ok, _Fd} = conc_tserver:register_to_trace(TraceServer, Parent),
+    {ok, Fd} = conc_tserver:register_to_trace(TraceServer, Parent),
     Parent ! {self(), registered},
-    erlang:apply(?MODULE, eval, Args)
+    erlang:apply(?MODULE, eval, Args ++ [Fd])
   end.
   
 %% ----------------------------------------------------------
@@ -1321,13 +1350,13 @@ is_patlist_compatible(Pats, Values) ->
   end.
   
 %% validate the timeout value of a receive expression
-check_timeout(infinity, _Sv) ->
+check_timeout(infinity, _Sv, _Fd) ->
   %% TODO Constraint: Sv=infinity
   true;
-check_timeout(Timeout, _Sv) when is_integer(Timeout) -> 
+check_timeout(Timeout, _Sv, _Fd) when is_integer(Timeout) -> 
   %% TODO Constraint: Sv is non_neg_int()
   Timeout >= 0;
-check_timeout(Timeout, _Sv) ->
+check_timeout(Timeout, _Sv, _Fd) ->
   exception(error, {invalid_timeout, Timeout}).
   
 %% Concatenate a list of bistrings
