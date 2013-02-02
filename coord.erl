@@ -130,9 +130,9 @@ clear_dir(D) ->
   case filelib:is_regular(D) of
     true ->
       io:format("%% Contents of ~p~n", [D]),
-      {ok, F} = encdec:open_file(D),
-      encdec:print(F),
-      encdec:close_file(F),
+      {ok, F} = conc_encdec:open_file(D),
+      conc_encdec:print(F),
+      conc_encdec:close_file(F),
       file:delete(D);
     false ->
       case file:del_dir(D) of

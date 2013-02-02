@@ -37,10 +37,10 @@ terminate(TraceServer) ->
 %% Register a new process so that the TraceServer can monitor it
 register_to_trace(TraceServer, Parent) ->
   {ok, Filename} = gen_server:call(TraceServer, {register_parent, Parent}),
-  {ok, File} = encdec:create_file(Filename),
+  {ok, File} = conc_encdec:create_file(Filename),
   store_file_descriptor(TraceServer, File),
-  ok = encdec:log_term(File, {pid, self()}),
-%  ok = encdec:close_file(File),
+  ok = conc_encdec:log_term(File, {pid, self()}),
+%  ok = conc_encdec:close_file(File),
   {ok, File}.
   
 %% Check if a process is monitored by TraceServer

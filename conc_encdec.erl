@@ -1,4 +1,4 @@
--module(encdec).
+-module(conc_encdec).
 -compile(export_all).
 
 i32(B) when is_binary(B) ->

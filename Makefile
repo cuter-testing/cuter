@@ -3,7 +3,7 @@
 ERLC = erlc
 ERLC_FLAGS = +native
 ERL_FILES = conc.erl conc_cserver.erl conc_tserver.erl conc_symb.erl \
-  conc_eval.erl conc_load.erl conc_lib.erl coord.erl encdec.erl \
+  conc_eval.erl conc_load.erl conc_lib.erl conc_encdec.erl coord.erl \
   bin_lib.erl
 DEMO_BIN = demos/ebin
 DEMO_SRC = demos/src
