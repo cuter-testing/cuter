@@ -134,13 +134,14 @@ handle_call({node_servers, Node}, _From, State) ->
   CPids = State#state.cpids,
   TPids = State#state.tpids,
   CoreDir = State#state.coredir,
+  TraceDir = State#state.tracedir,
   case node_monitored(Node, CPids, TPids) of
     %% Servers are already up on Node
     {true, Servers} ->
       {reply, Servers, State};
     false ->
       %% Spawn servers on Node
-      case remote_spawn_servers(Node, CoreDir, self()) of
+      case remote_spawn_servers(Node, CoreDir, TraceDir, self()) of
         {ok, {CodeServer, TraceServer}} ->
           NCPids = [{Node, CodeServer}|CPids],
           NTPids = [{Node, TraceServer}|TPids],
@@ -290,17 +291,18 @@ node_monitored(Node, CPids, TPids) ->
   end.
   
 %% Spawn a TraceServer and a CodeServer at a remote node
--spec remote_spawn_servers(Node, CoreDir, Super) -> {ok, Servers} | error
-  when Node    :: node(),
-       CoreDir :: string(),
-       Super   :: pid(),
-       Servers :: {pid(), pid()}.
+-spec remote_spawn_servers(Node, CoreDir, TraceDir, Super) -> {ok, Servers} | error
+  when Node     :: node(),
+       CoreDir  :: string(),
+       TraceDir :: string(),
+       Super    :: pid(),
+       Servers  :: {pid(), pid()}.
   
-remote_spawn_servers(Node, CoreDir, Super) ->
+remote_spawn_servers(Node, CoreDir, TraceDir, Super) ->
   F = fun() ->
     process_flag(trap_exit, true),
     CodeServer = conc_cserver:init_codeserver(CoreDir, Super),
-    TraceServer = conc_tserver:init_traceserver(Super),
+    TraceServer = conc_tserver:init_traceserver(TraceDir, Super),
     exit({CodeServer, TraceServer})
   end,
   P = spawn_link(Node, F),

@@ -950,10 +950,11 @@ create_closure(M, _F, Arity, CodeServer, TraceServer, {letrec_fun, {Def, Cenv, S
 %% ===============
 %% Manually creating anonymous func and not use a list Args for parameters
 %% since the problem is that high order functions don't always expect a /1 function
-make_fun(Mod, Arity, CodeServer, TraceServer, Vars, Body, Cenv, Senv) ->
+make_fun(Mod, Arity, CServer, TServer, Vars, Body, Cenv, Senv) ->
   case Arity of
     0 ->
       fun() ->
+        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
         eval_expr(Mod, CodeServer, TraceServer, Body, Cenv, Senv)
       end;
     1 ->
@@ -962,6 +963,7 @@ make_fun(Mod, Arity, CodeServer, TraceServer, Vars, Body, Cenv, Senv) ->
         {CAs, SAs} = unzip_args(Args),
         NCenv = conc_lib:bind_parameters(CAs, Vars, Cenv),
         NSenv = conc_lib:bind_parameters(SAs, Vars, Senv),
+        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
         eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv)
       end;
     2 ->
@@ -970,6 +972,7 @@ make_fun(Mod, Arity, CodeServer, TraceServer, Vars, Body, Cenv, Senv) ->
         {CAs, SAs} = unzip_args(Args),
         NCenv = conc_lib:bind_parameters(CAs, Vars, Cenv),
         NSenv = conc_lib:bind_parameters(SAs, Vars, Senv),
+        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
         eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv)
       end;
     3 ->
@@ -978,6 +981,7 @@ make_fun(Mod, Arity, CodeServer, TraceServer, Vars, Body, Cenv, Senv) ->
         {CAs, SAs} = unzip_args(Args),
         NCenv = conc_lib:bind_parameters(CAs, Vars, Cenv),
         NSenv = conc_lib:bind_parameters(SAs, Vars, Senv),
+        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
         eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv)
       end;
     4 ->
@@ -986,6 +990,7 @@ make_fun(Mod, Arity, CodeServer, TraceServer, Vars, Body, Cenv, Senv) ->
         {CAs, SAs} = unzip_args(Args),
         NCenv = conc_lib:bind_parameters(CAs, Vars, Cenv),
         NSenv = conc_lib:bind_parameters(SAs, Vars, Senv),
+        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
         eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv)
       end;
     5 ->
@@ -994,6 +999,7 @@ make_fun(Mod, Arity, CodeServer, TraceServer, Vars, Body, Cenv, Senv) ->
         {CAs, SAs} = unzip_args(Args),
         NCenv = conc_lib:bind_parameters(CAs, Vars, Cenv),
         NSenv = conc_lib:bind_parameters(SAs, Vars, Senv),
+        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
         eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv)
       end;
     6 ->
@@ -1002,6 +1008,7 @@ make_fun(Mod, Arity, CodeServer, TraceServer, Vars, Body, Cenv, Senv) ->
         {CAs, SAs} = unzip_args(Args),
         NCenv = conc_lib:bind_parameters(CAs, Vars, Cenv),
         NSenv = conc_lib:bind_parameters(SAs, Vars, Senv),
+        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
         eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv)
       end;
     7 ->
@@ -1010,6 +1017,7 @@ make_fun(Mod, Arity, CodeServer, TraceServer, Vars, Body, Cenv, Senv) ->
         {CAs, SAs} = unzip_args(Args),
         NCenv = conc_lib:bind_parameters(CAs, Vars, Cenv),
         NSenv = conc_lib:bind_parameters(SAs, Vars, Senv),
+        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
         eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv)
       end;
     8 ->
@@ -1018,6 +1026,7 @@ make_fun(Mod, Arity, CodeServer, TraceServer, Vars, Body, Cenv, Senv) ->
         {CAs, SAs} = unzip_args(Args),
         NCenv = conc_lib:bind_parameters(CAs, Vars, Cenv),
         NSenv = conc_lib:bind_parameters(SAs, Vars, Senv),
+        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
         eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv)
       end;
     9 ->
@@ -1026,6 +1035,7 @@ make_fun(Mod, Arity, CodeServer, TraceServer, Vars, Body, Cenv, Senv) ->
         {CAs, SAs} = unzip_args(Args),
         NCenv = conc_lib:bind_parameters(CAs, Vars, Cenv),
         NSenv = conc_lib:bind_parameters(SAs, Vars, Senv),
+        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
         eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv)
       end;
     10 ->
@@ -1034,6 +1044,7 @@ make_fun(Mod, Arity, CodeServer, TraceServer, Vars, Body, Cenv, Senv) ->
         {CAs, SAs} = unzip_args(Args),
         NCenv = conc_lib:bind_parameters(CAs, Vars, Cenv),
         NSenv = conc_lib:bind_parameters(SAs, Vars, Senv),
+        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
         eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv)
       end;
     _ ->
@@ -1041,74 +1052,92 @@ make_fun(Mod, Arity, CodeServer, TraceServer, Vars, Body, Cenv, Senv) ->
   end.
 
 %% Creates a closure for make_fun when no information on MFA is available
-make_fun(Mod, Func, Arity, CodeServer, TraceServer) ->
+make_fun(Mod, Func, Arity, CServer, TServer) ->
   case Arity of
     0 ->
       fun() ->
+        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
         eval({named, {Mod, Func}}, [], [], external, CodeServer, TraceServer)
       end;
     1 ->
       fun(A) ->
         Args = [A],
         {CAs, SAs} = unzip_args(Args),
+        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
         eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer)
       end;
     2 ->
       fun(A, B) ->
         Args = [A, B],
         {CAs, SAs} = unzip_args(Args),
+        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
         eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer)
       end;
     3 ->
       fun(A, B, C) ->
         Args = [A, B, C],
         {CAs, SAs} = unzip_args(Args),
+        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
         eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer)
       end;
     4 ->
       fun(A, B, C, D) ->
         Args = [A, B, C, D],
         {CAs, SAs} = unzip_args(Args),
+        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
         eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer)
       end;
     5 ->
       fun(A, B, C, D, E) ->
         Args = [A, B, C, D, E],
         {CAs, SAs} = unzip_args(Args),
+        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
         eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer)
       end;
     6 ->
       fun(A, B, C, D, E, F) ->
         Args = [A, B, C, D, E, F],
         {CAs, SAs} = unzip_args(Args),
+        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
         eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer)
       end;
     7 ->
       fun(A, B, C, D, E, F, G) ->
         Args = [A, B, C, D, E, F, G],
         {CAs, SAs} = unzip_args(Args),
+        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
         eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer)
       end;
     8 ->
       fun(A, B, C, D, E, F, G, H) ->
         Args = [A, B, C, D, E, F, G, H],
         {CAs, SAs} = unzip_args(Args),
+        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
         eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer)
       end;
     9 ->
       fun(A, B, C, D, E, F, G, H, I) ->
         Args = [A, B, C, D, E, F, G, H, I],
         {CAs, SAs} = unzip_args(Args),
+        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
         eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer)
       end;
     10 ->
       fun(A, B, C, D, E, F, G, H, I, J) ->
         Args = [A, B, C, D, E, F, G, H, I, J],
         {CAs, SAs} = unzip_args(Args),
+        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
         eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer)
       end;
     _ ->
       exception('error', {over_lambda_fun_argument_limit, Arity})
+  end.
+
+validate_servers(CodeServer, TraceServer) ->
+  Node = node(),
+  case Node =:= node(TraceServer) of
+    true  -> {CodeServer, TraceServer};
+    false -> conc_tserver:node_servers(TraceServer, Node)
   end.
   
 %% Encode and Decode Msgs
