@@ -1,13 +1,16 @@
+%% -*- erlang-indent-level: 2 -*-
+%%------------------------------------------------------------------------------
 -module(coord).
+
 -export([run/3, run_bencherl_demos/0, run_my_demos/0]).
 
 %-define(PROFILING_FLAG, false).
 %-define(PRINT_TRACE_FLAG, true).  %% Displays Traces after the execution
 %-define(DELETE_TRACE_FLAG, true).  %% Deletes the Traces after the execution
 
-%% ---------------------------------------------------------------------------------
+%% -----------------------------------------------------------------------------
 %% Concolic Execution of M,F,As
-%% ---------------------------------------------------------------------------------
+%% -----------------------------------------------------------------------------
 
 run(M, F, As) ->
   process_flag(trap_exit, true),
@@ -15,7 +18,7 @@ run(M, F, As) ->
   TraceDir = "traces",
   
   Start = now(),
-%  profiling_start(?PROFILING_FLAG),
+  %% profiling_start(?PROFILING_FLAG),
   
   Concolic = conc:init_concolic(M, F, As, CoreDir, TraceDir),
   receive
@@ -25,7 +28,7 @@ run(M, F, As) ->
       R = Results
   end,
   
-%  profiling_stop(?PROFILING_FLAG),
+  %% profiling_stop(?PROFILING_FLAG),
   End  = now(),
   Time = timer:now_diff(End, Start),
   io:format("%% Time elapsed = ~w secs~n", [Time/1000000]),
@@ -33,18 +36,19 @@ run(M, F, As) ->
   analyze(R),
   Traces = trace_dir(R),
   lists:foreach(fun clear_dir/1, Traces),
-  file:del_dir(filename:absname(TraceDir)),  %% Directory will only be deleted if it's empty
+  %% Directory will only be deleted if it's empty
+  _ = file:del_dir(filename:absname(TraceDir)),
   ok.
   
-%% ---------------------------------------------------------------------------------
+%% -----------------------------------------------------------------------------
 %% Run demos
-%% ---------------------------------------------------------------------------------
+%% -----------------------------------------------------------------------------
   
 %% Bencherl Demos
 %% Version :: short | intermediate | long
 run_bencherl_demos() ->
   Version = 'short',
-%  Cores = erlang:system_info(schedulers_online),
+  %%  Cores = erlang:system_info(schedulers_online),
   Cores = 2,
   Conf = [{number_of_cores, Cores}],
   Benchmarks = [bang, genstress, big, ehb, ets_test, mbrot, parallel, pcmark, serialmsg, timer_wheel, ran],
@@ -67,9 +71,9 @@ run_my_demos() ->
   end,
   lists:map(F, Demos).
   
-%% ---------------------------------------------------------------------------------
+%% -----------------------------------------------------------------------------
 %% Profiling functions
-%% ---------------------------------------------------------------------------------
+%% -----------------------------------------------------------------------------
 %profiling_start(true) ->
 %  eprof:start(),
 %  eprof:start_profiling([self()]);
@@ -83,9 +87,9 @@ run_my_demos() ->
 %profiling_stop(false) ->
 %  ok.
   
-%% ---------------------------------------------------------------------------------
+%% -----------------------------------------------------------------------------
 %% Report Results
-%% ---------------------------------------------------------------------------------
+%% -----------------------------------------------------------------------------
 analyze({error, Error}) ->
   io:format("%%   ConcServer error : ~p~n", [Error]);
 analyze({internal_codeserver_error, Node, Results}) ->
@@ -129,16 +133,15 @@ report_result({traceserver_error, Error}) ->
 report_result(X) ->
   io:format("Unexpected ~w~n", [X]).
 
-%% --------------------------------------------------------------------------------------
+%% -----------------------------------------------------------------------------
+
 trace_dir({_Status, _Node, Results}) ->
   Ns = orddict:to_list(Results),
   Rs = lists:map(fun({_N, R}) -> R end, Ns),
   Logs = proplists:get_all_values(tlogs, lists:flatten(Rs)),
-  lists:map(
-    fun(L) -> proplists:get_value(dir, L) end,
-    Logs
-  );
-trace_dir({error, _Error}) -> [].
+  [proplists:get_value(dir, L) || L <- Logs];
+trace_dir({error, _Error}) ->
+  [].
   
 %% temporary deleting all traces
 clear_dir(D) ->
@@ -159,7 +162,6 @@ clear_dir(D) ->
         _ -> ok
       end
   end.
-  
 
 %print_trace(F, D) ->
 %  io:format("%% Contents of ~p~n", [D]),
