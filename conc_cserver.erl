@@ -60,8 +60,7 @@ terminate(_Reason, State) ->
   %% Clean up .core files dir
   delete_stored_core_files(Dir),
   %% Send statistics to supervisor
-  ok = conc:send_clogs(Super, LoadedMods),
-  ok.
+  ok = conc:send_clogs(Super, LoadedMods).
   
 code_change(_OldVsn, State, _Extra) ->
   %% No change planned.
@@ -94,8 +93,6 @@ handle_call({load, M}, _From, State) ->
       %% Load the code of the module
       Dir = State#state.dir,
       Reply = conc_load:load(M, MDb, Dir),
-      
-      %% Reply
       case Reply of
         {ok, M} ->
 %          io:format("[load (~w)]: Loaded module ~p~n", [node(), M]),
@@ -163,18 +160,13 @@ delete_stored_modules(Db) ->
     end,
   ets:foldl(DeleteOne, [], Db).
   
-%% Delete all the creted .core files during the execution
--spec delete_stored_core_files(Dir) -> ok
-  when Dir :: file:name().
+%% Delete all the created .core files during the execution
+-spec delete_stored_core_files(Dir :: file:name()) -> 'ok'.
   
 delete_stored_core_files(Dir) ->
   case file:list_dir(Dir) of
-    {ok, Filenames} ->
-      lists:map(
-        fun(File) ->
-          file:delete(Dir ++ "/" ++ File)
-        end,
-      Filenames),
+    {ok, FileNames} ->
+      lists:foreach(fun(FN) -> file:delete(Dir ++ "/" ++ FN) end, FileNames),
       file:del_dir(Dir);
     {error, enoent} ->
       ok
