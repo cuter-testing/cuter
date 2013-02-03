@@ -1,3 +1,5 @@
+%% -*- erlang-indent-level: 2 -*-
+%%------------------------------------------------------------------------------
 -module(conc).
 
 -behaviour(gen_server).
@@ -81,7 +83,8 @@ terminate(_Reason, State) ->
   Results = State#state.results,
   CoreDir = State#state.coredir,
   Error = State#state.error,
-  file:del_dir(filename:absname(CoreDir)),   %% Directory will only be deleted if it's empty
+  %% Directory will only be deleted if it's empty
+  _ = file:del_dir(filename:absname(CoreDir)),
   case Error of
     {internalc, Node} ->
       Coord ! {self(), {internal_codeserver_error, Node, Results}};
