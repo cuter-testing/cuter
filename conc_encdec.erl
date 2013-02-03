@@ -36,8 +36,10 @@ open_file(Filename) ->
 close_file(F) ->
   file:close(F).
   
-log_term(F, Term) ->
-  case ?LOGGING_FLAG of
+log_term(F, Term) -> log_term(F, Term, ?LOGGING_FLAG).
+
+log_term(F, Term, Flag) ->
+  case Flag of
     true ->
       Bin = erlang:term_to_binary(Term, [{compressed, 1}]),
       Sz = erlang:byte_size(Bin),
