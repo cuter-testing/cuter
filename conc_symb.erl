@@ -1,47 +1,40 @@
+%% -*- erlang-indent-level: 2 -*-
+%%------------------------------------------------------------------------------
 -module(conc_symb).
--compile(export_all).
-
-%% Generate a mapping between the concrete values
-%% and their symbolic abstraction
--spec generate_mapping(Ss, Vs) -> Maps
-  when Ss   :: [atom()],
-       Vs   :: [term()],
-       Maps :: [{atom(), term()}].
-       
-generate_mapping(Ss, Vs) ->
-  lists:zip(Ss, Vs).
+%% exports appear alphabetically
+-export([abstract/1, append_binary/2, empty_binary/0, ensure_list/2,
+	 generate_mapping/2, hd/1,
+	 make_bitstring/5, match_bitstring_const/2, match_bitstring_var/2,
+	 mock_bif/2, tl/1, tuple_to_list/2]).
 
 %% Abstract a list of concrete values
--spec abstract(Vs) -> Ss
-  when Vs :: [term()],
-       Ss :: [atom()].
+-spec abstract(Vs :: [term()]) -> Ss :: [atom()].
        
-abstract(As) -> abstract(As, [], 1).
+abstract(Vs) ->
+    abstract(Vs, [], 1).
 
--spec abstract(Vs, Acc, Id) -> Ss
-  when Vs  :: [term()],
-       Acc :: [atom()],
-       Id  :: pos_integer(),
-       Ss  :: [atom()].
-       
 abstract([], Acc, _Id) ->
   lists:reverse(Acc);
 abstract([_A|As], Acc, Id) ->
   X = "_symb" ++ (erlang:integer_to_list(Id)),
   SymbA = erlang:list_to_atom(X),
   abstract(As, [SymbA|Acc], Id+1).
-  
+
+
+%% Generate a mapping between the concrete values
+%% and their symbolic abstraction
+-spec generate_mapping([atom()], [term()]) -> [{atom(), term()}].
+
+generate_mapping(Ss, Vs) ->
+  lists:zip(Ss, Vs).
+
 %% ------------------------------------------------------------------------
 %% mock_bif/2
 %% Mocks the execution of an erlang bif and returns a symbolic 
 %% represenation of its result
 %% ------------------------------------------------------------------------
--spec mock_bif({M, F, A}, Args) -> Res
-  when M    :: atom(),
-       F    :: atom(),
-       A    :: non_neg_integer(),
-       Args :: [term()],
-       Res  :: term().
+-spec mock_bif({M :: atom(), F :: atom(), A :: non_neg_integer()}, Args) ->
+	 'true' | {atom(), Args} when Args :: [term()].
 
 mock_bif({erlang, demonitor, 1}, _Args) -> true;
 mock_bif({erlang, display, 1}, _Args) -> true;
@@ -60,7 +53,6 @@ mock_bif({erlang, set_cookie, 2}, _Args) -> true;
 mock_bif({erlang, unlink, 1}, _Args) -> true;
 mock_bif({erlang, unregister, 1}, _Args) -> true;
 mock_bif({erlang, yield, 0}, _Args) -> true;
-
 mock_bif({M, F, A}, Args) ->
   X = atom_to_list(M) ++ ":" ++ atom_to_list(F) ++ "/" ++ integer_to_list(A),
   {list_to_atom(X), Args}.
@@ -134,17 +126,10 @@ ensure_list(S, N) ->
 %% Creates a list of N elements from a symbolic term
 %% (N is user defined)
 %% ------------------------------------------------------------------------
--spec listify(S, N) -> L
-  when S :: term(),
-       N :: pos_integer(),
-       L :: [term()].
+-spec listify(S :: term(), N :: pos_integer()) -> L :: [term()].
        
 listify(S, N) ->
-  L = lists:seq(1,N),
-  lists:map(
-    fun(X) -> mock_bif({lists, nth, 2}, [X, S]) end,
-    L
-  ).
+  [mock_bif({lists, nth, 2}, [X, S]) || X <- lists:seq(1, N)].
 
 %% ========================
 %% for use in binaries
@@ -168,4 +153,3 @@ match_bitstring_var(SEnc, Sv) ->
   X = {bitstr_var_match_x, {SEnc, Sv}},
   Rest = {bitstr_var_match_rest, {SEnc, Sv}},
   {X, Rest}.
-
