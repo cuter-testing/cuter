@@ -1,9 +1,9 @@
 -module(coord).
 -export([run/3, run_bencherl_demos/0, run_my_demos/0]).
 
--define(PROFILING_FLAG, false).
--define(PRINT_TRACE_FLAG, false).  %% Displays Traces after the execution
--define(DELETE_TRACE_FLAG, true).  %% Deletes the Traces after the execution
+%-define(PROFILING_FLAG, false).
+%-define(PRINT_TRACE_FLAG, true).  %% Displays Traces after the execution
+%-define(DELETE_TRACE_FLAG, true).  %% Deletes the Traces after the execution
 
 %% ---------------------------------------------------------------------------------
 %% Concolic Execution of M,F,As
@@ -15,7 +15,7 @@ run(M, F, As) ->
   TraceDir = "traces",
   
   Start = now(),
-  profiling_start(?PROFILING_FLAG),
+%  profiling_start(?PROFILING_FLAG),
   
   Concolic = conc:init_concolic(M, F, As, CoreDir, TraceDir),
   receive
@@ -25,7 +25,7 @@ run(M, F, As) ->
       R = Results
   end,
   
-  profiling_stop(?PROFILING_FLAG),
+%  profiling_stop(?PROFILING_FLAG),
   End  = now(),
   Time = timer:now_diff(End, Start),
   io:format("%% Time elapsed = ~w secs~n", [Time/1000000]),
@@ -70,18 +70,18 @@ run_my_demos() ->
 %% ---------------------------------------------------------------------------------
 %% Profiling functions
 %% ---------------------------------------------------------------------------------
-profiling_start(true) ->
-  eprof:start(),
-  eprof:start_profiling([self()]);
-profiling_start(false) ->
-  ok.
-  
-profiling_stop(true) ->
-  eprof:stop_profiling(),
-  eprof:analyze(),
-  eprof:stop();
-profiling_stop(false) ->
-  ok.
+%profiling_start(true) ->
+%  eprof:start(),
+%  eprof:start_profiling([self()]);
+%profiling_start(false) ->
+%  ok.
+%  
+%profiling_stop(true) ->
+%  eprof:stop_profiling(),
+%  eprof:analyze(),
+%  eprof:stop();
+%profiling_stop(false) ->
+%  ok.
   
 %% ---------------------------------------------------------------------------------
 %% Report Results
@@ -145,9 +145,9 @@ clear_dir(D) ->
   case filelib:is_regular(D) of
     true ->
       {ok, F} = conc_encdec:open_file(D),
-      print_trace(F, D, ?PRINT_TRACE_FLAG),
+      print_trace(F, D),
       conc_encdec:close_file(F),
-      delete_trace(D, ?DELETE_TRACE_FLAG);
+      delete_trace(D);
     false ->
       case file:del_dir(D) of
         ok -> ok;
@@ -160,11 +160,13 @@ clear_dir(D) ->
       end
   end.
   
-  
-print_trace(_F, _D, false) -> ok;
-print_trace(F, D, true) -> 
-  io:format("%% Contents of ~p~n", [D]),
-  conc_encdec:pprint(F).
 
-delete_trace(_F, false) -> ok;
-delete_trace(F, true) -> file:delete(F).
+%print_trace(F, D) ->
+%  io:format("%% Contents of ~p~n", [D]),
+%  conc_encdec:pprint(F).
+print_trace(_F, _D) ->
+  ok.
+
+delete_trace(F) ->
+  file:delete(F).
+%  ok.

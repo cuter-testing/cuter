@@ -644,7 +644,7 @@ eval_expr(_M, _CodeServer, _TraceServer, {c_var, _Anno, Name}, Cenv, Senv, _Fd)
   when is_tuple(Name) ->
     %% If Name is a function
     case conc_lib:get_value(Name, Cenv) of
-      Closure when is_function(Closure) -> %% Closure
+      {ok, Closure} when is_function(Closure) -> %% Closure
         {ok, Sv} = conc_lib:get_value(Name, Senv),
         {Closure, Sv};
       {ok, {letrec_func, {Mod, Def, E}}} ->  %% Fun bound in a letrec
