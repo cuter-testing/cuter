@@ -2,6 +2,8 @@
 -export([run/3, run_bencherl_demos/0, run_my_demos/0]).
 
 -define(PROFILING_FLAG, false).
+-define(PRINT_TRACE_FLAG, false).  %% Displays Traces after the execution
+-define(DELETE_TRACE_FLAG, true).  %% Deletes the Traces after the execution
 
 %% ---------------------------------------------------------------------------------
 %% Concolic Execution of M,F,As
@@ -29,7 +31,8 @@ run(M, F, As) ->
   io:format("%% Time elapsed = ~w secs~n", [Time/1000000]),
   
   analyze(R),
-  clear_dir(filename:absname(TraceDir)),
+  Traces = trace_dir(R),
+  lists:foreach(fun clear_dir/1, Traces),
   file:del_dir(filename:absname(TraceDir)),  %% Directory will only be deleted if it's empty
   ok.
   
@@ -41,9 +44,12 @@ run(M, F, As) ->
 %% Version :: short | intermediate | long
 run_bencherl_demos() ->
   Version = 'short',
-  Cores = erlang:system_info(schedulers_online),
+%  Cores = erlang:system_info(schedulers_online),
+  Cores = 2,
   Conf = [{number_of_cores, Cores}],
   Benchmarks = [bang, genstress, big, ehb, ets_test, mbrot, parallel, pcmark, serialmsg, timer_wheel, ran],
+%  Benchmarks = [bang, genstress, big, ehb, ets_test, mbrot, parallel, pcmark, serialmsg, timer_wheel],
+%  Benchmarks = [bang],
   RunOne = 
     fun(Bench) ->
       io:format("~n===> Simulating ~w (~w, ~w) ...~n", [Bench, Version, Conf]),
@@ -124,16 +130,24 @@ report_result(X) ->
   io:format("Unexpected ~w~n", [X]).
 
 %% --------------------------------------------------------------------------------------
+trace_dir({_Status, _Node, Results}) ->
+  Ns = orddict:to_list(Results),
+  Rs = lists:map(fun({_N, R}) -> R end, Ns),
+  Logs = proplists:get_all_values(tlogs, lists:flatten(Rs)),
+  lists:map(
+    fun(L) -> proplists:get_value(dir, L) end,
+    Logs
+  );
+trace_dir({error, _Error}) -> [].
   
 %% temporary deleting all traces
 clear_dir(D) ->
   case filelib:is_regular(D) of
     true ->
-      io:format("%% Contents of ~p~n", [D]),
       {ok, F} = conc_encdec:open_file(D),
-      conc_encdec:print(F),
+      print_trace(F, D, ?PRINT_TRACE_FLAG),
       conc_encdec:close_file(F),
-      file:delete(D);
+      delete_trace(D, ?DELETE_TRACE_FLAG);
     false ->
       case file:del_dir(D) of
         ok -> ok;
@@ -146,3 +160,11 @@ clear_dir(D) ->
       end
   end.
   
+  
+print_trace(_F, _D, false) -> ok;
+print_trace(F, D, true) -> 
+  io:format("%% Contents of ~p~n", [D]),
+  conc_encdec:pprint(F).
+
+delete_trace(_F, false) -> ok;
+delete_trace(F, true) -> file:delete(F).

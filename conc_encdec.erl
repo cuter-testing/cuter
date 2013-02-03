@@ -1,6 +1,8 @@
 -module(conc_encdec).
 -compile(export_all).
 
+-define(LOGGING_FLAG, true).  %% Enables logging
+
 i32(B) when is_binary(B) ->
   i32(erlang:binary_to_list(B, 1, 4));
 i32([X1, X2, X3, X4]) ->
@@ -35,13 +37,13 @@ close_file(F) ->
   file:close(F).
   
 log_term(F, Term) ->
-  Bin = erlang:term_to_binary(Term),
-  Sz = erlang:byte_size(Bin),
-  case file:write(F, [i32(Sz), Bin]) of
-    ok ->
+  case ?LOGGING_FLAG of
+    true ->
+      Bin = erlang:term_to_binary(Term, [{compressed, 1}]),
+      Sz = erlang:byte_size(Bin),
+      file:write(F, [i32(Sz), Bin]),
       ok;
-    {error, Reason} ->
-      exit({file_write_failed, Reason})
+    false -> ok
   end.
 
 get_term(F) ->
@@ -64,32 +66,39 @@ get_term(F) ->
   end.
 
 
-run() ->
-  File = "trace",
-  {ok, F} = create_file(File),
-  lists:foldl(
-    fun(T, Fd) -> log_term(Fd, T), io:format("x"), Fd end,
-    F, generator()
-  ),
-  close_file(F),
-  io:format("File done!~n"),
-  {ok, RF} = open_file(File),
-  print(RF),
-  close_file(RF).
-  
-print(F) ->
+%% ------------------------------------------------------------------------
+
+pprint(F) ->
   case get_term(F) of
     {ok, Term} ->
-      io:format("~w~n", [Term]),
-      print(F);
+      pprint_term(Term),
+      pprint(F);
     eof -> 
       ok
   end.
-  
-generator() ->
-  [
-    {test, test, test},
-    lists:seq(1,10),
-    {<<45,6>>, ok},
-    foo
-  ].
+
+pprint_term(T) ->
+  case T of
+    {pid, Pid} ->
+      io:format("$  Pid : ~w~n", [Pid]);
+    {'eq', V1, V2} ->
+      io:format("$  ~w == ~w~n", [V1, V2]);
+    {'neq', V1, V2} ->
+      io:format("$  ~w != ~w~n", [V1, V2]);
+    {'tuple_elem_eq', V, N} ->
+      io:format("$  ~w => tuple and size of ~w~n", [V, N]);
+    {'tuple_elem_neq', V, N} ->
+      io:format("$  ~w => tuple but size not ~w~n", [V, N]);
+    {'non_empty_list', V} ->
+      io:format("$  ~w => non empty list~n", [V]);
+    {'not_tuple', V} ->
+      io:format("$  ~w => not tuple~n", [V]);
+    {'not_list', V} ->
+      io:format("$  ~w => not list~n", [V]);
+    {'guard_true', V} ->
+      io:format("$  ~w => true guard~n", [V]);
+    {'guard_false', V} ->
+      io:format("$  ~w => false guard~n", [V]);
+    {msg, Msg} ->
+      io:format("$  ~p => msg~n", [Msg])
+  end.

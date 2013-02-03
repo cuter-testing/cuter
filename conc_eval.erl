@@ -371,7 +371,7 @@ eval({named, {M, F}}, CAs, SAs, CallType, CodeServer, TraceServer, Fd) ->
   end;
   
 %% Handle a Closure
-eval({lambda, Closure}, CAs, SAs, _CallType, _CodeServer, _TraceServer, Fd) ->
+eval({lambda, Closure}, CAs, SAs, _CallType, _CodeServer, _TraceServer, _Fd) ->
 %  ok = conc_encdec:log_term(Fd, {closure, self()}),
   SAs_e = conc_symb:ensure_list(SAs, length(CAs)),
   ZAs = zip_args(CAs, SAs_e),
@@ -696,7 +696,6 @@ run_message_loop(M, CodeServer, TraceServer, Clauses, Action, CTimeout, STimeout
         false ->
           find_message_loop(M, CodeServer, TraceServer, Clauses, Action, CTimeout, STimeout, Cenv, Senv, Start, CurrMsgs, Fd);
         {Msg, Body, NCenv, NSenv, _Cnt} ->
-%         io:format("r ~w  |  ",[Msg]), 
           receive Msg -> ok end,  %% Just consume the matched message
           eval_expr(M, CodeServer, TraceServer, Body, NCenv, NSenv, Fd)
       end
@@ -715,6 +714,7 @@ find_message(M, CodeServer, TraceServer, Clauses, [Msg|Mailbox], Cenv, Senv, Fd)
     false ->
       find_message(M, CodeServer, TraceServer, Clauses, Mailbox, Cenv, Senv, Fd);
     {Body, NCenv, NSenv, Cnt} ->
+      %% I can log the received Msg here
       {Msg, Body, NCenv, NSenv, Cnt}
   end.
 
@@ -763,11 +763,13 @@ match_clause(M, Mode, CodeServer, TraceServer, {c_clause, _Anno, Pats, Guard, Bo
           NCenv = conc_lib:add_mappings_to_environment(CMs, Cenv),
           NSenv = conc_lib:add_mappings_to_environment(SMs, Senv),
           try eval_expr(M, CodeServer, TraceServer, Guard, NCenv, NSenv, Fd) of
-            {true, _SGv} ->
+            {true, SGv} ->
               %% TODO make constraint SGv=true
+              log(Fd, Mode, {'guard_true', SGv}),
               {true, {Body, NCenv, NSenv, Cnt}};
-            {false, _SGv} ->
+            {false, SGv} ->
               %% TODO make constraint SGv=false
+              log(Fd, Mode, {'guard_false', SGv}),
               false
           catch
             error:_E -> false
@@ -799,13 +801,15 @@ pattern_match_all(BitInfo, Mode, TraceServer, [P|Ps], [Cv|Cvs], [Sv|Svs], CMaps,
 %% ===============
 
 %% AtomicLiteral pattern
-pattern_match(_BitInfo, _Mode, _TraceServer, {c_literal, _Anno, LitVal}, Cv, _Sv, CMaps, SMaps, _Fd) ->
+pattern_match(_BitInfo, Mode, _TraceServer, {c_literal, _Anno, LitVal}, Cv, Sv, CMaps, SMaps, Fd) ->
   case LitVal =:= Cv of
     true ->
       %% TODO Constraint Sv == Litval
+      log(Fd, Mode, {'eq', LitVal, Sv}),
       {true, {CMaps, SMaps}};
     false ->
       %% TODO Constraint Sv != Litval
+      log(Fd, Mode, {'neq', LitVal, Sv}),
       false
   end;
   
@@ -823,19 +827,23 @@ pattern_match(BitInfo, Mode, TraceServer, {c_tuple, _Anno, Es}, Cv, Sv, CMaps, S
     case length(Cs) of
       Ne ->
         %% TODO Constraint: Sv tuple with Ne elements
+        log(Fd, Mode, {'tuple_elem_eq', Sv, Ne}),
         Ss = conc_symb:tuple_to_list(Sv, Ne),
         pattern_match_all(BitInfo, Mode, TraceServer, Es, Cs, Ss, CMaps, SMaps, Fd);
       _ ->
         %% TODO Constraint: Sv not tuple with Ne elements
+        log(Fd, Mode, {'tuple_elem_neq', Sv, Ne}),
         false
     end;    
-pattern_match(_BitInfo, _Mode, _TraceServer, {c_tuple, _Anno, _Es}, _Cv, _Sv, _CMaps, _SMaps, _Fd) ->
+pattern_match(_BitInfo, Mode, _TraceServer, {c_tuple, _Anno, _Es}, _Cv, Sv, _CMaps, _SMaps, Fd) ->
   %% TODO Constraint: Sv not tuple
+  log(Fd, Mode, {'not_tuple', Sv}),
   false;
   
 %% List constructor pattern
 pattern_match(BitInfo, Mode, TraceServer, {c_cons, _Anno, Hd, Tl}, [Cv|Cvs], S, CMaps, SMaps, Fd) ->
-  %% TODO Constraing: Sv is non empty list
+  %% TODO Constraing: S is non empty list
+  log(Fd, Mode, {'non_empty_list', S}),
   Sv = conc_symb:hd(S),
   Svs = conc_symb:tl(S),
   case pattern_match(BitInfo, Mode, TraceServer, Hd, Cv, Sv, CMaps, SMaps, Fd) of
@@ -844,8 +852,9 @@ pattern_match(BitInfo, Mode, TraceServer, {c_cons, _Anno, Hd, Tl}, [Cv|Cvs], S, 
     false ->
       false
   end;  
-pattern_match(_BitInfo, _Mode, _TraceServer, {c_cons, _Anno, _Hd, _Tl}, _Cv, _Sv, _CMaps, _SMaps, _Fd) ->
+pattern_match(_BitInfo, Mode, _TraceServer, {c_cons, _Anno, _Hd, _Tl}, _Cv, Sv, _CMaps, _SMaps, Fd) ->
   %% TODO Constraint: Sv not list
+  log(Fd, Mode, {'not_list', Sv}),
   false;
 
 %% Alias pattern
@@ -1370,4 +1379,6 @@ append_segments([Cv|Cvs], CAcc, [Sv|Svs], SAcc) ->
   Sbin = conc_symb:append_binary(Sv, SAcc),
   append_segments(Cvs, Cbin, Svs, Sbin).
   
-
+log(_Fd, 'receive', _Term) -> ok;
+log(Fd, 'case', Term) ->
+  ok = conc_encdec:log_term(Fd, Term).
