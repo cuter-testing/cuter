@@ -1,7 +1,8 @@
 .PHONY: clean distclean all demo count
 
 ERLC = erlc
-ERLC_FLAGS = +native
+WARNS = +warn_exported_vars +warn_unused_import #+warn_missing_spec
+ERLC_FLAGS = +debug_info $(WARNS)
 ERL_FILES = conc.erl conc_cserver.erl conc_tserver.erl conc_symb.erl \
   conc_eval.erl conc_load.erl conc_lib.erl conc_encdec.erl coord.erl \
   bin_lib.erl
@@ -21,10 +22,10 @@ all: $(BEAM_FILES) demo
 demo: $(BEAM_DEMO)
 
 bin_lib.beam: bin_lib.erl
-	$(ERLC) $<
+	$(ERLC) $(ERLC_FLAGS) $<
 
 %.beam: %.erl $(HRL_FILES)
-	$(ERLC) $(ERLC_FLAGS) $<
+	$(ERLC) +native $(ERLC_FLAGS) $<
 
 $(DEMO_BIN)/%.beam: $(DEMO_SRC)/%.erl
 	$(ERLC) -o $(DEMO_BIN) $<
@@ -33,6 +34,9 @@ $(BEAM_DEMO): | $(DEMO_BIN)
 
 $(DEMO_BIN):
 	mkdir -p $(DEMO_BIN)
+
+dialyzer: $(BEAM_FILES)
+	dialyzer $(BEAM_FILES)
 
 clean:
 	$(RM) $(BEAM_FILES)
