@@ -67,8 +67,8 @@ get_value(Var, Environment) ->
   
 %% Binds the parameters of a function to their actual values
 -spec bind_parameters(Vals, Vars, OldEnv) -> Env
-  when Vals   :: semantic_value(),
-       Vars   :: semantic_var(),
+  when Vals   :: [semantic_value()],
+       Vars   :: [semantic_var()],
        OldEnv :: environment(),
        Env    :: environment().
 

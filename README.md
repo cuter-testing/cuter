@@ -10,13 +10,5 @@ conc-test
 *  Run my demos with `erl -pa demos/ebin -eval "coord:run_my_demos()" -s init stop`
 
 
-Execution Flags
----------------
-
-*  LOGGING_FLAG in conc_encdec.erl enables logging of traces (Default is TRUE)
-*  PRINT_TRACE_FLAG in coord.erl displays the traces contents after the execution (Default is FALSE)
-*  DELETE_TRACE_FLAG in coord.erl deletes the Traces after the execution (Default is TRUE)
-
-
 
 
