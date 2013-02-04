@@ -3,12 +3,13 @@
 -module(conc_symb).
 %% exports appear alphabetically
 -export([abstract/1, append_binary/2, empty_binary/0, ensure_list/2,
-	 generate_mapping/2, hd/1,
-	 make_bitstring/5, match_bitstring_const/2, match_bitstring_var/2,
-	 mock_bif/2, tl/1, tuple_to_list/2]).
+         generate_mapping/2, hd/1,
+         make_bitstring/5, match_bitstring_const/2, match_bitstring_var/2,
+         mock_bif/2, tl/1, tuple_to_list/2]).
 
 -export_type([sbitstring/0]).
 
+-type bif() :: {atom(), atom(), non_neg_integer()}.
 -type sbitstring() :: {'bitstr', [term()]}.
 -type encoding()   :: {bin_lib:bsize(), bin_lib:bunit(), bin_lib:btype(), [bin_lib:bflag()]}.
 
@@ -25,10 +26,9 @@ abstract([_A|As], Acc, Id) ->
   SymbA = erlang:list_to_atom(X),
   abstract(As, [SymbA|Acc], Id+1).
 
-
 %% Generate a mapping between the concrete values
 %% and their symbolic abstraction
--spec generate_mapping([atom()], [term()]) -> [{atom(), term()}].
+-spec generate_mapping(Ss :: [atom()], Vs :: [term()]) -> Ms :: [{atom(), term()}].
 
 generate_mapping(Ss, Vs) ->
   lists:zip(Ss, Vs).
@@ -38,8 +38,7 @@ generate_mapping(Ss, Vs) ->
 %% Mocks the execution of an erlang bif and returns a symbolic 
 %% represenation of its result
 %% ------------------------------------------------------------------------
--spec mock_bif({M :: atom(), F :: atom(), A :: non_neg_integer()}, Args) ->
-	 'true' | {atom(), Args} when Args :: [term()].
+-spec mock_bif(MFA :: bif(), As :: [term()]) -> 'true' | { MFA_s :: atom(), As :: [term()]}.
 
 mock_bif({erlang, demonitor, 1}, _Args) -> true;
 mock_bif({erlang, display, 1}, _Args) -> true;
@@ -68,7 +67,7 @@ mock_bif({M, F, A}, Args) ->
 %% To create a list of N elements from a symbolic term
 %% that represents a tuple (N is user defined)
 %% ------------------------------------------------------------------------
--spec tuple_to_list(term(), non_neg_integer()) -> [term()].
+-spec tuple_to_list(S :: term(), N :: non_neg_integer()) -> L :: [term()].
 tuple_to_list(S, N) ->
   tuple_to_list(S, N, []).
   
@@ -82,7 +81,7 @@ tuple_to_list(S, N, Acc) ->
 %% hd/1
 %% Get the head of a symbolic term that represents a list
 %% ------------------------------------------------------------------------
--spec hd(term()) -> term().
+-spec hd(S :: term()) -> Hd :: term().
   
 hd(S) when is_list(S) ->
   erlang:hd(S);
@@ -93,7 +92,7 @@ hd(S) ->
 %% tl/1
 %% Get the tail of a symbolic term that represents a list
 %% ------------------------------------------------------------------------
--spec tl(term()) -> term().
+-spec tl(S :: term()) -> Tl :: term().
   
 tl(S) when is_list(S) ->
   erlang:tl(S);
@@ -105,11 +104,8 @@ tl(S) ->
 %% Ensures that a symbolic term is a list of N elements
 %% (N is user defined)
 %% ------------------------------------------------------------------------
--spec ensure_list(S, N) -> L
-  when S :: term(),
-       N :: pos_integer(),
-       L :: [term()].
-       
+-spec ensure_list(S :: term(), N :: pos_integer()) -> L :: [term()].
+  
 ensure_list(S, N) when is_list(S) ->
   case length(S) of
     N -> S;
@@ -162,9 +158,12 @@ match_bitstring_const(Cnst, Sv) ->
 %% Symbolic representation of pattern matching a symbolic binary
 %% to an encoded symbolic bitstring and return 
 %% the matched value and the rest of the symbolic binary
--spec match_bitstring_var(encoding(), sbitstring()) -> {{'bitstr_v_x', {term(), sbitstring()}}, {'bitstr_v_rest', {term(), sbitstring()}}}.
+-spec match_bitstring_var(encoding(), sbitstring()) ->
+  {{'bitstr_v_x', {term(), sbitstring()}}, {'bitstr_v_rest', {term(), sbitstring()}}}.
 
 match_bitstring_var(SEnc, Sv) ->
   X = {'bitstr_v_x', {SEnc, Sv}},
   Rest = {'bitstr_v_rest', {SEnc, Sv}},
   {X, Rest}.
+  
+
