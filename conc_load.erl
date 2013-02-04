@@ -10,9 +10,12 @@
 %% as they are defined in core_parse.hrl
 -include_lib("compiler/src/core_parse.hrl").
 
+-type compile_error() :: {'error', term()} | {'runtime_error', term()}.
+
 %%====================================================================
 %% External exports
 %%====================================================================
+-spec load(M :: atom(), Db :: ets:tab(), Dir :: string()) -> {ok, M :: atom()} | compile_error().
   
 load(Mod, Db, Dir) ->
   try store_module(Mod, Db, Dir) of
@@ -41,31 +44,37 @@ load(Mod, Db, Dir) ->
 %% exported             [{Mod :: atom(), Fun :: atom(), Arity :: non_neg_integer()}]  
 %% attributes           Attrs :: [{cerl(), cerl()}]
 %% {Mod, Fun, Arity}    {Def :: #c_fun{}, Exported :: boolean()}
-store_module(Mod, Db, Dir) ->
+-spec store_module(M :: atom(), Db :: ets:tab(), Dir :: string()) -> ok.
+
+store_module(M, Db, Dir) ->
   %% Compile the module to Core Erlang
-  Core = compile_core(Mod, Dir),
+  Core = compile_core(M, Dir),
   %% Build Core Erlang Abstract Syntax Tree
   {ok, Tokens, _} = scan_file(Core),
   {ok, AST} = core_parse:parse(Tokens),
   %% Store Module in the Db
-  store_module_info(anno, Mod, AST, Db),
-  store_module_info(name, Mod, AST, Db),
-  store_module_info(exports, Mod, AST, Db),
-  store_module_info(attributes, Mod, AST, Db),
-  store_module_funs(Mod, AST, Db),
+  store_module_info(anno, M, AST, Db),
+  store_module_info(name, M, AST, Db),
+  store_module_info(exports, M, AST, Db),
+  store_module_info(attributes, M, AST, Db),
+  store_module_funs(M, AST, Db),
   
   ok.
   
 %% Core Erlang Scanner
+-spec scan_file(File :: file:filename()) -> term().
+
 scan_file(File) ->
   {ok, FileContents} = file:read_file(File),
   Data = binary_to_list(FileContents),
   core_scan:string(Data).
   
 %% Compile the module source to Core Erlang
-compile_core(Mod, Dir) ->
+-spec compile_core(M :: atom(), Dir :: string()) -> file:filename().
+
+compile_core(M, Dir) ->
   ok = filelib:ensure_dir(Dir ++ "/"),
-  {ok, BeamPath} = ensure_mod_loaded(Mod),
+  {ok, BeamPath} = ensure_mod_loaded(M),
   {ok, {_, [{compile_info, Info}]}} = beam_lib:chunks(BeamPath, [compile_info]),
   Source = proplists:get_value(source, Info),
   Includes = proplists:lookup_all(i, proplists:get_value(options, Info)),
@@ -73,14 +82,18 @@ compile_core(Mod, Dir) ->
   CompInfo = [to_core, return_errors, {outdir, Dir}] ++ Includes ++ Macros,
   CompRet = compile:file(Source, CompInfo),
   case CompRet of
-    {ok, Mod} ->
-      Dir ++ "/" ++ atom_to_list(Mod) ++ ".core";
+    {ok, M} ->
+      Dir ++ "/" ++ atom_to_list(M) ++ ".core";
     Errors ->
       erlang:throw({compile, Errors})
   end.
   
-ensure_mod_loaded(Mod) ->
-  case code:which(Mod) of
+%% Ensure the module beam code is loaded
+%% and return the path it is located
+-spec ensure_mod_loaded(M :: atom()) -> {ok, Path :: file:filename()}.
+  
+ensure_mod_loaded(M) ->
+  case code:which(M) of
     non_existing ->
       erlang:throw(non_existing);
     preloaded ->
@@ -92,37 +105,41 @@ ensure_mod_loaded(Mod) ->
   end.
   
 %% Store Module Information
-store_module_info(anno, _Mod, AST, Db) ->
+-spec store_module_info(atom(), M :: atom(), AST :: cerl:cerl(), Db :: ets:tab()) -> true.
+
+store_module_info(anno, _M, AST, Db) ->
   Anno = AST#c_module.anno,
   ets:insert(Db, {anno, Anno});
-  %% io:format("[conc_load]: Stored Module Anno: ~p~n", [Anno]);
-store_module_info(name, _Mod, AST, Db) ->
+store_module_info(name, _M, AST, Db) ->
   ModName_c = AST#c_module.name,
   ModName = ModName_c#c_literal.val,
   ets:insert(Db, {name, ModName});
-%  io:format("[conc_load]: Stored Module Name: ~p~n", [ModName]);
-store_module_info(exports, Mod, AST, Db) ->
+store_module_info(exports, M, AST, Db) ->
   Exps_c = AST#c_module.exports,
   Fun_info = 
     fun(Elem) ->
       {Fun, Arity} = Elem#c_var.name,
-      {Mod, Fun, Arity}
+      {M, Fun, Arity}
     end,
   Exps = lists:map(Fun_info, Exps_c),
   ets:insert(Db, {exported, Exps});
-  %% io:format("[conc_load]: Stored Module Exported: ~p~n", [Exps]);
-store_module_info(attributes, _Mod, AST, Db) ->
+store_module_info(attributes, _M, AST, Db) ->
   Attrs_c = AST#c_module.attrs,
   ets:insert(Db, {attributes, Attrs_c}).
-  %% io:format("[conc_load]: Stored Module Attributes: ~p~n", [Attrs_c]).
   
-store_module_funs(Mod, AST, Db) ->
+%% Store Module exported functions
+-spec store_module_funs(M :: atom(), AST :: cerl:cerl(), Db :: ets:tab()) -> ok.
+
+store_module_funs(M, AST, Db) ->
   Funs = AST#c_module.defs,
   [{exported, Exps}] = ets:lookup(Db, exported),
-  lists:foreach(fun(X) -> store_fun(Exps, Mod, X, Db) end, Funs).
+  lists:foreach(fun(X) -> store_fun(Exps, M, X, Db) end, Funs).
 
-store_fun(Exps, Mod, {Fun, Def}, Db) ->
+%% Store the AST of a Function
+-spec store_fun(Exps :: [atom()], M :: atom(), {Fun :: cerl:c_var(), Def :: cerl:c_fun()}, Db :: ets:tab()) -> true.
+
+store_fun(Exps, M, {Fun, Def}, Db) ->
   {FunName, Arity} = Fun#c_var.name,
-  Exported = lists:member({Mod, FunName, Arity}, Exps),
-  ets:insert(Db, {{Mod, FunName, Arity}, {Def, Exported}}).
-%  io:format("[conc_load]: Stored Function : ~p:~p/~p (~p) =~n~p~n", [Mod, FunName, Arity, Exported, Def]).
+  Exported = lists:member({M, FunName, Arity}, Exps),
+  ets:insert(Db, {{M, FunName, Arity}, {Def, Exported}}).
+  
