@@ -1,3 +1,5 @@
+%% -*- erlang-indent-level: 2 -*-
+%%------------------------------------------------------------------------------
 -module(conc_cserver).
 -behaviour(gen_server).
 
@@ -167,8 +169,7 @@ delete_stored_core_files(Dir) ->
   case file:list_dir(Dir) of
     {ok, FileNames} ->
       lists:foreach(fun(FN) -> file:delete(Dir ++ "/" ++ FN) end, FileNames),
-      file:del_dir(Dir);
+      ok = file:del_dir(Dir);
     {error, enoent} ->
       ok
-  end,
-  ok.
+  end.
