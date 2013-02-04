@@ -30,11 +30,11 @@ i(M, F, As, CodeServer, TraceServer) ->
   SymbAs = concolic_symbolic:abstract(As),
   Mapping = concolic_symbolic:generate_mapping(SymbAs, As),
   I = fun() ->
-    {ok, Fd} = concolic_tserver:register_to_trace(TraceServer, Root),
-    Args = [{named, {M, F}}, As, SymbAs, external, CodeServer, TraceServer, Fd],
-    Val = apply(?MODULE, eval, Args),
-    concolic:send_return(Root, Mapping, Val)
-  end,
+	  {ok, Fd} = concolic_tserver:register_to_trace(TraceServer, Root),
+	  NMF = {named, {M, F}},
+	  Val = eval(NMF, As, SymbAs, external, CodeServer, TraceServer, Fd),
+	  concolic:send_return(Root, Mapping, Val)
+      end,
   erlang:spawn(I).
 
   
@@ -329,22 +329,19 @@ eval({named, {erlang, make_fun}}, CAs, SAs, _CallType, CodeServer, TraceServer, 
 eval({named, {erlang, apply}}, CAs, SAs, _CallType, CodeServer, TraceServer, Fd) ->
   Arity = length(CAs),
   SAs_e = concolic_symbolic:ensure_list(SAs, Arity),
-  EvalArgs =
-    case CAs of
-      [Fun, Args] ->
-        [_SFun, SArgs] = SAs_e,
-        %% TODO Constraint: Fun=SFun
-        [{lambda, Fun}, Args, SArgs, local, CodeServer, TraceServer, Fd];
-      [Mod, Fun, Args] ->
-        [_SMod, _SFun, SArgs] = SAs_e,
-        %% TODO Constraints: SMod = Mod, SFun=Fun
-        Call = find_call_type(erlang, Mod),
-        [{named, {Mod, Fun}}, Args, SArgs, Call, CodeServer, TraceServer, Fd];
-      _ ->
-        exception(error, {undef, {erlang, apply, Arity}})
-    end,
-  erlang:apply(?MODULE, eval, EvalArgs);
-
+  case CAs of
+    [Fun, Args] ->
+      [_SFun, SArgs] = SAs_e,
+      %% TODO Constraint: Fun=SFun
+      eval({lambda, Fun}, Args, SArgs, local, CodeServer, TraceServer, Fd);
+    [M, F, Args] ->
+      [_SMod, _SFun, SArgs] = SAs_e,
+      %% TODO Constraints: SMod = M, SFun=F
+      Call = find_call_type(erlang, M),
+      eval({named, {M, F}}, Args, SArgs, Call, CodeServer, TraceServer, Fd);
+    _ ->
+      exception(error, {undef, {erlang, apply, Arity}})
+  end;
 
 %% Handle an MFA
 eval({named, {M, F}}, CAs, SAs, CallType, CodeServer, TraceServer, Fd) ->
