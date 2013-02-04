@@ -1,3 +1,5 @@
+%% -*- erlang-indent-level: 2 -*-
+%%------------------------------------------------------------------------------
 -module(bin_lib).
 
 %% Ln 13
@@ -9,6 +11,10 @@
 %% Ln 30745
 %% match_bitstring_var(Size, Unit, Type, Flags, MatchVal) -> {Bin, Bin}
 -export([make_bitstring/5, match_bitstring_const/6, match_bitstring_var/5]).
+
+%% -type btype() :: 'binary' | 'float' | 'integer'.
+
+%% -spec make_bitstring(_, _, _, btype(), _) -> <<_:_*1>>.
 
 make_bitstring(Val, Size, Unit, Type, Flags) ->
   Sign = conc_lib:get_signedness(Flags),
