@@ -10,12 +10,14 @@
 %% as they are defined in core_parse.hrl
 -include_lib("compiler/src/core_parse.hrl").
 
+-export_type([compile_error/0]).
+
 -type compile_error() :: {'error', term()} | {'runtime_error', term()}.
 
 %%====================================================================
 %% External exports
 %%====================================================================
--spec load(M :: atom(), Db :: ets:tab(), Dir :: string()) -> {ok, M :: atom()} | compile_error().
+-spec load(M :: atom(), Db :: ets:tab(), Dir :: string()) -> {'ok', M :: atom()} | compile_error().
   
 load(Mod, Db, Dir) ->
   try store_module(Mod, Db, Dir) of
@@ -44,7 +46,7 @@ load(Mod, Db, Dir) ->
 %% exported             [{Mod :: atom(), Fun :: atom(), Arity :: non_neg_integer()}]  
 %% attributes           Attrs :: [{cerl(), cerl()}]
 %% {Mod, Fun, Arity}    {Def :: #c_fun{}, Exported :: boolean()}
--spec store_module(M :: atom(), Db :: ets:tab(), Dir :: string()) -> ok.
+-spec store_module(M :: atom(), Db :: ets:tab(), Dir :: string()) -> 'ok'.
 
 store_module(M, Db, Dir) ->
   %% Compile the module to Core Erlang
@@ -90,7 +92,7 @@ compile_core(M, Dir) ->
   
 %% Ensure the module beam code is loaded
 %% and return the path it is located
--spec ensure_mod_loaded(M :: atom()) -> {ok, Path :: file:filename()}.
+-spec ensure_mod_loaded(M :: atom()) -> {'ok', Path :: file:filename()}.
   
 ensure_mod_loaded(M) ->
   case code:which(M) of
@@ -128,7 +130,7 @@ store_module_info(attributes, _M, AST, Db) ->
   ets:insert(Db, {attributes, Attrs_c}).
   
 %% Store Module exported functions
--spec store_module_funs(M :: atom(), AST :: cerl:cerl(), Db :: ets:tab()) -> ok.
+-spec store_module_funs(M :: atom(), AST :: cerl:cerl(), Db :: ets:tab()) -> 'ok'.
 
 store_module_funs(M, AST, Db) ->
   Funs = AST#c_module.defs,

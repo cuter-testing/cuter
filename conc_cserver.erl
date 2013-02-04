@@ -8,7 +8,7 @@
 
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_info/2,
-  handle_call/3, handle_cast/2]).
+         handle_call/3, handle_cast/2]).
 
 %% gen_server state datatype
 -record(state, {
@@ -16,17 +16,23 @@
   %% Creates an ETS table where it stores:
   %% {Key, Value} -> {Module, ModuleDb}
   %%   Module   :: atom()
-  %%   ModuleDb :: ets:tid()
+  %%   ModuleDb :: ets:tab()
   db    :: ets:tab(),      %% Database of the modules and their stored code
   dir   :: string(),       %% Directory where .core files are saved
   super :: pid()           %% Concolic Server (supervisor) process
 }).
+
+-type state() :: #state{}.
+-type load_request() :: {'load', atom()}.
+-type load_reply() :: {'ok', ets:tab()} | conc_load:compile_error() | 'preloaded' | 'cover_compiled' | 'non_existing'.
 
 %%====================================================================
 %% External exports
 %%====================================================================
 
 %% Initialize a CodeServer
+-spec init_codeserver(CoreDir :: string(), Super :: pid()) -> CodeServer :: pid().
+
 init_codeserver(CoreDir, Super) ->
   case gen_server:start(?MODULE, [CoreDir, Super], []) of
     {ok, CodeServer} -> CodeServer;
@@ -34,10 +40,14 @@ init_codeserver(CoreDir, Super) ->
   end.
   
 %% Terminate a CodeServer
+-spec terminate(CodeServer :: pid()) -> 'ok'.
+
 terminate(CodeServer) ->
   gen_server:cast(CodeServer, {terminate, self()}).
   
 %% Request the ETS table where the code of a module M is stored
+-spec load(CodeServer :: pid(), M :: atom()) -> Msg :: load_reply().
+
 load(CodeServer, M) ->
   gen_server:call(CodeServer, {load, M}).
 
@@ -45,13 +55,23 @@ load(CodeServer, M) ->
 %% gen_server callbacks
 %%====================================================================
 
+%% ---------------------------------------------------------------------
+%% gen_server callback : init/1
+%% ---------------------------------------------------------------------
+-spec init([(string() | pid())]) -> {'ok', state()}.
+
 init([Dir, Super]) when is_list(Dir) ->
   link(Super),
   Db = ets:new(?MODULE, [ordered_set, protected]),
   U = erlang:ref_to_list(erlang:make_ref()),
   CoreDir = filename:absname(Dir ++ "/core-" ++ U),
   {ok, #state{db=Db, dir=CoreDir, super=Super}}.
-  
+
+%% ---------------------------------------------------------------------
+%% gen_server callback : terminate/2
+%% ---------------------------------------------------------------------
+-spec terminate(Reason :: term(), State :: state()) -> 'ok'.
+
 terminate(_Reason, State) ->
   Db = State#state.db,
   Dir = State#state.dir,
@@ -64,14 +84,30 @@ terminate(_Reason, State) ->
   %% Send statistics to supervisor
   ok = conc:send_clogs(Super, LoadedMods).
   
+%% ---------------------------------------------------------------------
+%% gen_server callback : code_change/3
+%% ---------------------------------------------------------------------
+-spec code_change(term(), State :: state(), term()) -> {'ok', State :: state()}.
+  
 code_change(_OldVsn, State, _Extra) ->
   %% No change planned.
   {ok, State}.
+  
+%% ---------------------------------------------------------------------
+%% gen_server callback : handle_info/2
+%% ---------------------------------------------------------------------
+-spec handle_info(Msg :: term(), state()) -> {'noreply', state()}.
   
 handle_info(Msg, State) ->
   %% Just outputting unexpected messages for now
   io:format("[conc_cserver]: Unexpected message ~p~n", [Msg]),
   {noreply, State}.
+  
+%% ---------------------------------------------------------------------
+%% gen_server callback : handle_call/3
+%% ---------------------------------------------------------------------
+-spec handle_call(Req :: load_request(), From :: {pid(), reference()}, State :: state()) ->
+  {'reply', Reply :: load_reply(), NewState :: state()}.
   
 %% Handle a "Load a Module into the Db" call
 %%   Case                             Reply
@@ -110,6 +146,11 @@ handle_call({load, M}, _From, State) ->
       {reply, non_existing, State}
   end.
   
+%% ---------------------------------------------------------------------
+%% gen_server callback : handle_cast/2
+%% ---------------------------------------------------------------------
+-spec handle_cast(Msg :: term(), state()) -> {'stop', 'normal', state()} | {'noreply', state()}.
+  
 %% Cast Request : {terminate, FromWho}
 handle_cast({terminate, FromWho}, State) ->
   Super = State#state.super,
@@ -130,11 +171,9 @@ handle_cast({terminate, FromWho}, State) ->
 %% Module M is preloaded       -->  preloaded
 %% Module M is cover_compiled  -->  cover_compiled
 %% Module M does not exist     -->  non_existing
--spec is_mod_stored(Mod, State) -> {true, MDb} | false | preloaded | cover_compiled | non_existing
-  when Mod   :: atom(),
-       State :: #state{},
-       MDb   :: ets:tab().
-       
+-spec is_mod_stored(M :: atom(), State :: state()) ->
+  {'true', MDb :: ets:tab()} | 'false' | 'preloaded' | 'cover_compiled' | 'non_existing'.
+  
 is_mod_stored(M, State) ->
   Db = State#state.db,
   case ets:lookup(Db, M) of
@@ -150,10 +189,8 @@ is_mod_stored(M, State) ->
   end.
 
 %% Delete all ETS tables that contain the code of modules
--spec delete_stored_modules(Db) -> Mods
-  when Db   :: ets:tab(),
-       Mods :: [atom()].
-       
+-spec delete_stored_modules(Db :: ets:tab()) -> Mods :: [atom()].
+  
 delete_stored_modules(Db) ->
   DeleteOne = 
     fun ({Mod, ModDb}, Acc) ->
@@ -173,3 +210,4 @@ delete_stored_core_files(Dir) ->
     {error, enoent} ->
       ok
   end.
+  
