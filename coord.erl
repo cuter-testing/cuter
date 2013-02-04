@@ -5,13 +5,14 @@
 -export([run/3, run_bencherl_demos/0, run_my_demos/0]).
 
 %-define(PROFILING_FLAG, false).
-%-define(PRINT_TRACE_FLAG, true).  %% Displays Traces after the execution
+%-define(PRINT_TRACE_FLAG, true).   %% Displays Traces after the execution
 %-define(DELETE_TRACE_FLAG, true).  %% Deletes the Traces after the execution
 
 %% -----------------------------------------------------------------------------
 %% Concolic Execution of M,F,As
 %% -----------------------------------------------------------------------------
 
+-spec run(atom(), atom(), [term()]) -> 'ok'.
 run(M, F, As) ->
   process_flag(trap_exit, true),
   CoreDir = "core_temp",
@@ -45,9 +46,9 @@ run(M, F, As) ->
 %% -----------------------------------------------------------------------------
   
 %% Bencherl Demos
-%% Version :: short | intermediate | long
+-spec run_bencherl_demos() -> 'ok'.
 run_bencherl_demos() ->
-  Version = 'short',
+  Version = 'short',  %% Version :: short | intermediate | long
   %%  Cores = erlang:system_info(schedulers_online),
   Cores = 2,
   Conf = [{number_of_cores, Cores}],
@@ -60,16 +61,17 @@ run_bencherl_demos() ->
       Args = Bench:bench_args(Version, Conf),
       lists:map(fun(A) -> run(Bench, run, [A, foo, bar]) end, Args)
     end,
-  lists:map(RunOne, Benchmarks).
+  lists:foreach(RunOne, Benchmarks).
   
 %% My Demos
+-spec run_my_demos() -> 'ok'.
 run_my_demos() ->
   Demos = [{fib, [4]}, {min, [[5,1,3]]}, {spawn_apply, [erlang,'++',[[1,2,3],[a,b,c]]]}],
   F = fun({F, As}) ->
     io:format("~n===> Simulating apply(demo, ~w, ~w) ...~n", [F, As]),
     run(demo, F, As)
   end,
-  lists:map(F, Demos).
+  lists:foreach(F, Demos).
   
 %% -----------------------------------------------------------------------------
 %% Profiling functions
