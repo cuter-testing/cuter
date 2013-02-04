@@ -1,4 +1,7 @@
+%% -*- erlang-indent-level: 2 -*-
+%%------------------------------------------------------------------------------
 -module(conc_eval).
+
 -export([i/5, eval/7, unzip_error/1]).
 
 -include_lib("compiler/src/core_parse.hrl").
@@ -158,8 +161,7 @@ eval({named, {erlang, spawn_opt}}, CAs, SAs, _CallType, CodeServer, TraceServer,
 %% so as to zip the concrete and symbolic reason
   
 %% Handle '!'/2
-eval({named, {erlang, '!'}}, CAs, SAs, CallType, CodeServer, TraceServer, Fd)
-  when length(CAs) =:= 2 ->
+eval({named, {erlang, '!'}}, [_, _] = CAs, SAs, CallType, CodeServer, TraceServer, Fd) ->
     eval({named, {erlang, send}}, CAs, SAs, CallType, CodeServer, TraceServer, Fd);
 
 %% Handle send/2, send/3
@@ -339,16 +341,16 @@ eval({named, {erlang, apply}}, CAs, SAs, _CallType, CodeServer, TraceServer, Fd)
         exception(error, {undef, {erlang, apply, Arity}})
     end,
   erlang:apply(conc_eval, eval, EvalArgs);
-  
+
 
 %% Handle an MFA
 eval({named, {M, F}}, CAs, SAs, CallType, CodeServer, TraceServer, Fd) ->
   Arity = length(CAs),
-%  ok = conc_encdec:log_term(Fd, {{M, F, Arity}, self()}),
+  %%  ok = conc_encdec:log_term(Fd, {{M, F, Arity}, self()}),
   SAs_e = conc_symb:ensure_list(SAs, Arity),
-%  io:format("~n~nCalling ~w:~w/~w~n",[M,F,Arity]),
-%  io:format("CAs = ~w~n", [CAs]),
-%  io:format("SAs = ~w~n", [SAs_e]),
+  %%  io:format("~n~nCalling ~w:~w/~w~n", [M,F,Arity]),
+  %%  io:format("CAs = ~w~n", [CAs]),
+  %%  io:format("SAs = ~w~n", [SAs_e]),
   case conc_lib:is_bif(M, F, Arity) of
     true ->
       CR = apply(M, F, CAs),
@@ -363,7 +365,7 @@ eval({named, {M, F}}, CAs, SAs, CallType, CodeServer, TraceServer, Fd) ->
         {ok, MDb} ->
           Key = {M, F, Arity},
           {Def, Exported} = retrieve_function(Key, MDb),
-%          io:format("Def=~n~p~n", [Def]),
+	  %%  io:format("Def=~n~p~n", [Def]),
           check_exported(Exported, CallType, Key),
           Cenv = conc_lib:bind_parameters(CAs, Def#c_fun.vars, conc_lib:new_environment()),
           Senv = conc_lib:bind_parameters(SAs_e, Def#c_fun.vars, conc_lib:new_environment()),
@@ -404,22 +406,21 @@ exception(Class, Reason) ->
 eval_expr(M, CodeServer, TraceServer, {c_apply, _Anno, Op, Args}, Cenv, Senv, Fd) ->
   %% TODO Constraint: OPsv=OPcv
   {OPcv, _OPsv} = eval_expr(M, CodeServer, TraceServer, Op, Cenv, Senv, Fd),
-  ZAs = lists:map(
-    fun(A) -> %% Will create closures where appropriate
-      {CA, SA} = eval_expr(M, CodeServer, TraceServer, A, Cenv, Senv, Fd),
-      case CA of
-        {func, {F, Arity}} -> %% local func (external func is already in make_fun/3 in core erlang)
-          Cl = create_closure(M, F, Arity, CodeServer, TraceServer, local, Fd),
-          {Cl, Cl};
-        {letrec_func, {Mod, F, Arity, Def, E}} -> %% letrec func
-          {CE, SE} = E(),
-          Cl = create_closure(Mod, F, Arity, CodeServer, TraceServer, {letrec_fun, {Def, CE, SE}}, Fd),
-          {Cl, Cl};
-        _ ->
-          {CA, SA}
-      end
-    end,
-    Args),
+  Fun = fun(A) -> %% Will create closures where appropriate
+          {CA, SA} = eval_expr(M, CodeServer, TraceServer, A, Cenv, Senv, Fd),
+          case CA of
+            {func, {F, Arity}} -> %% local func (external func is already in make_fun/3 in core erlang)
+	      Cl = create_closure(M, F, Arity, CodeServer, TraceServer, local, Fd),
+	      {Cl, Cl};
+	    {letrec_func, {Mod, F, Arity, Def, E}} -> %% letrec func
+              {CE, SE} = E(),
+              Cl = create_closure(Mod, F, Arity, CodeServer, TraceServer, {letrec_fun, {Def, CE, SE}}, Fd),
+              {Cl, Cl};
+            _ ->
+              {CA, SA}
+          end
+	end,
+  ZAs = [Fun(A) || A <- Args],
   {CAs, SAs} = lists:unzip(ZAs),
   case OPcv of %% Check eval_expr(..., #c_var{}, ...) output for reference
     {func, {Func, _Arity}} ->
@@ -433,9 +434,7 @@ eval_expr(M, CodeServer, TraceServer, {c_apply, _Anno, Op, Args}, Cenv, Senv, Fd
   
 %% c_binary
 eval_expr(M, CodeServer, TraceServer, {c_binary, _Anno, Segments}, Cenv, Senv, Fd) ->
-  Segms = lists:map(
-    fun(S) -> eval_expr(M, CodeServer, TraceServer, S, Cenv, Senv, Fd) end,
-    Segments),
+  Segms = [eval_expr(M, CodeServer, TraceServer, S, Cenv, Senv, Fd) || S <- Segments],
   {Cs, Ss} = lists:unzip(Segms),
   append_segments(Cs, Ss);
   
@@ -454,22 +453,21 @@ eval_expr(M, CodeServer, TraceServer, {c_bitstr, _Anno, Val, Size, Unit, Type, F
 eval_expr(M, CodeServer, TraceServer, {c_call, _Anno, Mod, Name, Args}, Cenv, Senv, Fd) ->
   {Mcv, _Msv} = eval_expr(M, CodeServer, TraceServer, Mod, Cenv, Senv, Fd),
   {Fcv, _Fsv} = eval_expr(M, CodeServer, TraceServer, Name, Cenv, Senv, Fd),
-  ZAs = lists:map(
-    fun(A) -> %% Will create closures where appropriate
-      {CA, SA} = eval_expr(M, CodeServer, TraceServer, A, Cenv, Senv, Fd),
-      case CA of
-        {func, {F, Arity}} -> %% local func (external func is already in make_fun/3 in core erlang)
-          Cl = create_closure(M, F, Arity, CodeServer, TraceServer, local, Fd),
-          {Cl, Cl};
-        {letrec_func, {Mod, F, Arity, Def, E}} -> %% letrec func
-          {CE, SE} = E(),
-          Cl = create_closure(Mod, F, Arity, CodeServer, TraceServer, {letrec_fun, {Def, CE, SE}}, Fd),
-          {Cl, Cl};
-        _ ->
-          {CA, SA}
-      end
-    end,
-    Args),
+  Fun = fun(A) -> %% Will create closures where appropriate
+          {CA, SA} = eval_expr(M, CodeServer, TraceServer, A, Cenv, Senv, Fd),
+          case CA of
+            {func, {F, Arity}} -> %% local func (external func is already in make_fun/3 in core erlang)
+              Cl = create_closure(M, F, Arity, CodeServer, TraceServer, local, Fd),
+              {Cl, Cl};
+            {letrec_func, {Mod, F, Arity, Def, E}} -> %% letrec func
+              {CE, SE} = E(),
+              Cl = create_closure(Mod, F, Arity, CodeServer, TraceServer, {letrec_fun, {Def, CE, SE}}, Fd),
+              {Cl, Cl};
+            _ ->
+              {CA, SA}
+          end
+        end,
+  ZAs = [Fun(A) || A <- Args],
   {CAs, SAs} = lists:unzip(ZAs),
   %% TODO
   %% Will make constraints Mcv=Msv and Fcv=Fsv
@@ -552,9 +550,7 @@ eval_expr(_M, _CodeServer, _TraceServer, {c_literal, _Anno, Val}, _Cenv, _Senv, 
 %% c_primop
 eval_expr(M, CodeServer, TraceServer, {c_primop, _Anno, Name, Args}, Cenv, Senv, Fd) ->
   Primop = Name#c_literal.val,
-  ZAs = lists:map(
-    fun(A) -> eval_expr(M, CodeServer, TraceServer, A, Cenv, Senv, Fd) end,
-    Args),
+  ZAs = [eval_expr(M, CodeServer, TraceServer, A, Cenv, Senv, Fd) || A <- Args],
   {CAs, SAs} = lists:unzip(ZAs),
   %% TODO needs to records more primops
   %% and implement 'bs_context_to_binary', 'bs_init_writable'
@@ -625,18 +621,14 @@ eval_expr(M, CodeServer, TraceServer, {c_try, _Anno, Arg, Vars, Body, Evars, Han
 
 %% c_tuple
 eval_expr(M, CodeServer, TraceServer, {c_tuple, _Anno, Es}, Cenv, Senv, Fd) ->
-  ZEs = lists:map(
-    fun(E) -> eval_expr(M, CodeServer, TraceServer, E, Cenv, Senv, Fd) end,
-    Es),
+  ZEs = [eval_expr(M, CodeServer, TraceServer, E, Cenv, Senv, Fd) || E <- Es],
   {CEs, SEs} = lists:unzip(ZEs),
   {list_to_tuple(CEs), list_to_tuple(SEs)};
 
 %% c_values
 eval_expr(M, CodeServer, TraceServer, {c_values, _Anno, Es}, Cenv, Senv, Fd) ->
   Degree = length(Es),
-  ZEs = lists:map(
-    fun(E) -> eval_expr(M, CodeServer, TraceServer, E, Cenv, Senv, Fd) end,
-    Es),
+  ZEs = [eval_expr(M, CodeServer, TraceServer, E, Cenv, Senv, Fd) || E <- Es],
   {CEs, SEs} = lists:unzip(ZEs),
   {#valuelist{values=CEs, degree=Degree}, #valuelist{values=SEs, degree=Degree}};
 
@@ -1220,8 +1212,7 @@ zip_args(CAs, SAs) when is_list(CAs), is_list(SAs) ->
   
 %% unzip_args
 unzip_args(As) when is_list(As) ->
-  L = lists:map(fun unzip_one/1, As),
-  lists:unzip(L).
+   lists:unzip([unzip_one(A) || A <- As]).
   
 %% unzip_error // for exception reasons
 unzip_error({nocatch, {'_zip', Cv, Sv}}) ->
@@ -1336,14 +1327,14 @@ check_exported(false, local, _MFA)    -> ok;
 check_exported(false, external, MFA)  -> exception(error, {not_exported, MFA}).
 
 %% calculated the calltype of an MFA from inside another function
-find_call_type(M1, M2) when M1 =:= M2 -> local;
+find_call_type(M, M) -> local;
 find_call_type(_M1, _M2) -> external.
   
 %% Y combinator for a function with arity 0
 y(M) ->
   G = fun(F) -> M(fun() -> (F(F))() end) end,
   G(G).
-  
+
 %% Calculates if the number of patterns in a clause 
 %% is compatible to the numbers of actual values
 %% that are trying to be match to
