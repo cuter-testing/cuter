@@ -1,3 +1,5 @@
+%% -*- erlang-indent-level: 2 -*-
+%%------------------------------------------------------------------------------
 -module(conc_load).
 
 %% External exports
@@ -40,14 +42,11 @@ load(Mod, Db, Dir) ->
 %% attributes           Attrs :: [{cerl(), cerl()}]
 %% {Mod, Fun, Arity}    {Def :: #c_fun{}, Exported :: boolean()}
 store_module(Mod, Db, Dir) ->
-
   %% Compile the module to Core Erlang
   Core = compile_core(Mod, Dir),
-  
   %% Build Core Erlang Abstract Syntax Tree
   {ok, Tokens, _} = scan_file(Core),
   {ok, AST} = core_parse:parse(Tokens),
-  
   %% Store Module in the Db
   store_module_info(anno, Mod, AST, Db),
   store_module_info(name, Mod, AST, Db),
@@ -96,14 +95,12 @@ ensure_mod_loaded(Mod) ->
 store_module_info(anno, _Mod, AST, Db) ->
   Anno = AST#c_module.anno,
   ets:insert(Db, {anno, Anno});
-%  io:format("[conc_load]: Stored Module Anno: ~p~n", [Anno]);
-
+  %% io:format("[conc_load]: Stored Module Anno: ~p~n", [Anno]);
 store_module_info(name, _Mod, AST, Db) ->
   ModName_c = AST#c_module.name,
   ModName = ModName_c#c_literal.val,
   ets:insert(Db, {name, ModName});
 %  io:format("[conc_load]: Stored Module Name: ~p~n", [ModName]);
-  
 store_module_info(exports, Mod, AST, Db) ->
   Exps_c = AST#c_module.exports,
   Fun_info = 
@@ -113,17 +110,16 @@ store_module_info(exports, Mod, AST, Db) ->
     end,
   Exps = lists:map(Fun_info, Exps_c),
   ets:insert(Db, {exported, Exps});
-%  io:format("[conc_load]: Stored Module Exported: ~p~n", [Exps]);
-  
+  %% io:format("[conc_load]: Stored Module Exported: ~p~n", [Exps]);
 store_module_info(attributes, _Mod, AST, Db) ->
   Attrs_c = AST#c_module.attrs,
   ets:insert(Db, {attributes, Attrs_c}).
-%  io:format("[conc_load]: Stored Module Attributes: ~p~n", [Attrs_c]).
+  %% io:format("[conc_load]: Stored Module Attributes: ~p~n", [Attrs_c]).
   
 store_module_funs(Mod, AST, Db) ->
   Funs = AST#c_module.defs,
   [{exported, Exps}] = ets:lookup(Db, exported),
-  lists:map(fun(X) -> store_fun(Exps, Mod, X, Db) end, Funs).
+  lists:foreach(fun(X) -> store_fun(Exps, Mod, X, Db) end, Funs).
 
 store_fun(Exps, Mod, {Fun, Def}, Db) ->
   {FunName, Arity} = Fun#c_var.name,
