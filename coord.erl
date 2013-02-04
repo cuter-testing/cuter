@@ -19,13 +19,13 @@ run(M, F, As) ->
   TraceDir = "traces",
   Start = now(),
   %% profiling_start(?PROFILING_FLAG),
-  Concolic = conc:init_concolic(M, F, As, CoreDir, TraceDir),
-  receive
-    {'EXIT', Concolic, Why} ->
-      R = {error, Why};
-    {Concolic, Results} ->
-      R = Results
-  end,
+  Server = concolic:init_server(M, F, As, CoreDir, TraceDir),
+  R = receive
+        {'EXIT', Concolic, Why} ->
+          {error, Why};
+        {Concolic, Results} ->
+          Results
+      end,
   %% profiling_stop(?PROFILING_FLAG),
   End  = now(),
   Time = timer:now_diff(End, Start),

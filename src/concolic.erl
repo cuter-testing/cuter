@@ -1,11 +1,11 @@
 %% -*- erlang-indent-level: 2 -*-
 %%------------------------------------------------------------------------------
--module(conc).
+-module(concolic).
 
 -behaviour(gen_server).
 
 %% External exports
--export([init_concolic/5, send_return/3, send_error_report/3,
+-export([init_server/5, send_return/3, send_error_report/3,
 	 send_clogs/2, send_tlogs/2, node_servers/2]).
 
 %% gen_server callbacks
@@ -34,10 +34,10 @@
 %%====================================================================
 
 %% Initialize the Concolic Server
-init_concolic(M, F, As, CoreDir, TraceDir) ->
+init_server(M, F, As, CoreDir, TraceDir) ->
   case gen_server:start_link(?MODULE, [M, F, As, CoreDir, TraceDir, self()], []) of
-    {ok, Concolic}  -> Concolic;
-    {error, Reason} -> {error, Reason}
+    {ok, Server} -> Server;
+    {error, _Reason} = R -> R
   end.
   
 %% Send the result of the first interpreted process
@@ -67,9 +67,9 @@ node_servers(ConcServer, Node) ->
 init([M, F, As, CoreDir, TraceDir, Coord]) ->
   process_flag(trap_exit, true),
   Node = node(),
-  CodeServer = conc_cserver:init_codeserver(CoreDir, self()),
-  TraceServer = conc_tserver:init_traceserver(TraceDir, self()),
-  Ipid = conc_eval:i(M, F, As, CodeServer, TraceServer),
+  CodeServer = concolic_cserver:init_codeserver(CoreDir, self()),
+  TraceServer = concolic_tserver:init_traceserver(TraceDir, self()),
+  Ipid = concolic_eval:i(M, F, As, CodeServer, TraceServer),
   InitState = #state{
     coord = Coord,
     coredir = CoreDir,
@@ -204,7 +204,7 @@ handle_info({'EXIT', Who, normal}, State) ->
         %% else wait for the rest
         false ->
           {Node, CodeServer} = lists:keyfind(Node, 1, CPids),
-          conc_cserver:terminate(CodeServer),
+          concolic_cserver:terminate(CodeServer),
           {noreply, NState}
       end;
     false ->
@@ -250,8 +250,8 @@ execution_completed(#state{cpids = CPids, tpids = TPids, int = Int}) ->
 -spec force_terminate(CPids :: [cpid()], TPids :: [tpid()]) -> ok.
 
 force_terminate(CPids, TPids) ->
-  lists:foreach(fun({_Node, P}) -> conc_cserver:terminate(P) end, CPids),
-  lists:foreach(fun({_Node, P}) -> conc_tserver:terminate(P) end, TPids).
+  lists:foreach(fun({_Node, P}) -> concolic_cserver:terminate(P) end, CPids),
+  lists:foreach(fun({_Node, P}) -> concolic_tserver:terminate(P) end, TPids).
 
 %% Locate and return the node info of a CodeServer or TraceServer
 -spec locate(Who :: pid(), CPids :: [cpid()], TPids :: [tpid()]) ->
@@ -290,8 +290,8 @@ node_monitored(Node, CPids, TPids) ->
 remote_spawn_servers(Node, CoreDir, TraceDir, Super) ->
   F = fun() ->
     process_flag(trap_exit, true),
-    CodeServer = conc_cserver:init_codeserver(CoreDir, Super),
-    TraceServer = conc_tserver:init_traceserver(TraceDir, Super),
+    CodeServer = concolic_cserver:init_codeserver(CoreDir, Super),
+    TraceServer = concolic_tserver:init_traceserver(TraceDir, Super),
     exit({CodeServer, TraceServer})
   end,
   P = spawn_link(Node, F),

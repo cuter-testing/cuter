@@ -1,6 +1,6 @@
 %% -*- erlang-indent-level: 2 -*-
 %%------------------------------------------------------------------------------
--module(conc_load).
+-module(concolic_load).
 
 %% External exports
 -export([load/3]).
@@ -17,7 +17,8 @@
 %%====================================================================
 %% External exports
 %%====================================================================
--spec load(M :: atom(), Db :: ets:tab(), Dir :: string()) -> {'ok', M :: atom()} | compile_error().
+-spec load(Mod, ets:tab(), string()) -> {'ok', Mod} | compile_error()
+	when Mod :: atom().
   
 load(Mod, Db, Dir) ->
   try store_module(Mod, Db, Dir) of
@@ -60,7 +61,6 @@ store_module(M, Db, Dir) ->
   store_module_info(exports, M, AST, Db),
   store_module_info(attributes, M, AST, Db),
   store_module_funs(M, AST, Db),
-  
   ok.
   
 %% Core Erlang Scanner
@@ -107,15 +107,17 @@ ensure_mod_loaded(M) ->
   end.
   
 %% Store Module Information
--spec store_module_info(atom(), M :: atom(), AST :: cerl:cerl(), Db :: ets:tab()) -> true.
+-type info() :: 'anno' | 'attributes' | 'exports' | 'name'.
+-spec store_module_info(info(), atom(), cerl:cerl(), ets:tab()) -> 'ok'.
 
 store_module_info(anno, _M, AST, Db) ->
   Anno = AST#c_module.anno,
-  ets:insert(Db, {anno, Anno});
-store_module_info(name, _M, AST, Db) ->
-  ModName_c = AST#c_module.name,
-  ModName = ModName_c#c_literal.val,
-  ets:insert(Db, {name, ModName});
+  true = ets:insert(Db, {anno, Anno}),
+  ok;
+store_module_info(attributes, _M, AST, Db) ->
+  Attrs_c = AST#c_module.attrs,
+  true = ets:insert(Db, {attributes, Attrs_c}),
+  ok;
 store_module_info(exports, M, AST, Db) ->
   Exps_c = AST#c_module.exports,
   Fun_info = 
@@ -124,13 +126,16 @@ store_module_info(exports, M, AST, Db) ->
       {M, Fun, Arity}
     end,
   Exps = lists:map(Fun_info, Exps_c),
-  ets:insert(Db, {exported, Exps});
-store_module_info(attributes, _M, AST, Db) ->
-  Attrs_c = AST#c_module.attrs,
-  ets:insert(Db, {attributes, Attrs_c}).
-  
+  true = ets:insert(Db, {exported, Exps}),
+  ok;
+store_module_info(name, _M, AST, Db) ->
+  ModName_c = AST#c_module.name,
+  ModName = ModName_c#c_literal.val,
+  true = ets:insert(Db, {name, ModName}),
+  ok.
+
 %% Store Module exported functions
--spec store_module_funs(M :: atom(), AST :: cerl:cerl(), Db :: ets:tab()) -> 'ok'.
+-spec store_module_funs(atom(), cerl:cerl(), ets:tab()) -> 'ok'.
 
 store_module_funs(M, AST, Db) ->
   Funs = AST#c_module.defs,
@@ -138,10 +143,10 @@ store_module_funs(M, AST, Db) ->
   lists:foreach(fun(X) -> store_fun(Exps, M, X, Db) end, Funs).
 
 %% Store the AST of a Function
--spec store_fun(Exps :: [atom()], M :: atom(), {Fun :: cerl:c_var(), Def :: cerl:c_fun()}, Db :: ets:tab()) -> true.
+-spec store_fun(Exps :: [atom()], M :: atom(), {Fun :: cerl:c_var(), Def :: cerl:c_fun()}, Db :: ets:tab()) -> 'ok'.
 
 store_fun(Exps, M, {Fun, Def}, Db) ->
   {FunName, Arity} = Fun#c_var.name,
   Exported = lists:member({M, FunName, Arity}, Exps),
-  ets:insert(Db, {{M, FunName, Arity}, {Def, Exported}}).
-  
+  true = ets:insert(Db, {{M, FunName, Arity}, {Def, Exported}}),
+  ok.

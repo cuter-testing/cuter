@@ -1,6 +1,6 @@
 %% -*- erlang-indent-level: 2 -*-
 %%------------------------------------------------------------------------------
--module(conc_tserver).
+-module(concolic_tserver).
 -behaviour(gen_server).
 
 %% External exports
@@ -53,10 +53,10 @@ terminate(TraceServer) ->
 
 register_to_trace(TraceServer, Parent) ->
   {ok, Filename} = gen_server:call(TraceServer, {register_parent, Parent}),
-  {ok, File} = conc_encdec:create_file(Filename),
+  {ok, File} = concolic_encdec:create_file(Filename),
   store_file_descriptor(TraceServer, File),
-  ok = conc_encdec:log_term(File, {pid, self()}),
-  %% ok = conc_encdec:close_file(File),
+  ok = concolic_encdec:log_term(File, {pid, self()}),
+  %%  ok = concolic_encdec:close_file(File),
   {ok, File}.
 
 %% Check if a process is monitored by TraceServer
@@ -125,7 +125,7 @@ terminate(_Reason, State) ->
   ets:delete(Procs),
   ets:delete(Fds),
   %% Send Logs to supervisor
-  ok = conc:send_tlogs(Super, Logs).
+  ok = concolic:send_tlogs(Super, Logs).
 
 %% ---------------------------------------------------------------------
 %% gen_server callback : code_change/3
@@ -155,7 +155,7 @@ handle_call({register_parent, Parent}, {From, _FromTag}, State) ->
      false -> From
     end,
   monitor(process, FromPid),
-  %% io:format("[conc_tserver(~p)]: Monitoring ~p~n", [node(), FromPid]),
+  %% io:format("[~s(~p)]: Monitoring ~p~n", [?MODULE, node(), FromPid]),
   ets:insert(Ptree, {Parent, FromPid}),
   ets:insert(Procs, {FromPid, true}),
   %% Update Logs - Number of monitored processes
@@ -185,7 +185,7 @@ handle_call({is_monitored, Who}, {_From, _FromTag}, State) ->
 %% Ret Msg : {ok, {CodeServer, TraceServer}}
 handle_call({node_servers, Node}, _From, State) ->
   Super = State#state.super,
-  Servers = conc:node_servers(Super, Node),
+  Servers = concolic:node_servers(Super, Node),
   {reply, {ok, Servers}, State};
   
 %% Call Request : {get_fd, Who}
@@ -248,7 +248,7 @@ handle_info({'DOWN', _Ref, process, Who, Reason}, State) ->
   %% Killing all remaining alive processes
   kill_all_processes(get_procs(Procs)),
   %% Send the Error Report to the supervisor
-  conc:send_error_report(Super, Who, conc_eval:unzip_error(Reason)),
+  concolic:send_error_report(Super, Who, concolic_eval:unzip_error(Reason)),
   {stop, normal, State}.
   
 %%====================================================================

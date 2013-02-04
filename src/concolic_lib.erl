@@ -1,9 +1,6 @@
 %% -*- erlang-indent-level: 2 -*-
 %%------------------------------------------------------------------------------
--module(conc_lib).
-
--include("conc_lib.hrl").
--include_lib("compiler/src/core_parse.hrl").
+-module(concolic_lib).
 
 %% External exported functions
 -export([new_environment/0, add_binding/3, is_bound/2, get_value/2,
@@ -13,22 +10,23 @@
 %% External exported types
 -export_type([environment/0, semantic_var/0, semantic_value/0]).
 
+-include_lib("compiler/src/core_parse.hrl").
+
 %% Type definitions
 
 %% Environments are rather small so orddict is more efficient
--type environment()    :: orddict:orddict().
+-opaque environment()  :: orddict:orddict().
 %% cerl:var_name() :: integer() | atom() | {atom(), integer()}.
 -type semantic_var()   :: cerl:var_name().
-%% #valuelist{} is actually a term but this definition is more descriptive
--type semantic_value() :: #valuelist{} | term().
+%% valuelist() is actually a term but this definition is more descriptive
+-type semantic_value() :: concolic_eval:valuelist() | term().
 
 %%====================================================================
 %% External exports
 %%====================================================================
 
 %% Creates a new empty environment
--spec new_environment() -> Env
-  when Env :: environment().
+-spec new_environment() -> environment().
   
 new_environment() -> 
   orddict:new().
@@ -77,7 +75,7 @@ get_value(Var, Environment) ->
 bind_parameters([], [], Env) ->
   Env;
 bind_parameters([Arg|Args], [Var|Vars], Env) ->
-  NewEnv = conc_lib:add_binding(Var#c_var.name, Arg, Env),
+  NewEnv = add_binding(Var#c_var.name, Arg, Env),
   bind_parameters(Args, Vars, NewEnv).
   
 %% Add new mappings to the environment

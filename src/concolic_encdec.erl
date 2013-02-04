@@ -1,6 +1,6 @@
 %% -*- erlang-indent-level: 2 -*-
 %%------------------------------------------------------------------------------
--module(conc_encdec).
+-module(concolic_encdec).
 %% exports are alphabetically ordered
 -export([create_file/1, close_file/1, getint32/1, log_term/2, open_file/1]).
 

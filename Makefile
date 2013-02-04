@@ -1,36 +1,69 @@
-.PHONY: clean distclean all demo count
+.PHONY: clean distclean all demo
+
+###----------------------------------------------------------------------
+### Orientation information
+###----------------------------------------------------------------------
+
+TOP  = $(PWD)
+SRC  = src
+EBIN = ebin
 
 ERLC = erlc
+
+###----------------------------------------------------------------------
+### Flags
+###----------------------------------------------------------------------
+
 WARNS = +warn_exported_vars +warn_unused_import +warn_missing_spec #+warn_untyped_record
 ERLC_FLAGS = +debug_info $(WARNS)
-ERL_FILES = conc.erl conc_cserver.erl conc_tserver.erl conc_symb.erl \
-  conc_eval.erl conc_load.erl conc_lib.erl conc_encdec.erl coord.erl \
-  bin_lib.erl
+
+SRC_MODULES = \
+	bin_lib \
+	concolic \
+	concolic_cserver \
+	concolic_encdec \
+	concolic_eval \
+	concolic_lib \
+	concolic_load \
+	concolic_symbolic \
+	concolic_tserver
+
+## THIS CHUNK TO BE REVISED
 DEMO_BIN = demos/ebin
 DEMO_SRC = demos/src
 ERL_DEMO = genstress.erl bang.erl big.erl ehb.erl ets_test.erl mbrot.erl \
   parallel.erl pcmark.erl ran.erl serialmsg.erl timer_wheel.erl demo.erl
-HRL_FILES = conc_lib.hrl
-BEAM_FILES = $(patsubst %.erl,%.beam,$(ERL_FILES))
 FULL_ERL_DEMO = $(patsubst %.erl,$(DEMO_SRC)/%.erl,$(ERL_DEMO))
 BEAM_DEMO = $(patsubst $(DEMO_SRC)/%.erl,$(DEMO_BIN)/%.beam,$(FULL_ERL_DEMO))
 
-default: $(BEAM_FILES) dialyzer
+###----------------------------------------------------------------------
+### Targets
+###----------------------------------------------------------------------
 
-fast: $(BEAM_FILES)
+TARGETS = concolic_src
 
-all: $(BEAM_FILES) dialyzer demo
+ERL_DIRS = src
+
+vpath %.erl $(ERL_DIRS)
+
+default: $(TARGETS) dialyzer
+
+fast: $(TARGETS)
+
+all: default demo
+
+concolic_src:	$(SRC_MODULES:%=$(EBIN)/%.beam)
 
 demo: $(BEAM_DEMO)
 
-bin_lib.beam: bin_lib.erl
-	$(ERLC) $(ERLC_FLAGS) $<
+$(EBIN)/bin_lib.beam: $(SRC)/bin_lib.erl
+	$(ERLC) $(ERLC_FLAGS) -o $(EBIN) $<
 
-%.beam: %.erl $(HRL_FILES)
-	$(ERLC) +native $(ERLC_FLAGS) $<
+$(EBIN)/%.beam: %.erl
+	$(ERLC) +native $(ERLC_FLAGS) -o $(EBIN) $<
 
-dialyzer: $(BEAM_FILES)
-	dialyzer -Wunmatched_returns $(BEAM_FILES)
+dialyzer: $(TARGETS)
+	dialyzer -Wunmatched_returns $(EBIN)/*.beam
 
 $(DEMO_BIN)/%.beam: $(DEMO_SRC)/%.erl
 	$(ERLC) -o $(DEMO_BIN) $<
@@ -41,11 +74,7 @@ $(DEMO_BIN):
 	mkdir -p $(DEMO_BIN)
 
 clean:
-	$(RM) $(BEAM_FILES)
+	$(RM) $(EBIN)/*.beam
 
 distclean: clean
 	$(RM) -rf $(DEMO_BIN)
-
-count:
-	wc -l $(ERL_FILES)
-

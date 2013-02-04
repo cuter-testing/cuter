@@ -23,8 +23,8 @@
 -spec make_bitstring(term(), bsize(), bunit(), btype(), [bflag()]) -> bitstring().
 
 make_bitstring(Val, Size, Unit, Type, Flags) ->
-  Sign = conc_lib:get_signedness(Flags),
-  End = conc_lib:get_endianess(Flags),
+  Sign = concolic_lib:get_signedness(Flags),
+  End = concolic_lib:get_endianess(Flags),
   case {Size, Unit, Type, Sign, End} of
     {_, 1, integer, signed, big} ->
       <<Val:Size/signed-big-integer-unit:1>>;
@@ -12321,8 +12321,8 @@ make_bitstring(Val, Size, Unit, Type, Flags) ->
 -spec match_bitstring_const(term(), bsize(), bunit(), btype(), [bflag()], bitstring()) -> bitstring().
   
 match_bitstring_const(Val, Size, Unit, Type, Flags, MatchVal) ->
-  Sign = conc_lib:get_signedness(Flags),
-  End = conc_lib:get_endianess(Flags),
+  Sign = concolic_lib:get_signedness(Flags),
+  End = concolic_lib:get_endianess(Flags),
   case {Size, Unit, Type, Sign, End} of
     {_, 1, integer, signed, big} ->
       <<Val:Size/signed-big-integer-unit:1, Rest/bitstring>> = MatchVal,
@@ -30763,8 +30763,8 @@ match_bitstring_const(Val, Size, Unit, Type, Flags, MatchVal) ->
 -spec match_bitstring_var(bsize(), bunit(), btype(), [bflag()], bitstring()) -> {bitstring(), bitstring()}.
   
 match_bitstring_var(Size, Unit, Type, Flags, MatchVal) ->
-  Sign = conc_lib:get_signedness(Flags),
-  End = conc_lib:get_endianess(Flags),
+  Sign = concolic_lib:get_signedness(Flags),
+  End = concolic_lib:get_endianess(Flags),
   case {Size, Unit, Type, Sign, End} of
     {_, 1, integer, signed, big} ->
       <<X:Size/signed-big-integer-unit:1, Rest/bitstring>> = MatchVal,

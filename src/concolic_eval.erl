@@ -1,13 +1,16 @@
 %% -*- erlang-indent-level: 2 -*-
 %%------------------------------------------------------------------------------
--module(conc_eval).
+-module(concolic_eval).
 
 -export([i/5, eval/7, unzip_error/1]).
 
--include_lib("compiler/src/core_parse.hrl").
--include("conc_lib.hrl").
+-export_type([valuelist/0]).
 
-%% TODO Missing Specs and Comments! Will be added soon!
+-include_lib("compiler/src/core_parse.hrl").
+
+%% Used to represent list of values for Core Erlang interpretation
+-record(valuelist, {values :: [term()], degree :: non_neg_integer()}).
+-opaque valuelist() :: #valuelist{}.
 
 %%--------------------------------------------------------------------------
 %% i(M, F, A, CodeServer, TraceServer) -> Pid
@@ -24,13 +27,13 @@
 
 i(M, F, As, CodeServer, TraceServer) ->
   Root = self(),
-  SymbAs = conc_symb:abstract(As),
-  Mapping = conc_symb:generate_mapping(SymbAs, As),
+  SymbAs = concolic_symbolic:abstract(As),
+  Mapping = concolic_symbolic:generate_mapping(SymbAs, As),
   I = fun() ->
-    {ok, Fd} = conc_tserver:register_to_trace(TraceServer, Root),
+    {ok, Fd} = concolic_tserver:register_to_trace(TraceServer, Root),
     Args = [{named, {M, F}}, As, SymbAs, external, CodeServer, TraceServer, Fd],
-    Val = apply(conc_eval, eval, Args),
-    conc:send_return(Root, Mapping, Val)
+    Val = apply(?MODULE, eval, Args),
+    concolic:send_return(Root, Mapping, Val)
   end,
   erlang:spawn(I).
 
@@ -49,7 +52,7 @@ i(M, F, As, CodeServer, TraceServer) ->
 eval({named, {erlang, F}}, CAs, SAs, _CallType, CodeServer, TraceServer, _Fd)
   when F =:= spawn; F =:= spawn_link ->
     Arity = length(CAs),
-    SAs_e = conc_symb:ensure_list(SAs, Arity),
+    SAs_e = concolic_symbolic:ensure_list(SAs, Arity),
     ChildPid =
       case CAs of
         [Fun] ->
@@ -61,7 +64,7 @@ eval({named, {erlang, F}}, CAs, SAs, _CallType, CodeServer, TraceServer, _Fd)
         [Node, Fun] ->
           [_SNode, _SFun] = SAs_e,
           %% TODO Constraints: SNode=Node, SFun=Fun
-          {CServer, TServer} = conc_tserver:node_servers(TraceServer, Node),
+          {CServer, TServer} = concolic_tserver:node_servers(TraceServer, Node),
           EvalArgs = [{lambda, Fun}, [], [], local, CServer, TServer],
           Child = register_and_apply(TServer, self(), EvalArgs),
           erlang:F(Node, Child);
@@ -75,7 +78,7 @@ eval({named, {erlang, F}}, CAs, SAs, _CallType, CodeServer, TraceServer, _Fd)
         [Node, Mod, Fun, Args] ->
           [_SNode, _SMod, _SFun, SArgs] = SAs_e,
           %% TODO Constraints: SNode=Node, SMod = Mod, SFun=Fun
-          {CServer, TServer} = conc_tserver:node_servers(TraceServer, Node),
+          {CServer, TServer} = concolic_tserver:node_servers(TraceServer, Node),
           Call = find_call_type(erlang, Mod),
           EvalArgs = [{named, {Mod, Fun}}, Args, SArgs, Call, CServer, TServer],
           Child = register_and_apply(TServer, self(), EvalArgs),
@@ -90,7 +93,7 @@ eval({named, {erlang, F}}, CAs, SAs, _CallType, CodeServer, TraceServer, _Fd)
 %% Handle spawn_monitor/1, spawn_monitor/3
 eval({named, {erlang, spawn_monitor}}, CAs, SAs, _CallType, CodeServer, TraceServer, _Fd) ->
   Arity = length(CAs),
-  SAs_e = conc_symb:ensure_list(SAs, Arity),
+  SAs_e = concolic_symbolic:ensure_list(SAs, Arity),
   EvalArgs =
     case CAs of
       [Fun] ->
@@ -114,7 +117,7 @@ eval({named, {erlang, spawn_monitor}}, CAs, SAs, _CallType, CodeServer, TraceSer
 %% Handle spawn_opt/2, spawn_opt/3, spawn_opt/4, spawn_opt/5
 eval({named, {erlang, spawn_opt}}, CAs, SAs, _CallType, CodeServer, TraceServer, _Fd) ->
   Arity = length(CAs),
-  SAs_e = conc_symb:ensure_list(SAs, Arity),
+  SAs_e = concolic_symbolic:ensure_list(SAs, Arity),
   R =
     case CAs of
       [Fun, Opts] ->
@@ -126,7 +129,7 @@ eval({named, {erlang, spawn_opt}}, CAs, SAs, _CallType, CodeServer, TraceServer,
       [Node, Fun, Opts] ->
         [_SNode, _SFun, _SOpts] = SAs_e,
         %% TODO Constraints: SNode=Node, SFun=Fun, SOpts=Opts
-        {CServer, TServer} = conc_tserver:node_servers(TraceServer, Node),
+        {CServer, TServer} = concolic_tserver:node_servers(TraceServer, Node),
         EvalArgs = [{lambda, Fun}, [], [], local, CServer, TServer],
         Child = register_and_apply(TServer, self(), EvalArgs),
         erlang:spawn_opt(Node, Child, Opts);
@@ -141,7 +144,7 @@ eval({named, {erlang, spawn_opt}}, CAs, SAs, _CallType, CodeServer, TraceServer,
         [_SNode, _SMod, _SFun, SArgs, _SOpts] = SAs_e,
         %% TODO Constraints: SNode=Node, SMod=Mode, SFun=Fun, SOpts=Opts
         Call = find_call_type(erlang, Mod),
-        {CServer, TServer} = conc_tserver:node_servers(TraceServer, Node),
+        {CServer, TServer} = concolic_tserver:node_servers(TraceServer, Node),
         EvalArgs = [{named, {Mod, Fun}}, Args, SArgs, Call, CServer, TServer],
         Child = register_and_apply(TServer, self(), EvalArgs),
         erlang:spawn_opt(Node, Child, Opts);
@@ -167,7 +170,7 @@ eval({named, {erlang, '!'}}, [_, _] = CAs, SAs, CallType, CodeServer, TraceServe
 %% Handle send/2, send/3
 eval({named, {erlang, send}}, CAs, SAs, _CallType, _CodeServer, TraceServer, _Fd) ->
   Arity = length(CAs),
-  SAs_e = conc_symb:ensure_list(SAs, Arity),
+  SAs_e = concolic_symbolic:ensure_list(SAs, Arity),
   case CAs of
     [CDest, CMsg] ->
       [_SDest, SMsg] = SAs_e,
@@ -182,13 +185,13 @@ eval({named, {erlang, send}}, CAs, SAs, _CallType, _CodeServer, TraceServer, _Fd
       R = erlang:send(CDest, Msg, COpts),
       {R, R};
     _ ->
-        exception(error, {undef, {erlang, send, Arity}})
+      exception(error, {undef, {erlang, send, Arity}})
   end;
 
 %% Handle send_after/3
 eval({named, {erlang, send_after}}, CAs, SAs, _CallType, _CodeServer, TraceServer, _Fd) ->
   Arity = length(CAs),
-  SAs_e = conc_symb:ensure_list(SAs, Arity),
+  SAs_e = concolic_symbolic:ensure_list(SAs, Arity),
   case CAs of
     [CTime, CDest, CMsg] ->
       [_STime, _SDest, SMsg] = SAs_e,
@@ -203,7 +206,7 @@ eval({named, {erlang, send_after}}, CAs, SAs, _CallType, _CodeServer, TraceServe
 %% Handle send_nosuspend/2, send_nosuspend/3
 eval({named, {erlang, send_nosuspend}}, CAs, SAs, _CallType, _CodeServer, TraceServer, _Fd) ->
   Arity = length(CAs),
-  SAs_e = conc_symb:ensure_list(SAs, Arity),
+  SAs_e = concolic_symbolic:ensure_list(SAs, Arity),
   case CAs of
     [CDest, CMsg] ->
       [_SDest, SMsg] = SAs_e,
@@ -228,7 +231,7 @@ eval({named, {erlang, send_nosuspend}}, CAs, SAs, _CallType, _CodeServer, TraceS
 %% Handle throw/1
 eval({named, {erlang, throw}}, CAs, SAs, _CallType, _CodeServer, _TraceServer, _Fd) ->
   Arity = length(CAs),
-  SAs_e = conc_symb:ensure_list(SAs, Arity),
+  SAs_e = concolic_symbolic:ensure_list(SAs, Arity),
   case CAs of
     [CThrow] ->
       [SThrow] = SAs_e,
@@ -241,7 +244,7 @@ eval({named, {erlang, throw}}, CAs, SAs, _CallType, _CodeServer, _TraceServer, _
 %% Handle exit/1, exit2
 eval({named, {erlang, exit}}, CAs, SAs, _CallType, _CodeServer, _TraceServer, _Fd) ->
   Arity = length(CAs),
-  SAs_e = conc_symb:ensure_list(SAs, Arity),
+  SAs_e = concolic_symbolic:ensure_list(SAs, Arity),
   case CAs of
     [CExit] ->
       [SExit] = SAs_e,
@@ -278,7 +281,7 @@ eval({named, {erlang, exit}}, CAs, SAs, _CallType, _CodeServer, _TraceServer, _F
 %% Handle error/1, error/2
 eval({named, {erlang, error}}, CAs, SAs, _CallType, _CodeServer, _TraceServer, _Fd) ->
   Arity = length(CAs),
-  SAs_e = conc_symb:ensure_list(SAs, Arity),
+  SAs_e = concolic_symbolic:ensure_list(SAs, Arity),
   case CAs of
     [CError] ->
       [SError] = SAs_e,
@@ -296,7 +299,7 @@ eval({named, {erlang, error}}, CAs, SAs, _CallType, _CodeServer, _TraceServer, _
 %% Handle raise/3
 eval({named, {erlang, raise}}, CAs, SAs, _CallType, _CodeServer, _TraceServer, _Fd) ->
   Arity = length(CAs),
-  SAs_e = conc_symb:ensure_list(SAs, Arity),
+  SAs_e = concolic_symbolic:ensure_list(SAs, Arity),
   case CAs of
     [CClass, CReason, CStacktrace] ->
       [_SClass, SReason, _] = SAs_e,
@@ -312,11 +315,11 @@ eval({named, {erlang, raise}}, CAs, SAs, _CallType, _CodeServer, _TraceServer, _
 %% Handle make_fun/3  
 eval({named, {erlang, make_fun}}, CAs, SAs, _CallType, CodeServer, TraceServer, Fd) ->
   Arity = length(CAs),
-  SAs_e = conc_symb:ensure_list(SAs, Arity),
+  SAs_e = concolic_symbolic:ensure_list(SAs, Arity),
   case CAs of
     [M, F, A] ->
       CR = make_fun(M, F, A, CodeServer, TraceServer, Fd),
-      SR = conc_symb:mock_bif({erlang, make_fun, 3}, SAs_e),
+      SR = concolic_symbolic:mock_bif({erlang, make_fun, 3}, SAs_e),
       {CR, SR};
     _ ->
       exception(error, {undef, {erlang, make_fun, Arity}})
@@ -325,7 +328,7 @@ eval({named, {erlang, make_fun}}, CAs, SAs, _CallType, CodeServer, TraceServer, 
 %% Handle apply/2, apply/3
 eval({named, {erlang, apply}}, CAs, SAs, _CallType, CodeServer, TraceServer, Fd) ->
   Arity = length(CAs),
-  SAs_e = conc_symb:ensure_list(SAs, Arity),
+  SAs_e = concolic_symbolic:ensure_list(SAs, Arity),
   EvalArgs =
     case CAs of
       [Fun, Args] ->
@@ -340,52 +343,54 @@ eval({named, {erlang, apply}}, CAs, SAs, _CallType, CodeServer, TraceServer, Fd)
       _ ->
         exception(error, {undef, {erlang, apply, Arity}})
     end,
-  erlang:apply(conc_eval, eval, EvalArgs);
+  erlang:apply(?MODULE, eval, EvalArgs);
 
 
 %% Handle an MFA
 eval({named, {M, F}}, CAs, SAs, CallType, CodeServer, TraceServer, Fd) ->
   Arity = length(CAs),
-  %%  ok = conc_encdec:log_term(Fd, {{M, F, Arity}, self()}),
-  SAs_e = conc_symb:ensure_list(SAs, Arity),
+  %%  ok = concolic_encdec:log_term(Fd, {{M, F, Arity}, self()}),
+  SAs_e = concolic_symbolic:ensure_list(SAs, Arity),
   %%  io:format("~n~nCalling ~w:~w/~w~n", [M,F,Arity]),
   %%  io:format("CAs = ~w~n", [CAs]),
   %%  io:format("SAs = ~w~n", [SAs_e]),
-  case conc_lib:is_bif(M, F, Arity) of
+  case concolic_lib:is_bif(M, F, Arity) of
     true ->
       CR = apply(M, F, CAs),
-      SR = conc_symb:mock_bif({M, F, Arity}, SAs_e),
+      SR = concolic_symbolic:mock_bif({M, F, Arity}, SAs_e),
       {CR, SR};
     false ->
       case get_module_db(M, CodeServer) of
         preloaded ->
           CR = apply(M, F, CAs),
-          SR = conc_symb:mock_bif({M, F, Arity}, SAs_e),
+          SR = concolic_symbolic:mock_bif({M, F, Arity}, SAs_e),
           {CR, SR};
         {ok, MDb} ->
           Key = {M, F, Arity},
           {Def, Exported} = retrieve_function(Key, MDb),
 	  %%  io:format("Def=~n~p~n", [Def]),
           check_exported(Exported, CallType, Key),
-          Cenv = conc_lib:bind_parameters(CAs, Def#c_fun.vars, conc_lib:new_environment()),
-          Senv = conc_lib:bind_parameters(SAs_e, Def#c_fun.vars, conc_lib:new_environment()),
+	  NCenv = concolic_lib:new_environment(),
+	  NSenv = concolic_lib:new_environment(),
+          Cenv = concolic_lib:bind_parameters(CAs, Def#c_fun.vars, NCenv),
+          Senv = concolic_lib:bind_parameters(SAs_e, Def#c_fun.vars, NSenv),
           eval_expr(M, CodeServer, TraceServer, Def#c_fun.body, Cenv, Senv, Fd)
       end
   end;
   
 %% Handle a Closure
 eval({lambda, Closure}, CAs, SAs, _CallType, _CodeServer, _TraceServer, _Fd) ->
-%  ok = conc_encdec:log_term(Fd, {closure, self()}),
-  SAs_e = conc_symb:ensure_list(SAs, length(CAs)),
+  %% ok = concolic_encdec:log_term(Fd, {closure, self()}),
+  SAs_e = concolic_symbolic:ensure_list(SAs, length(CAs)),
   ZAs = zip_args(CAs, SAs_e),
   apply(Closure, ZAs);
   
 %% Handle a function bound in a letrec expression
 eval({letrec_func, {M, _F, Def, E}}, CAs, SAs, _CallType, CodeServer, TraceServer, Fd) ->
   {Cenv, Senv} = E(),
-  SAs_e = conc_symb:ensure_list(SAs, length(CAs)),
-  NCenv = conc_lib:bind_parameters(CAs, Def#c_fun.vars, Cenv),
-  NSenv = conc_lib:bind_parameters(SAs_e, Def#c_fun.vars, Senv),
+  SAs_e = concolic_symbolic:ensure_list(SAs, length(CAs)),
+  NCenv = concolic_lib:bind_parameters(CAs, Def#c_fun.vars, Cenv),
+  NSenv = concolic_lib:bind_parameters(SAs_e, Def#c_fun.vars, Senv),
   eval_expr(M, CodeServer, TraceServer, Def#c_fun.body, NCenv, NSenv, Fd).
   
   
@@ -446,7 +451,7 @@ eval_expr(M, CodeServer, TraceServer, {c_bitstr, _Anno, Val, Size, Unit, Type, F
   {CType, SType} = eval_expr(M, CodeServer, TraceServer, Type, Cenv, Senv, Fd),
   {CFlags, SFlags} = eval_expr(M, CodeServer, TraceServer, Flags, Cenv, Senv, Fd),
   Cbin = bin_lib:make_bitstring(Cv, CSize, CUnit, CType, CFlags),
-  Sbin = conc_symb:make_bitstring(Sv, SSize, SUnit, SType, SFlags),
+  Sbin = concolic_symbolic:make_bitstring(Sv, SSize, SUnit, SType, SFlags),
   {Cbin, Sbin};
   
 %% c_call
@@ -522,8 +527,8 @@ eval_expr(M, CodeServer, TraceServer, {c_let, _Anno, Vars, Arg, Body}, Cenv, Sen
       {valuelist, CAs, Degree} = C,
       {valuelist, SAs, Degree} = S
   end,
-  NCenv = conc_lib:bind_parameters(CAs, Vars, Cenv),
-  NSenv = conc_lib:bind_parameters(SAs, Vars, Senv),
+  NCenv = concolic_lib:bind_parameters(CAs, Vars, Cenv),
+  NSenv = concolic_lib:bind_parameters(SAs, Vars, Senv),
   eval_expr(M, CodeServer, TraceServer, Body, NCenv, NSenv, Fd);
 
 %% c_letrec
@@ -531,9 +536,10 @@ eval_expr(M, CodeServer, TraceServer, {c_letrec, _Anno, Defs, Body}, Cenv, Senv,
   H = fun(F) -> fun() ->
     lists:foldl(
       fun({Func, Def}, {Ce, Se}) ->
-        NCe = conc_lib:add_binding(Func#c_var.name, {letrec_func, {M, Def, F}}, Ce),
-        NSe = conc_lib:add_binding(Func#c_var.name, {letrec_func, {M, Def, F}}, Se),
-        {NCe, NSe}
+	  LetRec = {letrec_func, {M, Def, F}},
+	  NCe = concolic_lib:add_binding(Func#c_var.name, LetRec, Ce),
+	  NSe = concolic_lib:add_binding(Func#c_var.name, LetRec, Se),
+	  {NCe, NSe}
       end,
       {Cenv, Senv}, Defs
     )
@@ -603,8 +609,8 @@ eval_expr(M, CodeServer, TraceServer, {c_try, _Anno, Arg, Vars, Body, Evars, Han
         {valuelist, CAs, Degree} = C,
         {valuelist, SAs, Degree} = S
     end,
-    NCenv = conc_lib:bind_parameters(CAs, Vars, Cenv),
-    NSenv = conc_lib:bind_parameters(SAs, Vars, Senv),
+    NCenv = concolic_lib:bind_parameters(CAs, Vars, Cenv),
+    NSenv = concolic_lib:bind_parameters(SAs, Vars, Senv),
     eval_expr(M, CodeServer, TraceServer, Body, NCenv, NSenv, Fd)
   catch
     Class:Reason ->
@@ -614,8 +620,8 @@ eval_expr(M, CodeServer, TraceServer, {c_try, _Anno, Arg, Vars, Body, Evars, Han
           3 -> {[Class, Cv, Class], [Class, Sv, Class]};
           2 -> {[Class, Cv], [Class, Sv]}
         end,
-      ECenv = conc_lib:bind_parameters(Cs, Evars, Cenv),
-      ESenv = conc_lib:bind_parameters(Ss, Evars, Senv),
+      ECenv = concolic_lib:bind_parameters(Cs, Evars, Cenv),
+      ESenv = concolic_lib:bind_parameters(Ss, Evars, Senv),
       eval_expr(M, CodeServer, TraceServer, Handler, ECenv, ESenv, Fd)
   end;
 
@@ -636,9 +642,9 @@ eval_expr(M, CodeServer, TraceServer, {c_values, _Anno, Es}, Cenv, Senv, Fd) ->
 eval_expr(_M, _CodeServer, _TraceServer, {c_var, _Anno, Name}, Cenv, Senv, _Fd)
   when is_tuple(Name) ->
     %% If Name is a function
-    case conc_lib:get_value(Name, Cenv) of
+    case concolic_lib:get_value(Name, Cenv) of
       {ok, Closure} when is_function(Closure) -> %% Closure
-        {ok, Sv} = conc_lib:get_value(Name, Senv),
+        {ok, Sv} = concolic_lib:get_value(Name, Senv),
         {Closure, Sv};
       {ok, {letrec_func, {Mod, Def, E}}} ->  %% Fun bound in a letrec
         {Fun, Arity} = Name,
@@ -651,8 +657,8 @@ eval_expr(_M, _CodeServer, _TraceServer, {c_var, _Anno, Name}, Cenv, Senv, _Fd)
     end;
 eval_expr(_M, _CodeServer, _TraceServer, {c_var, _Anno, Name}, Cenv, Senv, _Fd) ->
   %% If it's a variable then return its value
-  {ok, Cval} = conc_lib:get_value(Name, Cenv),
-  {ok, Sval} = conc_lib:get_value(Name, Senv),
+  {ok, Cval} = concolic_lib:get_value(Name, Cenv),
+  {ok, Sval} = concolic_lib:get_value(Name, Senv),
   {Cval, Sval}.
 
 
@@ -752,8 +758,8 @@ match_clause(M, Mode, CodeServer, TraceServer, {c_clause, _Anno, Pats, Guard, Bo
         false ->
           false;
         {true, {CMs, SMs}} ->
-          NCenv = conc_lib:add_mappings_to_environment(CMs, Cenv),
-          NSenv = conc_lib:add_mappings_to_environment(SMs, Senv),
+          NCenv = concolic_lib:add_mappings_to_environment(CMs, Cenv),
+          NSenv = concolic_lib:add_mappings_to_environment(SMs, Senv),
           try eval_expr(M, CodeServer, TraceServer, Guard, NCenv, NSenv, Fd) of
             {true, SGv} ->
               %% TODO make constraint SGv=true
@@ -820,7 +826,7 @@ pattern_match(BitInfo, Mode, TraceServer, {c_tuple, _Anno, Es}, Cv, Sv, CMaps, S
       Ne ->
         %% TODO Constraint: Sv tuple with Ne elements
         log(Fd, Mode, {'tuple_elem_eq', Sv, Ne}),
-        Ss = conc_symb:tuple_to_list(Sv, Ne),
+        Ss = concolic_symbolic:tuple_to_list(Sv, Ne),
         pattern_match_all(BitInfo, Mode, TraceServer, Es, Cs, Ss, CMaps, SMaps, Fd);
       _ ->
         %% TODO Constraint: Sv not tuple with Ne elements
@@ -836,8 +842,8 @@ pattern_match(_BitInfo, Mode, _TraceServer, {c_tuple, _Anno, _Es}, _Cv, Sv, _CMa
 pattern_match(BitInfo, Mode, TraceServer, {c_cons, _Anno, Hd, Tl}, [Cv|Cvs], S, CMaps, SMaps, Fd) ->
   %% TODO Constraing: S is non empty list
   log(Fd, Mode, {'non_empty_list', S}),
-  Sv = conc_symb:hd(S),
-  Svs = conc_symb:tl(S),
+  Sv = concolic_symbolic:hd(S),
+  Svs = concolic_symbolic:tl(S),
   case pattern_match(BitInfo, Mode, TraceServer, Hd, Cv, Sv, CMaps, SMaps, Fd) of
     {true, {CMs, SMs}} ->
       pattern_match(BitInfo, Mode, TraceServer, Tl, Cvs, Svs, CMs, SMs, Fd);
@@ -882,10 +888,10 @@ bit_pattern_match({M, CodeServer, Cenv, Senv}, Mode, TraceServer, [{c_bitstr, _A
       {CType, SType} = eval_expr(M, CodeServer, TraceServer, Type, Cenv, Senv, Fd),
       {CFlags, SFlags} = eval_expr(M, CodeServer, TraceServer, Flags, Cenv, Senv, Fd),
       try bin_lib:match_bitstring_const(LitVal, CSize, CUnit, CType, CFlags, Cv) of
-        CRest ->
-          SLit = conc_symb:make_bitstring(LitVal, SSize, SUnit, SType, SFlags),
+	CRest ->
+          SLit = concolic_symbolic:make_bitstring(LitVal, SSize, SUnit, SType, SFlags),
           %% TODO Constraint: SLit matched Sv
-          SRest = conc_symb:match_bitstring_const(SLit, Sv),
+          SRest = concolic_symbolic:match_bitstring_const(SLit, Sv),
           bit_pattern_match({M, CodeServer, Cenv, Senv}, Mode, TraceServer, Bs, CRest, SRest, CMaps, SMaps, Fd)
       catch
         error:_E ->
@@ -900,7 +906,7 @@ bit_pattern_match({M, CodeServer, Cenv, Senv}, Mode, TraceServer, [{c_bitstr, _A
       try bin_lib:match_bitstring_var(CSize, CUnit, CType, CFlags, Cv) of
         {CX, CRest} ->
           SEnc = {SSize, SUnit, SType, SFlags},
-          {SX, SRest} =  conc_symb:match_bitstring_var(SEnc, Sv),
+          {SX, SRest} = concolic_symbolic:match_bitstring_var(SEnc, Sv),
           {NewCMaps, NewSMaps} =
             case lists:keymember(VarName, 1, CMaps) of
               true ->
@@ -910,8 +916,8 @@ bit_pattern_match({M, CodeServer, Cenv, Senv}, Mode, TraceServer, [{c_bitstr, _A
                 {[{VarName, CX} | CMaps],
                  [{VarName, SX} | SMaps]}
             end,
-          NewCenv = conc_lib:add_binding(VarName, CX, Cenv),
-          NewSenv = conc_lib:add_binding(VarName, SX, Senv),
+          NewCenv = concolic_lib:add_binding(VarName, CX, Cenv),
+          NewSenv = concolic_lib:add_binding(VarName, SX, Senv),
           bit_pattern_match({M, CodeServer, NewCenv, NewSenv}, Mode, TraceServer, Bs, CRest, SRest, NewCMaps, NewSMaps, Fd)
       catch
         error:_E ->
@@ -931,8 +937,8 @@ create_closure(M, F, Arity, CodeServer, TraceServer, local, Fd) ->
   {ok, MDb} = get_module_db(M, CodeServer),
   Key = {M, F, Arity},
   {Def, _Exported} = retrieve_function(Key, MDb),
-  Cenv = conc_lib:new_environment(),
-  Senv = conc_lib:new_environment(),
+  Cenv = concolic_lib:new_environment(),
+  Senv = concolic_lib:new_environment(),
   make_fun(M, Arity, CodeServer, TraceServer, Def#c_fun.vars, Def#c_fun.body, Cenv, Senv, Fd);
   
 %% Creates a Closure when the MFA is a function bound in a letrec
@@ -959,8 +965,8 @@ make_fun(Mod, Arity, CServer, TServer, Vars, Body, Cenv, Senv, FileDescr) ->
       fun(A) ->
         Args = [A],
         {CAs, SAs} = unzip_args(Args),
-        NCenv = conc_lib:bind_parameters(CAs, Vars, Cenv),
-        NSenv = conc_lib:bind_parameters(SAs, Vars, Senv),
+        NCenv = concolic_lib:bind_parameters(CAs, Vars, Cenv),
+        NSenv = concolic_lib:bind_parameters(SAs, Vars, Senv),
         {CodeServer, TraceServer} = validate_servers(CServer, TServer),
         Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
         eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv, Fd)
@@ -969,8 +975,8 @@ make_fun(Mod, Arity, CServer, TServer, Vars, Body, Cenv, Senv, FileDescr) ->
       fun(A, B) ->
         Args = [A, B],
         {CAs, SAs} = unzip_args(Args),
-        NCenv = conc_lib:bind_parameters(CAs, Vars, Cenv),
-        NSenv = conc_lib:bind_parameters(SAs, Vars, Senv),
+        NCenv = concolic_lib:bind_parameters(CAs, Vars, Cenv),
+        NSenv = concolic_lib:bind_parameters(SAs, Vars, Senv),
         {CodeServer, TraceServer} = validate_servers(CServer, TServer),
         Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
         eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv, Fd)
@@ -979,8 +985,8 @@ make_fun(Mod, Arity, CServer, TServer, Vars, Body, Cenv, Senv, FileDescr) ->
       fun(A, B, C) ->
         Args = [A, B, C],
         {CAs, SAs} = unzip_args(Args),
-        NCenv = conc_lib:bind_parameters(CAs, Vars, Cenv),
-        NSenv = conc_lib:bind_parameters(SAs, Vars, Senv),
+        NCenv = concolic_lib:bind_parameters(CAs, Vars, Cenv),
+        NSenv = concolic_lib:bind_parameters(SAs, Vars, Senv),
         {CodeServer, TraceServer} = validate_servers(CServer, TServer),
         Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
         eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv, Fd)
@@ -989,8 +995,8 @@ make_fun(Mod, Arity, CServer, TServer, Vars, Body, Cenv, Senv, FileDescr) ->
       fun(A, B, C, D) ->
         Args = [A, B, C, D],
         {CAs, SAs} = unzip_args(Args),
-        NCenv = conc_lib:bind_parameters(CAs, Vars, Cenv),
-        NSenv = conc_lib:bind_parameters(SAs, Vars, Senv),
+        NCenv = concolic_lib:bind_parameters(CAs, Vars, Cenv),
+        NSenv = concolic_lib:bind_parameters(SAs, Vars, Senv),
         {CodeServer, TraceServer} = validate_servers(CServer, TServer),
         Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
         eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv, Fd)
@@ -999,8 +1005,8 @@ make_fun(Mod, Arity, CServer, TServer, Vars, Body, Cenv, Senv, FileDescr) ->
       fun(A, B, C, D, E) ->
         Args = [A, B, C, D, E],
         {CAs, SAs} = unzip_args(Args),
-        NCenv = conc_lib:bind_parameters(CAs, Vars, Cenv),
-        NSenv = conc_lib:bind_parameters(SAs, Vars, Senv),
+        NCenv = concolic_lib:bind_parameters(CAs, Vars, Cenv),
+        NSenv = concolic_lib:bind_parameters(SAs, Vars, Senv),
         {CodeServer, TraceServer} = validate_servers(CServer, TServer),
         Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
         eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv, Fd)
@@ -1009,8 +1015,8 @@ make_fun(Mod, Arity, CServer, TServer, Vars, Body, Cenv, Senv, FileDescr) ->
       fun(A, B, C, D, E, F) ->
         Args = [A, B, C, D, E, F],
         {CAs, SAs} = unzip_args(Args),
-        NCenv = conc_lib:bind_parameters(CAs, Vars, Cenv),
-        NSenv = conc_lib:bind_parameters(SAs, Vars, Senv),
+        NCenv = concolic_lib:bind_parameters(CAs, Vars, Cenv),
+        NSenv = concolic_lib:bind_parameters(SAs, Vars, Senv),
         {CodeServer, TraceServer} = validate_servers(CServer, TServer),
         Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
         eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv, Fd)
@@ -1019,8 +1025,8 @@ make_fun(Mod, Arity, CServer, TServer, Vars, Body, Cenv, Senv, FileDescr) ->
       fun(A, B, C, D, E, F, G) ->
         Args = [A, B, C, D, E, F, G],
         {CAs, SAs} = unzip_args(Args),
-        NCenv = conc_lib:bind_parameters(CAs, Vars, Cenv),
-        NSenv = conc_lib:bind_parameters(SAs, Vars, Senv),
+        NCenv = concolic_lib:bind_parameters(CAs, Vars, Cenv),
+        NSenv = concolic_lib:bind_parameters(SAs, Vars, Senv),
         {CodeServer, TraceServer} = validate_servers(CServer, TServer),
         Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
         eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv, Fd)
@@ -1029,8 +1035,8 @@ make_fun(Mod, Arity, CServer, TServer, Vars, Body, Cenv, Senv, FileDescr) ->
       fun(A, B, C, D, E, F, G, H) ->
         Args = [A, B, C, D, E, F, G, H],
         {CAs, SAs} = unzip_args(Args),
-        NCenv = conc_lib:bind_parameters(CAs, Vars, Cenv),
-        NSenv = conc_lib:bind_parameters(SAs, Vars, Senv),
+        NCenv = concolic_lib:bind_parameters(CAs, Vars, Cenv),
+        NSenv = concolic_lib:bind_parameters(SAs, Vars, Senv),
         {CodeServer, TraceServer} = validate_servers(CServer, TServer),
         Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
         eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv, Fd)
@@ -1039,8 +1045,8 @@ make_fun(Mod, Arity, CServer, TServer, Vars, Body, Cenv, Senv, FileDescr) ->
       fun(A, B, C, D, E, F, G, H, I) ->
         Args = [A, B, C, D, E, F, G, H, I],
         {CAs, SAs} = unzip_args(Args),
-        NCenv = conc_lib:bind_parameters(CAs, Vars, Cenv),
-        NSenv = conc_lib:bind_parameters(SAs, Vars, Senv),
+        NCenv = concolic_lib:bind_parameters(CAs, Vars, Cenv),
+        NSenv = concolic_lib:bind_parameters(SAs, Vars, Senv),
         {CodeServer, TraceServer} = validate_servers(CServer, TServer),
         Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
         eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv, Fd)
@@ -1049,8 +1055,8 @@ make_fun(Mod, Arity, CServer, TServer, Vars, Body, Cenv, Senv, FileDescr) ->
       fun(A, B, C, D, E, F, G, H, I, J) ->
         Args = [A, B, C, D, E, F, G, H, I, J],
         {CAs, SAs} = unzip_args(Args),
-        NCenv = conc_lib:bind_parameters(CAs, Vars, Cenv),
-        NSenv = conc_lib:bind_parameters(SAs, Vars, Senv),
+        NCenv = concolic_lib:bind_parameters(CAs, Vars, Cenv),
+        NSenv = concolic_lib:bind_parameters(SAs, Vars, Senv),
         {CodeServer, TraceServer} = validate_servers(CServer, TServer),
         Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
         eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv, Fd)
@@ -1159,7 +1165,7 @@ validate_servers(CodeServer, TraceServer) ->
   Node = node(),
   case Node =:= node(TraceServer) of
     true  -> {CodeServer, TraceServer};
-    false -> conc_tserver:node_servers(TraceServer, Node)
+    false -> concolic_tserver:node_servers(TraceServer, Node)
   end.
   
 %% Check if the given file descriptor correponds to this process
@@ -1167,14 +1173,14 @@ validate_servers(CodeServer, TraceServer) ->
 validate_file_descriptor(TraceServer, Pid, Fd) ->
   case Pid =:= self() of
     true  -> Fd;
-    false -> conc_tserver:file_descriptor(TraceServer)
+    false -> concolic_tserver:file_descriptor(TraceServer)
   end.
   
 %% Encode and Decode Msgs
   
 %% Encode Msg
 encode_msg(TraceServer, Dest, CMsg, SMsg) ->
-  case conc_tserver:is_monitored(TraceServer, Dest) of
+  case concolic_tserver:is_monitored(TraceServer, Dest) of
     true  ->
       Msg = {'_conc', zip_one(CMsg, SMsg)},
       term_to_binary(Msg, [{compressed, 1}]);
@@ -1253,7 +1259,7 @@ unzip_msg(V) ->
 %% -------------------------------------------------------
 register_and_apply(TraceServer, Parent, Args) ->
   fun() ->
-    {ok, Fd} = conc_tserver:register_to_trace(TraceServer, Parent),
+    {ok, Fd} = concolic_tserver:register_to_trace(TraceServer, Parent),
     Parent ! {self(), registered},
     erlang:apply(?MODULE, eval, Args ++ [Fd])
   end.
@@ -1275,7 +1281,7 @@ register_and_apply(TraceServer, Parent, Args) ->
 get_module_db(M, CodeServer) ->
   case get({conc, M}) of
     undefined ->
-      case conc_cserver:load(CodeServer, M) of
+      case concolic_cserver:load(CodeServer, M) of
         %% Module Code loaded
         {ok, MDb} ->
           put({conc, M}, MDb),
@@ -1365,15 +1371,16 @@ check_timeout(Timeout, _Sv, _Fd) ->
   
 %% Concatenate a list of bistrings
 append_segments(Cs, Ss) ->
-  append_segments(lists:reverse(Cs), <<>>, lists:reverse(Ss), conc_symb:empty_binary()).
+  EmptyBin = concolic_symbolic:empty_binary(),
+  append_segments(lists:reverse(Cs), <<>>, lists:reverse(Ss), EmptyBin).
   
 append_segments([], CAcc, [], SAcc) ->
   {CAcc, SAcc};
 append_segments([Cv|Cvs], CAcc, [Sv|Svs], SAcc) ->
   Cbin = <<Cv/bitstring, CAcc/bitstring>>,
-  Sbin = conc_symb:append_binary(Sv, SAcc),
+  Sbin = concolic_symbolic:append_binary(Sv, SAcc),
   append_segments(Cvs, Cbin, Svs, Sbin).
   
 log(_Fd, 'receive', _Term) -> ok;
 log(Fd, 'case', Term) ->
-  ok = conc_encdec:log_term(Fd, Term).
+  ok = concolic_encdec:log_term(Fd, Term).

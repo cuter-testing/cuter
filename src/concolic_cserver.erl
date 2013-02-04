@@ -1,6 +1,6 @@
 %% -*- erlang-indent-level: 2 -*-
 %%------------------------------------------------------------------------------
--module(conc_cserver).
+-module(concolic_cserver).
 -behaviour(gen_server).
 
 %% External exports
@@ -21,10 +21,10 @@
   dir   :: string(),       %% Directory where .core files are saved
   super :: pid()           %% Concolic Server (supervisor) process
 }).
-
 -type state() :: #state{}.
+
 -type load_request() :: {'load', atom()}.
--type load_reply() :: {'ok', ets:tab()} | conc_load:compile_error() | 'preloaded' | 'cover_compiled' | 'non_existing'.
+-type load_reply() :: {'ok', ets:tab()} | concolic_load:compile_error() | 'preloaded' | 'cover_compiled' | 'non_existing'.
 
 %%====================================================================
 %% External exports
@@ -82,7 +82,7 @@ terminate(_Reason, State) ->
   %% Clean up .core files dir
   delete_stored_core_files(Dir),
   %% Send statistics to supervisor
-  ok = conc:send_clogs(Super, LoadedMods).
+  ok = concolic:send_clogs(Super, LoadedMods).
   
 %% ---------------------------------------------------------------------
 %% gen_server callback : code_change/3
@@ -100,7 +100,7 @@ code_change(_OldVsn, State, _Extra) ->
   
 handle_info(Msg, State) ->
   %% Just outputting unexpected messages for now
-  io:format("[conc_cserver]: Unexpected message ~p~n", [Msg]),
+  io:format("[~s]: Unexpected message ~p~n", [?MODULE, Msg]),
   {noreply, State}.
   
 %% ---------------------------------------------------------------------
@@ -118,7 +118,7 @@ handle_info(Msg, State) ->
 %% Module M is cover_compiled  -->  cover_compiled
 %% Module M does not exist     -->  non_existing
 handle_call({load, M}, _From, State) ->
-%  io:format("[load]: Got request for module : ~p~n", [M]),
+  %%  io:format("[load]: Got request for module : ~p~n", [M]),
   case is_mod_stored(M, State) of
     {true, MDb} ->
       {reply, {ok, MDb}, State};
@@ -130,10 +130,10 @@ handle_call({load, M}, _From, State) ->
       
       %% Load the code of the module
       Dir = State#state.dir,
-      Reply = conc_load:load(M, MDb, Dir),
+      Reply = concolic_load:load(M, MDb, Dir),
       case Reply of
         {ok, M} ->
-%          io:format("[load (~w)]: Loaded module ~p~n", [node(), M]),
+	  %%  io:format("[load (~w)]: Loaded module ~p~n", [node(), M]),
           {reply, {ok, MDb}, State};
         _ ->
           {reply, Reply, State}

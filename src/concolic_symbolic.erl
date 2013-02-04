@@ -1,6 +1,6 @@
 %% -*- erlang-indent-level: 2 -*-
 %%------------------------------------------------------------------------------
--module(conc_symb).
+-module(concolic_symbolic).
 %% exports appear alphabetically
 -export([abstract/1, append_binary/2, empty_binary/0, ensure_list/2,
          generate_mapping/2, hd/1,
@@ -144,8 +144,8 @@ append_binary(Sv, {'bitstr', Acc}) when is_list(Acc) ->
 %% Create a symbolic bitstring from a term with a specific encoding
 -spec make_bitstring(term(), bin_lib:bsize(), bin_lib:bunit(), bin_lib:btype(), [bin_lib:bflag()]) -> sbitstring().
 make_bitstring(Sv, Size, Unit, Type, Flags) ->
-%  Sign = conc_lib:get_signedness(Flags),
-%  End = conc_lib:get_endianess(Flags),
+  %%  Sign = concolic_lib:get_signedness(Flags),
+  %%  End = concolic_lib:get_endianess(Flags),
   {'bitstr', [{Sv, [Size, Unit, Type, Flags]}]}.
   
 %% Symbolic representation of pattern matching a symbolic binary
