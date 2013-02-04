@@ -1,3 +1,5 @@
+%% -*- erlang-indent-level: 2 -*-
+%%------------------------------------------------------------------------------
 -module(conc_lib).
 
 -include("conc_lib.hrl").
@@ -5,8 +7,8 @@
 
 %% External exported functions
 -export([new_environment/0, add_binding/3, is_bound/2, get_value/2,
-  bind_parameters/3, add_mappings_to_environment/2, is_bif/3,
-  get_signedness/1, get_endianess/1]).
+	 bind_parameters/3, add_mappings_to_environment/2, is_bif/3,
+	 get_signedness/1, get_endianess/1]).
 
 %% External exported types
 -export_type([environment/0, semantic_var/0, semantic_value/0]).
@@ -53,7 +55,7 @@ is_bound(Var, Environment) ->
 %% Gets the Value of a bound Variable
 %% Returns {ok, Value} if Var is bound,
 %% or error if Var is unbound.
--spec get_value(Var, Env) -> Value | error
+-spec get_value(Var, Env) -> {ok, Value} | error
   when Var   :: semantic_value(),
        Env   :: environment(),
        Value :: semantic_value().
