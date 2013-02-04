@@ -2,19 +2,25 @@
 %%------------------------------------------------------------------------------
 -module(bin_lib).
 
-%% Ln 13
+%% Ln 22
 %% make_bitstring(Val, Size, Unit, Type, Flags) -> Bin
 %%
-%% Ln 12307
+%% Ln 12319
 %% match_bitstring_const(Val, Size, Unit, Type, Flags, MatchVal) -> Bin
 %%
-%% Ln 30745
+%% Ln 30763
 %% match_bitstring_var(Size, Unit, Type, Flags, MatchVal) -> {Bin, Bin}
 -export([make_bitstring/5, match_bitstring_const/6, match_bitstring_var/5]).
 
-%% -type btype() :: 'binary' | 'float' | 'integer'.
+-export_type([bsize/0, btype/0, bunit/0, bflag/0]).
 
-%% -spec make_bitstring(_, _, _, btype(), _) -> <<_:_*1>>.
+-type bsize() :: non_neg_integer() | 'all'.
+-type btype() :: 'binary' | 'float' | 'integer'.
+-type bunit() :: pos_integer().
+-type bflag() :: 'signed' | 'unsigned' | 'native' | 'big' | 'little'.
+
+%% Encodes an erlang term to a bitstring with the specified encoding
+-spec make_bitstring(term(), bsize(), bunit(), btype(), [bflag()]) -> bitstring().
 
 make_bitstring(Val, Size, Unit, Type, Flags) ->
   Sign = conc_lib:get_signedness(Flags),
@@ -12309,6 +12315,10 @@ make_bitstring(Val, Size, Unit, Type, Flags) ->
     {_, 256, binary, unsigned, native} ->
       <<Val:Size/unsigned-native-binary-unit:256>>
   end.
+  
+%% Pattern matches a bitstring with a literal encoded as bitstring
+%% and returns the rest of the bitstring
+-spec match_bitstring_const(term(), bsize(), bunit(), btype(), [bflag()], bitstring()) -> bitstring().
   
 match_bitstring_const(Val, Size, Unit, Type, Flags, MatchVal) ->
   Sign = conc_lib:get_signedness(Flags),
@@ -30747,6 +30757,10 @@ match_bitstring_const(Val, Size, Unit, Type, Flags, MatchVal) ->
       <<Val:Size/unsigned-native-binary-unit:256, Rest/bitstring>> = MatchVal,
       Rest
   end.
+  
+%% Pattern matches a bitstring and returns
+%% the matched value and the rest of the binary
+-spec match_bitstring_var(bsize(), bunit(), btype(), [bflag()], bitstring()) -> {bitstring(), bitstring()}.
   
 match_bitstring_var(Size, Unit, Type, Flags, MatchVal) ->
   Sign = conc_lib:get_signedness(Flags),

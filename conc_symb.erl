@@ -7,11 +7,16 @@
 	 make_bitstring/5, match_bitstring_const/2, match_bitstring_var/2,
 	 mock_bif/2, tl/1, tuple_to_list/2]).
 
+-export_type([sbitstring/0]).
+
+-type sbitstring() :: {'bitstr', [term()]}.
+-type encoding()   :: {bin_lib:bsize(), bin_lib:bunit(), bin_lib:btype(), [bin_lib:bflag()]}.
+
 %% Abstract a list of concrete values
 -spec abstract(Vs :: [term()]) -> Ss :: [atom()].
-       
+  
 abstract(Vs) ->
-    abstract(Vs, [], 1).
+  abstract(Vs, [], 1).
 
 abstract([], Acc, _Id) ->
   lists:reverse(Acc);
@@ -63,11 +68,7 @@ mock_bif({M, F, A}, Args) ->
 %% To create a list of N elements from a symbolic term
 %% that represents a tuple (N is user defined)
 %% ------------------------------------------------------------------------
--spec tuple_to_list(S, N) -> L
-  when S :: term(),
-       N :: non_neg_integer(),
-       L :: [term()].
-
+-spec tuple_to_list(term(), non_neg_integer()) -> [term()].
 tuple_to_list(S, N) ->
   tuple_to_list(S, N, []).
   
@@ -81,10 +82,8 @@ tuple_to_list(S, N, Acc) ->
 %% hd/1
 %% Get the head of a symbolic term that represents a list
 %% ------------------------------------------------------------------------
--spec hd(S) -> Hd
-  when S  :: term(),
-       Hd :: term().
-       
+-spec hd(term()) -> term().
+  
 hd(S) when is_list(S) ->
   erlang:hd(S);
 hd(S) ->
@@ -94,10 +93,8 @@ hd(S) ->
 %% tl/1
 %% Get the tail of a symbolic term that represents a list
 %% ------------------------------------------------------------------------
--spec tl(S) -> Tl
-  when S  :: term(),
-       Tl :: term().
-       
+-spec tl(term()) -> term().
+  
 tl(S) when is_list(S) ->
   erlang:tl(S);
 tl(S) ->
@@ -127,7 +124,7 @@ ensure_list(S, N) ->
 %% (N is user defined)
 %% ------------------------------------------------------------------------
 -spec listify(S :: term(), N :: pos_integer()) -> L :: [term()].
-       
+  
 listify(S, N) ->
   [mock_bif({lists, nth, 2}, [X, S]) || X <- lists:seq(1, N)].
 
@@ -135,21 +132,39 @@ listify(S, N) ->
 %% for use in binaries
 %% TODO Needs Revision !!!
 %% ========================
+
+%% Symbolic representation of an empty binary
+-spec empty_binary() -> sbitstring().
+
 empty_binary() ->
-  {binary, []}.
+  {'bitstr', []}.
   
-append_binary(Sv, {binary, Acc}) when is_list(Acc) ->
-  {binary, [Sv|Acc]}.
+%% Append a symbolic bitstring to a symbolic binary
+-spec append_binary(term(), sbitstring()) -> sbitstring().
   
+append_binary(Sv, {'bitstr', Acc}) when is_list(Acc) ->
+  {'bitstr', [Sv|Acc]}.
+  
+%% Create a symbolic bitstring from a term with a specific encoding
+-spec make_bitstring(term(), bin_lib:bsize(), bin_lib:bunit(), bin_lib:btype(), [bin_lib:bflag()]) -> sbitstring().
 make_bitstring(Sv, Size, Unit, Type, Flags) ->
-  Sign = conc_lib:get_signedness(Flags),
-  End = conc_lib:get_endianess(Flags),
-  {bitstring, {Sv, Size, Unit, Type, Sign, End}}.
+%  Sign = conc_lib:get_signedness(Flags),
+%  End = conc_lib:get_endianess(Flags),
+  {'bitstr', [{Sv, [Size, Unit, Type, Flags]}]}.
   
+%% Symbolic representation of pattern matching a symbolic binary
+%% to an symbolic bitstring and return the rest of the symbolic binary
+-spec match_bitstring_const(term(), sbitstring()) -> {'bitstr_c_rest', {term(), sbitstring()}}.
+
 match_bitstring_const(Cnst, Sv) ->
-  {bitstr_const_match_rest, {Cnst, Sv}}.
+  {'bitstr_c_rest', {Cnst, Sv}}.
   
+%% Symbolic representation of pattern matching a symbolic binary
+%% to an encoded symbolic bitstring and return 
+%% the matched value and the rest of the symbolic binary
+-spec match_bitstring_var(encoding(), sbitstring()) -> {{'bitstr_v_x', {term(), sbitstring()}}, {'bitstr_v_rest', {term(), sbitstring()}}}.
+
 match_bitstring_var(SEnc, Sv) ->
-  X = {bitstr_var_match_x, {SEnc, Sv}},
-  Rest = {bitstr_var_match_rest, {SEnc, Sv}},
+  X = {'bitstr_v_x', {SEnc, Sv}},
+  Rest = {'bitstr_v_rest', {SEnc, Sv}},
   {X, Rest}.
