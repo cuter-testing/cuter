@@ -1,13 +1,15 @@
+%% -*- erlang-indent-level: 2 -*-
+%%------------------------------------------------------------------------------
 -module(conc_tserver).
 -behaviour(gen_server).
 
 %% External exports
 -export([init_traceserver/2, terminate/1, register_to_trace/2,
-  is_monitored/2, node_servers/2, file_descriptor/1]).
+	 is_monitored/2, node_servers/2, file_descriptor/1]).
 
 %% gen_server callbacks
 -export([init/1, terminate/2, handle_call/3,
-  code_change/3, handle_info/2, handle_cast/2]).
+	 code_change/3, handle_info/2, handle_cast/2]).
 
 %% gen_server state datatype
 -record(state, {
@@ -29,30 +31,30 @@ init_traceserver(TraceDir, Super) ->
     {ok, TraceServer} -> TraceServer;
     {error, Reason}   -> exit({traceserver_init, Reason})
   end.
-  
+
 %% Terminate a TraceServer
 terminate(TraceServer) ->
   gen_server:cast(TraceServer, {terminate, self()}).
-  
+
 %% Register a new process so that the TraceServer can monitor it
 register_to_trace(TraceServer, Parent) ->
   {ok, Filename} = gen_server:call(TraceServer, {register_parent, Parent}),
   {ok, File} = conc_encdec:create_file(Filename),
   store_file_descriptor(TraceServer, File),
   ok = conc_encdec:log_term(File, {pid, self()}),
-%  ok = conc_encdec:close_file(File),
+  %% ok = conc_encdec:close_file(File),
   {ok, File}.
-  
+
 %% Check if a process is monitored by TraceServer
 is_monitored(TraceServer, Who) ->
   gen_server:call(TraceServer, {is_monitored, Who}).
-  
+
 %% Request the CodeServer and TraceServer of a specific node
 node_servers(TraceServer, Node) ->
   {ok, Servers} = gen_server:call(TraceServer, {node_servers, Node}),
   Servers.
-  
-%% Request the file descriptor of a this process's trace file
+
+%% Request the file descriptor of a process' trace file
 file_descriptor(TraceServer) ->
   {ok, Fd} = gen_server:call(TraceServer, {get_fd, self()}),
   Fd.
@@ -113,7 +115,7 @@ handle_call({register_parent, Parent}, {From, _FromTag}, State) ->
      false -> From
     end,
   monitor(process, FromPid),
-%  io:format("[conc_tserver(~p)]: Monitoring ~p~n", [node(), FromPid]),
+  %% io:format("[conc_tserver(~p)]: Monitoring ~p~n", [node(), FromPid]),
   ets:insert(Ptree, {Parent, FromPid}),
   ets:insert(Procs, {FromPid, true}),
   %% Update Logs - Number of monitored processes
@@ -211,27 +213,19 @@ store_file_descriptor(TraceServer, Fd) ->
   gen_server:cast(TraceServer, {store_fd, self(), Fd}).
 
 %% Kill all monitored processes
--spec kill_all_processes(Procs) -> ok
-  when Procs :: [pid()].
+-spec kill_all_processes(Procs :: [pid()]) -> 'ok'.
   
 kill_all_processes(Procs) ->
   KillOne = fun(P) ->
-    case is_process_alive(P) of
-      true  -> exit(P, kill);
-      false -> ok
-    end
-  end,
-  lists:map(KillOne, Procs),
-  ok.
+	      case is_process_alive(P) of
+		true  -> exit(P, kill);
+		false -> ok
+	      end
+	    end,
+  lists:foreach(KillOne, Procs).
   
 %% Make a list of all monitored processes
--spec get_procs(Tab) -> Procs
-  when Tab   :: ets:tab(),
-       Procs :: [pid()].
+-spec get_procs(Tab :: ets:tab()) -> Procs :: [pid()].
        
 get_procs(Tab) ->
-  ets:foldl(
-   fun({P, true}, Acc) -> [P|Acc] end,
-   [], Tab
-  ).
-  
+  ets:foldl(fun({P, true}, Acc) -> [P|Acc] end, [], Tab).
