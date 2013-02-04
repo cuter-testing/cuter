@@ -2,9 +2,14 @@
 %%------------------------------------------------------------------------------
 -module(conc_encdec).
 %% exports are alphabetically ordered
--export([close_file/1, getint32/1, log_term/2, open_file/1]).
+-export([create_file/1, close_file/1, getint32/1, log_term/2, open_file/1]).
 
 -define(LOGGING_FLAG, true).  %% Enables logging
+
+-spec create_file(file:name()) -> {'ok', file:io_device()}.
+
+create_file(Filename) ->
+  {ok, _FD} = file:open(Filename, [write, raw, binary]).
 
 -spec open_file(file:name()) -> {'ok', file:io_device()}.
 
