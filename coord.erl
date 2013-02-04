@@ -160,12 +160,12 @@ clear_dir(D) ->
       end
   end.
 
-%print_trace(F, D) ->
-%  io:format("%% Contents of ~p~n", [D]),
-%  conc_encdec:pprint(F).
+%%print_trace(F, D) ->
+%%  io:format("%% Contents of ~p~n", [D]),
+%%  conc_encdec:pprint(F).
 print_trace(_F, _D) ->
   ok.
 
 delete_trace(F) ->
   file:delete(F).
-%  ok.
+%%  ok.

@@ -904,11 +904,11 @@ bit_pattern_match({M, CodeServer, Cenv, Senv}, Mode, TraceServer, [{c_bitstr, _A
           {NewCMaps, NewSMaps} =
             case lists:keymember(VarName, 1, CMaps) of
               true ->
-		{lists:keyreplace(VarName, 1, CMaps, {VarName, CX}),
-		 lists:keyreplace(VarName, 1, SMaps, {VarName, SX})};
-	      false ->
-		{[{VarName, CX} | CMaps],
-		 [{VarName, SX} | SMaps]}
+                {lists:keyreplace(VarName, 1, CMaps, {VarName, CX}),
+                 lists:keyreplace(VarName, 1, SMaps, {VarName, SX})};
+                    false ->
+                {[{VarName, CX} | CMaps],
+                 [{VarName, SX} | SMaps]}
             end,
           NewCenv = conc_lib:add_binding(VarName, CX, Cenv),
           NewSenv = conc_lib:add_binding(VarName, SX, Senv),
@@ -1270,6 +1270,8 @@ register_and_apply(TraceServer, Parent, Args) ->
 %% Optimization : For caching purposes, the MDb is stored
 %% in the process dictionary for later lookups
 %% ----------------------------------------------------------
+-spec get_module_db(M :: atom(), CodeServer :: pid()) -> {ok, MDb :: ets:tab()} | preloaded.
+
 get_module_db(M, CodeServer) ->
   case get({conc, M}) of
     undefined ->
