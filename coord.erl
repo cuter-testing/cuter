@@ -17,10 +17,8 @@ run(M, F, As) ->
   process_flag(trap_exit, true),
   CoreDir = "core_temp",
   TraceDir = "traces",
-  
   Start = now(),
   %% profiling_start(?PROFILING_FLAG),
-  
   Concolic = conc:init_concolic(M, F, As, CoreDir, TraceDir),
   receive
     {'EXIT', Concolic, Why} ->
@@ -28,12 +26,10 @@ run(M, F, As) ->
     {Concolic, Results} ->
       R = Results
   end,
-  
   %% profiling_stop(?PROFILING_FLAG),
   End  = now(),
   Time = timer:now_diff(End, Start),
   io:format("%% Time elapsed = ~w secs~n", [Time/1000000]),
-  
   analyze(R),
   Traces = trace_dir(R),
   lists:foreach(fun clear_dir/1, Traces),
@@ -49,8 +45,7 @@ run(M, F, As) ->
 -spec run_bencherl_demos() -> 'ok'.
 run_bencherl_demos() ->
   Version = 'short',  %% Version :: short | intermediate | long
-  %%  Cores = erlang:system_info(schedulers_online),
-  Cores = 2,
+  Cores = 2,          %% Cores = erlang:system_info(schedulers_online),
   Conf = [{number_of_cores, Cores}],
   Benchmarks = [bang, genstress, big, ehb, ets_test, mbrot, parallel, pcmark, serialmsg, timer_wheel, ran],
 %  Benchmarks = [bang, genstress, big, ehb, ets_test, mbrot, parallel, pcmark, serialmsg, timer_wheel],
@@ -59,7 +54,7 @@ run_bencherl_demos() ->
     fun(Bench) ->
       io:format("~n===> Simulating ~w (~w, ~w) ...~n", [Bench, Version, Conf]),
       Args = Bench:bench_args(Version, Conf),
-      lists:map(fun(A) -> run(Bench, run, [A, foo, bar]) end, Args)
+      lists:foreach(fun(A) -> run(Bench, run, [A, foo, bar]) end, Args)
     end,
   lists:foreach(RunOne, Benchmarks).
   
