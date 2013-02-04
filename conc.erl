@@ -6,24 +6,28 @@
 
 %% External exports
 -export([init_concolic/5, send_return/3, send_error_report/3,
-  send_clogs/2, send_tlogs/2, node_servers/2]).
+	 send_clogs/2, send_tlogs/2, node_servers/2]).
 
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3,
-  handle_call/3, handle_cast/2, handle_info/2]).
+	 handle_call/3, handle_cast/2, handle_info/2]).
+
+-type cpid()    :: {node(), pid()}.
+-type tpid()    :: {node(), pid()}.
+-type servers() :: {pid(), pid()}.
 
 %% gen_server state datatype
 -record(state, {
-  coord    :: pid(),                     %% Pid of the Coordinator Process
-  coredir  :: string(),                  %% Directory to store .core files
-  tracedir :: string(),                  %% Directory to store trace files
-  cpids    :: [{node(), pid()}],         %% Proplist of CodeServers
-  tpids    :: [{node(), pid()}],         %% Proplist of TraceServers
-  results  :: orddict:orddict(),         %% Info about the concolic execution
-  int      :: pid() | ok,                %% First interpreted process that returns its result
-  error    :: {atom(), term()} | false   %% Flag for when errors occur
+  coord    :: pid(),                   %% Pid of the Coordinator Process
+  coredir  :: string(),                %% Directory to store .core files
+  tracedir :: string(),                %% Directory to store trace files
+  cpids    :: [cpid()],                %% Proplist of CodeServers
+  tpids    :: [tpid()],                %% Proplist of TraceServers
+  results  :: orddict:orddict(),       %% Info about the concolic execution
+  int      :: pid() | ok,              %% First interpreted process that returns its result
+  error    :: {atom(), term()} | false %% Flag for when errors occur
 }).
-
+-type state() :: #state{}.
 
 %%====================================================================
 %% External exports
@@ -234,34 +238,24 @@ handle_info({'EXIT', Who, Reason}, State) ->
 %%====================================================================
 
 %% Determine whether the concolic execution has ended or not
--spec execution_completed(State) -> boolean()
-  when State :: #state{}.
+-spec execution_completed(State :: state()) -> boolean().
   
-execution_completed(State) ->
-  CPids = State#state.cpids,
-  TPids = State#state.tpids,
-  Int = State#state.int,
+execution_completed(#state{cpids = CPids, tpids = TPids, int = Int}) ->
   case {CPids, TPids, Int} of
     {[], [], ok} -> true;
     _ -> false
   end.
 
 %% Send terminate requests to all the live CodeServers and TraceServers
--spec force_terminate(CPids, TPids) -> ok
-  when CPids :: [{node(), pid()}],
-       TPids :: [{node(), pid()}].
+-spec force_terminate(CPids :: [cpid()], TPids :: [tpid()]) -> ok.
 
 force_terminate(CPids, TPids) ->
   lists:foreach(fun({_Node, P}) -> conc_cserver:terminate(P) end, CPids),
   lists:foreach(fun({_Node, P}) -> conc_tserver:terminate(P) end, TPids).
-  
-  
+
 %% Locate and return the node info of a CodeServer or TraceServer
--spec locate(Who, CPids, TPids) -> {true, codeserver, Node} | {true, traceserver, Node} | false
-  when Who   :: pid(),
-       CPids :: [{node(), pid()}],
-       TPids :: [{node(), pid()}],
-       Node  :: node().
+-spec locate(Who :: pid(), CPids :: [cpid()], TPids :: [tpid()]) ->
+         {true, codeserver, node()} | {true, traceserver, node()} | false.
        
 locate(Who, CPids, TPids) ->
   case lists:keyfind(Who, 2, CPids) of
@@ -277,11 +271,7 @@ locate(Who, CPids, TPids) ->
   end.
   
 %% Check whether a node has beend assigned a TraceServer and a CodeServer
--spec node_monitored(Node, CPids, TPids) -> {true, Servers} | false
-  when Node    :: node(),
-       CPids   :: [{node(), pid()}],
-       TPids   :: [{node(), pid()}],
-       Servers :: {pid(), pid()}.
+-spec node_monitored(node(), [cpid()], [tpid()]) -> {true, servers()} | false.
 
 node_monitored(Node, CPids, TPids) ->
   C = lists:keyfind(Node, 1, CPids),
@@ -294,12 +284,8 @@ node_monitored(Node, CPids, TPids) ->
   end.
   
 %% Spawn a TraceServer and a CodeServer at a remote node
--spec remote_spawn_servers(Node, CoreDir, TraceDir, Super) -> {ok, Servers} | error
-  when Node     :: node(),
-       CoreDir  :: string(),
-       TraceDir :: string(),
-       Super    :: pid(),
-       Servers  :: {pid(), pid()}.
+-spec remote_spawn_servers(node(), string(), string(), pid()) ->
+        {ok, servers()} | error.
   
 remote_spawn_servers(Node, CoreDir, TraceDir, Super) ->
   F = fun() ->
