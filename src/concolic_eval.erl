@@ -319,7 +319,7 @@ eval({named, {erlang, make_fun}}, CAs, SAs, _CallType, CodeServer, TraceServer, 
   case CAs of
     [M, F, A] ->
       CR = make_fun(M, F, A, CodeServer, TraceServer, Fd),
-      SR = concolic_symbolic:mock_bif({erlang, make_fun, 3}, SAs_e),
+      SR = concolic_symbolic:mock_bif({erlang, make_fun, 3}, SAs_e, CR),
       {CR, SR};
     _ ->
       exception(error, {undef, {erlang, make_fun, Arity}})
@@ -354,13 +354,13 @@ eval({named, {M, F}}, CAs, SAs, CallType, CodeServer, TraceServer, Fd) ->
   case concolic_lib:is_bif(M, F, Arity) of
     true ->
       CR = apply(M, F, CAs),
-      SR = concolic_symbolic:mock_bif({M, F, Arity}, SAs_e),
+      SR = concolic_symbolic:mock_bif({M, F, Arity}, SAs_e, CR),
       {CR, SR};
     false ->
       case get_module_db(M, CodeServer) of
         preloaded ->
           CR = apply(M, F, CAs),
-          SR = concolic_symbolic:mock_bif({M, F, Arity}, SAs_e),
+          SR = concolic_symbolic:mock_bif({M, F, Arity}, SAs_e, CR),
           {CR, SR};
         {ok, MDb} ->
           Key = {M, F, Arity},

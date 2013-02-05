@@ -5,7 +5,7 @@
 -export([abstract/1, append_binary/2, empty_binary/0, ensure_list/2,
          generate_mapping/2, hd/1,
          make_bitstring/5, match_bitstring_const/2, match_bitstring_var/2,
-         mock_bif/2, tl/1, tuple_to_list/2]).
+         mock_bif/3, tl/1, tuple_to_list/2]).
 
 -export_type([sbitstring/0]).
 
@@ -34,30 +34,36 @@ generate_mapping(Ss, Vs) ->
   lists:zip(Ss, Vs).
 
 %% ------------------------------------------------------------------------
+%% TODO This function needs refining
 %% mock_bif/2
 %% Mocks the execution of an erlang bif and returns a symbolic 
 %% represenation of its result
+%% (the concrete result is given as parameter to the function)
 %% ------------------------------------------------------------------------
--spec mock_bif(MFA :: bif(), As :: [term()]) -> 'true' | { MFA_s :: atom(), As :: [term()]}.
+-spec mock_bif(MFA :: bif(), As :: [term()], Cv :: term()) -> 'true' | { MFA_s :: atom(), As :: [term()]}.
 
-mock_bif({erlang, demonitor, 1}, _Args) -> true;
-mock_bif({erlang, display, 1}, _Args) -> true;
-mock_bif({erlang, exit, 2}, _Args) -> true;
-mock_bif({erlang, garbage_collect, 0}, _Args) -> true;
-mock_bif({erlang, group_leader, 2}, _Args) -> true;
-mock_bif({erlang, link, 1}, _Args) -> true;
-mock_bif({erlang, monitor_node, 2}, _Args) -> true;
-mock_bif({erlang, monitor_node, 3}, _Args) -> true;
-mock_bif({erlang, port_close, 1}, _Args) -> true;
-mock_bif({erlang, port_command, 2}, _Args) -> true;
-mock_bif({erlang, port_connect, 2}, _Args) -> true;
-mock_bif({erlang, register, 2}, _Args) -> true;
-mock_bif({erlang, resume_process, 1}, _Args) -> true;
-mock_bif({erlang, set_cookie, 2}, _Args) -> true;
-mock_bif({erlang, unlink, 1}, _Args) -> true;
-mock_bif({erlang, unregister, 1}, _Args) -> true;
-mock_bif({erlang, yield, 0}, _Args) -> true;
-mock_bif({M, F, A}, Args) ->
+%% BIFs that always return 'true'
+mock_bif({erlang, demonitor, 1}, _Args, true) -> true;
+mock_bif({erlang, display, 1}, _Args, true) -> true;
+mock_bif({erlang, exit, 2}, _Args, true) -> true;
+mock_bif({erlang, garbage_collect, 0}, _Args, true) -> true;
+mock_bif({erlang, group_leader, 2}, _Args, true) -> true;
+mock_bif({erlang, link, 1}, _Args, true) -> true;
+mock_bif({erlang, monitor_node, 2}, _Args, true) -> true;
+mock_bif({erlang, monitor_node, 3}, _Args, true) -> true;
+mock_bif({erlang, port_close, 1}, _Args, true) -> true;
+mock_bif({erlang, port_command, 2}, _Args, true) -> true;
+mock_bif({erlang, port_connect, 2}, _Args, true) -> true;
+mock_bif({erlang, register, 2}, _Args, true) -> true;
+mock_bif({erlang, resume_process, 1}, _Args, true) -> true;
+mock_bif({erlang, set_cookie, 2}, _Args, true) -> true;
+mock_bif({erlang, unlink, 1}, _Args, true) -> true;
+mock_bif({erlang, unregister, 1}, _Args, true) -> true;
+mock_bif({erlang, yield, 0}, _Args, true) -> true;
+%% BIFs with arity 0 return the concrete result
+mock_bif({_M, _F, 0}, _Args, Cv) -> Cv;
+%% Symbolic abstraction of a BIF
+mock_bif({M, F, A}, Args,  _Cv) ->
   X = atom_to_list(M) ++ ":" ++ atom_to_list(F) ++ "/" ++ integer_to_list(A),
   {list_to_atom(X), Args}.
   
@@ -74,7 +80,7 @@ tuple_to_list(S, N) ->
 tuple_to_list(_S, 0, Acc) ->
   Acc;
 tuple_to_list(S, N, Acc) ->
-  X = mock_bif({erlang, element, 2}, [N, S]),
+  X = mock_bif({erlang, element, 2}, [N, S], undefined),
   tuple_to_list(S, N-1, [X|Acc]).
 
 %% ------------------------------------------------------------------------
@@ -86,7 +92,7 @@ tuple_to_list(S, N, Acc) ->
 hd(S) when is_list(S) ->
   erlang:hd(S);
 hd(S) ->
-  mock_bif({erlang, hd, 1}, [S]).
+  mock_bif({erlang, hd, 1}, [S], undefined).
 
 %% ------------------------------------------------------------------------
 %% tl/1
@@ -97,7 +103,7 @@ hd(S) ->
 tl(S) when is_list(S) ->
   erlang:tl(S);
 tl(S) ->
-  mock_bif({erlang, tl, 1}, [S]).
+  mock_bif({erlang, tl, 1}, [S], undefined).
   
 %% ------------------------------------------------------------------------
 %% ensure_list/2
@@ -122,7 +128,7 @@ ensure_list(S, N) ->
 -spec listify(S :: term(), N :: pos_integer()) -> L :: [term()].
   
 listify(S, N) ->
-  [mock_bif({lists, nth, 2}, [X, S]) || X <- lists:seq(1, N)].
+  [mock_bif({lists, nth, 2}, [X, S], undefined) || X <- lists:seq(1, N)].
 
 %% ========================
 %% for use in binaries
