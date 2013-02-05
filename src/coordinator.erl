@@ -122,7 +122,7 @@ trace_dir({error, _Error}) ->
 clear_dir(D) ->
   case filelib:is_regular(D) of
     true ->
-      {ok, F} = concolic_encdec:open_file(D),
+      {ok, F} = concolic_encdec:open_file(D, read),
       print_trace(F, D),
       concolic_encdec:close_file(F),
       delete_trace(D);
