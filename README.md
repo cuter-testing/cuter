@@ -1,9 +1,11 @@
 conc-test
 =========
 
-*  Compile the source code and the demos with `make all`. You can simulate the execution of an MFA with `coord:run(Module, Function, Arguments).`
+*  Compile the source code and the demos with `make all`.  (`make` compiles just the source code.)
 
-   e.g. `coord:run(orddict,store,[key,val,orddict:new()]).`
+*  You can simulate the execution of an MFA with `coordinator:run(Module, Function, Arguments).`
+
+	e.g. `coordinator:run(orddict, store, [key,val,orddict:new()]).`
 
 *  Run the bencherl demos with `erl -pa demos/ebin -pa ebin/ -eval "coordinator:run_bencherl_demos()" -s init stop` (`ran` takes a while to execute...)
 
