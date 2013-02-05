@@ -1,15 +1,11 @@
-%% -*- erlang-indent-level: 2 -*-
-%%------------------------------------------------------------------------------
--module(coord).
+-module(coordinator).
+-compile(export_all).
 
--export([run/3, run_bencherl_demos/0, run_my_demos/0]).
-
-%-define(PROFILING_FLAG, false).
-%-define(PRINT_TRACE_FLAG, true).   %% Displays Traces after the execution
-%-define(DELETE_TRACE_FLAG, true).  %% Deletes the Traces after the execution
+%-define(PRINT_TRACE, ok).
+-define(DELETE_TRACE, ok).
 
 %% -----------------------------------------------------------------------------
-%% Concolic Execution of M,F,As
+%% Concolic Execution of an M, F, As
 %% -----------------------------------------------------------------------------
 
 -spec run(atom(), atom(), [term()]) -> 'ok'.
@@ -18,15 +14,13 @@ run(M, F, As) ->
   CoreDir = "core_temp",
   TraceDir = "traces",
   Start = now(),
-  %% profiling_start(?PROFILING_FLAG),
-  Server = concolic:init_server(M, F, As, CoreDir, TraceDir),
+  Concolic = concolic:init_server(M, F, As, CoreDir, TraceDir),
   R = receive
         {'EXIT', Concolic, Why} ->
           {error, Why};
         {Concolic, Results} ->
           Results
       end,
-  %% profiling_stop(?PROFILING_FLAG),
   End  = now(),
   Time = timer:now_diff(End, Start),
   io:format("%% Time elapsed = ~w secs~n", [Time/1000000]),
@@ -47,9 +41,8 @@ run_bencherl_demos() ->
   Version = 'short',  %% Version :: short | intermediate | long
   Cores = 2,          %% Cores = erlang:system_info(schedulers_online),
   Conf = [{number_of_cores, Cores}],
-  Benchmarks = [bang, genstress, big, ehb, ets_test, mbrot, parallel, pcmark, serialmsg, timer_wheel, ran],
-%  Benchmarks = [bang, genstress, big, ehb, ets_test, mbrot, parallel, pcmark, serialmsg, timer_wheel],
-%  Benchmarks = [bang],
+%  Benchmarks = [bang, genstress, big, ehb, ets_test, mbrot, parallel, pcmark, serialmsg, timer_wheel, ran],
+  Benchmarks = [bang, genstress, big, ehb, ets_test, parallel, pcmark, serialmsg, timer_wheel],
   RunOne = 
     fun(Bench) ->
       io:format("~n===> Simulating ~w (~w, ~w) ...~n", [Bench, Version, Conf]),
@@ -68,21 +61,6 @@ run_my_demos() ->
   end,
   lists:foreach(F, Demos).
   
-%% -----------------------------------------------------------------------------
-%% Profiling functions
-%% -----------------------------------------------------------------------------
-%profiling_start(true) ->
-%  eprof:start(),
-%  eprof:start_profiling([self()]);
-%profiling_start(false) ->
-%  ok.
-%  
-%profiling_stop(true) ->
-%  eprof:stop_profiling(),
-%  eprof:analyze(),
-%  eprof:stop();
-%profiling_stop(false) ->
-%  ok.
   
 %% -----------------------------------------------------------------------------
 %% Report Results
@@ -144,9 +122,9 @@ trace_dir({error, _Error}) ->
 clear_dir(D) ->
   case filelib:is_regular(D) of
     true ->
-      {ok, F} = conc_encdec:open_file(D),
+      {ok, F} = concolic_encdec:open_file(D),
       print_trace(F, D),
-      conc_encdec:close_file(F),
+      concolic_encdec:close_file(F),
       delete_trace(D);
     false ->
       case file:del_dir(D) of
@@ -160,12 +138,20 @@ clear_dir(D) ->
       end
   end.
 
-%%print_trace(F, D) ->
-%%  io:format("%% Contents of ~p~n", [D]),
-%%  conc_encdec:pprint(F).
+-ifdef(PRINT_TRACE).
+print_trace(F, D) ->
+  io:format("%% Contents of ~p~n", [D]),
+  concolic_encdec:pprint(F).
+-else.
 print_trace(_F, _D) ->
   ok.
+-endif.
 
+-ifdef(DELETE_TRACE).
 delete_trace(F) ->
   file:delete(F).
-%%  ok.
+-else.
+delete_trace(_F) ->
+  ok.
+-endif.
+

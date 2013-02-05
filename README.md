@@ -5,7 +5,7 @@ conc-test
 
    e.g. `coord:run(orddict,store,[key,val,orddict:new()]).`
 
-*  Run the bencherl demos with `erl -pa demos/ebin -eval "coord:run_bencherl_demos()" -s init stop` (`ran` takes a while to execute...)
+*  Run the bencherl demos with `erl -pa demos/ebin -pa ebin/ -eval "coordinator:run_bencherl_demos()" -s init stop` (`ran` takes a while to execute...)
 
-*  Run my demos with `erl -pa demos/ebin -eval "coord:run_my_demos()" -s init stop`
+*  Run my demos with `erl -pa demos/ebin -pa ebin/ -eval "coordinator:run_my_demos()" -s init stop`
 

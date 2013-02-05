@@ -26,7 +26,8 @@ SRC_MODULES = \
 	concolic_lib \
 	concolic_load \
 	concolic_symbolic \
-	concolic_tserver
+	concolic_tserver \
+	coordinator
 
 ## THIS CHUNK TO BE REVISED
 DEMO_BIN = demos/ebin
