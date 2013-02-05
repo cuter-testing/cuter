@@ -29,13 +29,22 @@
 }).
 -type state() :: #state{}.
 
+%% TODO: refine the _ below
+-type logs() :: _.
+-type call() :: {'int_return', _, _}
+	      | {'node_servers', node()}
+	      | {'error_report', _, _}
+	      | {'clogs', logs()}
+	      | {'tlogs', logs()}.
+
 %%====================================================================
 %% External exports
 %%====================================================================
 
 %% Initialize the Concolic Server
 init_server(M, F, As, CoreDir, TraceDir) ->
-  case gen_server:start_link(?MODULE, [M, F, As, CoreDir, TraceDir, self()], []) of
+  Args = [M, F, As, CoreDir, TraceDir, self()],
+  case gen_server:start_link(?MODULE, Args, []) of
     {ok, Server} -> Server;
     {error, _Reason} = R -> R
   end.
@@ -64,6 +73,8 @@ node_servers(ConcServer, Node) ->
 %% gen_server callbacks
 %%====================================================================
 
+-spec init([atom() | string() | pid() | [term()]]) -> {'ok', state()}.
+
 init([M, F, As, CoreDir, TraceDir, Coord]) ->
   process_flag(trap_exit, true),
   Node = node(),
@@ -81,7 +92,10 @@ init([M, F, As, CoreDir, TraceDir, Coord]) ->
     error = false
   },
   {ok, InitState}.
-  
+
+
+-spec terminate(term(), state()) -> 'ok'.
+
 terminate(_Reason, State) ->
   Coord = State#state.coord,
   Results = State#state.results,
@@ -91,21 +105,32 @@ terminate(_Reason, State) ->
   _ = file:del_dir(filename:absname(CoreDir)),
   case Error of
     {internalc, Node} ->
-      Coord ! {self(), {internal_codeserver_error, Node, Results}};
+      Coord ! {self(), {internal_codeserver_error, Node, Results}},
+      ok;
     {internalt, Node} ->
-      Coord ! {self(), {internal_traceserver_error, Node, Results}};
+      Coord ! {self(), {internal_traceserver_error, Node, Results}},
+      ok;
     {runtime, Node} ->
-      Coord ! {self(), {runtime_error, Node, Results}};
+      Coord ! {self(), {runtime_error, Node, Results}},
+      ok;
     {internal, Error} ->
       exit(Error);
     false ->
-      Coord ! {self(), {ok, node(), Results}}
+      Coord ! {self(), {ok, node(), Results}},
+      ok
   end.
-  
+
+-spec code_change(term(), State, term()) -> {'ok', State} when State :: state().
+
 code_change(_OldVsn, State, _Extra) ->
   %% No change planned.
   {ok, State}.
-  
+
+
+-type reply() :: 'ok' | 'proc_mismatch' | servers().
+-spec handle_call(call(), {pid(), _}, state()) ->
+	{'reply', reply(), state()} | {'stop', 'error', 'normal', state()}.
+
 %% Log the result of the first spawned process
 handle_call({int_return, Mapping, Return}, {From, _FromTag}, State) ->
   Ipid = State#state.int,
@@ -118,12 +143,12 @@ handle_call({int_return, Mapping, Return}, {From, _FromTag}, State) ->
   case Ipid =:= FromPid of
     true  ->
       Node = node(FromPid),
-      NRes = orddict:append_list(Node, [{result, Return}, {mapping, Mapping}], Res),
+      List = [{result, Return}, {mapping, Mapping}],
+      NRes = orddict:append_list(Node, List, Res),
       {reply, ok, State#state{results=NRes, int=ok}};
     false ->
       {reply, proc_mismatch, State}
   end;
-  
 %% Log a runtime error
 handle_call({error_report, Who, Error}, {From, _FromTag}, State) ->
   CPids = State#state.cpids,
@@ -135,7 +160,6 @@ handle_call({error_report, Who, Error}, {From, _FromTag}, State) ->
   %% Shutdown execution tree
   force_terminate(CPids, TPids -- [{Node, From}]),
   {reply, ok, State#state{results=NRes, int=ok, error={runtime, Node}}};
-  
 %% Handle a request for the servers of a specific node
 handle_call({node_servers, Node}, _From, State) ->
   CPids = State#state.cpids,
@@ -154,12 +178,12 @@ handle_call({node_servers, Node}, _From, State) ->
           NTPids = [{Node, TraceServer}|TPids],
           {reply, {CodeServer, TraceServer}, State#state{cpids=NCPids, tpids=NTPids}};
         error ->
-          %% Error while spawning servers so shutdown processes and terminate immediately with internal error
+          %% Error while spawning servers so shutdown processes and
+          %% terminate immediately with internal error
           force_terminate(CPids, TPids),
           {stop, error, normal, State#state{error={internal, init_servers}}}
       end
   end;
-  
 %% Store the logs of a CodeServer
 handle_call({clogs, Logs}, {From, _FromTag}, State) ->
   CPids = State#state.cpids,
@@ -167,7 +191,6 @@ handle_call({clogs, Logs}, {From, _FromTag}, State) ->
   {Node, From} = lists:keyfind(From, 2, CPids),  %% Process will never be registered
   NRes = orddict:append(Node, {clogs, Logs}, Res),
   {reply, ok, State#state{results=NRes}};
-  
 %% Store the logs of a TraceServer
 handle_call({tlogs, Logs}, {From, _FromTag}, State) ->
   TPids = State#state.tpids,
@@ -175,11 +198,18 @@ handle_call({tlogs, Logs}, {From, _FromTag}, State) ->
   {Node, From} = lists:keyfind(From, 2, TPids),  %% Process will never be registered
   NRes = orddict:append(Node, {tlogs, Logs}, Res),
   {reply, ok, State#state{results=NRes}}.
-  
+
+
+-spec handle_cast(term(), State) -> {'noreply', State} when State :: state().
+
 handle_cast(_Msg, State) ->
   %% Nothing planned for cast requests
   {noreply, State}.  
+
   
+-type info() :: {'EXIT', pid(), 'normal' | term()}.
+-spec handle_info(info(), state()) -> {'noreply', state()}.
+
 %% When a CodeServer or TraceServer have exited normally
 handle_info({'EXIT', Who, normal}, State) ->
   CPids = State#state.cpids,
@@ -188,7 +218,7 @@ handle_info({'EXIT', Who, normal}, State) ->
     %% A Codeserver exited
     {true, codeserver, Node} ->
       NCPids = CPids -- [{Node, Who}],
-      NState = State#state{cpids=NCPids},
+      NState = State#state{cpids = NCPids},
       case execution_completed(NState) of
         true  -> {stop, normal, NState};
         false -> {noreply, NState}
@@ -196,7 +226,7 @@ handle_info({'EXIT', Who, normal}, State) ->
     %% A Traceserver exited
     {true, traceserver, Node} ->
       NTPids = TPids -- [{Node, Who}],
-      NState = State#state{tpids=NTPids},
+      NState = State#state{tpids = NTPids},
       case execution_completed(NState) of
         %% If all processes have finished then terminate
         true  ->
@@ -210,7 +240,6 @@ handle_info({'EXIT', Who, normal}, State) ->
     false ->
       {noreply, State}
   end;
-
 %% When a CodeServer or TraceServer have exited with exceptions
 handle_info({'EXIT', Who, Reason}, State) ->
   CPids = State#state.cpids,
@@ -222,12 +251,14 @@ handle_info({'EXIT', Who, Reason}, State) ->
       NCPids = CPids -- [{Node, Who}],
       force_terminate(NCPids, TPids),
       NRes = orddict:append(Node, {codeserver_error, Reason}, Res),
-      {noreply, State#state{cpids=NCPids, results=NRes, error={internalc, Node}, int=ok}};
+      {noreply, State#state{cpids = NCPids, results = NRes,
+			    error = {internalc, Node}, int = ok}};
     {true, traceserver, Node} ->
       NTPids = TPids -- [{Node, Who}],
       force_terminate(CPids, NTPids),
       NRes = orddict:append(Node, {traceserver_error, Reason}, Res),
-      {noreply, State#state{tpids=NTPids, results=NRes, error={internalt, Node}, int=ok}};
+      {noreply, State#state{tpids = NTPids, results = NRes,
+			    error = {internalt, Node}, int = ok}};
     false ->
       {noreply, State}
   end.
