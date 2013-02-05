@@ -64,7 +64,7 @@ $(EBIN)/%.beam: %.erl
 	$(ERLC) +native $(ERLC_FLAGS) -o $(EBIN) $<
 
 dialyzer: $(TARGETS)
-	dialyzer -Wunmatched_returns $(EBIN)/*.beam
+	dialyzer -n -Wunmatched_returns $(EBIN)/*.beam
 
 $(DEMO_BIN)/%.beam: $(DEMO_SRC)/%.erl
 	$(ERLC) -o $(DEMO_BIN) $<
