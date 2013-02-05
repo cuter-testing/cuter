@@ -7,7 +7,7 @@
 
 -define(LOGGING_FLAG, ok).  %% Enables logging
 
--type mode() :: 'write' | 'read'.
+-type mode() :: 'read' | 'write'.
 
 %%====================================================================
 %% External exports
@@ -16,10 +16,8 @@
 %% Opens a file for logging or reading terms
 -spec open_file(F ::file:name(), M :: mode()) -> {'ok', file:io_device()}.
 
-open_file(F, 'write') ->
-  file:open(F, [write, raw, binary]);
-open_file(F, 'read') ->
-  file:open(F, [read, raw, binary]).
+open_file(F, M) when M =:= read; M =:= write ->
+  file:open(F, [M, raw, binary]).
 
 %% Wrapper for closing a file
 -spec close_file(F :: file:io_device()) -> 'ok'.
