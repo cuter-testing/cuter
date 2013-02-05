@@ -53,11 +53,11 @@ terminate(TraceServer) ->
 
 register_to_trace(TraceServer, Parent) ->
   {ok, Filename} = gen_server:call(TraceServer, {register_parent, Parent}),
-  {ok, File} = concolic_encdec:create_file(Filename),
-  store_file_descriptor(TraceServer, File),
-  ok = concolic_encdec:log_term(File, {pid, self()}),
+  {ok, Fd} = concolic_encdec:open_file(Filename, 'write'),
+  store_file_descriptor(TraceServer, Fd),
+  ok = concolic_encdec:log_term(Fd, {pid, self()}),
   %%  ok = concolic_encdec:close_file(File),
-  {ok, File}.
+  {ok, Fd}.
 
 %% Check if a process is monitored by TraceServer
 -spec is_monitored(TraceServer :: pid(), Who :: pid()) -> boolean().
