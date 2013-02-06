@@ -7,11 +7,12 @@
          make_bitstring/5, match_bitstring_const/2, match_bitstring_var/2,
          mock_bif/3, tl/1, tuple_to_list/2]).
 
--export_type([sbitstring/0]).
+-export_type([mapping/0, sbitstring/0]).
 
 -type bif() :: {atom(), atom(), non_neg_integer()}.
 -type sbitstring() :: {'bitstr', [term()]}.
 -type encoding()   :: {bin_lib:bsize(), bin_lib:bunit(), bin_lib:btype(), [bin_lib:bflag()]}.
+-type mapping() :: {atom(), term()}.
 
 %% Abstract a list of concrete values
 -spec abstract(Vs :: [term()]) -> Ss :: [atom()].
@@ -28,7 +29,7 @@ abstract([_A|As], Acc, Id) ->
 
 %% Generate a mapping between the concrete values
 %% and their symbolic abstraction
--spec generate_mapping(Ss :: [atom()], Vs :: [term()]) -> Ms :: [{atom(), term()}].
+-spec generate_mapping(Ss :: [atom()], Vs :: [term()]) -> Ms :: [mapping()].
 
 generate_mapping(Ss, Vs) ->
   lists:zip(Ss, Vs).

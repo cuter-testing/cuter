@@ -10,28 +10,37 @@
 %% gen_server callbacks
 -export([init/1, terminate/2, handle_call/3,
          code_change/3, handle_info/2, handle_cast/2]).
+         
+%% exported types
+-export_type([tlogs/0]).
 
+%% type declarations
+-type call()  :: {'register_parent', pid()}
+               | {'is_monitored', pid()}
+               | {'node_servers', node()}
+               | {'get_fd', pid()}.
+-type cast()  :: {'store_fd', pid(), file:io_device()}
+               | {'terminate', pid()}.
+-type info()  :: {'DOWN', reference(), 'process', pid(), term()}.
+-type reply() :: {'ok', file:name()}
+               | boolean()
+               | {'ok', {pid(), pid()}}
+               | {'ok', file:io_device()}.
 %% gen_server state datatype
 -record(state, {
-  super :: pid(),                     %% Concolic Server (supervisor) process
-  procs :: ets:tab(),                 %% Pids of Live Evaluator processes
-  ptree :: ets:tab(),                 %% ETS table where {Parent, Child} process pids are stored
-  fds   :: ets:tab(),                 %% ETS table where {Pid, Fd} are stored
-  dir   :: string(),                  %% Directory where traces are saved
-  logs  :: [proplists:property()]     %% Proplist to store log informations // currently only {procs, NumOfMonitoredProcs}
+  super :: pid(),      %% Concolic Server (supervisor) process
+  procs :: ets:tab(),  %% Pids of Live Evaluator processes
+  ptree :: ets:tab(),  %% ETS table where {Parent, Child} process pids are stored
+  fds   :: ets:tab(),  %% ETS table where {Pid, Fd} are stored
+  dir   :: string(),   %% Directory where traces are saved
+  logs  :: tlogs()     %% Proplist to store log informations // currently only {procs, NumOfMonitoredProcs}
 }).
-
 -type state() :: #state{}.
--type call_request() :: {'register_parent', pid()} | {'is_monitored', pid()}
-                      | {'node_servers', node()} | {'get_fd', pid()}.
--type call_reply() :: {'ok', file:name()} | boolean()
-                    | {'ok', {pid(), pid()}} | {'ok', file:io_device()}.
--type cast_request() :: {'store_fd', pid(), file:io_device()} | {'terminate', pid()}.
--type info_request() :: {'DOWN', reference(), 'process', pid(), term()}.
+-type tlogs() :: [proplists:property()].
 
-%%====================================================================
+%% ============================================================================
 %% External exports
-%%====================================================================
+%% ============================================================================
 
 %% Initialize a TraceServer
 -spec init_traceserver(TraceDir :: string(), Super :: pid()) -> TraceServer :: pid().
@@ -79,14 +88,14 @@ file_descriptor(TraceServer) ->
   {ok, Fd} = gen_server:call(TraceServer, {get_fd, self()}),
   Fd.
 
-%%====================================================================
+%% ============================================================================
 %% gen_server callbacks
-%%====================================================================
+%% ============================================================================
 
-%% ---------------------------------------------------------------------
+%% ------------------------------------------------------------------
 %% gen_server callback : init/1
-%% ---------------------------------------------------------------------
--spec init([(string() | pid())]) -> {'ok', state()}.
+%% ------------------------------------------------------------------
+-spec init([string() | pid()]) -> {'ok', state()}.
 
 init([Dir, Super]) ->
   process_flag(trap_exit, true),
@@ -107,10 +116,10 @@ init([Dir, Super]) ->
   },
   {ok, InitState}.
   
-%% ---------------------------------------------------------------------
+%% ------------------------------------------------------------------
 %% gen_server callback : terminate/2
-%% ---------------------------------------------------------------------
--spec terminate(term(), State :: state()) -> 'ok'.
+%% ------------------------------------------------------------------
+-spec terminate(term(), state()) -> 'ok'.
 
 terminate(_Reason, State) ->
   Super = State#state.super,
@@ -127,20 +136,18 @@ terminate(_Reason, State) ->
   %% Send Logs to supervisor
   ok = concolic:send_tlogs(Super, Logs).
 
-%% ---------------------------------------------------------------------
+%% ------------------------------------------------------------------
 %% gen_server callback : code_change/3
-%% ---------------------------------------------------------------------
+%% ------------------------------------------------------------------
 -spec code_change(term(), state(), term()) -> {'ok', state()}.
 
 code_change(_OldVsn, State, _Extra) ->
-  %% No change planned.
-  {ok, State}.
+  {ok, State}.  %% No change planned.
   
-%% ---------------------------------------------------------------------
+%% ------------------------------------------------------------------
 %% gen_server callback : handle_call/3
-%% ---------------------------------------------------------------------
--spec handle_call(Req :: call_request(),{From :: pid(), Tag :: reference()}, State :: state()) ->
-  {'reply', Reply :: call_reply(), NewState :: state()}.
+%% ------------------------------------------------------------------
+-spec handle_call(call(), {pid(), reference()}, state()) -> {'reply', reply(), state()}.
   
 %% Call Request : {register_parent, Parent, Link}
 %% Ret Msg : {ok, Filename}
@@ -164,7 +171,6 @@ handle_call({register_parent, Parent}, {From, _FromTag}, State) ->
   F = erlang:pid_to_list(FromPid),
   Filename = filename:absname(Dir ++ "/proc-" ++ F),
   {reply, {ok, Filename}, State#state{logs=NewLogs}};
-  
 %% Call Request : {is_monitored, Who}
 %% Ret Msg : boolean()
 handle_call({is_monitored, Who}, {_From, _FromTag}, State) ->
@@ -180,14 +186,12 @@ handle_call({is_monitored, Who}, {_From, _FromTag}, State) ->
       [{WhoPid, true}] -> true
     end,
   {reply, Monitored, State};
-  
 %% Call Request : {node_servers, Node}
 %% Ret Msg : {ok, {CodeServer, TraceServer}}
 handle_call({node_servers, Node}, _From, State) ->
   Super = State#state.super,
   Servers = concolic:node_servers(Super, Node),
   {reply, {ok, Servers}, State};
-  
 %% Call Request : {get_fd, Who}
 %% Ret Msg : {ok, FileDescriptor}
 handle_call({get_fd, Who}, _From, State) ->
@@ -195,18 +199,16 @@ handle_call({get_fd, Who}, _From, State) ->
   [{Who, Fd}] = ets:lookup(Fds, Who),
   {reply, {ok, Fd}, State}.
 
-%% ---------------------------------------------------------------------
+%% ------------------------------------------------------------------
 %% gen_server callback : handle_cast/2
-%% ---------------------------------------------------------------------
--spec handle_cast(Req :: cast_request(), State :: state()) ->
-  {'noreply', NewState :: state()} | {'stop', 'normal', NewState :: state()}.
-
+%% ------------------------------------------------------------------
+-spec handle_cast(cast(), state()) -> {'noreply', state()} | {'stop', 'normal', state()}.
+  
 %% Cast Request : {store_fd, FromWho}
 handle_cast({store_fd, From, Fd}, State) ->
   Fds = State#state.fds,
   ets:insert(Fds, {From, Fd}),
   {noreply, State};
-  
 %% Cast Request : {terminate, FromWho}
 handle_cast({terminate, FromWho}, State) ->
   Super = State#state.super,
@@ -219,11 +221,10 @@ handle_cast({terminate, FromWho}, State) ->
       {noreply, State}
   end.
 
-%% ---------------------------------------------------------------------
+%% ------------------------------------------------------------------
 %% gen_server callback : handle_info/2
-%% ---------------------------------------------------------------------
--spec handle_info(Msg :: info_request(), State :: state()) ->
-  {'noreply', NewState :: state()} | {'stop', 'normal', NewState :: state()}.
+%% ------------------------------------------------------------------
+-spec handle_info(info(), state()) -> {'noreply', state()} | {'stop', 'normal', state()}.
 
 %% Msg when a monitored process exited normally
 handle_info({'DOWN', _Ref, process, Who, normal}, State) ->
@@ -237,7 +238,6 @@ handle_info({'DOWN', _Ref, process, Who, normal}, State) ->
     _  ->
       {noreply, State}
   end;
-  
 %% Msg when a monitored process experienced an exception
 handle_info({'DOWN', _Ref, process, Who, Reason}, State) ->
   Super = State#state.super,
@@ -251,9 +251,9 @@ handle_info({'DOWN', _Ref, process, Who, Reason}, State) ->
   concolic:send_error_report(Super, Who, concolic_eval:unzip_error(Reason)),
   {stop, normal, State}.
   
-%%====================================================================
+%% ============================================================================
 %% Internal functions
-%%====================================================================
+%% ============================================================================
 
 %% Stores the file descriptor of a process's trace
 -spec store_file_descriptor(TraceServer :: pid(), Fd :: file:io_device()) -> 'ok'.
@@ -276,6 +276,6 @@ kill_all_processes(Procs) ->
   
 %% Make a list of all monitored processes
 -spec get_procs(Tab :: ets:tab()) -> Procs :: [pid()].
-       
+  
 get_procs(Tab) ->
   ets:foldl(fun({P, true}, Acc) -> [P|Acc] end, [], Tab).
