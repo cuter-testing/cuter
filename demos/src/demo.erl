@@ -3,13 +3,13 @@
 -compile({no_auto_import,[min/2]}).
 
 %% Naive Fibonnaci Number implementation
-%% fib(4)
+%% coordinator:run(demo,fib,[4]).
 fib(0) -> 0;
 fib(1) -> 1;
 fib(N) when N > 1 -> fib(N-1) + fib(N-2).
 
 %% Calculate the Minimum element of a list
-%% min([5,1,3])
+%% coordinator:run(demo,min,[[5,1,3]]).
 min([H|T]) -> min(T, H).
 
 min([], CurrentMin) -> CurrentMin;
@@ -20,7 +20,7 @@ min([H|T], CurrentMin) ->
   end.
 
 %% Spawn a process that returns the result of apply(M,F,As)
-%% coord:run(demo,spawn_apply,[erlang,'++',[[1,2,3],[a,b,c]]])
+%% coordinator:run(demo,spawn_apply,[erlang,'++',[[1,2,3],[a,b,c]]]).
 spawn_apply(M, F, As) ->
   Parent = self(),
   P = spawn(fun() -> Parent ! {self(), erlang:apply(M, F, As)} end),
