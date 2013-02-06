@@ -95,7 +95,7 @@ file_descriptor(TraceServer) ->
 %% ------------------------------------------------------------------
 %% gen_server callback : init/1
 %% ------------------------------------------------------------------
--spec init([string() | pid()]) -> {'ok', state()}.
+-spec init([string() | pid(), ...]) -> {'ok', state()}.
 
 init([Dir, Super]) ->
   process_flag(trap_exit, true),

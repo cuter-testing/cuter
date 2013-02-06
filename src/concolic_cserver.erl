@@ -66,7 +66,7 @@ load(CodeServer, M) ->
 %% ------------------------------------------------------------------
 %% gen_server callback : init/1
 %% ------------------------------------------------------------------
--spec init([string() | pid()]) -> {'ok', state()}.
+-spec init([string() | pid(), ...]) -> {'ok', state()}.
 
 init([Dir, Super]) when is_list(Dir) ->
   link(Super),

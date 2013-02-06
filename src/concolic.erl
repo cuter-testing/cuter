@@ -13,9 +13,9 @@
          handle_call/3, handle_cast/2, handle_info/2]).
          
 %% type declarations
--type call()    :: {'int_return', _, _}
+-type call()    :: {'int_return', concolic_symbolic:mapping(), term()}
                  | {'node_servers', node()}
-                 | {'error_report', _, _}
+                 | {'error_report', pid(), term()}
                  | {'clogs', concolic_cserver:clogs()}
                  | {'tlogs', concolic_tserver:tlogs()}.
 -type cpid()    :: {node(), pid()}.

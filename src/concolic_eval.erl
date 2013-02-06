@@ -8,21 +8,18 @@
 
 -include_lib("compiler/src/core_parse.hrl").
 
+%% type declarations
+-type calltype() :: 'local' | 'external'.
+-type eval()     :: {'named', {atom(), atom()}}
+                  | {'lambda', function()}
+                  | {'letrec_func', {atom(), atom(), cerl:c_fun(), function()}}.
 %% Used to represent list of values for Core Erlang interpretation
 -record(valuelist, {values :: [term()], degree :: non_neg_integer()}).
 -opaque valuelist() :: #valuelist{}.
 
-%%--------------------------------------------------------------------------
-%% i(M, F, A, CodeServer, TraceServer) -> Pid
-%%   M :: atom()
-%%   F :: atom()
-%%   A :: [term()]
-%%   CodeServer :: pid()
-%%   TraceServer :: pid()
-%%   Pid :: pid()
+
 %% Wrapper exported function that spawns an interpreter process
 %% that returns the value of MFA to the Concolic Server
-%%--------------------------------------------------------------------------
 -spec i(atom(), atom(), [term()], pid(), pid()) -> pid().
 
 i(M, F, As, CodeServer, TraceServer) ->
@@ -30,10 +27,10 @@ i(M, F, As, CodeServer, TraceServer) ->
   SymbAs = concolic_symbolic:abstract(As),
   Mapping = concolic_symbolic:generate_mapping(SymbAs, As),
   I = fun() ->
-	  {ok, Fd} = concolic_tserver:register_to_trace(TraceServer, Root),
-	  NMF = {named, {M, F}},
-	  Val = eval(NMF, As, SymbAs, external, CodeServer, TraceServer, Fd),
-	  concolic:send_return(Root, Mapping, Val)
+          {ok, Fd} = concolic_tserver:register_to_trace(TraceServer, Root),
+          NMF = {named, {M, F}},
+          Val = eval(NMF, As, SymbAs, external, CodeServer, TraceServer, Fd),
+          concolic:send_return(Root, Mapping, Val)
       end,
   erlang:spawn(I).
 
@@ -42,7 +39,9 @@ i(M, F, As, CodeServer, TraceServer) ->
 %% eval
 %% ===============
 
-%% Concrete Evaluation of MFA
+%% Concrete/Symbolic Evaluation of MFA
+-spec eval(eval(), [term()], [term()], calltype(), pid(), pid(), file:io_device()) ->
+  {term(), term()}.
 
 %% Handle spawns so that the spawned process
 %% will be interpreted
@@ -365,10 +364,10 @@ eval({named, {M, F}}, CAs, SAs, CallType, CodeServer, TraceServer, Fd) ->
         {ok, MDb} ->
           Key = {M, F, Arity},
           {Def, Exported} = retrieve_function(Key, MDb),
-	  %%  io:format("Def=~n~p~n", [Def]),
+          %%  io:format("Def=~n~p~n", [Def]),
           check_exported(Exported, CallType, Key),
-	  NCenv = concolic_lib:new_environment(),
-	  NSenv = concolic_lib:new_environment(),
+          NCenv = concolic_lib:new_environment(),
+          NSenv = concolic_lib:new_environment(),
           Cenv = concolic_lib:bind_parameters(CAs, Def#c_fun.vars, NCenv),
           Senv = concolic_lib:bind_parameters(SAs_e, Def#c_fun.vars, NSenv),
           eval_expr(M, CodeServer, TraceServer, Def#c_fun.body, Cenv, Senv, Fd)
@@ -412,16 +411,16 @@ eval_expr(M, CodeServer, TraceServer, {c_apply, _Anno, Op, Args}, Cenv, Senv, Fd
           {CA, SA} = eval_expr(M, CodeServer, TraceServer, A, Cenv, Senv, Fd),
           case CA of
             {func, {F, Arity}} -> %% local func (external func is already in make_fun/3 in core erlang)
-	      Cl = create_closure(M, F, Arity, CodeServer, TraceServer, local, Fd),
-	      {Cl, Cl};
-	    {letrec_func, {Mod, F, Arity, Def, E}} -> %% letrec func
+              Cl = create_closure(M, F, Arity, CodeServer, TraceServer, local, Fd),
+              {Cl, Cl};
+            {letrec_func, {Mod, F, Arity, Def, E}} -> %% letrec func
               {CE, SE} = E(),
               Cl = create_closure(Mod, F, Arity, CodeServer, TraceServer, {letrec_fun, {Def, CE, SE}}, Fd),
               {Cl, Cl};
             _ ->
               {CA, SA}
           end
-	end,
+        end,
   ZAs = [Fun(A) || A <- Args],
   {CAs, SAs} = lists:unzip(ZAs),
   case OPcv of %% Check eval_expr(..., #c_var{}, ...) output for reference
@@ -533,10 +532,10 @@ eval_expr(M, CodeServer, TraceServer, {c_letrec, _Anno, Defs, Body}, Cenv, Senv,
   H = fun(F) -> fun() ->
     lists:foldl(
       fun({Func, Def}, {Ce, Se}) ->
-	  LetRec = {letrec_func, {M, Def, F}},
-	  NCe = concolic_lib:add_binding(Func#c_var.name, LetRec, Ce),
-	  NSe = concolic_lib:add_binding(Func#c_var.name, LetRec, Se),
-	  {NCe, NSe}
+          LetRec = {letrec_func, {M, Def, F}},
+          NCe = concolic_lib:add_binding(Func#c_var.name, LetRec, Ce),
+          NSe = concolic_lib:add_binding(Func#c_var.name, LetRec, Se),
+          {NCe, NSe}
       end,
       {Cenv, Senv}, Defs
     )
@@ -885,7 +884,7 @@ bit_pattern_match({M, CodeServer, Cenv, Senv}, Mode, TraceServer, [{c_bitstr, _A
       {CType, SType} = eval_expr(M, CodeServer, TraceServer, Type, Cenv, Senv, Fd),
       {CFlags, SFlags} = eval_expr(M, CodeServer, TraceServer, Flags, Cenv, Senv, Fd),
       try bin_lib:match_bitstring_const(LitVal, CSize, CUnit, CType, CFlags, Cv) of
-	CRest ->
+        CRest ->
           SLit = concolic_symbolic:make_bitstring(LitVal, SSize, SUnit, SType, SFlags),
           %% TODO Constraint: SLit matched Sv
           SRest = concolic_symbolic:match_bitstring_const(SLit, Sv),
@@ -1218,6 +1217,7 @@ unzip_args(As) when is_list(As) ->
    lists:unzip([unzip_one(A) || A <- As]).
   
 %% unzip_error // for exception reasons
+-spec unzip_error(term()) -> {term(), term()}.
 unzip_error({nocatch, {'_zip', Cv, Sv}}) ->
   {Cv, Sv};
 unzip_error(V) ->
