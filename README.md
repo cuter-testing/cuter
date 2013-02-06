@@ -7,4 +7,6 @@ conc-test
 
 	e.g. `coordinator:run(orddict, store, [key,val,orddict:new()]).`
 
+	P.S. You must start the interpreter with `erl -pa ebin`.
+
 
