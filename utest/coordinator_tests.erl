@@ -17,11 +17,28 @@ toy_test_() ->
   Test = 
     fun({Toy, Arg}) ->
       R = coordinator:run(Toy, run, [Arg, 'foo', 'bar']),
-      ?assertEqual({'ok', {ok, ok}}, R)
+      ?_assertEqual({'ok', {ok, ok}}, R)
     end,
   Inst = 
     fun(L) ->
       [{timeout, 10, {atom_to_list(T), fun() -> Test({T, A}) end}} || {T, A} <- L]
     end,
   {foreach, Setup, [Inst]}.
+  
+-spec simple_test_() -> term().
+simple_test_() ->
+  Fib2 = concolic_symbolic:mock_bif({'erlang', '+', 2}, [1, 0], 1),
+  Fib3 = concolic_symbolic:mock_bif({'erlang', '+', 2}, [Fib2, 1], 2),
+  SR_1 = concolic_symbolic:mock_bif({'erlang', '+', 2}, [Fib3, Fib2], 3),
+  R_1 = coordinator:run(demo, fib, [4]),
+  {"Fibonacci", fun() -> ?_assertEqual({'ok', {3, SR_1}}, R_1) end}.
+  
+-spec lists_test_() -> term().
+lists_test_() ->
+  Args_1 = [[5,1,3,2,7,6,4]],
+  [SVar_1] = concolic_symbolic:abstract(Args_1),
+  X_1 = concolic_symbolic:mock_bif({'erlang', 'tl', 1}, [SVar_1], [1,3,2,7,6,4]),
+  SR_1 = concolic_symbolic:mock_bif({'erlang', 'hd', 1}, [X_1], 1),
+  R_1 = coordinator:run(demo, min, Args_1),
+  {"Minumum element", ?_assertEqual({'ok', {1, SR_1}}, R_1)}.
 

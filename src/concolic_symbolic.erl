@@ -16,7 +16,7 @@
 
 %% Abstract a list of concrete values
 -spec abstract([term()]) -> [atom()].
-  
+
 abstract(Vs) ->
   abstract(Vs, [], 1).
 
@@ -41,7 +41,7 @@ generate_mapping(Ss, Vs) ->
 %% represenation of its result
 %% (the concrete result is given as parameter to the function)
 %% ------------------------------------------------------------------------
--spec mock_bif(bif(), [term()], term()) -> 'true' | {atom(), [term()]}.
+-spec mock_bif(bif(), [term()], term()) -> term() | {atom(), [term()]}.
 
 %% BIFs that always return 'true'
 mock_bif({erlang, demonitor, 1}, _Args, true) -> true;
