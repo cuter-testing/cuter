@@ -41,7 +41,7 @@ i(M, F, As, CodeServer, TraceServer) ->
 
 %% Concrete/Symbolic Evaluation of MFA
 -spec eval(eval(), [term()], [term()], calltype(), pid(), pid(), file:io_device()) ->
-  {term(), term()}.
+  {concolic_lib:semantic_value(), concolic_lib:semantic_value()}.
 
 %% Handle spawns so that the spawned process
 %% will be interpreted
@@ -402,6 +402,8 @@ exception(Class, Reason) ->
 %% ===============
 %% eval_expr
 %% ===============
+-spec eval_expr(atom(), pid(), pid(), cerl:cerl(), concolic_lib:environment(), concolic_lib:environment(), file:io_device()) ->
+  {concolic_lib:semantic_value(), concolic_lib:semantic_value()}.
 
 %% c_apply
 eval_expr(M, CodeServer, TraceServer, {c_apply, _Anno, Op, Args}, Cenv, Senv, Fd) ->

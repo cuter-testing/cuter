@@ -66,7 +66,7 @@ default: $(TARGETS) dialyzer
 
 fast: concolic_target
 
-all: default test
+all: default utest
 
 concolic_target: $(SRC_MODULES:%=$(EBIN)/%.beam)
 
@@ -83,7 +83,7 @@ $(EBIN)/%.beam: %.erl
 $(SUITE_EBIN)/%.beam : %.erl
 	$(ERLC) -o $(SUITE_EBIN) $<
 
-test: $(TARGETS)
+utest: $(TARGETS)
 	@(./runtests.rb)
 
 dialyzer: $(TARGETS)
