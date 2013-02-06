@@ -1,4 +1,4 @@
-.PHONY: clean distclean all demo
+.PHONY: clean distclean all
 
 ###----------------------------------------------------------------------
 ### Orientation information
@@ -7,7 +7,8 @@
 TOP  = $(PWD)
 SRC  = src
 EBIN = ebin
-
+SUITE_SRC = testsuite/src
+SUITE_EBIN = testsuite/ebin
 ERLC = erlc
 
 ###----------------------------------------------------------------------
@@ -29,33 +30,49 @@ SRC_MODULES = \
 	concolic_tserver \
 	coordinator
 
-## THIS CHUNK TO BE REVISED
-DEMO_BIN = demos/ebin
-DEMO_SRC = demos/src
-ERL_DEMO = genstress.erl bang.erl big.erl ehb.erl ets_test.erl mbrot.erl \
-  parallel.erl pcmark.erl ran.erl serialmsg.erl timer_wheel.erl demo.erl
-FULL_ERL_DEMO = $(patsubst %.erl,$(DEMO_SRC)/%.erl,$(ERL_DEMO))
-BEAM_DEMO = $(patsubst $(DEMO_SRC)/%.erl,$(DEMO_BIN)/%.beam,$(FULL_ERL_DEMO))
+SUITE_MODULES = \
+	bang \
+	big \
+	demo \
+	ehb \
+	ets_test \
+	genstress \
+	mbrot \
+	parallel \
+	pcmark \
+	ran \
+	serialmsg \
+	timer_wheel
+
+UTEST_MODULES = \
+	coordinator_tests
 
 ###----------------------------------------------------------------------
 ### Targets
 ###----------------------------------------------------------------------
 
-TARGETS = concolic_src
+TARGETS = \
+	concolic_target \
+	utest_target
 
-ERL_DIRS = src
+ERL_DIRS = \
+	src \
+	utest \
+	testsuite/src
 
 vpath %.erl $(ERL_DIRS)
 
 default: $(TARGETS) dialyzer
 
-fast: $(TARGETS)
+fast: concolic_target
 
-all: default demo
+all: default test
 
-concolic_src:	$(SRC_MODULES:%=$(EBIN)/%.beam)
+concolic_target: $(SRC_MODULES:%=$(EBIN)/%.beam)
 
-demo: $(BEAM_DEMO)
+utest_target: $(UTEST_MODULES:%=$(EBIN)/%.beam) suite
+
+suite: $(SUITE_MODULES:%=$(SUITE_EBIN)/%.beam)
 
 $(EBIN)/bin_lib.beam: $(SRC)/bin_lib.erl
 	$(ERLC) $(ERLC_FLAGS) -o $(EBIN) $<
@@ -63,19 +80,18 @@ $(EBIN)/bin_lib.beam: $(SRC)/bin_lib.erl
 $(EBIN)/%.beam: %.erl
 	$(ERLC) +native $(ERLC_FLAGS) -o $(EBIN) $<
 
+$(SUITE_EBIN)/%.beam : %.erl
+	$(ERLC) -o $(SUITE_EBIN) $<
+
+test: $(TARGETS)
+	@(./runtests.rb)
+
 dialyzer: $(TARGETS)
 	dialyzer -n -Wunmatched_returns $(EBIN)/*.beam
-
-$(DEMO_BIN)/%.beam: $(DEMO_SRC)/%.erl
-	$(ERLC) -o $(DEMO_BIN) $<
-
-$(BEAM_DEMO): | $(DEMO_BIN)
-
-$(DEMO_BIN):
-	mkdir -p $(DEMO_BIN)
 
 clean:
 	$(RM) $(EBIN)/*.beam
 
 distclean: clean
-	$(RM) -rf $(DEMO_BIN)
+	$(RM) $(SUITE_EBIN)/*.beam
+
