@@ -81,18 +81,17 @@ bind_parameters([Arg|Args], [Var|Vars], Env) ->
 %% Add new mappings to the environment
 %% Mappings may be a deeply nested list
 -spec add_mappings_to_environment(Mapps, Env) -> NewEnv
-  when Mapps   :: [{Var, Value}],
-         Var   :: semantic_var(),
-         Value :: semantic_value(),
-       Env     :: environment(),
-       NewEnv  :: environment().
+  when Mapps  :: [{Var, Value}],
+       Var    :: semantic_var(),
+       Value  :: semantic_value(),
+       Env    :: environment(),
+       NewEnv :: environment().
        
 add_mappings_to_environment([], Env) ->
   Env;
-add_mappings_to_environment([M | Ms], Env)
-  when is_list(M) ->
-    NEnv = add_mappings_to_environment(M, Env),
-    add_mappings_to_environment(Ms, NEnv);
+add_mappings_to_environment([M | Ms], Env) when is_list(M) ->
+  NEnv = add_mappings_to_environment(M, Env),
+  add_mappings_to_environment(Ms, NEnv);
 add_mappings_to_environment([{Var, Val} | Ms], Env) ->
   NEnv = add_binding(Var, Val, Env),
   add_mappings_to_environment(Ms, NEnv).
