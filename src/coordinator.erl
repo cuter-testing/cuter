@@ -22,8 +22,9 @@
 -spec run(atom(), atom(), [term()]) -> ret().
 run(M, F, As) ->
   process_flag(trap_exit, true),
-  CoreDir = "core_temp",  %% Set Directory to store .core files
-  TraceDir = "traces",    %% Set Directory to store traces
+  TmpDir = "temp",
+  CoreDir = TmpDir ++ "/" ++ "core",      %% Set Directory to store .core files
+  TraceDir = TmpDir ++ "/" ++  "traces",  %% Set Directory to store traces
 %%  Start = now(),
   Concolic = concolic:init_server(M, F, As, CoreDir, TraceDir),
   R = receive
@@ -40,6 +41,7 @@ run(M, F, As) ->
   lists:foreach(fun clear_dir/1, Traces),
   %% Directory will only be deleted if it's empty
   _ = file:del_dir(filename:absname(TraceDir)),
+  _ = file:del_dir(filename:absname(TmpDir)),
   get_result(R).
   
 %% ============================================================================
