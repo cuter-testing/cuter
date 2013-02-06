@@ -41,7 +41,7 @@ generate_mapping(Ss, Vs) ->
 %% represenation of its result
 %% (the concrete result is given as parameter to the function)
 %% ------------------------------------------------------------------------
--spec mock_bif(MFA :: bif(), As :: [term()], Cv :: term()) -> 'true' | { MFA_s :: atom(), As :: [term()]}.
+-spec mock_bif(MFA :: bif(), As :: [term()], Cv :: term()) -> 'true' | {MFA_s :: atom(), As :: [term()]}.
 
 %% BIFs that always return 'true'
 mock_bif({erlang, demonitor, 1}, _Args, true) -> true;
@@ -74,10 +74,10 @@ mock_bif({M, F, A}, Args,  _Cv) ->
 %% To create a list of N elements from a symbolic term
 %% that represents a tuple (N is user defined)
 %% ------------------------------------------------------------------------
--spec tuple_to_list(S :: term(), N :: non_neg_integer()) -> L :: [term()].
+-spec tuple_to_list(term(), non_neg_integer()) -> [{atom(), [term()]}].
 tuple_to_list(S, N) ->
   tuple_to_list(S, N, []).
-  
+
 tuple_to_list(_S, 0, Acc) ->
   Acc;
 tuple_to_list(S, N, Acc) ->

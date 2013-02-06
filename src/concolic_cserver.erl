@@ -155,8 +155,9 @@ handle_call({load, M}, _From, State) ->
 %% ------------------------------------------------------------------
 %% gen_server callback : handle_cast/2
 %% ------------------------------------------------------------------
--spec handle_cast(term(), state()) -> {'stop', 'normal', state()}
-                                    | {'noreply', state()}.
+-type request() :: {'terminate', pid()}.
+-spec handle_cast(request(), state()) -> {'stop', 'normal', state()}
+                                       | {'noreply', state()}.
   
 %% Cast Request : {terminate, FromWho}
 handle_cast({terminate, FromWho}, State) ->

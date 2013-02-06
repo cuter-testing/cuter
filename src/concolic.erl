@@ -75,7 +75,7 @@ send_tlogs(ConcServer, Logs) ->
   gen_server:call(ConcServer, {tlogs, Logs}).
   
 %% Request the CodeServer and TraceServer of a specific node
--spec node_servers(ConcServer :: pid(), Node :: node()) -> Servers :: servers() | 'error'.
+-spec node_servers(ConcServer :: pid(), Node :: node()) -> servers() | 'error'.
 
 node_servers(ConcServer, Node) ->
   gen_server:call(ConcServer, {node_servers, Node}).
@@ -87,7 +87,7 @@ node_servers(ConcServer, Node) ->
 %% ------------------------------------------------------------------
 %% gen_server callback : init/1
 %% ------------------------------------------------------------------
--spec init([atom() | string() | pid() | [term()]]) -> {'ok', state()}.
+-spec init([atom() | string() | pid() | [term()], ...]) -> {'ok', state()}.
 
 init([M, F, As, CoreDir, TraceDir, Coord]) ->
   process_flag(trap_exit, true),

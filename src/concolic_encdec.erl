@@ -78,14 +78,14 @@ pprint(F) ->
 %%====================================================================
 
 %% Decode a 4-byte binary ro the corresponding 32-bit number
--spec bin_to_i32(B :: binary()) -> integer().
+-spec bin_to_i32(B :: binary()) -> non_neg_integer().
 
 bin_to_i32(B) when is_binary(B) ->
   [X1, X2, X3, X4] = erlang:binary_to_list(B, 1, 4),
   (X1 bsl 24) bor (X2 bsl 16) bor (X3 bsl 8) bor X4.
   
-%% Encode a number to the corresponding 32-bit representation
--spec i32_to_list(Int :: integer()) -> [integer()].
+%% Encode a 32-bit integer to its corresponding sequence of four bytes
+-spec i32_to_list(Int :: non_neg_integer()) -> [byte(), ...].
 
 i32_to_list(Int) when is_integer(Int) ->
   [(Int bsr 24) band 255,
