@@ -14,19 +14,19 @@
 %%====================================================================
 
 %% Opens a file for logging or reading terms
--spec open_file(F ::file:name(), M :: mode()) -> {'ok', file:io_device()}.
+-spec open_file(file:name(), mode()) -> {'ok', file:io_device()}.
 
 open_file(F, M) when M =:= read; M =:= write ->
   file:open(F, [M, raw, binary]).
 
 %% Wrapper for closing a file
--spec close_file(F :: file:io_device()) -> 'ok'.
+-spec close_file(file:io_device()) -> 'ok'.
 
 close_file(F) ->
   ok = file:close(F).
 
 %% Return the next term stored in the file
--spec get_term(F :: file:io_device()) -> {'ok', term()} | 'eof'.
+-spec get_term(file:io_device()) -> {'ok', term()} | 'eof'.
 
  get_term(F) ->
    case file:read(F, 4) of
@@ -62,7 +62,7 @@ log_term(_F, _Term) ->
 
 %% Pretty print the terms stored in a file
 %% (for debugging purposes only)
--spec pprint(F :: file:io_device()) -> 'ok'.
+-spec pprint(file:io_device()) -> 'ok'.
 
 pprint(F) ->
  case get_term(F) of
@@ -78,14 +78,14 @@ pprint(F) ->
 %%====================================================================
 
 %% Decode a 4-byte binary ro the corresponding 32-bit number
--spec bin_to_i32(B :: binary()) -> non_neg_integer().
+-spec bin_to_i32(binary()) -> non_neg_integer().
 
 bin_to_i32(B) when is_binary(B) ->
   [X1, X2, X3, X4] = erlang:binary_to_list(B, 1, 4),
   (X1 bsl 24) bor (X2 bsl 16) bor (X3 bsl 8) bor X4.
   
 %% Encode a 32-bit integer to its corresponding sequence of four bytes
--spec i32_to_list(Int :: non_neg_integer()) -> [byte(), ...].
+-spec i32_to_list(non_neg_integer()) -> [byte(), ...].
 
 i32_to_list(Int) when is_integer(Int) ->
   [(Int bsr 24) band 255,
@@ -95,7 +95,7 @@ i32_to_list(Int) when is_integer(Int) ->
 
 %% Pretty print a logging term
 %% (used in pprint/1 - for debugging purposes only)
--spec pprint_term(T :: term()) -> 'ok'.
+-spec pprint_term(term()) -> 'ok'.
 pprint_term(T) ->
  case T of
    {pid, Pid} ->

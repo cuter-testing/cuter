@@ -2,22 +2,17 @@
 %%------------------------------------------------------------------------------
 -module(bin_lib).
 
-%% Ln 22
-%% make_bitstring(Val, Size, Unit, Type, Flags) -> Bin
-%%
-%% Ln 12319
-%% match_bitstring_const(Val, Size, Unit, Type, Flags, MatchVal) -> Bin
-%%
-%% Ln 30763
-%% match_bitstring_var(Size, Unit, Type, Flags, MatchVal) -> {Bin, Bin}
 -export([make_bitstring/5, match_bitstring_const/6, match_bitstring_var/5]).
 
--export_type([bsize/0, btype/0, bunit/0, bflag/0]).
+-export_type([bend/0, bflag/0, bsign/0, bsize/0, btype/0, bunit/0]).
 
+%% Type declarations
+-type bend()  :: 'native' | 'big' | 'little'.
+-type bflag() :: bsign() | bend().
+-type bsign() :: 'signed' | 'unsigned'.
 -type bsize() :: non_neg_integer() | 'all'.
 -type btype() :: 'binary' | 'float' | 'integer'.
 -type bunit() :: pos_integer().
--type bflag() :: 'signed' | 'unsigned' | 'native' | 'big' | 'little'.
 
 %% Encodes an erlang term to a bitstring with the specified encoding
 -spec make_bitstring(term(), bsize(), bunit(), btype(), [bflag()]) -> bitstring().

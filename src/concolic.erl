@@ -5,41 +5,39 @@
 -behaviour(gen_server).
 
 %% External exports
--export([init_server/5, send_return/3, send_error_report/3,
-         send_clogs/2, send_tlogs/2, node_servers/2]).
+-export([init_server/5, node_servers/2, send_clogs/2,
+         send_error_report/3, send_return/3, send_tlogs/2]).
 
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3,
          handle_call/3, handle_cast/2, handle_info/2]).
-         
+
 %% exported types
--export_type([exec_info/0]).
-         
+-export_type([exec_info/0, servers/0]).
+
 %% type declarations
 -type call()      :: {'int_return', concolic_symbolic:mapping(), term()}
                    | {'node_servers', node()}
                    | {'error_report', pid(), term()}
                    | {'clogs', concolic_cserver:clogs()}
                    | {'tlogs', concolic_tserver:tlogs()}.
--type cpid()      :: {node(), pid()}.
 -type exec_info() :: orddict:orddict().
 -type info()      :: {'EXIT', pid(), 'normal' | term()}.
 -type reply()     :: 'ok' | 'proc_mismatch' | servers().
 -type servers()   :: {pid(), pid()}.
+-type spid()      :: {node(), pid()}.
 %% gen_server state datatype
 -record(state, {
   coord    :: pid(),                     %% Pid of the Coordinator Process
   coredir  :: string(),                  %% Directory to store .core files
   tracedir :: string(),                  %% Directory to store trace files
-  cpids    :: [cpid()],                  %% Proplist of CodeServers
-  tpids    :: [tpid()],                  %% Proplist of TraceServers
+  cpids    :: [spid()],                  %% Proplist of CodeServers
+  tpids    :: [spid()],                  %% Proplist of TraceServers
   results  :: exec_info(),               %% Info about the concolic execution
   int      :: pid() | 'ok',              %% First interpreted process that returns its result
   error    :: {atom(), term()} | 'false' %% Flag for when errors occur
 }).
 -type state() :: #state{}.
--type tpid()  :: {node(), pid()}.
-
 
 %% ============================================================================
 %% External exports
@@ -56,30 +54,31 @@ init_server(M, F, As, CoreDir, TraceDir) ->
   end.
   
 %% Send the result of the first interpreted process
--spec send_return(ConcServer :: pid(), Mapping :: [concolic_symbolic:mapping()], Ret :: term()) -> 'ok' | 'proc_mismatch'.
+-spec send_return(pid(), [concolic_symbolic:mapping()], term()) -> 'ok' | 'proc_mismatch'.
 
 send_return(ConcServer, Mapping, Return) ->
   gen_server:call(ConcServer, {int_return, Mapping, Return}).
   
 %% Send the report of a Runtime Error
--spec send_error_report(ConcServer :: pid(), Who :: pid(), Error :: term()) -> 'ok'.
+-spec send_error_report(pid(), pid(), term()) -> 'ok'.
 
 send_error_report(ConcServer, Who, Error) ->
   gen_server:call(ConcServer, {error_report, Who, Error}).
  
 %% Send the logs of a CodeServer
--spec send_clogs(ConcServer :: pid(), Logs :: concolic_cserver:clogs()) -> 'ok'.
+-spec send_clogs(pid(), concolic_cserver:clogs()) -> 'ok'.
+
 send_clogs(ConcServer, Logs) ->
   gen_server:call(ConcServer, {clogs, Logs}).
   
 %% Send the logs of a TraceServer
--spec send_tlogs(ConcServer :: pid(), Logs :: concolic_tserver:tlogs()) -> 'ok'.
+-spec send_tlogs(pid(), concolic_tserver:tlogs()) -> 'ok'.
 
 send_tlogs(ConcServer, Logs) ->
   gen_server:call(ConcServer, {tlogs, Logs}).
   
 %% Request the CodeServer and TraceServer of a specific node
--spec node_servers(ConcServer :: pid(), Node :: node()) -> servers() | 'error'.
+-spec node_servers(pid(), node()) -> servers() | 'error'.
 
 node_servers(ConcServer, Node) ->
   gen_server:call(ConcServer, {node_servers, Node}).
@@ -307,7 +306,7 @@ handle_info({'EXIT', Who, Reason}, State) ->
 %% ============================================================================
 
 %% Determine whether the concolic execution has ended or not
--spec execution_completed(State :: state()) -> boolean().
+-spec execution_completed(state()) -> boolean().
   
 execution_completed(#state{cpids = CPids, tpids = TPids, int = Int}) ->
   case {CPids, TPids, Int} of
@@ -316,14 +315,14 @@ execution_completed(#state{cpids = CPids, tpids = TPids, int = Int}) ->
   end.
 
 %% Send terminate requests to all the live CodeServers and TraceServers
--spec force_terminate(CPids :: [cpid()], TPids :: [tpid()]) -> ok.
+-spec force_terminate([spid()], [spid()]) -> ok.
 
 force_terminate(CPids, TPids) ->
   lists:foreach(fun({_Node, P}) -> concolic_cserver:terminate(P) end, CPids),
   lists:foreach(fun({_Node, P}) -> concolic_tserver:terminate(P) end, TPids).
 
 %% Locate and return the node info of a CodeServer or TraceServer
--spec locate(pid(), [cpid()], [tpid()]) -> {'true', 'codeserver', node()}
+-spec locate(pid(), [spid()], [spid()]) -> {'true', 'codeserver', node()}
                                          | {'true', 'traceserver', node()}
                                          | 'false'.
   
@@ -341,7 +340,7 @@ locate(Who, CPids, TPids) ->
   end.
   
 %% Check whether a node has beend assigned a TraceServer and a CodeServer
--spec node_monitored(node(), [cpid()], [tpid()]) -> {'true', servers()} | 'false'.
+-spec node_monitored(node(), [spid()], [spid()]) -> {'true', servers()} | 'false'.
 
 node_monitored(Node, CPids, TPids) ->
   C = lists:keyfind(Node, 1, CPids),

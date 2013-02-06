@@ -13,12 +13,12 @@
 -export_type([compile_error/0]).
 
 -type compile_error() :: {'error', term()} | {'runtime_error', term()}.
+-type info() :: 'anno' | 'attributes' | 'exports' | 'name'.
 
 %%====================================================================
 %% External exports
 %%====================================================================
--spec load(Mod, ets:tab(), string()) -> {'ok', Mod} | compile_error()
-	when Mod :: atom().
+-spec load(atom(), ets:tab(), string()) -> {'ok', atom()} | compile_error().
   
 load(Mod, Db, Dir) ->
   try store_module(Mod, Db, Dir) of
@@ -47,7 +47,7 @@ load(Mod, Db, Dir) ->
 %% exported             [{Mod :: atom(), Fun :: atom(), Arity :: non_neg_integer()}]  
 %% attributes           Attrs :: [{cerl(), cerl()}]
 %% {Mod, Fun, Arity}    {Def :: #c_fun{}, Exported :: boolean()}
--spec store_module(M :: atom(), Db :: ets:tab(), Dir :: string()) -> 'ok'.
+-spec store_module(atom(), ets:tab(), string()) -> 'ok'.
 
 store_module(M, Db, Dir) ->
   %% Compile the module to Core Erlang
@@ -64,7 +64,7 @@ store_module(M, Db, Dir) ->
   ok.
   
 %% Core Erlang Scanner
--spec scan_file(File :: file:filename()) -> term().
+-spec scan_file(file:filename()) -> term().
 
 scan_file(File) ->
   {ok, FileContents} = file:read_file(File),
@@ -72,7 +72,7 @@ scan_file(File) ->
   core_scan:string(Data).
   
 %% Compile the module source to Core Erlang
--spec compile_core(M :: atom(), Dir :: string()) -> file:filename().
+-spec compile_core(atom(), string()) -> file:filename().
 
 compile_core(M, Dir) ->
   ok = filelib:ensure_dir(Dir ++ "/"),
@@ -92,7 +92,7 @@ compile_core(M, Dir) ->
   
 %% Ensure the module beam code is loaded
 %% and return the path it is located
--spec ensure_mod_loaded(M :: atom()) -> {'ok', Path :: file:filename()}.
+-spec ensure_mod_loaded(atom()) -> {'ok', file:filename()}.
   
 ensure_mod_loaded(M) ->
   case code:which(M) of
@@ -107,7 +107,6 @@ ensure_mod_loaded(M) ->
   end.
   
 %% Store Module Information
--type info() :: 'anno' | 'attributes' | 'exports' | 'name'.
 -spec store_module_info(info(), atom(), cerl:cerl(), ets:tab()) -> 'ok'.
 
 store_module_info(anno, _M, AST, Db) ->
@@ -143,7 +142,7 @@ store_module_funs(M, AST, Db) ->
   lists:foreach(fun(X) -> store_fun(Exps, M, X, Db) end, Funs).
 
 %% Store the AST of a Function
--spec store_fun(Exps :: [atom()], M :: atom(), {Fun :: cerl:c_var(), Def :: cerl:c_fun()}, Db :: ets:tab()) -> 'ok'.
+-spec store_fun([atom()], atom(), {cerl:c_var(), cerl:c_fun()}, ets:tab()) -> 'ok'.
 
 store_fun(Exps, M, {Fun, Def}, Db) ->
   {FunName, Arity} = Fun#c_var.name,

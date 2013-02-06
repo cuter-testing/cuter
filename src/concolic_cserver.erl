@@ -15,6 +15,7 @@
 
 %% type declarations
 -type call()  :: {'load', atom()}.
+-type cast()  :: {'terminate', pid()}.
 -type clogs() :: [atom()].
 -type reply() :: {'ok', ets:tab()}
                | concolic_load:compile_error()
@@ -39,7 +40,7 @@
 %% ============================================================================
 
 %% Initialize a CodeServer
--spec init_codeserver(CoreDir :: string(), Super :: pid()) -> CodeServer :: pid().
+-spec init_codeserver(string(), pid()) -> pid().
 
 init_codeserver(CoreDir, Super) ->
   case gen_server:start(?MODULE, [CoreDir, Super], []) of
@@ -48,13 +49,13 @@ init_codeserver(CoreDir, Super) ->
   end.
   
 %% Terminate a CodeServer
--spec terminate(CodeServer :: pid()) -> 'ok'.
+-spec terminate(pid()) -> 'ok'.
 
 terminate(CodeServer) ->
   gen_server:cast(CodeServer, {terminate, self()}).
   
 %% Request the ETS table where the code of a module M is stored
--spec load(CodeServer :: pid(), M :: atom()) -> Msg :: reply().
+-spec load(pid(), atom()) -> reply().
 
 load(CodeServer, M) ->
   gen_server:call(CodeServer, {load, M}).
@@ -103,7 +104,7 @@ code_change(_OldVsn, State, _Extra) ->
 %% ------------------------------------------------------------------
 %% gen_server callback : handle_info/2
 %% ------------------------------------------------------------------
--spec handle_info(Msg :: term(), state()) -> {'noreply', state()}.
+-spec handle_info(term(), state()) -> {'noreply', state()}.
   
 handle_info(Msg, State) ->
   %% Just outputting unexpected messages for now
@@ -155,9 +156,8 @@ handle_call({load, M}, _From, State) ->
 %% ------------------------------------------------------------------
 %% gen_server callback : handle_cast/2
 %% ------------------------------------------------------------------
--type request() :: {'terminate', pid()}.
--spec handle_cast(request(), state()) -> {'stop', 'normal', state()}
-                                       | {'noreply', state()}.
+-spec handle_cast(cast(), state()) -> {'stop', 'normal', state()}
+                                    | {'noreply', state()}.
   
 %% Cast Request : {terminate, FromWho}
 handle_cast({terminate, FromWho}, State) ->
@@ -179,8 +179,11 @@ handle_cast({terminate, FromWho}, State) ->
 %% Module M is preloaded       -->  preloaded
 %% Module M is cover_compiled  -->  cover_compiled
 %% Module M does not exist     -->  non_existing
--spec is_mod_stored(M :: atom(), State :: state()) ->
-  {'true', MDb :: ets:tab()} | 'false' | 'preloaded' | 'cover_compiled' | 'non_existing'.
+-spec is_mod_stored(atom(), state()) -> {'true', ets:tab()}
+                                      | 'false' 
+                                      | 'preloaded' 
+                                      | 'cover_compiled' 
+                                      | 'non_existing'.
   
 is_mod_stored(M, State) ->
   Db = State#state.db,
@@ -197,7 +200,7 @@ is_mod_stored(M, State) ->
   end.
 
 %% Delete all ETS tables that contain the code of modules
--spec delete_stored_modules(Db :: ets:tab()) -> Mods :: clogs().
+-spec delete_stored_modules(ets:tab()) -> clogs().
   
 delete_stored_modules(Db) ->
   DeleteOne = 
@@ -208,7 +211,7 @@ delete_stored_modules(Db) ->
   ets:foldl(DeleteOne, [], Db).
   
 %% Delete all the created .core files during the execution
--spec delete_stored_core_files(Dir :: file:name()) -> 'ok'.
+-spec delete_stored_core_files(file:name()) -> 'ok'.
   
 delete_stored_core_files(Dir) ->
   case file:list_dir(Dir) of

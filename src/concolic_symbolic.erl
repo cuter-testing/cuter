@@ -15,7 +15,7 @@
 -type mapping() :: {atom(), term()}.
 
 %% Abstract a list of concrete values
--spec abstract(Vs :: [term()]) -> Ss :: [atom()].
+-spec abstract([term()]) -> [atom()].
   
 abstract(Vs) ->
   abstract(Vs, [], 1).
@@ -29,7 +29,7 @@ abstract([_A|As], Acc, Id) ->
 
 %% Generate a mapping between the concrete values
 %% and their symbolic abstraction
--spec generate_mapping(Ss :: [atom()], Vs :: [term()]) -> Ms :: [mapping()].
+-spec generate_mapping([atom()], [term()]) -> [mapping()].
 
 generate_mapping(Ss, Vs) ->
   lists:zip(Ss, Vs).
@@ -41,7 +41,7 @@ generate_mapping(Ss, Vs) ->
 %% represenation of its result
 %% (the concrete result is given as parameter to the function)
 %% ------------------------------------------------------------------------
--spec mock_bif(MFA :: bif(), As :: [term()], Cv :: term()) -> 'true' | {MFA_s :: atom(), As :: [term()]}.
+-spec mock_bif(bif(), [term()], term()) -> 'true' | {atom(), [term()]}.
 
 %% BIFs that always return 'true'
 mock_bif({erlang, demonitor, 1}, _Args, true) -> true;
@@ -88,7 +88,7 @@ tuple_to_list(S, N, Acc) ->
 %% hd/1
 %% Get the head of a symbolic term that represents a list
 %% ------------------------------------------------------------------------
--spec hd(S :: term()) -> Hd :: term().
+-spec hd(term()) -> term().
   
 hd(S) when is_list(S) ->
   erlang:hd(S);
@@ -99,7 +99,7 @@ hd(S) ->
 %% tl/1
 %% Get the tail of a symbolic term that represents a list
 %% ------------------------------------------------------------------------
--spec tl(S :: term()) -> Tl :: term().
+-spec tl(term()) -> term().
   
 tl(S) when is_list(S) ->
   erlang:tl(S);
@@ -111,7 +111,7 @@ tl(S) ->
 %% Ensures that a symbolic term is a list of N elements
 %% (N is user defined)
 %% ------------------------------------------------------------------------
--spec ensure_list(S :: term(), N :: pos_integer()) -> L :: [term()].
+-spec ensure_list(term(), pos_integer()) -> [term()].
   
 ensure_list(S, N) when is_list(S) ->
   case length(S) of
@@ -126,7 +126,7 @@ ensure_list(S, N) ->
 %% Creates a list of N elements from a symbolic term
 %% (N is user defined)
 %% ------------------------------------------------------------------------
--spec listify(S :: term(), N :: pos_integer()) -> L :: [term()].
+-spec listify(term(), pos_integer()) -> [term()].
   
 listify(S, N) ->
   [mock_bif({lists, nth, 2}, [X, S], undefined) || X <- lists:seq(1, N)].

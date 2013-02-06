@@ -43,7 +43,7 @@
 %% ============================================================================
 
 %% Initialize a TraceServer
--spec init_traceserver(TraceDir :: string(), Super :: pid()) -> TraceServer :: pid().
+-spec init_traceserver(string(), pid()) -> pid().
 
 init_traceserver(TraceDir, Super) ->
   case gen_server:start(?MODULE, [TraceDir, Super], []) of
@@ -52,13 +52,13 @@ init_traceserver(TraceDir, Super) ->
   end.
 
 %% Terminate a TraceServer
--spec terminate(TraceServer :: pid()) -> 'ok'.
+-spec terminate(pid()) -> 'ok'.
 
 terminate(TraceServer) ->
   gen_server:cast(TraceServer, {terminate, self()}).
 
 %% Register a new process so that the TraceServer can monitor it
--spec register_to_trace(TraceServer :: pid(), Parent :: pid()) -> {'ok', file:io_device()}.
+-spec register_to_trace(pid(), pid()) -> {'ok', file:io_device()}.
 
 register_to_trace(TraceServer, Parent) ->
   {ok, Filename} = gen_server:call(TraceServer, {register_parent, Parent}),
@@ -69,20 +69,20 @@ register_to_trace(TraceServer, Parent) ->
   {ok, Fd}.
 
 %% Check if a process is monitored by TraceServer
--spec is_monitored(TraceServer :: pid(), Who :: pid()) -> boolean().
+-spec is_monitored(pid(), pid()) -> boolean().
 
 is_monitored(TraceServer, Who) ->
   gen_server:call(TraceServer, {is_monitored, Who}).
 
 %% Request the CodeServer and TraceServer of a specific node
--spec node_servers(TraceServer :: pid(), Node :: node()) -> {pid(), pid()}.
+-spec node_servers(pid(), node()) -> concolic:servers().
 
 node_servers(TraceServer, Node) ->
   {ok, Servers} = gen_server:call(TraceServer, {node_servers, Node}),
   Servers.
 
 %% Request the file descriptor of a process' trace file
--spec file_descriptor(TraceServer :: pid()) -> file:io_device().
+-spec file_descriptor(pid()) -> file:io_device().
 
 file_descriptor(TraceServer) ->
   {ok, Fd} = gen_server:call(TraceServer, {get_fd, self()}),
@@ -256,13 +256,13 @@ handle_info({'DOWN', _Ref, process, Who, Reason}, State) ->
 %% ============================================================================
 
 %% Stores the file descriptor of a process's trace
--spec store_file_descriptor(TraceServer :: pid(), Fd :: file:io_device()) -> 'ok'.
+-spec store_file_descriptor(pid(), file:io_device()) -> 'ok'.
 
 store_file_descriptor(TraceServer, Fd) ->
   gen_server:cast(TraceServer, {store_fd, self(), Fd}).
 
 %% Kill all monitored processes
--spec kill_all_processes(Procs :: [pid()]) -> 'ok'.
+-spec kill_all_processes([pid()]) -> 'ok'.
   
 kill_all_processes(Procs) ->
   KillOne = 
@@ -275,7 +275,7 @@ kill_all_processes(Procs) ->
   lists:foreach(KillOne, Procs).
   
 %% Make a list of all monitored processes
--spec get_procs(Tab :: ets:tab()) -> Procs :: [pid()].
+-spec get_procs(ets:tab()) -> [pid()].
   
 get_procs(Tab) ->
   ets:foldl(fun({P, true}, Acc) -> [P|Acc] end, [], Tab).
