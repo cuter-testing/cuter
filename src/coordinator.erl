@@ -10,9 +10,9 @@
 -type result() :: {'ok', node(), concolic:exec_info()}
                 | {'runtime_error', node(), concolic:exec_info()}
                 | {internal_error(), term()}.
--type ret()    :: {term(), term()}   %% Successful Execution
-                | term()             %% Runtime Error
-                | internal_error().  %% Internal Error
+-type ret()    :: {'ok', {term(), term()}}       %% Successful Execution
+                | {'error', term()}              %% Runtime Error
+                | {'ierror', internal_error()}.  %% Internal Error
 
 %% -----------------------------------------------------------------------------
 %% Concolic Execution of an M, F, As
@@ -47,12 +47,13 @@ run(M, F, As) ->
 
 get_result({'ok', Node, R}) ->
   {ok, Info} = orddict:find(Node, R),
-  proplists:get_value('result', Info);
+  {'ok', proplists:get_value('result', Info)};
 get_result({'runtime_error', Node, R}) ->
   {ok, Info} = orddict:find(Node, R),
   {Node, _Who, {CErr, _Serr}} = proplists:get_value('runtime_error', Info),
-  CErr;
-get_result({Error, _Reason}) -> Error.
+  {'error', CErr};
+get_result({Error, _Reason}) ->
+  {'ierror', Error}.
   
 %% -----------------------------------------------------------------------------
 %% Run demos
