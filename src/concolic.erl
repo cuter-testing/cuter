@@ -12,16 +12,20 @@
 -export([init/1, terminate/2, code_change/3,
          handle_call/3, handle_cast/2, handle_info/2]).
          
+%% exported types
+-export_type([exec_info/0]).
+         
 %% type declarations
--type call()    :: {'int_return', concolic_symbolic:mapping(), term()}
-                 | {'node_servers', node()}
-                 | {'error_report', pid(), term()}
-                 | {'clogs', concolic_cserver:clogs()}
-                 | {'tlogs', concolic_tserver:tlogs()}.
--type cpid()    :: {node(), pid()}.
--type info()    :: {'EXIT', pid(), 'normal' | term()}.
--type reply()   :: 'ok' | 'proc_mismatch' | servers().
--type servers() :: {pid(), pid()}.
+-type call()      :: {'int_return', concolic_symbolic:mapping(), term()}
+                   | {'node_servers', node()}
+                   | {'error_report', pid(), term()}
+                   | {'clogs', concolic_cserver:clogs()}
+                   | {'tlogs', concolic_tserver:tlogs()}.
+-type cpid()      :: {node(), pid()}.
+-type exec_info() :: orddict:orddict().
+-type info()      :: {'EXIT', pid(), 'normal' | term()}.
+-type reply()     :: 'ok' | 'proc_mismatch' | servers().
+-type servers()   :: {pid(), pid()}.
 %% gen_server state datatype
 -record(state, {
   coord    :: pid(),                     %% Pid of the Coordinator Process
@@ -29,7 +33,7 @@
   tracedir :: string(),                  %% Directory to store trace files
   cpids    :: [cpid()],                  %% Proplist of CodeServers
   tpids    :: [tpid()],                  %% Proplist of TraceServers
-  results  :: orddict:orddict(),         %% Info about the concolic execution
+  results  :: exec_info(),               %% Info about the concolic execution
   int      :: pid() | 'ok',              %% First interpreted process that returns its result
   error    :: {atom(), term()} | 'false' %% Flag for when errors occur
 }).
@@ -42,7 +46,7 @@
 %% ============================================================================
 
 %% Initialize the Concolic Server
--spec init_server(M :: atom(), F :: atom(), As :: [term()], CoreDir :: string(), TraceDir :: string()) -> pid() | term().
+-spec init_server(atom(), atom(), [term()], string(), string()) -> pid() | term().
 
 init_server(M, F, As, CoreDir, TraceDir) ->
   Args = [M, F, As, CoreDir, TraceDir, self()],
@@ -121,13 +125,13 @@ terminate(_Reason, State) ->
   _ = file:del_dir(filename:absname(CoreDir)),
   case Error of
     {internalc, Node} ->
-      Coord ! {self(), {internal_codeserver_error, Node, Results}},
+      Coord ! {self(), {'internal_codeserver_error', Node, Results}},
       ok;
     {internalt, Node} ->
-      Coord ! {self(), {internal_traceserver_error, Node, Results}},
+      Coord ! {self(), {'internal_traceserver_error', Node, Results}},
       ok;
     {runtime, Node} ->
-      Coord ! {self(), {runtime_error, Node, Results}},
+      Coord ! {self(), {'runtime_error', Node, Results}},
       ok;
     {internal, Error} ->
       exit(Error);

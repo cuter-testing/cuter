@@ -4,11 +4,21 @@
 %-define(PRINT_TRACE, ok).
 -define(DELETE_TRACE, ok).
 
+-type internal_error() :: 'internal_concolic_error'
+                        | 'internal_codeserver_error'
+                        | 'internal_traceserver_error'.
+-type result() :: {'ok', node(), concolic:exec_info()}
+                | {'runtime_error', node(), concolic:exec_info()}
+                | {internal_error(), term()}.
+-type ret()    :: {term(), term()}   %% Successful Execution
+                | term()             %% Runtime Error
+                | internal_error().  %% Internal Error
+
 %% -----------------------------------------------------------------------------
 %% Concolic Execution of an M, F, As
 %% -----------------------------------------------------------------------------
 
--spec run(atom(), atom(), [term()]) -> 'ok'.
+-spec run(atom(), atom(), [term()]) -> ret().
 run(M, F, As) ->
   process_flag(trap_exit, true),
   CoreDir = "core_temp",
@@ -17,7 +27,7 @@ run(M, F, As) ->
   Concolic = concolic:init_server(M, F, As, CoreDir, TraceDir),
   R = receive
         {'EXIT', Concolic, Why} ->
-          {error, Why};
+          {'internal_concolic_error', Why};
         {Concolic, Results} ->
           Results
       end,
@@ -29,7 +39,20 @@ run(M, F, As) ->
   lists:foreach(fun clear_dir/1, Traces),
   %% Directory will only be deleted if it's empty
   _ = file:del_dir(filename:absname(TraceDir)),
-  ok.
+  get_result(R).
+  
+%% Retrieve the outcome of the concolic execution
+%% from the resulting execution information
+-spec get_result(result()) -> ret().
+
+get_result({'ok', Node, R}) ->
+  {ok, Info} = orddict:find(Node, R),
+  proplists:get_value('result', Info);
+get_result({'runtime_error', Node, R}) ->
+  {ok, Info} = orddict:find(Node, R),
+  {Node, _Who, {CErr, _Serr}} = proplists:get_value('runtime_error', Info),
+  CErr;
+get_result({Error, _Reason}) -> Error.
   
 %% -----------------------------------------------------------------------------
 %% Run demos
@@ -41,7 +64,7 @@ run_bencherl_demos() ->
   Version = 'short',  %% Version :: short | intermediate | long
   Cores = 2,          %% Cores = erlang:system_info(schedulers_online),
   Conf = [{number_of_cores, Cores}],
-%  Benchmarks = [bang, genstress, big, ehb, ets_test, mbrot, parallel, pcmark, serialmsg, timer_wheel, ran],
+%%  Benchmarks = [bang, genstress, big, ehb, ets_test, mbrot, parallel, pcmark, serialmsg, timer_wheel, ran],
   Benchmarks = [bang, genstress, big, ehb, ets_test, parallel, pcmark, serialmsg, timer_wheel],
   RunOne = 
     fun(Bench) ->
@@ -61,16 +84,15 @@ run_my_demos() ->
   end,
   lists:foreach(F, Demos).
   
-  
 %% -----------------------------------------------------------------------------
 %% Report Results
 %% -----------------------------------------------------------------------------
-analyze({error, Error}) ->
-  io:format("%%   ConcServer error : ~p~n", [Error]);
-analyze({internal_codeserver_error, Node, Results}) ->
+analyze({'internal_concolic_error', Error}) ->
+  io:format("%%   Internal ConcServer error : ~p~n", [Error]);
+analyze({'internal_codeserver_error', Node, Results}) ->
   io:format("%%   Internal CodeServer Error in node ~p~n", [Node]),
   report(Results);
-analyze({internal_traceserver_error, Node, Results}) ->
+analyze({'internal_traceserver_error', Node, Results}) ->
   io:format("%%   Internal TraceServer Error in node ~p~n", [Node]),
   report(Results);
 analyze({runtime_error, Node, Results}) ->

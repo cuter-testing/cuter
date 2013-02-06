@@ -1220,6 +1220,8 @@ unzip_args(As) when is_list(As) ->
 -spec unzip_error(term()) -> {term(), term()}.
 unzip_error({nocatch, {'_zip', Cv, Sv}}) ->
   {Cv, Sv};
+unzip_error({{'_zip', Cv, Sv}, Stack}) when is_list(Stack) ->
+  {Cv, Sv};
 unzip_error(V) ->
   unzip_one(V).
 
