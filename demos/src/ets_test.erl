@@ -49,7 +49,7 @@ run([N,W,R|_], _, _) ->
 				w(T, N, self()),
 				w(T, N, self()),
 				Parent ! {done, self()},
-				receive after infinity -> ok end
+				receive {Parent, bye} -> ok after infinity -> ok end
 			end)
 		end,lists:seq(1, W)),
 	Rs = lists:map(fun (_) ->
@@ -58,15 +58,15 @@ run([N,W,R|_], _, _) ->
 				r(T, N),
 				r(T, N),
 				Parent ! {done, self()},
-				receive after infinity -> ok end
+				receive {Parent, bye} -> ok after infinity -> ok end
 			end)
 		end, lists:seq(1, R)),
 	lists:foreach(fun (P) -> P ! go end, Ws),
 	lists:foreach(fun (P) -> P ! go end, Rs),
 	lists:foreach(fun (P) -> receive {done, P} -> ok end end, Ws),
 	lists:foreach(fun (P) -> receive {done, P} -> ok end end, Rs),
-	lists:foreach(fun (P) -> unlink(P), exit(P, bye) end, Ws),
-	lists:foreach(fun (P) -> unlink(P), exit(P, bye) end, Rs),
+	lists:foreach(fun (P) -> unlink(P), P ! {self(), bye} end, Ws),
+	lists:foreach(fun (P) -> unlink(P), P ! {self(), bye} end, Rs),
 	ok.
 
 r(_T, 0) ->
