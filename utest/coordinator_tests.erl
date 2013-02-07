@@ -40,5 +40,5 @@ lists_test_() ->
   X_1 = concolic_symbolic:mock_bif({'erlang', 'tl', 1}, [SVar_1], [1,3,2,7,6,4]),
   SR_1 = concolic_symbolic:mock_bif({'erlang', 'hd', 1}, [X_1], 1),
   R_1 = coordinator:run(demo, min, Args_1),
-  {"Minumum element", ?_assertEqual({'ok', {1, SR_1}}, R_1)}.
+  {"Minumum element", fun() -> ?_assertEqual({'ok', {1, SR_1}}, R_1) end}.
 
