@@ -110,13 +110,13 @@ report_result(X) ->
 
 %% ------------------------------------------------------------------
 
+trace_dir({'internal_concolic_error', _Node, _Error}) ->
+  [];
 trace_dir({_Status, _Node, Results}) ->
   Ns = orddict:to_list(Results),
   Rs = lists:map(fun({_N, R}) -> R end, Ns),
   Logs = proplists:get_all_values('tlogs', lists:flatten(Rs)),
-  [proplists:get_value('dir', L) || L <- Logs];
-trace_dir({'internal_concolic_error', _Error}) ->
-  [].
+  [proplists:get_value('dir', L) || L <- Logs].
   
 %% temporary deleting all traces
 clear_dir(D) ->
