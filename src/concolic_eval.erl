@@ -819,9 +819,9 @@ pattern_match(_BitInfo, _Mode, _TraceServer, {c_var, _Anno, Name}, Cv, Sv, CMaps
 pattern_match(BitInfo, Mode, TraceServer, {c_tuple, _Anno, Es}, Cv, Sv, CMaps, SMaps, Fd)
   when is_tuple(Cv) ->
     Ne = length(Es),
-    Cs = tuple_to_list(Cv),
-    case length(Cs) of
+    case size(Cv) of
       Ne ->
+        Cs = tuple_to_list(Cv),
         %% TODO Constraint: Sv tuple with Ne elements
         log(Fd, Mode, {'tuple_elem_eq', Sv, Ne}),
         Ss = concolic_symbolic:tuple_to_list(Sv, Ne),
