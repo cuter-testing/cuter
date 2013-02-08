@@ -41,4 +41,13 @@ lists_test_() ->
   SR_1 = concolic_symbolic:mock_bif({'erlang', 'hd', 1}, [X_1], 1),
   R_1 = coordinator:run(demo, min, Args_1),
   {"Minumum element", fun() -> ?_assertEqual({'ok', {1, SR_1}}, R_1) end}.
+  
+-spec distributed_test_() -> term().
+distributed_test_() -> 
+  L_1 = lists:seq(1,10),
+  [SVar_1] = concolic_symbolic:abstract([L_1]),
+  SR_1 = concolic_symbolic:mock_bif({'erlang', 'length', 1}, [SVar_1], 10),
+  R_1 = coordinator:run(demo, distributed_pp, [L_1]),
+  {"Basic Communication across nodes", fun() -> ?_assertEqual({'ok', {10, SR_1}}, R_1) end}.
+  
 
