@@ -5,6 +5,7 @@
 -spec test() -> 'ok' | {'error' | term()}.
 
 -spec toy_test_() -> term().
+%% Run most of the bencherl tests
 toy_test_() ->
   Setup =
     fun() ->
@@ -27,6 +28,7 @@ toy_test_() ->
   
 -spec simple_test_() -> term().
 simple_test_() ->
+  %% Calculate a fibonacci number
   Fib2 = concolic_symbolic:mock_bif({'erlang', '+', 2}, [1, 0], 1),
   Fib3 = concolic_symbolic:mock_bif({'erlang', '+', 2}, [Fib2, 1], 2),
   SR_1 = concolic_symbolic:mock_bif({'erlang', '+', 2}, [Fib3, Fib2], 3),
@@ -35,6 +37,7 @@ simple_test_() ->
   
 -spec lists_test_() -> term().
 lists_test_() ->
+  %% Find the minimum element of a list
   Args_1 = [[5,1,3,2,7,6,4]],
   [SVar_1] = concolic_symbolic:abstract(Args_1),
   X_1 = concolic_symbolic:mock_bif({'erlang', 'tl', 1}, [SVar_1], [1,3,2,7,6,4]),
@@ -44,10 +47,11 @@ lists_test_() ->
   
 -spec distributed_test_() -> term().
 distributed_test_() -> 
+  %% Basic communication between nodes
   L_1 = lists:seq(1,10),
   [SVar_1] = concolic_symbolic:abstract([L_1]),
   SR_1 = concolic_symbolic:mock_bif({'erlang', 'length', 1}, [SVar_1], 10),
   R_1 = coordinator:run(demo, distributed_pp, [L_1]),
-  {"Basic Communication across nodes", fun() -> ?_assertEqual({'ok', {10, SR_1}}, R_1) end}.
+  {"Basic communication between nodes", fun() -> ?_assertEqual({'ok', {10, SR_1}}, R_1) end}.
   
 
