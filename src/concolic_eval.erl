@@ -158,7 +158,7 @@ eval({named, {erlang, spawn_opt}}, CAs, SAs, _CallType, CodeServer, TraceServer,
   receive
     {ChildPid, registered} -> {R, R}
   end;
-
+    
 %% Handle message sending primitives
 %% so as to zip the concrete and symbolic reason
   
@@ -343,7 +343,8 @@ eval({named, {erlang, apply}}, CAs, SAs, _CallType, CodeServer, TraceServer, Fd)
   end;
 
 %% Handle an MFA
-eval({named, {M, F}}, CAs, SAs, CallType, CodeServer, TraceServer, Fd) ->
+eval({named, {M, F}}, CAs_b, SAs_b, CallType, CodeServer, TraceServer, Fd) ->
+  {CAs, SAs} = adjust_arguments(M, F, CAs_b, SAs_b),
   Arity = length(CAs),
   %%  ok = concolic_encdec:log_term(Fd, {{M, F, Arity}, self()}),
   SAs_e = concolic_symbolic:ensure_list(SAs, Arity),
@@ -1381,6 +1382,30 @@ append_segments([Cv|Cvs], CAcc, [Sv|Svs], SAcc) ->
   Cbin = <<Cv/bitstring, CAcc/bitstring>>,
   Sbin = concolic_symbolic:append_binary(Sv, SAcc),
   append_segments(Cvs, Cbin, Svs, Sbin).
+
+%% Adjust arguments of a function
+%% New slave node will also get the path to the ebin of the tool
+adjust_arguments(slave, F, CAs, SAs) when F =:= 'start'; F =:= 'start_link' ->
+  Arity = length(CAs),
+  SAs_e = concolic_symbolic:ensure_list(SAs, Arity),
+  Ebin = "-pa " ++ ?EBIN,
+  case CAs of
+    [Host] ->
+      N = atom_to_list(node()),
+      Name = hd(string:tokens(N, "@")),
+      [SHost] = SAs_e,
+      {[Host, Name, Ebin], [SHost, Name, Ebin]};
+    [Host, Name] ->
+      [SHost, SName] = SAs_e,
+      {[Host, Name, Ebin], [SHost, SName, Ebin]};
+    [Host, Name, Args] ->
+      %% Also add path to symbolic Args ???
+      {[Host, Name, Args ++ Ebin], SAs_e};
+    _ ->
+      {CAs, SAs}
+  end;
+%% Other functions will have unaltered arguments
+adjust_arguments(_M, _F, CAs, SAs) -> {CAs, SAs}.
   
 log(_Fd, 'receive', _Term) -> ok;
 log(Fd, 'case', Term) ->

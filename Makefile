@@ -17,6 +17,7 @@ ERLC = erlc
 
 WARNS = +warn_exported_vars +warn_unused_import +warn_missing_spec #+warn_untyped_record
 ERLC_FLAGS = +debug_info $(WARNS)
+ERLC_MACROS = -DEBIN=\"$(EBIN)\"
 
 SRC_MODULES = \
 	bin_lib \
@@ -75,10 +76,10 @@ utest_target: $(UTEST_MODULES:%=$(EBIN)/%.beam) suite
 suite: $(SUITE_MODULES:%=$(SUITE_EBIN)/%.beam)
 
 $(EBIN)/bin_lib.beam: $(SRC)/bin_lib.erl
-	$(ERLC) $(ERLC_FLAGS) -o $(EBIN) $<
+	$(ERLC) $(ERLC_FLAGS) $(ERLC_MACROS) -o $(EBIN) $<
 
 $(EBIN)/%.beam: %.erl
-	$(ERLC) +native $(ERLC_FLAGS) -o $(EBIN) $<
+	$(ERLC) +native $(ERLC_FLAGS) $(ERLC_MACROS) -o $(EBIN) $<
 
 $(SUITE_EBIN)/%.beam : %.erl
 	$(ERLC) -o $(SUITE_EBIN) $<
