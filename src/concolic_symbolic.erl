@@ -1,21 +1,26 @@
 %% -*- erlang-indent-level: 2 -*-
 %%------------------------------------------------------------------------------
 -module(concolic_symbolic).
+
 %% exports appear alphabetically
 -export([abstract/1, append_binary/2, empty_binary/0, ensure_list/2,
          generate_mapping/2, hd/1,
          make_bitstring/5, match_bitstring_const/2, match_bitstring_var/2,
          mock_bif/3, tl/1, tuple_to_list/2]).
 
--export_type([mapping/0, sbitstring/0]).
+-export_type([mapping/0, sbitstring/0, symbolic/0]).
+
+-define(SYMBOLIC_PREFIX, '__s').
 
 -type bif() :: {atom(), atom(), non_neg_integer()}.
 -type sbitstring() :: {'bitstr', [term()]}.
 -type encoding()   :: {bin_lib:bsize(), bin_lib:bunit(), bin_lib:btype(), [bin_lib:bflag()]}.
--type mapping() :: {atom(), term()}.
+-type mapping()    :: {atom(), term()}.
+-type symbolic()   :: {?SYMBOLIC_PREFIX, atom()}
+                    | {?SYMBOLIC_PREFIX, atom(), [term(), ...]}.
 
 %% Abstract a list of concrete values
--spec abstract([term()]) -> [atom()].
+-spec abstract([term()]) -> [symbolic()].
 
 abstract(Vs) ->
   abstract(Vs, [], 1).
@@ -24,7 +29,7 @@ abstract([], Acc, _Id) ->
   lists:reverse(Acc);
 abstract([_A|As], Acc, Id) ->
   X = "_symb" ++ (erlang:integer_to_list(Id)),
-  SymbA = erlang:list_to_atom(X),
+  SymbA = {?SYMBOLIC_PREFIX, erlang:list_to_atom(X)},
   abstract(As, [SymbA|Acc], Id+1).
 
 %% Generate a mapping between the concrete values
@@ -33,6 +38,10 @@ abstract([_A|As], Acc, Id) ->
 
 generate_mapping(Ss, Vs) ->
   lists:zip(Ss, Vs).
+  
+is_symbolic({?SYMBOLIC_PREFIX, BIF, As}) when is_atom(BIF), is_list(As) -> 'true';
+is_symbolic({?SYMBOLIC_PREFIX, SymbVar}) when is_atom(SymbVar) -> 'true';
+is_symbolic(_V) -> 'false'.
 
 %% ------------------------------------------------------------------------
 %% TODO This function needs refining
@@ -41,7 +50,7 @@ generate_mapping(Ss, Vs) ->
 %% represenation of its result
 %% (the concrete result is given as parameter to the function)
 %% ------------------------------------------------------------------------
--spec mock_bif(bif(), [term()], term()) -> term() | {atom(), [term()]}.
+-spec mock_bif(bif(), [term()], term()) -> term() | symbolic().
 
 %% BIFs that always return 'true'
 mock_bif({erlang, demonitor, 1}, _Args, true) -> true;
@@ -64,9 +73,14 @@ mock_bif({erlang, yield, 0}, _Args, true) -> true;
 %% BIFs with arity 0 return the concrete result
 mock_bif({_M, _F, 0}, _Args, Cv) -> Cv;
 %% Symbolic abstraction of a BIF
-mock_bif({M, F, A}, Args,  _Cv) ->
-  X = atom_to_list(M) ++ ":" ++ atom_to_list(F) ++ "/" ++ integer_to_list(A),
-  {list_to_atom(X), Args}.
+mock_bif({M, F, A}, Args,  Cv) ->
+  case lists:any(fun is_symbolic/1, Args) orelse Cv =:= '_undefined' of
+    true ->
+      X = atom_to_list(M) ++ ":" ++ atom_to_list(F) ++ "/" ++ integer_to_list(A),
+      {?SYMBOLIC_PREFIX, list_to_atom(X), Args};
+    false ->
+      Cv
+  end.
   
 %% ------------------------------------------------------------------------
 %% tuple_to_list/2
@@ -74,14 +88,23 @@ mock_bif({M, F, A}, Args,  _Cv) ->
 %% To create a list of N elements from a symbolic term
 %% that represents a tuple (N is user defined)
 %% ------------------------------------------------------------------------
--spec tuple_to_list(term(), non_neg_integer()) -> [{atom(), [term()]}].
-tuple_to_list(S, N) ->
-  tuple_to_list(S, N, []).
+-spec tuple_to_list(term(), non_neg_integer()) -> [symbolic() | term()].
+tuple_to_list(S, N) when is_tuple(S) ->
+  case is_symbolic(S) of
+    true ->
+      tuple_to_list(S, N, []);
+    false ->
+      L = erlang:tuple_to_list(S),
+      case length(L) =:= N of
+        true  -> L;
+        false -> tuple_to_list(S, N, [])
+      end
+  end.
 
 tuple_to_list(_S, 0, Acc) ->
   Acc;
 tuple_to_list(S, N, Acc) ->
-  X = mock_bif({erlang, element, 2}, [N, S], undefined),
+  X = mock_bif({erlang, element, 2}, [N, S], '_undefined'),
   tuple_to_list(S, N-1, [X|Acc]).
 
 %% ------------------------------------------------------------------------
@@ -93,7 +116,7 @@ tuple_to_list(S, N, Acc) ->
 hd(S) when is_list(S) ->
   erlang:hd(S);
 hd(S) ->
-  mock_bif({erlang, hd, 1}, [S], undefined).
+  mock_bif({erlang, hd, 1}, [S], '_undefined').
 
 %% ------------------------------------------------------------------------
 %% tl/1
@@ -104,7 +127,7 @@ hd(S) ->
 tl(S) when is_list(S) ->
   erlang:tl(S);
 tl(S) ->
-  mock_bif({erlang, tl, 1}, [S], undefined).
+  mock_bif({erlang, tl, 1}, [S], '_undefined').
   
 %% ------------------------------------------------------------------------
 %% ensure_list/2
@@ -129,7 +152,7 @@ ensure_list(S, N) ->
 -spec listify(term(), pos_integer()) -> [term()].
   
 listify(S, N) ->
-  [mock_bif({lists, nth, 2}, [X, S], undefined) || X <- lists:seq(1, N)].
+  [mock_bif({lists, nth, 2}, [X, S], '_undefined') || X <- lists:seq(1, N)].
 
 %% ========================
 %% for use in binaries
