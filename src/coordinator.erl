@@ -29,7 +29,7 @@ run(M, F, As) ->
   Concolic = concolic:init_server(M, F, As, CoreDir, TraceDir),
   R = receive
         {'EXIT', Concolic, Why} ->
-          {'internal_concolic_error', Why};
+          {'internal_concolic_error', node(), Why};
         {Concolic, Results} ->
           Results
       end,
@@ -65,7 +65,7 @@ get_result({Error, _Node, _R}) ->
 %% ------------------------------------------------------------------
 %% Report Results
 %% ------------------------------------------------------------------
-analyze({'internal_concolic_error', Error}) ->
+analyze({'internal_concolic_error', _Node, Error}) ->
   io:format("%%   Internal ConcServer error : ~p~n", [Error]);
 analyze({'internal_codeserver_error', Node, Results}) ->
   io:format("%%   Internal CodeServer Error in node ~p~n", [Node]),
