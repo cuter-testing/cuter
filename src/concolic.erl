@@ -363,7 +363,7 @@ remote_spawn_servers(Node, CoreDir, TraceDir, Super) ->
     TraceServer = concolic_tserver:init_traceserver(TraceDir, Super),
     Me ! {self(), {CodeServer, TraceServer}}
   end,
-  P = spawn(Node, F),
+  P = spawn_link(Node, F),
   receive
     {P, Servers} ->
       {ok, Servers};
