@@ -356,15 +356,16 @@ node_monitored(Node, CPids, TPids) ->
 -spec remote_spawn_servers(node(), string(), string(), pid()) -> {'ok', servers()} | 'error'.
   
 remote_spawn_servers(Node, CoreDir, TraceDir, Super) ->
+  Me = self(),
   F = fun() ->
     process_flag(trap_exit, true),
     CodeServer = concolic_cserver:init_codeserver(CoreDir, Super),
     TraceServer = concolic_tserver:init_traceserver(TraceDir, Super),
-    exit({CodeServer, TraceServer})
+    Me ! {self(), {CodeServer, TraceServer}}
   end,
-  P = spawn_link(Node, F),
+  P = spawn(Node, F),
   receive
-    {'EXIT', P, Servers} ->
+    {P, Servers} ->
       {ok, Servers};
     {'EXIT', P, _Error} ->
       error
