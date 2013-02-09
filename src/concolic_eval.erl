@@ -48,10 +48,10 @@ i(M, F, As, CodeServer, TraceServer) ->
 
 %% Handle spawn/1, spawn/2, spawn/3, spawn/4,
 %% spawn_link/1 spawn_link/2, spawn_link/3, spawn_link/4
-eval({named, {erlang, F}}, CAs, SAs, _CallType, CodeServer, TraceServer, _Fd)
+eval({named, {erlang, F}}, CAs, SAs, _CallType, CodeServer, TraceServer, Fd)
   when F =:= spawn; F =:= spawn_link ->
     Arity = length(CAs),
-    SAs_e = concolic_symbolic:ensure_list(SAs, Arity),
+    SAs_e = concolic_symbolic:ensure_list(SAs, Arity, Fd),
     ChildPid =
       case CAs of
         [Fun] ->
@@ -90,9 +90,9 @@ eval({named, {erlang, F}}, CAs, SAs, _CallType, CodeServer, TraceServer, _Fd)
     end;
 
 %% Handle spawn_monitor/1, spawn_monitor/3
-eval({named, {erlang, spawn_monitor}}, CAs, SAs, _CallType, CodeServer, TraceServer, _Fd) ->
+eval({named, {erlang, spawn_monitor}}, CAs, SAs, _CallType, CodeServer, TraceServer, Fd) ->
   Arity = length(CAs),
-  SAs_e = concolic_symbolic:ensure_list(SAs, Arity),
+  SAs_e = concolic_symbolic:ensure_list(SAs, Arity, Fd),
   EvalArgs =
     case CAs of
       [Fun] ->
@@ -114,9 +114,9 @@ eval({named, {erlang, spawn_monitor}}, CAs, SAs, _CallType, CodeServer, TraceSer
   end;
 
 %% Handle spawn_opt/2, spawn_opt/3, spawn_opt/4, spawn_opt/5
-eval({named, {erlang, spawn_opt}}, CAs, SAs, _CallType, CodeServer, TraceServer, _Fd) ->
+eval({named, {erlang, spawn_opt}}, CAs, SAs, _CallType, CodeServer, TraceServer, Fd) ->
   Arity = length(CAs),
-  SAs_e = concolic_symbolic:ensure_list(SAs, Arity),
+  SAs_e = concolic_symbolic:ensure_list(SAs, Arity, Fd),
   R =
     case CAs of
       [Fun, Opts] ->
@@ -167,9 +167,9 @@ eval({named, {erlang, '!'}}, [_, _] = CAs, SAs, CallType, CodeServer, TraceServe
     eval({named, {erlang, send}}, CAs, SAs, CallType, CodeServer, TraceServer, Fd);
 
 %% Handle send/2, send/3
-eval({named, {erlang, send}}, CAs, SAs, _CallType, _CodeServer, TraceServer, _Fd) ->
+eval({named, {erlang, send}}, CAs, SAs, _CallType, _CodeServer, TraceServer, Fd) ->
   Arity = length(CAs),
-  SAs_e = concolic_symbolic:ensure_list(SAs, Arity),
+  SAs_e = concolic_symbolic:ensure_list(SAs, Arity, Fd),
   case CAs of
     [CDest, CMsg] ->
       [_SDest, SMsg] = SAs_e,
@@ -188,9 +188,9 @@ eval({named, {erlang, send}}, CAs, SAs, _CallType, _CodeServer, TraceServer, _Fd
   end;
 
 %% Handle send_after/3
-eval({named, {erlang, send_after}}, CAs, SAs, _CallType, _CodeServer, TraceServer, _Fd) ->
+eval({named, {erlang, send_after}}, CAs, SAs, _CallType, _CodeServer, TraceServer, Fd) ->
   Arity = length(CAs),
-  SAs_e = concolic_symbolic:ensure_list(SAs, Arity),
+  SAs_e = concolic_symbolic:ensure_list(SAs, Arity, Fd),
   case CAs of
     [CTime, CDest, CMsg] ->
       [_STime, _SDest, SMsg] = SAs_e,
@@ -203,9 +203,9 @@ eval({named, {erlang, send_after}}, CAs, SAs, _CallType, _CodeServer, TraceServe
   end;
  
 %% Handle send_nosuspend/2, send_nosuspend/3
-eval({named, {erlang, send_nosuspend}}, CAs, SAs, _CallType, _CodeServer, TraceServer, _Fd) ->
+eval({named, {erlang, send_nosuspend}}, CAs, SAs, _CallType, _CodeServer, TraceServer, Fd) ->
   Arity = length(CAs),
-  SAs_e = concolic_symbolic:ensure_list(SAs, Arity),
+  SAs_e = concolic_symbolic:ensure_list(SAs, Arity, Fd),
   case CAs of
     [CDest, CMsg] ->
       [_SDest, SMsg] = SAs_e,
@@ -228,9 +228,9 @@ eval({named, {erlang, send_nosuspend}}, CAs, SAs, _CallType, _CodeServer, TraceS
 %% so as to zip the concrete and symbolic reason
 
 %% Handle throw/1
-eval({named, {erlang, throw}}, CAs, SAs, _CallType, _CodeServer, _TraceServer, _Fd) ->
+eval({named, {erlang, throw}}, CAs, SAs, _CallType, _CodeServer, _TraceServer, Fd) ->
   Arity = length(CAs),
-  SAs_e = concolic_symbolic:ensure_list(SAs, Arity),
+  SAs_e = concolic_symbolic:ensure_list(SAs, Arity, Fd),
   case CAs of
     [CThrow] ->
       [SThrow] = SAs_e,
@@ -241,9 +241,9 @@ eval({named, {erlang, throw}}, CAs, SAs, _CallType, _CodeServer, _TraceServer, _
   end;
   
 %% Handle exit/1, exit2
-eval({named, {erlang, exit}}, CAs, SAs, _CallType, _CodeServer, _TraceServer, _Fd) ->
+eval({named, {erlang, exit}}, CAs, SAs, _CallType, _CodeServer, _TraceServer, Fd) ->
   Arity = length(CAs),
-  SAs_e = concolic_symbolic:ensure_list(SAs, Arity),
+  SAs_e = concolic_symbolic:ensure_list(SAs, Arity, Fd),
   case CAs of
     [CExit] ->
       [SExit] = SAs_e,
@@ -278,9 +278,9 @@ eval({named, {erlang, exit}}, CAs, SAs, _CallType, _CodeServer, _TraceServer, _F
 
     
 %% Handle error/1, error/2
-eval({named, {erlang, error}}, CAs, SAs, _CallType, _CodeServer, _TraceServer, _Fd) ->
+eval({named, {erlang, error}}, CAs, SAs, _CallType, _CodeServer, _TraceServer, Fd) ->
   Arity = length(CAs),
-  SAs_e = concolic_symbolic:ensure_list(SAs, Arity),
+  SAs_e = concolic_symbolic:ensure_list(SAs, Arity, Fd),
   case CAs of
     [CError] ->
       [SError] = SAs_e,
@@ -296,9 +296,9 @@ eval({named, {erlang, error}}, CAs, SAs, _CallType, _CodeServer, _TraceServer, _
   end;
   
 %% Handle raise/3
-eval({named, {erlang, raise}}, CAs, SAs, _CallType, _CodeServer, _TraceServer, _Fd) ->
+eval({named, {erlang, raise}}, CAs, SAs, _CallType, _CodeServer, _TraceServer, Fd) ->
   Arity = length(CAs),
-  SAs_e = concolic_symbolic:ensure_list(SAs, Arity),
+  SAs_e = concolic_symbolic:ensure_list(SAs, Arity, Fd),
   case CAs of
     [CClass, CReason, CStacktrace] ->
       [_SClass, SReason, _] = SAs_e,
@@ -314,11 +314,11 @@ eval({named, {erlang, raise}}, CAs, SAs, _CallType, _CodeServer, _TraceServer, _
 %% Handle make_fun/3  
 eval({named, {erlang, make_fun}}, CAs, SAs, _CallType, CodeServer, TraceServer, Fd) ->
   Arity = length(CAs),
-  SAs_e = concolic_symbolic:ensure_list(SAs, Arity),
+  SAs_e = concolic_symbolic:ensure_list(SAs, Arity, Fd),
   case CAs of
     [M, F, A] ->
       CR = make_fun(M, F, A, CodeServer, TraceServer, Fd),
-      SR = concolic_symbolic:mock_bif({erlang, make_fun, 3}, SAs_e, CR),
+      SR = concolic_symbolic:mock_bif({erlang, make_fun, 3}, SAs_e, CR, Fd),
       {CR, SR};
     _ ->
       exception(error, {undef, {erlang, make_fun, Arity}})
@@ -327,7 +327,7 @@ eval({named, {erlang, make_fun}}, CAs, SAs, _CallType, CodeServer, TraceServer, 
 %% Handle apply/2, apply/3
 eval({named, {erlang, apply}}, CAs, SAs, _CallType, CodeServer, TraceServer, Fd) ->
   Arity = length(CAs),
-  SAs_e = concolic_symbolic:ensure_list(SAs, Arity),
+  SAs_e = concolic_symbolic:ensure_list(SAs, Arity, Fd),
   case CAs of
     [Fun, Args] ->
       [_SFun, SArgs] = SAs_e,
@@ -344,23 +344,23 @@ eval({named, {erlang, apply}}, CAs, SAs, _CallType, CodeServer, TraceServer, Fd)
 
 %% Handle an MFA
 eval({named, {M, F}}, CAs_b, SAs_b, CallType, CodeServer, TraceServer, Fd) ->
-  {CAs, SAs} = adjust_arguments(M, F, CAs_b, SAs_b),
+  {CAs, SAs} = adjust_arguments(M, F, CAs_b, SAs_b, Fd),
   Arity = length(CAs),
   %%  ok = concolic_encdec:log_term(Fd, {{M, F, Arity}, self()}),
-  SAs_e = concolic_symbolic:ensure_list(SAs, Arity),
+  SAs_e = concolic_symbolic:ensure_list(SAs, Arity, Fd),
   %%  io:format("~n~nCalling ~w:~w/~w~n", [M,F,Arity]),
   %%  io:format("CAs = ~w~n", [CAs]),
   %%  io:format("SAs = ~w~n", [SAs_e]),
   case concolic_lib:is_bif(M, F, Arity) of
     true ->
       CR = apply(M, F, CAs),
-      SR = concolic_symbolic:mock_bif({M, F, Arity}, SAs_e, CR),
+      SR = concolic_symbolic:mock_bif({M, F, Arity}, SAs_e, CR, Fd),
       {CR, SR};
     false ->
       case get_module_db(M, CodeServer) of
         preloaded ->
           CR = apply(M, F, CAs),
-          SR = concolic_symbolic:mock_bif({M, F, Arity}, SAs_e, CR),
+          SR = concolic_symbolic:mock_bif({M, F, Arity}, SAs_e, CR, Fd),
           {CR, SR};
         {ok, MDb} ->
           Key = {M, F, Arity},
@@ -376,16 +376,16 @@ eval({named, {M, F}}, CAs_b, SAs_b, CallType, CodeServer, TraceServer, Fd) ->
   end;
   
 %% Handle a Closure
-eval({lambda, Closure}, CAs, SAs, _CallType, _CodeServer, _TraceServer, _Fd) ->
+eval({lambda, Closure}, CAs, SAs, _CallType, _CodeServer, _TraceServer, Fd) ->
   %% ok = concolic_encdec:log_term(Fd, {closure, self()}),
-  SAs_e = concolic_symbolic:ensure_list(SAs, length(CAs)),
+  SAs_e = concolic_symbolic:ensure_list(SAs, length(CAs), Fd),
   ZAs = zip_args(CAs, SAs_e),
   apply(Closure, ZAs);
   
 %% Handle a function bound in a letrec expression
 eval({letrec_func, {M, _F, Def, E}}, CAs, SAs, _CallType, CodeServer, TraceServer, Fd) ->
   {Cenv, Senv} = E(),
-  SAs_e = concolic_symbolic:ensure_list(SAs, length(CAs)),
+  SAs_e = concolic_symbolic:ensure_list(SAs, length(CAs), Fd),
   NCenv = concolic_lib:bind_parameters(CAs, Def#c_fun.vars, Cenv),
   NSenv = concolic_lib:bind_parameters(SAs_e, Def#c_fun.vars, Senv),
   eval_expr(M, CodeServer, TraceServer, Def#c_fun.body, NCenv, NSenv, Fd).
@@ -825,7 +825,7 @@ pattern_match(BitInfo, Mode, TraceServer, {c_tuple, _Anno, Es}, Cv, Sv, CMaps, S
         Cs = tuple_to_list(Cv),
         %% TODO Constraint: Sv tuple with Ne elements
         log(Fd, Mode, {'tuple_elem_eq', Sv, Ne}),
-        Ss = concolic_symbolic:tuple_to_list(Sv, Ne),
+        Ss = concolic_symbolic:tuple_to_list(Sv, Ne, Fd),
         pattern_match_all(BitInfo, Mode, TraceServer, Es, Cs, Ss, CMaps, SMaps, Fd);
       _ ->
         %% TODO Constraint: Sv not tuple with Ne elements
@@ -841,8 +841,8 @@ pattern_match(_BitInfo, Mode, _TraceServer, {c_tuple, _Anno, _Es}, _Cv, Sv, _CMa
 pattern_match(BitInfo, Mode, TraceServer, {c_cons, _Anno, Hd, Tl}, [Cv|Cvs], S, CMaps, SMaps, Fd) ->
   %% TODO Constraing: S is non empty list
   log(Fd, Mode, {'non_empty_list', S}),
-  Sv = concolic_symbolic:hd(S),
-  Svs = concolic_symbolic:tl(S),
+  Sv = concolic_symbolic:hd(S, Fd),
+  Svs = concolic_symbolic:tl(S, Fd),
   case pattern_match(BitInfo, Mode, TraceServer, Hd, Cv, Sv, CMaps, SMaps, Fd) of
     {true, {CMs, SMs}} ->
       pattern_match(BitInfo, Mode, TraceServer, Tl, Cvs, Svs, CMs, SMs, Fd);
@@ -1181,7 +1181,7 @@ validate_file_descriptor(TraceServer, Pid, Fd) ->
 encode_msg(TraceServer, Dest, CMsg, SMsg) ->
   case concolic_tserver:is_monitored(TraceServer, Dest) of
     true  ->
-      Msg = {'_conc', zip_one(CMsg, SMsg)},
+      Msg = {'__conc', zip_one(CMsg, SMsg)},
       term_to_binary(Msg, [{compressed, 1}]);
     false ->
       CMsg
@@ -1190,7 +1190,7 @@ encode_msg(TraceServer, Dest, CMsg, SMsg) ->
 %% Decode Msg
 decode_msg(Msg) when is_binary(Msg) ->
   try binary_to_term(Msg) of
-    {'_conc', ActMsg} -> unzip_msg(ActMsg)
+    {'__conc', ActMsg} -> unzip_msg(ActMsg)
   catch
     error:badarg -> unzip_msg(Msg)
   end;
@@ -1385,9 +1385,9 @@ append_segments([Cv|Cvs], CAcc, [Sv|Svs], SAcc) ->
 
 %% Adjust arguments of a function
 %% New slave node will also get the path to the ebin of the tool
-adjust_arguments(slave, F, CAs, SAs) when F =:= 'start'; F =:= 'start_link' ->
+adjust_arguments(slave, F, CAs, SAs, Fd) when F =:= 'start'; F =:= 'start_link' ->
   Arity = length(CAs),
-  SAs_e = concolic_symbolic:ensure_list(SAs, Arity),
+  SAs_e = concolic_symbolic:ensure_list(SAs, Arity, Fd),
   Ebin = "-pa " ++ ?EBIN,
   case CAs of
     [Host] ->
@@ -1405,7 +1405,7 @@ adjust_arguments(slave, F, CAs, SAs) when F =:= 'start'; F =:= 'start_link' ->
       {CAs, SAs}
   end;
 %% Other functions will have unaltered arguments
-adjust_arguments(_M, _F, CAs, SAs) -> {CAs, SAs}.
+adjust_arguments(_M, _F, CAs, SAs, _Fd) -> {CAs, SAs}.
   
 log(_Fd, 'receive', _Term) -> ok;
 log(Fd, 'case', Term) ->

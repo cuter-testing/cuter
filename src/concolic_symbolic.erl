@@ -3,9 +3,9 @@
 -module(concolic_symbolic).
 
 %% exports appear alphabetically
--export([abstract/1, append_binary/2, empty_binary/0, ensure_list/2, hd/1,
+-export([abstract/1, append_binary/2, empty_binary/0, ensure_list/3, hd/2,
          make_bitstring/5, match_bitstring_const/2, match_bitstring_var/2,
-         mock_bif/3, tl/1, tuple_to_list/2]).
+         mock_bif/4, tl/2, tuple_to_list/3]).
 
 -export_type([mapping/0, sbitstring/0, symbolic/0]).
 
@@ -14,12 +14,12 @@
 -define(SYMBOLIC_PREFIX, '__s').
 -define(SYMBOLIC_VAR, '__symbvar').
 
--type bif() :: {atom(), atom(), non_neg_integer()}.
+-type bif() :: {atom(), atom(), integer()}.
 -type sbitstring() :: {'bitstr', [term()]}.
 -type encoding()   :: {bin_lib:bsize(), bin_lib:bunit(), bin_lib:btype(), [bin_lib:bflag()]}.
 -type mapping()    :: {atom(), term()}.
--type symbolic()   :: {?SYMBOLIC_PREFIX, atom()}
-                    | {?SYMBOLIC_PREFIX, atom(), [term(), ...]}.
+-type symbolic()   :: {?SYMBOLIC_PREFIX, atom()}             %% Symbolic Variable
+                    | {?SYMBOLIC_PREFIX, atom(), [term()]}.  %% Symbolic Value
 
 %% Create a fresh symbolic variable
 -spec fresh_symbolic_var() -> symbolic().
@@ -43,6 +43,10 @@ is_symbolic({?SYMBOLIC_PREFIX, BIF, As}) when is_atom(BIF), is_list(As) -> 'true
 is_symbolic({?SYMBOLIC_PREFIX, SymbVar}) when is_atom(SymbVar) -> 'true';
 is_symbolic(_V) -> 'false'.
 
+%% Check whether a term is a symbolic variable or not
+is_symbolic_var({?SYMBOLIC_PREFIX, SymbVar}) when is_atom(SymbVar) -> 'true';
+is_symbolic_var(_V) -> 'false'.
+
 %% ------------------------------------------------------------------------
 %% TODO This function needs refining
 %% mock_bif/2
@@ -50,105 +54,166 @@ is_symbolic(_V) -> 'false'.
 %% represenation of its result
 %% (the concrete result is given as parameter to the function)
 %% ------------------------------------------------------------------------
--spec mock_bif(bif(), [term()], term()) -> term() | symbolic().
+-spec mock_bif(bif(), [term()], term(), file:io_device()) -> term() | symbolic().
 
 %% BIFs that always return 'true'
-mock_bif({erlang, demonitor, 1}, _Args, true) -> true;
-mock_bif({erlang, display, 1}, _Args, true) -> true;
-mock_bif({erlang, exit, 2}, _Args, true) -> true;
-mock_bif({erlang, garbage_collect, 0}, _Args, true) -> true;
-mock_bif({erlang, group_leader, 2}, _Args, true) -> true;
-mock_bif({erlang, link, 1}, _Args, true) -> true;
-mock_bif({erlang, monitor_node, 2}, _Args, true) -> true;
-mock_bif({erlang, monitor_node, 3}, _Args, true) -> true;
-mock_bif({erlang, port_close, 1}, _Args, true) -> true;
-mock_bif({erlang, port_command, 2}, _Args, true) -> true;
-mock_bif({erlang, port_connect, 2}, _Args, true) -> true;
-mock_bif({erlang, register, 2}, _Args, true) -> true;
-mock_bif({erlang, resume_process, 1}, _Args, true) -> true;
-mock_bif({erlang, set_cookie, 2}, _Args, true) -> true;
-mock_bif({erlang, unlink, 1}, _Args, true) -> true;
-mock_bif({erlang, unregister, 1}, _Args, true) -> true;
-mock_bif({erlang, yield, 0}, _Args, true) -> true;
+mock_bif({erlang, demonitor, 1}, _Args, true, _Fd) -> true;
+mock_bif({erlang, display, 1}, _Args, true, _Fd) -> true;
+mock_bif({erlang, exit, 2}, _Args, true, _Fd) -> true;
+mock_bif({erlang, garbage_collect, 0}, _Args, true, _Fd) -> true;
+mock_bif({erlang, group_leader, 2}, _Args, true, _Fd) -> true;
+mock_bif({erlang, link, 1}, _Args, true, _Fd) -> true;
+mock_bif({erlang, monitor_node, 2}, _Args, true, _Fd) -> true;
+mock_bif({erlang, monitor_node, 3}, _Args, true, _Fd) -> true;
+mock_bif({erlang, port_close, 1}, _Args, true, _Fd) -> true;
+mock_bif({erlang, port_command, 2}, _Args, true, _Fd) -> true;
+mock_bif({erlang, port_connect, 2}, _Args, true, _Fd) -> true;
+mock_bif({erlang, register, 2}, _Args, true, _Fd) -> true;
+mock_bif({erlang, resume_process, 1}, _Args, true, _Fd) -> true;
+mock_bif({erlang, set_cookie, 2}, _Args, true, _Fd) -> true;
+mock_bif({erlang, unlink, 1}, _Args, true, _Fd) -> true;
+mock_bif({erlang, unregister, 1}, _Args, true, _Fd) -> true;
+mock_bif({erlang, yield, 0}, _Args, true, _Fd) -> true;
 %% BIFs with arity 0 return the concrete result
-mock_bif({_M, _F, 0}, _Args, Cv) -> Cv;
+mock_bif({_M, _F, 0}, _Args, Cv, _Fd) -> Cv;
+%% The concrete value will be ?UNDEF if mock_bif is called
+%% from a function of concolic_symbolic
+mock_bif(BIF, Args, ?UNDEF, Fd) -> abstract_bif_call(BIF, Args, Fd);
 %% Symbolic abstraction of a BIF
-mock_bif({M, F, A}, Args,  Cv) ->
-  case lists:any(fun is_symbolic/1, Args) orelse Cv =:= ?UNDEF of
-    true ->
-      X = atom_to_list(M) ++ ":" ++ atom_to_list(F) ++ "/" ++ integer_to_list(A),
-      {?SYMBOLIC_PREFIX, list_to_atom(X), Args};
-    false ->
-      Cv
+mock_bif(BIF, Args, Cv, Fd) ->  
+  case lists:any(fun is_symbolic/1, Args) of
+    true  -> abstract_bif_call(BIF, Args, Fd);
+    false -> Cv
+  end.  
+
+%% Abstract a BIF call
+-spec abstract_bif_call(bif(), [term()], file:io_device()) -> symbolic().
+
+abstract_bif_call(BIF, Args, Fd) ->
+  Ns = lists:seq(1, length(Args)),
+  L = lists:zip(Ns, Args),
+  Args_n = add_vars(L, orddict:from_list(L), Fd),
+  %% Mock the call
+  BIF_a = bif_to_atom(BIF),
+  {?SYMBOLIC_PREFIX, BIF_a, Args_n}.
+
+%% Return an atom representing an erlang BIF
+-spec bif_to_atom(bif()) -> atom().
+
+bif_to_atom({M, F, A}) when is_atom(M), is_atom(F), is_integer(A) ->
+  X = atom_to_list(M) ++ ":" ++ atom_to_list(F) ++ "/" ++ integer_to_list(A),
+  list_to_atom(X).
+  
+%% Substiture all the same terms in the Args of a bif call
+%% so as to manually preserver sharing
+-spec add_vars([{integer(), term()}], orddict:orddict(), file:io_device()) -> [term()].
+
+add_vars([], Dict, _Fd) ->
+  L = lists:sort(orddict:to_list(Dict)),
+  {_Ns, Args} = lists:unzip(L),
+  Args;
+add_vars([{N, A}|As], Dict, Fd) ->
+  Same = lists:filter(fun({_I, Arg}) -> erts_debug:same(A, Arg) end, As),
+  case Same of
+    [] ->
+      add_vars(As, Dict, Fd);
+    _ ->
+      case is_symbolic_var(A) of
+        true -> 
+          add_vars(As -- Same, Dict, Fd);
+        false ->
+          SVar = add_symbolic_var(A, Fd),
+          NDict = 
+            lists:foldl(fun({I, _Arg}, D) -> orddict:store(I, SVar, D) end,
+              Dict, [{N, A}|Same]),
+          add_vars(As -- Same, NDict, Fd)
+      end
   end.
+  
+%% Create a new symbolic variable to substitute a term
+-spec add_symbolic_var(term(), file:io_device()) -> symbolic().
+  
+add_symbolic_var(S, Fd) ->
+  SVar = fresh_symbolic_var(),
+  'ok' = concolic_encdec:log_term(Fd, {'eq', SVar, S}),
+  SVar.
   
 %% ------------------------------------------------------------------------
 %% tuple_to_list/2
 %% To create a list of N elements from a symbolic term
 %% that represents a tuple (N is user defined)
 %% ------------------------------------------------------------------------
--spec tuple_to_list(term(), non_neg_integer()) -> [symbolic() | term()].
-tuple_to_list(S, N) when is_tuple(S) ->
+-spec tuple_to_list(term(), non_neg_integer(), file:io_device()) -> [symbolic() | term()].
+tuple_to_list(S, N, Fd) when is_tuple(S) ->
   case is_symbolic(S) of
     true ->
-      break_term('tuple', S, N);
+      break_term('tuple', S, N, Fd);
     false ->
-      L = erlang:tuple_to_list(S),
-      case length(L) =:= N of
-        true  -> L;
-        false -> break_term('tuple', S, N)
+      case erlang:size(S) =:= N of
+        true  -> erlang:tuple_to_list(S);
+        false -> break_term('tuple', S, N, Fd)
       end
-  end.
+  end;
+tuple_to_list(S, N, Fd) ->
+  break_term('tuple', S, N, Fd).
 
 %% ------------------------------------------------------------------------
 %% hd/1
 %% Get the head of a symbolic term that represents a list
 %% ------------------------------------------------------------------------
--spec hd(term()) -> term().
+-spec hd(term(), file:io_device()) -> term().
   
-hd(S) when is_list(S) ->
+hd(S, _Fd) when is_list(S) ->
   erlang:hd(S);
-hd(S) ->
-  mock_bif({erlang, hd, 1}, [S], ?UNDEF).
+hd(S, Fd) ->
+  mock_bif({erlang, hd, 1}, [S], ?UNDEF, Fd).
 
 %% ------------------------------------------------------------------------
 %% tl/1
 %% Get the tail of a symbolic term that represents a list
 %% ------------------------------------------------------------------------
--spec tl(term()) -> term().
+-spec tl(term(), file:io_device()) -> term().
   
-tl(S) when is_list(S) ->
+tl(S, _Fd) when is_list(S) ->
   erlang:tl(S);
-tl(S) ->
-  mock_bif({erlang, tl, 1}, [S], ?UNDEF).
+tl(S, Fd) ->
+  mock_bif({erlang, tl, 1}, [S], ?UNDEF, Fd).
   
 %% ------------------------------------------------------------------------
 %% ensure_list/2
 %% Ensures that a symbolic term is a list of N elements
 %% (N is user defined)
 %% ------------------------------------------------------------------------
--spec ensure_list(term(), pos_integer()) -> [term() | symbolic()].
+-spec ensure_list(term(), pos_integer(), file:io_device()) -> [term() | symbolic()].
   
-ensure_list(S, N) when is_list(S) ->
+ensure_list(S, N, Fd) when is_list(S) ->
   case length(S) of
     N -> S;
-    _ -> break_term('list', S, N)
+    _ -> break_term('list', S, N, Fd)
   end;
-ensure_list(S, N) ->
-  break_term('list', S, N).
+ensure_list(S, N, Fd) ->
+  break_term('list', S, N, Fd).
   
 %% ------------------------------------------------------------------------
 %% break_term/2
 %% Creates a list of N elements from a symbolic term that represents
 %% a list or a tuple (N is user defined)
 %% ------------------------------------------------------------------------
--spec break_term('tuple' | 'list', term(), pos_integer()) -> [symbolic()].
+-spec break_term('tuple' | 'list', term(), pos_integer(), file:io_device()) -> [symbolic()].
 
-break_term('tuple', S, N) ->
-  [mock_bif({erlang, element, 2}, [X, S], ?UNDEF) || X <- lists:seq(1, N)];
-break_term('list', S, N) ->
-  [mock_bif({lists, nth, 2}, [X, S], ?UNDEF) || X <- lists:seq(1, N)].
-
+break_term(M, S, N, Fd) when M =:= 'tuple'; M =:= 'list'->
+  BIF =
+    case M of
+      'tuple' -> {erlang, element, 2};
+      'list'  -> {lists, nth, 2}
+    end,
+  SV = 
+    case is_symbolic_var(S) of
+      true  -> S;
+      false -> add_symbolic_var(S, Fd)
+    end,  
+  [mock_bif(BIF, [X, SV], ?UNDEF, Fd) || X <- lists:seq(1, N)].
+  
 %% ========================
 %% for use in binaries
 %% TODO Needs Revision !!!

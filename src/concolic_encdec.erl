@@ -17,7 +17,7 @@
 -spec open_file(file:name(), mode()) -> {'ok', file:io_device()}.
 
 open_file(F, M) when M =:= read; M =:= write ->
-  file:open(F, [M, raw, binary]).
+  file:open(F, [M, raw, binary, {delayed_write, 262144, 2000}]).
 
 %% Wrapper for closing a file
 -spec close_file(file:io_device()) -> 'ok'.
