@@ -9,6 +9,8 @@
 
 -export_type([mapping/0, sbitstring/0, symbolic/0]).
 
+%% Macros for code abstractions
+-define(UNDEF, '_undefined').
 -define(SYMBOLIC_PREFIX, '__s').
 -define(SYMBOLIC_VAR, '__symbvar').
 
@@ -72,7 +74,7 @@ mock_bif({erlang, yield, 0}, _Args, true) -> true;
 mock_bif({_M, _F, 0}, _Args, Cv) -> Cv;
 %% Symbolic abstraction of a BIF
 mock_bif({M, F, A}, Args,  Cv) ->
-  case lists:any(fun is_symbolic/1, Args) orelse Cv =:= '_undefined' of
+  case lists:any(fun is_symbolic/1, Args) orelse Cv =:= ?UNDEF of
     true ->
       X = atom_to_list(M) ++ ":" ++ atom_to_list(F) ++ "/" ++ integer_to_list(A),
       {?SYMBOLIC_PREFIX, list_to_atom(X), Args};
@@ -107,7 +109,7 @@ tuple_to_list(S, N) when is_tuple(S) ->
 hd(S) when is_list(S) ->
   erlang:hd(S);
 hd(S) ->
-  mock_bif({erlang, hd, 1}, [S], '_undefined').
+  mock_bif({erlang, hd, 1}, [S], ?UNDEF).
 
 %% ------------------------------------------------------------------------
 %% tl/1
@@ -118,7 +120,7 @@ hd(S) ->
 tl(S) when is_list(S) ->
   erlang:tl(S);
 tl(S) ->
-  mock_bif({erlang, tl, 1}, [S], '_undefined').
+  mock_bif({erlang, tl, 1}, [S], ?UNDEF).
   
 %% ------------------------------------------------------------------------
 %% ensure_list/2
@@ -143,9 +145,9 @@ ensure_list(S, N) ->
 -spec break_term('tuple' | 'list', term(), pos_integer()) -> [symbolic()].
 
 break_term('tuple', S, N) ->
-  [mock_bif({erlang, element, 2}, [X, S], '_undefined') || X <- lists:seq(1, N)];
+  [mock_bif({erlang, element, 2}, [X, S], ?UNDEF) || X <- lists:seq(1, N)];
 break_term('list', S, N) ->
-  [mock_bif({lists, nth, 2}, [X, S], '_undefined') || X <- lists:seq(1, N)].
+  [mock_bif({lists, nth, 2}, [X, S], ?UNDEF) || X <- lists:seq(1, N)].
 
 %% ========================
 %% for use in binaries
