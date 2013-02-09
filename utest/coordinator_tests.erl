@@ -39,7 +39,7 @@ simple_test_() ->
 lists_test_() ->
   %% Find the minimum element of a list
   Args_1 = [[5,1,3,2,7,6,4]],
-  [SVar_1] = concolic_symbolic:abstract(Args_1),
+  {[SVar_1], _Ms} = concolic_symbolic:abstract(Args_1),
   X_1 = concolic_symbolic:mock_bif({'erlang', 'tl', 1}, [SVar_1], [1,3,2,7,6,4]),
   SR_1 = concolic_symbolic:mock_bif({'erlang', 'hd', 1}, [X_1], 1),
   R_1 = coordinator:run(demo, min, Args_1),
@@ -49,7 +49,7 @@ lists_test_() ->
 distributed_test_() -> 
   %% Basic communication between nodes
   L_1 = lists:seq(1,10),
-  [SVar_1] = concolic_symbolic:abstract([L_1]),
+  {[SVar_1], _Ms} = concolic_symbolic:abstract([L_1]),
   SR_1 = concolic_symbolic:mock_bif({'erlang', 'length', 1}, [SVar_1], 10),
   R_1 = coordinator:run(demo, distributed_pp, [L_1]),
   {"Basic communication between nodes", fun() -> ?_assertEqual({'ok', {10, SR_1}}, R_1) end}.

@@ -24,14 +24,14 @@
 
 i(M, F, As, CodeServer, TraceServer) ->
   Root = self(),
-  SymbAs = concolic_symbolic:abstract(As),
-  Mapping = concolic_symbolic:generate_mapping(SymbAs, As),
-  I = fun() ->
-          {ok, Fd} = concolic_tserver:register_to_trace(TraceServer, Root),
-          NMF = {named, {M, F}},
-          Val = eval(NMF, As, SymbAs, external, CodeServer, TraceServer, Fd),
-          concolic:send_return(Root, Mapping, Val)
-      end,
+  I = 
+    fun() ->
+      {SymbAs, Mapping} = concolic_symbolic:abstract(As),
+      {ok, Fd} = concolic_tserver:register_to_trace(TraceServer, Root),
+      NMF = {named, {M, F}},
+      Val = eval(NMF, As, SymbAs, external, CodeServer, TraceServer, Fd),
+      concolic:send_return(Root, Mapping, Val)
+    end,
   erlang:spawn(I).
 
   
@@ -41,7 +41,7 @@ i(M, F, As, CodeServer, TraceServer) ->
 
 %% Concrete/Symbolic Evaluation of MFA
 -spec eval(eval(), [term()], [term()], calltype(), pid(), pid(), file:io_device()) ->
-  {concolic_lib:semantic_value(), concolic_lib:semantic_value()}.
+  {concolic_lib:semantic_value(), concolic_lib:semantic_value()} | no_return().
 
 %% Handle spawns so that the spawned process
 %% will be interpreted

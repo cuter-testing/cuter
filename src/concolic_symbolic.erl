@@ -3,14 +3,14 @@
 -module(concolic_symbolic).
 
 %% exports appear alphabetically
--export([abstract/1, append_binary/2, empty_binary/0, ensure_list/2,
-         generate_mapping/2, hd/1,
+-export([abstract/1, append_binary/2, empty_binary/0, ensure_list/2, hd/1,
          make_bitstring/5, match_bitstring_const/2, match_bitstring_var/2,
          mock_bif/3, tl/1, tuple_to_list/2]).
 
 -export_type([mapping/0, sbitstring/0, symbolic/0]).
 
 -define(SYMBOLIC_PREFIX, '__s').
+-define(SYMBOLIC_VAR, '__symbvar').
 
 -type bif() :: {atom(), atom(), non_neg_integer()}.
 -type sbitstring() :: {'bitstr', [term()]}.
@@ -19,26 +19,24 @@
 -type symbolic()   :: {?SYMBOLIC_PREFIX, atom()}
                     | {?SYMBOLIC_PREFIX, atom(), [term(), ...]}.
 
-%% Abstract a list of concrete values
--spec abstract([term()]) -> [symbolic()].
+%% Create a fresh symbolic variable
+-spec fresh_symbolic_var() -> symbolic().
+
+fresh_symbolic_var() ->
+  Id = erlang:ref_to_list(erlang:make_ref()) -- "#Ref<>",
+  X = erlang:atom_to_list(?SYMBOLIC_VAR) ++ Id,
+  {?SYMBOLIC_PREFIX, erlang:list_to_atom(X)}.
+
+%% Abstract a list of concrete values and return
+%% the symbolic variables and the mapping
+-spec abstract([term()]) -> {[symbolic()], [mapping()]}.
 
 abstract(Vs) ->
-  abstract(Vs, [], 1).
-
-abstract([], Acc, _Id) ->
-  lists:reverse(Acc);
-abstract([_A|As], Acc, Id) ->
-  X = "_symb" ++ (erlang:integer_to_list(Id)),
-  SymbA = {?SYMBOLIC_PREFIX, erlang:list_to_atom(X)},
-  abstract(As, [SymbA|Acc], Id+1).
-
-%% Generate a mapping between the concrete values
-%% and their symbolic abstraction
--spec generate_mapping([atom()], [term()]) -> [mapping()].
-
-generate_mapping(Ss, Vs) ->
-  lists:zip(Ss, Vs).
+  Symbs = [fresh_symbolic_var() || _ <- lists:seq(1, erlang:length(Vs))],
+  Maps = lists:zip(Symbs, Vs),
+  {Symbs, Maps}.
   
+%% Check whether a term represents a symbolic value or not
 is_symbolic({?SYMBOLIC_PREFIX, BIF, As}) when is_atom(BIF), is_list(As) -> 'true';
 is_symbolic({?SYMBOLIC_PREFIX, SymbVar}) when is_atom(SymbVar) -> 'true';
 is_symbolic(_V) -> 'false'.
