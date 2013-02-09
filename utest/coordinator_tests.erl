@@ -11,7 +11,7 @@ toy_test_() ->
     fun() ->
       Version = 'short',
       Conf = [{'number_of_cores', 2}],
-      Toys = [bang, genstress, big, ehb, ets_test, parallel, pcmark, serialmsg, timer_wheel, mbrot],
+      Toys = [bang, genstress, big, ehb, ets_test, parallel, pcmark, serialmsg, timer_wheel, mbrot, ran],
       X = [{T, T:bench_args(Version, Conf)} || T <- Toys],
       [{T, A} || {T, L} <- X, A <- L]
     end,
@@ -22,7 +22,7 @@ toy_test_() ->
     end,
   Inst = 
     fun(L) ->
-      [{timeout, 40, {atom_to_list(T), fun() -> Test({T, A}) end}} || {T, A} <- L]
+      [{timeout, 100, {atom_to_list(T), fun() -> Test({T, A}) end}} || {T, A} <- L]
     end,
   {foreach, Setup, [Inst]}.
   

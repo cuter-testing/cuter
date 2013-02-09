@@ -64,7 +64,7 @@ register_to_trace(TraceServer, Parent) ->
   {ok, Filename} = gen_server:call(TraceServer, {register_parent, Parent}),
   {ok, Fd} = concolic_encdec:open_file(Filename, 'write'),
   store_file_descriptor(TraceServer, Fd),
-  ok = concolic_encdec:log_term(Fd, {pid, self()}),
+  'ok' = concolic_encdec:log_pid(Fd, self()),
   %%  ok = concolic_encdec:close_file(File),
   {ok, Fd}.
 

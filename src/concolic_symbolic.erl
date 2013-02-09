@@ -5,7 +5,7 @@
 %% exports appear alphabetically
 -export([abstract/1, append_binary/2, empty_binary/0, ensure_list/3, hd/2,
          make_bitstring/5, match_bitstring_const/2, match_bitstring_var/2,
-         mock_bif/4, tl/2, tuple_to_list/3]).
+         mock_bif/4, tl/2, tuple_to_list/3, is_symbolic/1]).
 
 -export_type([mapping/0, sbitstring/0, symbolic/0]).
 
@@ -39,6 +39,8 @@ abstract(Vs) ->
   {Symbs, Maps}.
   
 %% Check whether a term represents a symbolic value or not
+-spec is_symbolic(term()) -> boolean().
+
 is_symbolic({?SYMBOLIC_PREFIX, BIF, As}) when is_atom(BIF), is_list(As) -> 'true';
 is_symbolic({?SYMBOLIC_PREFIX, SymbVar}) when is_atom(SymbVar) -> 'true';
 is_symbolic(_V) -> 'false'.
@@ -135,7 +137,7 @@ add_vars([{N, A}|As], Dict, Fd) ->
   
 add_symbolic_var(S, Fd) ->
   SVar = fresh_symbolic_var(),
-  'ok' = concolic_encdec:log_term(Fd, {'eq', SVar, S}),
+  'ok' = concolic_encdec:log_eq(Fd, 'eq', SVar, S),
   SVar.
   
 %% ------------------------------------------------------------------------

@@ -3,7 +3,8 @@
 -module(concolic_encdec).
 
 %% exports are alphabetically ordered
--export([close_file/1, get_term/1, log_term/2, open_file/2, pprint/1]).
+-export([close_file/1, get_term/1, open_file/2, pprint/1, log_pid/2,
+         log_guard/3, log_eq/4, log_tuple_size/4, log_type/3]).
 
 -define(LOGGING_FLAG, ok).  %% Enables logging
 
@@ -52,6 +53,7 @@ close_file(F) ->
 
 -ifdef(LOGGING_FLAG).
 log_term(F, Term) ->
+%  erlang:display(Term),
   Bin = erlang:term_to_binary(Term, [{compressed, 1}]),
   Sz = erlang:byte_size(Bin),
   ok = file:write(F, [i32_to_list(Sz), Bin]).
@@ -72,7 +74,50 @@ pprint(F) ->
    eof -> 
      ok
  end.
-   
+ 
+%% ------------------------------------------------------------------
+%% Wrappers for log_term/2
+%% ------------------------------------------------------------------
+
+-spec log_pid(file:io_device(), pid()) -> 'ok'.
+
+log_pid(Fd, Pid) ->
+  log_term(Fd, {'pid', Pid}).
+
+-spec log_eq(file:io_device(), 'eq' | 'neq', term(), term()) -> 'ok'.
+
+log_eq(Fd, M, V1, V2) when M =:= 'eq'; M =:= 'neq' ->
+  case concolic_symbolic:is_symbolic(V1) orelse concolic_symbolic:is_symbolic(V2) of
+    true  -> log_term(Fd, {M, V1, V2});
+    false -> 'ok'
+  end.
+
+
+-spec log_guard(file:io_device(), term(), boolean()) -> 'ok'.
+
+log_guard(Fd, V, Gv) when is_boolean(Gv) ->
+  case {V =:= Gv, Gv} of
+    {true, _} -> 'ok';
+    {false, true}  -> log_term(Fd, {'guard_true', V});
+    {false, false} -> log_term(Fd, {'guard_false', V}) 
+  end.
+  
+-spec log_tuple_size(file:io_device(), 'eq' | 'neq', term(), integer()) -> 'ok'.
+log_tuple_size(Fd, M, Tup, Sz) when M =:= 'eq'; M =:= 'neq' ->
+  case {concolic_symbolic:is_symbolic(Tup), M} of
+    {true, 'eq'}  -> log_term(Fd, {'tuple_size_eq', Tup, Sz});
+    {true, 'neq'} -> log_term(Fd, {'tuple_size_neq', Tup, Sz});
+    {false, _} -> 'ok'
+  end.
+  
+-spec log_type(file:io_device(), 'non_empty_list' | 'not_list' | 'not_tuple', term()) -> 'ok'.
+  
+log_type(Fd, T, V) when T =:= 'non_empty_list'; T =:= 'not_list'; T =:= 'not_tuple' ->
+  case concolic_symbolic:is_symbolic(V) of
+    true  -> log_term(Fd, {T, V});
+    false -> 'ok'
+  end.
+  
 %%====================================================================
 %% Internal functions
 %%====================================================================
@@ -104,9 +149,9 @@ pprint_term(T) ->
      io:format("$  ~w == ~w~n", [V1, V2]);
    {'neq', V1, V2} ->
      io:format("$  ~w != ~w~n", [V1, V2]);
-   {'tuple_elem_eq', V, N} ->
+   {'tuple_size_eq', V, N} ->
      io:format("$  ~w => tuple and size of ~w~n", [V, N]);
-   {'tuple_elem_neq', V, N} ->
+   {'tuple_size_neq', V, N} ->
      io:format("$  ~w => tuple but size not ~w~n", [V, N]);
    {'non_empty_list', V} ->
      io:format("$  ~w => non empty list~n", [V]);
