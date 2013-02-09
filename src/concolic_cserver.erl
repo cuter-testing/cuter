@@ -72,7 +72,7 @@ load(CodeServer, M) ->
 init([Dir, Super]) when is_list(Dir) ->
   link(Super),
   Db = ets:new(?MODULE, [ordered_set, protected]),
-  U = erlang:ref_to_list(erlang:make_ref()),
+  U = erlang:ref_to_list(erlang:make_ref()) -- "#Ref<>",
   CoreDir = filename:absname(Dir ++ "/core-" ++ U),
   {ok, #state{db=Db, dir=CoreDir, super=Super}}.
 

@@ -103,7 +103,7 @@ init([Dir, Super]) ->
   Ptree = ets:new(?MODULE, [bag, protected]),
   Fds = ets:new(?MODULE, [ordered_set, protected]),
   Procs = ets:new(?MODULE, [ordered_set, protected]),
-  U = erlang:ref_to_list(erlang:make_ref()),
+  U = erlang:ref_to_list(erlang:make_ref()) -- "#Ref<>",
   TraceDir = filename:absname(Dir ++ "/trace-" ++ U),
   ok = filelib:ensure_dir(TraceDir ++ "/"),  %% Create the directory
   InitState = #state{
