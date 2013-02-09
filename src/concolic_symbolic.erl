@@ -82,7 +82,6 @@ mock_bif({M, F, A}, Args,  Cv) ->
   
 %% ------------------------------------------------------------------------
 %% tuple_to_list/2
-%% tuple_to_list/3 (helper function)
 %% To create a list of N elements from a symbolic term
 %% that represents a tuple (N is user defined)
 %% ------------------------------------------------------------------------
@@ -90,20 +89,14 @@ mock_bif({M, F, A}, Args,  Cv) ->
 tuple_to_list(S, N) when is_tuple(S) ->
   case is_symbolic(S) of
     true ->
-      tuple_to_list(S, N, []);
+      break_term('tuple', S, N);
     false ->
       L = erlang:tuple_to_list(S),
       case length(L) =:= N of
         true  -> L;
-        false -> tuple_to_list(S, N, [])
+        false -> break_term('tuple', S, N)
       end
   end.
-
-tuple_to_list(_S, 0, Acc) ->
-  Acc;
-tuple_to_list(S, N, Acc) ->
-  X = mock_bif({erlang, element, 2}, [N, S], '_undefined'),
-  tuple_to_list(S, N-1, [X|Acc]).
 
 %% ------------------------------------------------------------------------
 %% hd/1
@@ -132,24 +125,26 @@ tl(S) ->
 %% Ensures that a symbolic term is a list of N elements
 %% (N is user defined)
 %% ------------------------------------------------------------------------
--spec ensure_list(term(), pos_integer()) -> [term()].
+-spec ensure_list(term(), pos_integer()) -> [term() | symbolic()].
   
 ensure_list(S, N) when is_list(S) ->
   case length(S) of
     N -> S;
-    _ -> listify(S, N)
+    _ -> break_term('list', S, N)
   end;
 ensure_list(S, N) ->
-  listify(S, N).
+  break_term('list', S, N).
   
 %% ------------------------------------------------------------------------
-%% listify/2
-%% Creates a list of N elements from a symbolic term
-%% (N is user defined)
+%% break_term/2
+%% Creates a list of N elements from a symbolic term that represents
+%% a list or a tuple (N is user defined)
 %% ------------------------------------------------------------------------
--spec listify(term(), pos_integer()) -> [term()].
-  
-listify(S, N) ->
+-spec break_term('tuple' | 'list', term(), pos_integer()) -> [symbolic()].
+
+break_term('tuple', S, N) ->
+  [mock_bif({erlang, element, 2}, [X, S], '_undefined') || X <- lists:seq(1, N)];
+break_term('list', S, N) ->
   [mock_bif({lists, nth, 2}, [X, S], '_undefined') || X <- lists:seq(1, N)].
 
 %% ========================
