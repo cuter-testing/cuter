@@ -828,7 +828,7 @@ pattern_match(_BitInfo, _Mode, _TraceServer, {c_var, _Anno, Name}, Cv, Sv, CMaps
 pattern_match(BitInfo, Mode, TraceServer, {c_tuple, _Anno, Es}, Cv, Sv, CMaps, SMaps, Fd)
   when is_tuple(Cv) ->
     Ne = length(Es),
-    case size(Cv) of
+    case tuple_size(Cv) of
       Ne ->
         Cs = tuple_to_list(Cv),
         %% TODO Constraint: Sv tuple with Ne elements

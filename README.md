@@ -17,8 +17,7 @@ How to run
 
 You can simulate the execution of an MFA with `coordinator:run(Module, Function, Arguments).`
 
-	e.g. `coordinator:run(orddict, store, [key,val,orddict:new()]).`
+e.g. `coordinator:run(orddict, store, [key,val,orddict:new()]).`
 
-	P.S. You must start the interpreter with `erl -pa ebin`.
-
+PS. You must start the interpreter with `erl -pa ebin`.
 
