@@ -25,13 +25,13 @@ load(Mod, Db, Dir) ->
     ok -> {ok, Mod}
   catch
     throw:non_existing ->
-      {error, {non_existing, Mod}};
+      {'error', {'non_existing', Mod}};
     throw:preloaded ->
-      {error, {preloaded, Mod}};
+      {'error', {'preloaded', Mod}};
     throw:cover_compiled ->
-      {error, {cover_compiled, Mod}};
+      {'error', {'cover_compiled', Mod}};
     throw:{compile, Errors} ->
-      {runtime_error, {compile, {Mod, Errors}}}
+      {'runtime_error', {'compile', {Mod, Errors}}}
   end.
 
 %%====================================================================
@@ -72,7 +72,7 @@ scan_file(File) ->
   core_scan:string(Data).
   
 %% Compile the module source to Core Erlang
--spec compile_core(atom(), string()) -> file:filename().
+-spec compile_core(atom(), string()) -> file:filename() | no_return().
 
 compile_core(M, Dir) ->
   ok = filelib:ensure_dir(Dir ++ "/"),
@@ -87,21 +87,21 @@ compile_core(M, Dir) ->
     {ok, M} ->
       Dir ++ "/" ++ atom_to_list(M) ++ ".core";
     Errors ->
-      erlang:throw({compile, Errors})
+      erlang:throw({'compile', Errors})
   end.
   
 %% Ensure the module beam code is loaded
 %% and return the path it is located
--spec ensure_mod_loaded(atom()) -> {'ok', file:filename()}.
+-spec ensure_mod_loaded(atom()) -> {'ok', file:filename()} | no_return().
   
 ensure_mod_loaded(M) ->
   case code:which(M) of
     non_existing ->
-      erlang:throw(non_existing);
+      erlang:throw('non_existing');
     preloaded ->
-      erlang:throw(preloaded);
+      erlang:throw('preloaded');
     cover_compiled ->
-      erlang:throw(cover_compiled);
+      erlang:throw('cover_compiled');
     Path ->
       {ok, Path}
   end.
@@ -124,7 +124,7 @@ store_module_info(exports, M, AST, Db) ->
       {Fun, Arity} = Elem#c_var.name,
       {M, Fun, Arity}
     end,
-  Exps = lists:map(Fun_info, Exps_c),
+  Exps = [Fun_info(E) || E <- Exps_c],
   true = ets:insert(Db, {exported, Exps}),
   ok;
 store_module_info(name, _M, AST, Db) ->

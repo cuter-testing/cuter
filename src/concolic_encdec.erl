@@ -17,7 +17,7 @@
 %% Opens a file for logging or reading terms
 -spec open_file(file:name(), mode()) -> {'ok', file:io_device()}.
 
-open_file(F, M) when M =:= read; M =:= write ->
+open_file(F, M) when M =:= 'read'; M =:= 'write' ->
   file:open(F, [M, raw, binary, {delayed_write, 262144, 2000}]).
 
 %% Wrapper for closing a file
@@ -26,34 +26,33 @@ open_file(F, M) when M =:= read; M =:= write ->
 close_file(F) ->
   ok = file:close(F).
 
-%% Return the next term stored in the file
--spec get_term(file:io_device()) -> {'ok', term()} | 'eof'.
+%% Return the next term stored in a file
+-spec get_term(file:io_device()) -> {'ok', term()} | 'eof' | no_return().
 
- get_term(F) ->
-   case file:read(F, 4) of
-     {ok, B} ->
-       Sz = bin_to_i32(B),
-       case file:read(F, Sz) of
-         {ok, Bin} ->
-           Term = erlang:binary_to_term(Bin),
-           {ok, Term};
-         eof ->
-           exit(unexpected_eof);
-         {error, Reason} ->
-           exit({file_read_failed, Reason})
-       end;
-     eof ->
-       eof;
-     {error, Reason} ->
-       exit({file_read_failed, Reason})
-   end.
+get_term(F) ->
+  case file:read(F, 4) of
+    {ok, B} ->
+      Sz = bin_to_i32(B),
+      case file:read(F, Sz) of
+        {ok, Bin} ->
+          Term = erlang:binary_to_term(Bin),
+          {ok, Term};
+        eof ->
+          exit('unexpected_eof');
+        {error, Reason} ->
+          exit({'file_read_failed', Reason})
+      end;
+    eof ->
+      eof;
+    {error, Reason} ->
+      exit({'file_read_failed', Reason})
+ end.
 
-%% Store a term in the file
+%% Store a term in a file
 -spec log_term(file:io_device(), term()) -> 'ok'.
 
 -ifdef(LOGGING_FLAG).
 log_term(F, Term) ->
-%%  erlang:display(Term),
   Bin = erlang:term_to_binary(Term, [{compressed, 1}]),
   Sz = erlang:byte_size(Bin),
   ok = file:write(F, [i32_to_list(Sz), Bin]).
@@ -79,11 +78,13 @@ pprint(F) ->
 %% Wrappers for log_term/2
 %% ------------------------------------------------------------------
 
+%% Log a pid
 -spec log_pid(file:io_device(), pid()) -> 'ok'.
 
 log_pid(Fd, Pid) ->
   log_term(Fd, {'pid', Pid}).
 
+%% Log equality and inequality between terms
 -spec log_eq(file:io_device(), 'eq' | 'neq', term(), term()) -> 'ok'.
 
 log_eq(Fd, M, V1, V2) when M =:= 'eq'; M =:= 'neq' ->
@@ -92,7 +93,7 @@ log_eq(Fd, M, V1, V2) when M =:= 'eq'; M =:= 'neq' ->
     false -> ok
   end.
 
-
+%% Log guard values
 -spec log_guard(file:io_device(), term(), boolean()) -> 'ok'.
 
 log_guard(Fd, V, Gv) when is_boolean(Gv) ->
@@ -101,7 +102,8 @@ log_guard(Fd, V, Gv) when is_boolean(Gv) ->
     {false, true}  -> log_term(Fd, {'guard_true', V});
     {false, false} -> log_term(Fd, {'guard_false', V}) 
   end.
-  
+
+%% Log tuples and their size
 -spec log_tuple_size(file:io_device(), 'eq' | 'neq', term(), integer()) -> 'ok'.
 
 log_tuple_size(Fd, M, Tup, Sz) when M =:= 'eq'; M =:= 'neq' ->
@@ -110,7 +112,8 @@ log_tuple_size(Fd, M, Tup, Sz) when M =:= 'eq'; M =:= 'neq' ->
     {true, 'neq'} -> log_term(Fd, {'tuple_size_neq', Tup, Sz});
     {false, _} -> ok
   end.
-  
+
+%% Log type matches and mismatches
 -spec log_type(file:io_device(), 'non_empty_list' | 'not_list' | 'not_tuple', term()) -> 'ok'.
   
 log_type(Fd, T, V) when T =:= 'non_empty_list'; T =:= 'not_list'; T =:= 'not_tuple' ->

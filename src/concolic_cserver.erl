@@ -40,7 +40,7 @@
 %% ============================================================================
 
 %% Initialize a CodeServer
--spec init_codeserver(string(), pid()) -> pid().
+-spec init_codeserver(string(), pid()) -> pid() | no_return().
 
 init_codeserver(CoreDir, Super) ->
   case gen_server:start(?MODULE, [CoreDir, Super], []) of

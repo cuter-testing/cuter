@@ -43,7 +43,7 @@
 %% ============================================================================
 
 %% Initialize a TraceServer
--spec init_traceserver(string(), pid()) -> pid().
+-spec init_traceserver(string(), pid()) -> pid() | no_return().
 
 init_traceserver(TraceDir, Super) ->
   case gen_server:start(?MODULE, [TraceDir, Super], []) of
@@ -64,8 +64,7 @@ register_to_trace(TraceServer, Parent) ->
   {ok, Filename} = gen_server:call(TraceServer, {register_parent, Parent}),
   {ok, Fd} = concolic_encdec:open_file(Filename, 'write'),
   store_file_descriptor(TraceServer, Fd),
-  'ok' = concolic_encdec:log_pid(Fd, self()),
-  %%  ok = concolic_encdec:close_file(File),
+  ok = concolic_encdec:log_pid(Fd, self()),
   {ok, Fd}.
 
 %% Check if a process is monitored by TraceServer
@@ -166,9 +165,10 @@ handle_call({register_parent, Parent}, {From, _FromTag}, State) ->
   ets:insert(Ptree, {Parent, FromPid}),
   ets:insert(Procs, {FromPid, true}),
   %% Update Logs - Number of monitored processes
-  {procs, P} = lists:keyfind(procs, 1, Logs),
-  NewLogs = lists:keyreplace(procs, 1, Logs, {procs, P+1}),
-  F = erlang:pid_to_list(FromPid),
+  P = proplists:get_value(procs, Logs),
+  NewLogs = [{procs, P+1}|(Logs -- [{procs, P}])],
+  %% Create the filename of the log file
+  F = erlang:pid_to_list(FromPid) -- "<>",
   Filename = filename:absname(Dir ++ "/proc-" ++ F),
   {reply, {ok, Filename}, State#state{logs=NewLogs}};
 %% Call Request : {is_monitored, Who}
@@ -233,10 +233,8 @@ handle_info({'DOWN', _Ref, process, Who, normal}, State) ->
   ets:delete(Fds, Who),
   ets:delete(Procs, Who),
   case ets:first(Procs) of
-    '$end_of_table' ->
-      {stop, normal, State};
-    _  ->
-      {noreply, State}
+    '$end_of_table' -> {stop, normal, State};
+    _  -> {noreply, State}
   end;
 %% Msg when a monitored process experienced an exception
 handle_info({'DOWN', _Ref, process, Who, Reason}, State) ->
@@ -279,3 +277,4 @@ kill_all_processes(Procs) ->
   
 get_procs(Tab) ->
   ets:foldl(fun({P, true}, Acc) -> [P|Acc] end, [], Tab).
+  
