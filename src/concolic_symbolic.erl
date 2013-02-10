@@ -14,7 +14,7 @@
 -define(SYMBOLIC_PREFIX, '__s').
 -define(SYMBOLIC_VAR, '__symbvar').
 
--type bif() :: {atom(), atom(), integer()}.
+%-type bif() :: {atom(), atom(), integer()}.
 -type sbitstring() :: {'bitstr', [term()]}.
 -type encoding()   :: {bin_lib:bsize(), bin_lib:bunit(), bin_lib:btype(), [bin_lib:bflag()]}.
 -type mapping()    :: {atom(), term()}.
@@ -56,7 +56,7 @@ is_symbolic_var(_V) -> 'false'.
 %% represenation of its result
 %% (the concrete result is given as parameter to the function)
 %% ------------------------------------------------------------------------
--spec mock_bif(bif(), [term()], term(), file:io_device()) -> term() | symbolic().
+-spec mock_bif(mfa(), [term()], term(), file:io_device()) -> term() | symbolic().
 
 %% BIFs that always return 'true'
 mock_bif({erlang, demonitor, 1}, _Args, true, _Fd) -> true;
@@ -89,7 +89,7 @@ mock_bif(BIF, Args, Cv, Fd) ->
   end.  
 
 %% Abstract a BIF call
--spec abstract_bif_call(bif(), [term()], file:io_device()) -> symbolic().
+-spec abstract_bif_call(mfa(), [term()], file:io_device()) -> symbolic().
 
 abstract_bif_call(BIF, Args, Fd) ->
   Ns = lists:seq(1, length(Args)),
@@ -100,7 +100,7 @@ abstract_bif_call(BIF, Args, Fd) ->
   {?SYMBOLIC_PREFIX, BIF_a, Args_n}.
 
 %% Return an atom representing an erlang BIF
--spec bif_to_atom(bif()) -> atom().
+-spec bif_to_atom(mfa()) -> atom().
 
 bif_to_atom({M, F, A}) when is_atom(M), is_atom(F), is_integer(A) ->
   X = atom_to_list(M) ++ ":" ++ atom_to_list(F) ++ "/" ++ integer_to_list(A),

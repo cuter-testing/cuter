@@ -14,6 +14,7 @@
 -type eval()     :: {'named', {atom(), atom()}}
                   | {'lambda', function()}
                   | {'letrec_func', {atom(), atom(), cerl:c_fun(), function()}}.
+-type exported() :: boolean().
 %% Used to represent list of values for Core Erlang interpretation
 -record(valuelist, {values :: [term()], degree :: non_neg_integer()}).
 -opaque valuelist() :: #valuelist{}.
@@ -84,7 +85,7 @@ eval({named, {erlang, F}}, CAs, SAs, _CallType, CodeServer, TraceServer, Fd)
           Child = register_and_apply(TServer, self(), EvalArgs),
           erlang:F(Node, Child);
         _ ->
-          exception(error, {undef, {erlang, spawn, Arity}})
+          exception('error', {'undef', {erlang, spawn, Arity}})
       end,
     receive
       {ChildPid, registered} -> {ChildPid, ChildPid}
@@ -106,7 +107,7 @@ eval({named, {erlang, spawn_monitor}}, CAs, SAs, _CallType, CodeServer, TraceSer
         Call = find_call_type(erlang, Mod),
         [{named, {Mod, Fun}}, Args, SArgs, Call, CodeServer, TraceServer];
       _ ->
-        exception(error, {undef, {erlang, spawn_monitor, Arity}})
+        exception('error', {'undef', {erlang, spawn_monitor, Arity}})
     end,
   Child = register_and_apply(TraceServer, self(), EvalArgs),
   {ChildPid, ChildRef} = erlang:spawn_monitor(Child),
@@ -149,7 +150,7 @@ eval({named, {erlang, spawn_opt}}, CAs, SAs, _CallType, CodeServer, TraceServer,
         Child = register_and_apply(TServer, self(), EvalArgs),
         erlang:spawn_opt(Node, Child, Opts);
       _ ->
-        exception(error, {undef, {erlang, spawn_opt, Arity}})
+        exception('error', {'undef', {erlang, spawn_opt, Arity}})
     end,
   ChildPid =
     case R of
@@ -185,7 +186,7 @@ eval({named, {erlang, send}}, CAs, SAs, _CallType, _CodeServer, TraceServer, Fd)
       R = erlang:send(CDest, Msg, COpts),
       {R, R};
     _ ->
-      exception(error, {undef, {erlang, send, Arity}})
+      exception('error', {'undef', {erlang, send, Arity}})
   end;
 
 %% Handle send_after/3
@@ -200,7 +201,7 @@ eval({named, {erlang, send_after}}, CAs, SAs, _CallType, _CodeServer, TraceServe
       R = erlang:send_after(CTime, CDest, Msg),
       {R, R};
     _ ->
-      exception(error, {undef, {erlang, send_after, Arity}})
+      exception('error', {'undef', {erlang, send_after, Arity}})
   end;
  
 %% Handle send_nosuspend/2, send_nosuspend/3
@@ -221,7 +222,7 @@ eval({named, {erlang, send_nosuspend}}, CAs, SAs, _CallType, _CodeServer, TraceS
       R = erlang:send_nosuspend(CDest, Msg, COpts),
       {R, R};
     _ ->
-      exception(error, {undef, {erlang, send_nosuspend, Arity}})
+      exception('error', {'undef', {erlang, send_nosuspend, Arity}})
   end;
 
 
@@ -238,7 +239,7 @@ eval({named, {erlang, throw}}, CAs, SAs, _CallType, _CodeServer, _TraceServer, F
       Throw = zip_one(CThrow, SThrow),
       erlang:throw(Throw);
     _ ->
-      exception(error, {undef, {erlang, throw, Arity}})
+      exception('error', {'undef', {erlang, throw, Arity}})
   end;
   
 %% Handle exit/1, exit2
@@ -269,7 +270,7 @@ eval({named, {erlang, exit}}, CAs, SAs, _CallType, _CodeServer, _TraceServer, Fd
         R = erlang:exit(CDest, Exit),
         {R, R};
     _ ->
-      exception(error, {undef, {erlang, exit, Arity}})
+      exception('error', {'undef', {erlang, exit, Arity}})
   end;
 
     
@@ -288,7 +289,7 @@ eval({named, {erlang, error}}, CAs, SAs, _CallType, _CodeServer, _TraceServer, F
       Error = zip_one(CError, SError),
       erlang:error(Error, CArgs);
     _ ->
-      exception(error, {undef, {erlang, error, Arity}})
+      exception('error', {'undef', {erlang, error, Arity}})
   end;
   
 %% Handle raise/3
@@ -302,7 +303,7 @@ eval({named, {erlang, raise}}, CAs, SAs, _CallType, _CodeServer, _TraceServer, F
       R = zip_one(CReason, SReason),
       erlang:raise(CClass, R, CStacktrace);
     _ ->
-        exception(error, {undef, {erlang, raise, Arity}})
+        exception('error', {'undef', {erlang, raise, Arity}})
   end;
 
 %% Handle other important functions
@@ -317,7 +318,7 @@ eval({named, {erlang, make_fun}}, CAs, SAs, _CallType, CodeServer, TraceServer, 
       SR = concolic_symbolic:mock_bif({erlang, make_fun, 3}, SAs_e, CR, Fd),
       {CR, SR};
     _ ->
-      exception(error, {undef, {erlang, make_fun, Arity}})
+      exception('error', {'undef', {erlang, make_fun, Arity}})
   end;
   
 %% Handle apply/2, apply/3
@@ -335,7 +336,7 @@ eval({named, {erlang, apply}}, CAs, SAs, _CallType, CodeServer, TraceServer, Fd)
       Call = find_call_type(erlang, M),
       eval({named, {M, F}}, Args, SArgs, Call, CodeServer, TraceServer, Fd);
     _ ->
-      exception(error, {undef, {erlang, apply, Arity}})
+      exception('error', {'undef', {erlang, apply, Arity}})
   end;
 
 %% Handle an MFA
@@ -563,7 +564,7 @@ eval_expr(M, CodeServer, TraceServer, {c_primop, _Anno, Name, Args}, Cenv, Senv,
       [Sv] = SAs,
       eval({named, {erlang, error}}, [{badmatch, Cv}], [{badmatch, Sv}], external, CodeServer, TraceServer, Fd);
     _ ->
-      exception(error, {'not_supported_primop', Primop})
+      exception('error', {'not_supported_primop', Primop})
   end;
 
 %% c_receive
@@ -691,10 +692,12 @@ run_message_loop(M, CodeServer, TraceServer, Clauses, Action, CTimeout, STimeout
   end.
   
   
-
-%% ===============
+%% --------------------------------------------------------
 %% find_message
-%% ===============
+%%
+%% Wraps calls to find_clause when trying to match 
+%% a message
+%% --------------------------------------------------------
 find_message(_M, _CodeServer, _TraceServer, _Clauses, [], _Cenv, _Senv, _Fd) ->
   false;
 find_message(M, CodeServer, TraceServer, Clauses, [Msg|Mailbox], Cenv, Senv, Fd) ->
@@ -708,9 +711,16 @@ find_message(M, CodeServer, TraceServer, Clauses, [Msg|Mailbox], Cenv, Senv, Fd)
   end.
 
 
-%% ===============
+%% --------------------------------------------------------
 %% find_clause
-%% ===============
+%%
+%% Finds the clause that matches a pair of concrete &
+%% symbolic values.
+%% Can return false only when used to match a message.
+%% Otherwise always finds a matching clause since the 
+%% compiler adds a catch all clause at the end of every
+%% case statement.
+%% --------------------------------------------------------
 find_clause(M, Mode, CodeServer, TraceServer, Clauses, Cv, Sv, Cenv, Senv, Fd) ->
   find_clause(M, Mode, CodeServer, TraceServer, Clauses, Cv, Sv, Cenv, Senv, Fd, 1).
 
@@ -725,9 +735,12 @@ find_clause(M, Mode, CodeServer, TraceServer, [Cl|Cls], Cv, Sv, Cenv, Senv, Fd, 
       {Body, NCenv, NSenv, Cnt}
   end.
   
-%% ===============
+%% --------------------------------------------------------
 %% match_clause
-%% ===============
+%%
+%% Match a pair of concrete & symbolic values against
+%% a specific clause (i.e. with patterns and guard)
+%% --------------------------------------------------------
 match_clause(M, Mode, CodeServer, TraceServer, {c_clause, _Anno, Pats, Guard, Body}, Cv, Sv, Cenv, Senv, Fd, Cnt) ->
   case is_patlist_compatible(Pats, Cv) of
     false ->
@@ -751,6 +764,7 @@ match_clause(M, Mode, CodeServer, TraceServer, {c_clause, _Anno, Pats, Guard, Bo
         {true, {CMs, SMs}} ->
           NCenv = concolic_lib:add_mappings_to_environment(CMs, Cenv),
           NSenv = concolic_lib:add_mappings_to_environment(SMs, Senv),
+          %% Make silent guards
           try eval_expr(M, CodeServer, TraceServer, Guard, NCenv, NSenv, Fd) of
             {true, SGv} ->
               %% TODO make constraint SGv=true
@@ -766,10 +780,12 @@ match_clause(M, Mode, CodeServer, TraceServer, {c_clause, _Anno, Pats, Guard, Bo
       end
   end.
 
-
-%% ===============
+%% --------------------------------------------------------
 %% pattern_match_all
-%% ===============
+%%
+%% Pattern Match a series of values against a series of
+%% patterns (short-circuited match)
+%% --------------------------------------------------------
 
 pattern_match_all(BitInfo, Mode, TraceServer, Pats, Cvs, Svs, Fd) ->
   pattern_match_all(BitInfo, Mode, TraceServer, Pats, Cvs, Svs, [], [], Fd).
@@ -785,9 +801,12 @@ pattern_match_all(BitInfo, Mode, TraceServer, [P|Ps], [Cv|Cvs], [Sv|Svs], CMaps,
       false
   end.
 
-%% ===============
+%% --------------------------------------------------------
 %% pattern_match
-%% ===============
+%%
+%% Pattern match a pair of concrete & symbolic values
+%% against a single pattern
+%% --------------------------------------------------------
 
 %% AtomicLiteral pattern
 pattern_match(_BitInfo, Mode, _TraceServer, {c_literal, _Anno, LitVal}, Cv, Sv, CMaps, SMaps, Fd) ->
@@ -866,6 +885,7 @@ pattern_match(BitInfo, Mode, TraceServer, {c_binary, _Anno, Segments}, Cv, Sv, C
 
 %% ===============
 %% bit_pattern_match
+%% TODO Needs some code cleanup
 %% ===============
 bit_pattern_match(_BitInfo, _Mode, _TraceServer, [], <<>>, _Sv, CMaps, SMaps, _Fd) ->
   %% TODO Constraint: Sv = <<>>
@@ -918,11 +938,12 @@ bit_pattern_match({M, CodeServer, Cenv, Senv}, Mode, TraceServer, [{c_bitstr, _A
   end.
 
 
-%% ===============
-%% create_closure
-%% ===============
+%% --------------------------------------------------------
+%% Wrap calls to make_fun/9 when creating a closure to be
+%% passed as an argument to a function call
+%% --------------------------------------------------------
 
-%% Creates a Closure of a local function
+%% Create a Closure of a local function
 create_closure(M, F, Arity, CodeServer, TraceServer, local, Fd) ->
   %% Module is already loaded since create_closure is called by eval_expr
   {ok, MDb} = get_module_db(M, CodeServer),
@@ -932,17 +953,22 @@ create_closure(M, F, Arity, CodeServer, TraceServer, local, Fd) ->
   Senv = concolic_lib:new_environment(),
   make_fun(M, Arity, CodeServer, TraceServer, Def#c_fun.vars, Def#c_fun.body, Cenv, Senv, Fd);
   
-%% Creates a Closure when the MFA is a function bound in a letrec
+%% Create a Closure when the MFA is a function bound in a letrec
 create_closure(M, _F, Arity, CodeServer, TraceServer, {letrec_fun, {Def, Cenv, Senv}}, Fd) ->
   make_fun(M, Arity, CodeServer, TraceServer, Def#c_fun.vars, Def#c_fun.body, Cenv, Senv, Fd).
 
+%% --------------------------------------------------------
+%% Create closures
+%%
+%% We need to create a closure of the proper arity thus
+%% we cannot pass the arguments in a list.
+%% Instead, the closure is created manually depending on
+%% its arity, thus limiting the support to a maximum
+%% allowed arity (currently 12).
+%% --------------------------------------------------------
 
-
-%% ===============
-%% make_fun
-%% ===============
-%% Manually creating anonymous func and not use a list Args for parameters
-%% since the problem is that high order functions don't always expect a /1 function
+%% Creates a closure from Core Erlang code. 
+%% The interpreted code is wrapped in a call to eval_expr.
 make_fun(Mod, Arity, CServer, TServer, Vars, Body, Cenv, Senv, FileDescr) ->
   Creator = self(),
   case Arity of
@@ -1052,11 +1078,32 @@ make_fun(Mod, Arity, CServer, TServer, Vars, Body, Cenv, Senv, FileDescr) ->
         Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
         eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv, Fd)
       end;
+    11 ->
+      fun(A, B, C, D, E, F, G, H, I, J, K) ->
+        Args = [A, B, C, D, E, F, G, H, I, J, K],
+        {CAs, SAs} = unzip_args(Args),
+        NCenv = concolic_lib:bind_parameters(CAs, Vars, Cenv),
+        NSenv = concolic_lib:bind_parameters(SAs, Vars, Senv),
+        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
+        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
+        eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv, Fd)
+      end;
+    12 ->
+      fun(A, B, C, D, E, F, G, H, I, J, K, L) ->
+        Args = [A, B, C, D, E, F, G, H, I, J, K, L],
+        {CAs, SAs} = unzip_args(Args),
+        NCenv = concolic_lib:bind_parameters(CAs, Vars, Cenv),
+        NSenv = concolic_lib:bind_parameters(SAs, Vars, Senv),
+        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
+        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
+        eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv, Fd)
+      end;
     _ ->
-      exception('error', {over_lambda_fun_argument_limit, Arity})
+      exception('error', {'over_lambda_fun_argument_limit', Arity})
   end.
 
-%% Creates a closure for make_fun when no information on MFA is available
+%% Creates a closure from an MFA (emulates the behaviour
+%% of erlang:make_fun/3) 
 make_fun(Mod, Func, Arity, CServer, TServer, FileDescr) ->
   Creator = self(),
   case Arity of
@@ -1146,30 +1193,54 @@ make_fun(Mod, Func, Arity, CServer, TServer, FileDescr) ->
         Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
         eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer, Fd)
       end;
+    11 ->
+      fun(A, B, C, D, E, F, G, H, I, J, K) ->
+        Args = [A, B, C, D, E, F, G, H, I, J, K],
+        {CAs, SAs} = unzip_args(Args),
+        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
+        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
+        eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer, Fd)
+      end;
+    12 ->
+      fun(A, B, C, D, E, F, G, H, I, J, K, L) ->
+        Args = [A, B, C, D, E, F, G, H, I, J, K, L],
+        {CAs, SAs} = unzip_args(Args),
+        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
+        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
+        eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer, Fd)
+      end;
     _ ->
-      exception('error', {over_lambda_fun_argument_limit, Arity})
+      exception('error', {'over_lambda_fun_argument_limit', Arity})
   end.
 
-%% Check if the given servers correspond to the current node
-%% If not, get the pids of the proper servers
+%% --------------------------------------------------------
+%% Check if the given servers correspond to the current 
+%% node. If not, get the pids of the proper servers.
+%% Needed when a closure is created in node A and is 
+%% executed in node B.
+%% --------------------------------------------------------
 validate_servers(CodeServer, TraceServer) ->
   Node = node(),
   case Node =:= node(TraceServer) of
     true  -> {CodeServer, TraceServer};
     false -> concolic_tserver:node_servers(TraceServer, Node)
   end.
-  
-%% Check if the given file descriptor correponds to this process
-%% If not get the proper file descriptor
+ 
+%% --------------------------------------------------------
+%% Check if the given file descriptor correponds to this 
+%% process. If not get the proper file descriptor.
+%% Needed when a closure is created in process A and is
+%% executed in process B.
+%% --------------------------------------------------------
 validate_file_descriptor(TraceServer, Pid, Fd) ->
   case Pid =:= self() of
     true  -> Fd;
     false -> concolic_tserver:file_descriptor(TraceServer)
   end.
 
-%% ----------------------------------------------
+%% --------------------------------------------------------
 %% Encode and Decode Msgs
-%% ----------------------------------------------
+%% --------------------------------------------------------
   
 %% Encode a Message
 encode_msg(TraceServer, Dest, CMsg, SMsg) ->
@@ -1191,19 +1262,20 @@ encode_msg(TraceServer, Dest, CMsg, SMsg) ->
 decode_msg({'__conc', Msg}) -> unzip_msg(Msg);
 decode_msg(Msg) -> unzip_msg(Msg).
   
-  
+%% --------------------------------------------------------
 %% Zip and Unzip concrete-semantic values
-%% Zipped values are [{'_zip', CVal, SVal}]
+%%
+%% A zipped value is a {'__zip', CVal, SVal}.
+%% Zipped values are used when sending messages, raising 
+%% exceptions and  passing arguments to closures.
+%% --------------------------------------------------------
 
 %% zip_one
-zip_one(Cv, Sv) ->
-  {'_zip', Cv, Sv}.
+zip_one(Cv, Sv) -> {'__zip', Cv, Sv}.
   
 %% unzip_one
-unzip_one({'_zip', Cv, Sv}) ->
-  {Cv, Sv};
-unzip_one(V) ->
-  {V, V}.
+unzip_one({'__zip', Cv, Sv}) -> {Cv, Sv};
+unzip_one(V) -> {V, V}.
 
 %% zip_args
 zip_args(CAs, SAs) when is_list(CAs), is_list(SAs) ->
@@ -1215,9 +1287,9 @@ unzip_args(As) when is_list(As) ->
   
 %% unzip_error // for exception reasons
 -spec unzip_error(term()) -> {term(), term()}.
-unzip_error({nocatch, {'_zip', Cv, Sv}}) ->
+unzip_error({nocatch, {'__zip', Cv, Sv}}) ->
   {Cv, Sv};
-unzip_error({{'_zip', Cv, Sv}, Stack}) when is_list(Stack) ->
+unzip_error({{'__zip', Cv, Sv}, Stack}) when is_list(Stack) ->
   {Cv, Sv};
 unzip_error(V) ->
   unzip_one(V).
@@ -1244,104 +1316,104 @@ unzip_msg({'EXIT', From, Reason}) ->
 unzip_msg(V) ->
   unzip_one(V).
   
-%% -------------------------------------------------------
-%% register_and_apply(TraceServer, Parent, Args)
-%%   TraceServer :: pid()
-%%   Parent :: pid()
-%%   Args :: [term()]
-%% Initializations called when a new process is spawned
-%% The process registers its parent to the TraceServer
-%% and proceeds with interpreting the MFA
-%% -------------------------------------------------------
+%% --------------------------------------------------------
+%% Initializations called when a new process is spawned.
+%% *  Register the parent process to the TraceServer
+%% *  Open a new file to store the process's trace data
+%% *  Then proceed with interpreting the MFA call
+%% --------------------------------------------------------
 register_and_apply(TraceServer, Parent, Args) ->
   fun() ->
     {ok, Fd} = concolic_tserver:register_to_trace(TraceServer, Parent),
     Parent ! {self(), registered},
     erlang:apply(?MODULE, eval, Args ++ [Fd])
   end.
-  
-%% ----------------------------------------------------------
-%% get_module_db(M, CodeServer) -> Info
-%%   M :: atom()
-%%   CodeServer :: pid()
-%%   Info :: {ok, MDb} | preloaded
-%%    MDb :: ets:tid()
-%% Interacts with the CodeServer and asks for the ETS Table
+
+%% --------------------------------------------------------
+%% Interact with the CodeServer and ask for the ETS Table
 %% where the code of the module M is stored.
 %%
 %% Optimization : For caching purposes, the MDb is stored
-%% in the process dictionary for later lookups
-%% ----------------------------------------------------------
--spec get_module_db(M :: atom(), CodeServer :: pid()) -> {ok, MDb :: ets:tab()} | preloaded.
+%% in the process dictionary for subsequent lookups
+%% --------------------------------------------------------
+-spec get_module_db(atom(), pid()) -> {'ok', ets:tab()} | 'preloaded' | no_return().
 
 get_module_db(M, CodeServer) ->
-  case get({conc, M}) of
+  case get({'__conc', M}) of
     undefined ->
       case concolic_cserver:load(CodeServer, M) of
         %% Module Code loaded
-        {ok, MDb} ->
-          put({conc, M}, MDb),
+        {ok, MDb} -> 
+          put({'__conc', M}, MDb),
           {ok, MDb};
         %% Preloaded Module
         preloaded ->
           preloaded;
         %% Cover Compiled Module
         cover_compiled ->
-          exception(error, {cover_compiled, M});
+          exception('error', {'cover_compiled', M});
         %% Invalid Module
         non_existing ->
-          exception(error, {undef, M});
+          exception('error', {'undef', M});
         %% Any Error during Code Loading
         {error, Error} ->
-          exception(error, Error)
+          exception('error', Error)
       end;
     MDb ->
       {ok, MDb}
   end.
   
-%% ---------------------------------------------------------------
-%% retrieve_function({M, F, Arity}, MDb) -> Info
-%%   M :: atom()
-%%   F :: atom()
-%%   Arity :: non_neg_integer()
-%%   MDb :: ets:tid()
-%%   Info :: {#c_def{}, boolean()}
+%% --------------------------------------------------------
 %% Retrieves the code and exported type of an MFA
 %%
-%% Optimization : For caching purposes, the function definition
-%% is stored in the process dictionary for later lookups
-%% ---------------------------------------------------------------
+%% Optimization : For caching purposes, the function 
+%% definition is stored in the process dictionary for 
+%% subsequent lookups
+%% --------------------------------------------------------
+-spec retrieve_function(mfa(), ets:tab()) -> {cerl:c_fun(), boolean()} | no_return().
+
 retrieve_function(FuncKey, ModDb) ->
-  case get({conc, FuncKey}) of
+  case get({'__conc', FuncKey}) of
     undefined ->
       case ets:lookup(ModDb, FuncKey) of
         [] ->
-          exception(error, {undef, FuncKey});
+          exception('error', {'undef', FuncKey});
         [{FuncKey, Val}] ->
-          put({conc, FuncKey}, Val),
+          put({'__conc', FuncKey}, Val),
           Val
       end;
     Val ->
       Val
   end.
   
-%% Ensures compatibility between calltype and exported type
+%% --------------------------------------------------------
+%% Ensures compatibility between the type of the call
+%% and the exported status of the MFA
+%% --------------------------------------------------------
+-spec check_exported(exported(), calltype(), mfa()) -> 'ok' | no_return().
+
 check_exported(true, _CallType, _MFA) -> ok;
 check_exported(false, local, _MFA)    -> ok;
-check_exported(false, external, MFA)  -> exception(error, {not_exported, MFA}).
+check_exported(false, external, MFA)  -> exception('error', {'not_exported', MFA}).
 
-%% calculated the calltype of an MFA from inside another function
-find_call_type(M, M) -> local;
+%% --------------------------------------------------------
+%% Resolve the type of an MFA call
+%% --------------------------------------------------------
+find_call_type(_M, _M)   -> local;
 find_call_type(_M1, _M2) -> external.
-  
+
+%% --------------------------------------------------------
 %% Y combinator for a function with arity 0
+%% --------------------------------------------------------
 y(M) ->
   G = fun(F) -> M(fun() -> (F(F))() end) end,
   G(G).
 
-%% Calculates if the number of patterns in a clause 
-%% is compatible to the numbers of actual values
-%% that are trying to be match to
+%% --------------------------------------------------------
+%% Calculates if the number of patterns in a clause is 
+%% compatible to the numbers of actual values that are 
+%% to be matched against
+%% --------------------------------------------------------
 is_patlist_compatible(Pats, Values) ->
   Degree = length(Pats),
   case {Degree, Values} of
@@ -1355,7 +1427,9 @@ is_patlist_compatible(Pats, Values) ->
       false
   end.
   
-%% validate the timeout value of a receive expression
+%% --------------------------------------------------------
+%% Validate the timeout value of a receive expression
+%% --------------------------------------------------------
 check_timeout(infinity, _Sv, _Fd) ->
   %% TODO Constraint: Sv=infinity
   true;
@@ -1363,9 +1437,11 @@ check_timeout(Timeout, _Sv, _Fd) when is_integer(Timeout) ->
   %% TODO Constraint: Sv is non_neg_int()
   Timeout >= 0;
 check_timeout(Timeout, _Sv, _Fd) ->
-  exception(error, {invalid_timeout, Timeout}).
+  exception('error', {'invalid_timeout', Timeout}).
   
+%% --------------------------------------------------------
 %% Concatenate a list of bistrings
+%% --------------------------------------------------------
 append_segments(Cs, Ss) ->
   EmptyBin = concolic_symbolic:empty_binary(),
   append_segments(lists:reverse(Cs), <<>>, lists:reverse(Ss), EmptyBin).
@@ -1377,12 +1453,17 @@ append_segments([Cv|Cvs], CAcc, [Sv|Svs], SAcc) ->
   Sbin = concolic_symbolic:append_binary(Sv, SAcc),
   append_segments(Cvs, Cbin, Svs, Sbin).
 
-%% Adjust arguments of a function
-%% New slave node will also get the path to the ebin of the tool
+%% --------------------------------------------------------
+%% Adjust the arguments of a function
+%% --------------------------------------------------------
+
+%% Transfrom all the calls to slave:start/{1,2,3} and slave:start_link/{1,2,3}
+%% to the slave:start/3 calls and slave:start_link/3 calls respectively
+%% A new slave node will be given the path to the ebin of the tool
 adjust_arguments(slave, F, CAs, SAs, Fd) when F =:= 'start'; F =:= 'start_link' ->
   Arity = length(CAs),
   SAs_e = concolic_symbolic:ensure_list(SAs, Arity, Fd),
-  Ebin = "-pa " ++ ?EBIN,
+  Ebin = " -pa " ++ ?EBIN,
   case CAs of
     [Host] ->
       N = atom_to_list(node()),
@@ -1393,17 +1474,20 @@ adjust_arguments(slave, F, CAs, SAs, Fd) when F =:= 'start'; F =:= 'start_link' 
       [SHost, SName] = SAs_e,
       {[Host, Name, Ebin], [SHost, SName, Ebin]};
     [Host, Name, Args] ->
-      %% Also add path to symbolic Args ???
+      %% Also add the path to the symbolic Args ???
       {[Host, Name, Args ++ Ebin], SAs_e};
     _ ->
       {CAs, SAs}
   end;
-%% Other functions will have unaltered arguments
+%% All other functions will have their arguments unaltered
 adjust_arguments(_M, _F, CAs, SAs, _Fd) -> {CAs, SAs}.
 
-%% Logging function
+%% --------------------------------------------------------
+%% Logging function that wraps all the calls
+%% to the proper concolic_encdec logging functions
+%% --------------------------------------------------------
 log('receive', _Fd, _Type, _Info) ->
-  'ok';
+  ok;
 log('case', Fd, 'guard', {Sv, Cv}) ->
   concolic_encdec:log_guard(Fd, Sv, Cv);
 log('case', Fd, M, {V1, V2}) when M =:= 'eq'; M=:= 'neq' ->
