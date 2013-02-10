@@ -10,8 +10,8 @@
 -type result() :: {'ok', node(), concolic:exec_info()}
                 | {'runtime_error', node(), concolic:exec_info()}
                 | {internal_error(), term()}.
--type ret()    :: {'ok', {term(), term()}}       %% Successful Execution
-                | {'error', term()}              %% Runtime Error
+-type ret()    :: {'ok', {term(), term()}}               %% Successful Execution
+                | {'error', term()}                      %% Runtime Error
                 | {'internal_error', internal_error()}.  %% Internal Error
 
 %% ============================================================================
@@ -27,12 +27,11 @@ run(M, F, As) ->
   TraceDir = TmpDir ++ "/" ++  "traces",  %% Set Directory to store traces
 %%  Start = now(),
   Concolic = concolic:init_server(M, F, As, CoreDir, TraceDir),
-  R = receive
-        {'EXIT', Concolic, Why} ->
-          {'internal_concolic_error', node(), Why};
-        {Concolic, Results} ->
-          Results
-      end,
+  R = 
+    receive
+      {'EXIT', Concolic, Why} -> {'internal_concolic_error', node(), Why};
+      {Concolic, Results} -> Results
+    end,
 %%  End  = now(),
 %%  Time = timer:now_diff(End, Start),
 %%  io:format("%% Time elapsed = ~w secs~n", [Time/1000000]),

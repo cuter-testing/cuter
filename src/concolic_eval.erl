@@ -10,6 +10,7 @@
 
 %% type declarations
 -type calltype() :: 'local' | 'external'.
+-type class()    :: 'error' | 'exit' | 'throw'.  %% XXX: import me from somewhere
 -type eval()     :: {'named', {atom(), atom()}}
                   | {'lambda', function()}
                   | {'letrec_func', {atom(), atom(), cerl:c_fun(), function()}}.
@@ -19,7 +20,7 @@
 
 
 %% Wrapper exported function that spawns an interpreter process
-%% that returns the value of MFA to the Concolic Server
+%% which returns the value of an MFA call to the Concolic Server
 -spec i(atom(), atom(), [term()], pid(), pid()) -> pid().
 
 i(M, F, As, CodeServer, TraceServer) ->
@@ -164,7 +165,7 @@ eval({named, {erlang, spawn_opt}}, CAs, SAs, _CallType, CodeServer, TraceServer,
   
 %% Handle '!'/2
 eval({named, {erlang, '!'}}, [_, _] = CAs, SAs, CallType, CodeServer, TraceServer, Fd) ->
-    eval({named, {erlang, send}}, CAs, SAs, CallType, CodeServer, TraceServer, Fd);
+  eval({named, {erlang, send}}, CAs, SAs, CallType, CodeServer, TraceServer, Fd);
 
 %% Handle send/2, send/3
 eval({named, {erlang, send}}, CAs, SAs, _CallType, _CodeServer, TraceServer, Fd) ->
@@ -249,11 +250,9 @@ eval({named, {erlang, exit}}, CAs, SAs, _CallType, _CodeServer, _TraceServer, Fd
       [SExit] = SAs_e,
       Exit = 
         case CExit of
-          normal ->
-            %% TODO Constraint: SExit=normal
-            normal;
-          _ ->
-            zip_one(CExit, SExit)
+          %% TODO Constraint: SExit=normal
+          normal -> normal;
+          _ -> zip_one(CExit, SExit)
         end,
       erlang:exit(Exit);
     [CDest, CExit] ->
@@ -261,14 +260,11 @@ eval({named, {erlang, exit}}, CAs, SAs, _CallType, _CodeServer, _TraceServer, Fd
       %% TODO Constraint CDest=SDest
       Exit = 
         case CExit of
-          normal ->
-            %% TODO Constraint: SExit=normal
-            normal;
-          kill ->
-            %% TODO Constraint: SExit=kill
-            kill;
-          _ ->
-            zip_one(CExit, SExit)
+          %% TODO Constraint: SExit=normal
+          normal -> normal;
+          %% TODO Constraint: SExit=kill
+          kill -> kill;
+          _ -> zip_one(CExit, SExit)
         end,
         R = erlang:exit(CDest, Exit),
         {R, R};
@@ -346,7 +342,6 @@ eval({named, {erlang, apply}}, CAs, SAs, _CallType, CodeServer, TraceServer, Fd)
 eval({named, {M, F}}, CAs_b, SAs_b, CallType, CodeServer, TraceServer, Fd) ->
   {CAs, SAs} = adjust_arguments(M, F, CAs_b, SAs_b, Fd),
   Arity = length(CAs),
-  %%  ok = concolic_encdec:log_term(Fd, {{M, F, Arity}, self()}),
   SAs_e = concolic_symbolic:ensure_list(SAs, Arity, Fd),
   %%  io:format("~n~nCalling ~w:~w/~w~n", [M,F,Arity]),
   %%  io:format("CAs = ~w~n", [CAs]),
@@ -377,7 +372,6 @@ eval({named, {M, F}}, CAs_b, SAs_b, CallType, CodeServer, TraceServer, Fd) ->
   
 %% Handle a Closure
 eval({lambda, Closure}, CAs, SAs, _CallType, _CodeServer, _TraceServer, Fd) ->
-  %% ok = concolic_encdec:log_term(Fd, {closure, self()}),
   SAs_e = concolic_symbolic:ensure_list(SAs, length(CAs), Fd),
   ZAs = zip_args(CAs, SAs_e),
   apply(Closure, ZAs);
@@ -394,7 +388,6 @@ eval({letrec_func, {M, _F, Def, E}}, CAs, SAs, _CallType, CodeServer, TraceServe
 %%--------------------------------------------------------------------
 %% @doc Raises the desired exception.
 %%--------------------------------------------------------------------
--type class() :: 'error' | 'exit' | 'throw'.  %% XXX: import me from somewhere
 -spec exception(class(), term()) -> no_return().
 
 exception(Class, Reason) ->
@@ -408,22 +401,22 @@ exception(Class, Reason) ->
 
 %% c_apply
 eval_expr(M, CodeServer, TraceServer, {c_apply, _Anno, Op, Args}, Cenv, Senv, Fd) ->
-  %% TODO Constraint: OPsv=OPcv
   {OPcv, _OPsv} = eval_expr(M, CodeServer, TraceServer, Op, Cenv, Senv, Fd),
-  Fun = fun(A) -> %% Will create closures where appropriate
-          {CA, SA} = eval_expr(M, CodeServer, TraceServer, A, Cenv, Senv, Fd),
-          case CA of
-            {func, {F, Arity}} -> %% local func (external func is already in make_fun/3 in core erlang)
-              Cl = create_closure(M, F, Arity, CodeServer, TraceServer, local, Fd),
-              {Cl, Cl};
-            {letrec_func, {Mod, F, Arity, Def, E}} -> %% letrec func
-              {CE, SE} = E(),
-              Cl = create_closure(Mod, F, Arity, CodeServer, TraceServer, {letrec_fun, {Def, CE, SE}}, Fd),
-              {Cl, Cl};
-            _ ->
-              {CA, SA}
-          end
-        end,
+  Fun = 
+    fun(A) -> %% Will create closures where appropriate
+      {CA, SA} = eval_expr(M, CodeServer, TraceServer, A, Cenv, Senv, Fd),
+      case CA of
+        {func, {F, Arity}} -> %% local func (external func is already in make_fun/3 in core erlang)
+          Cl = create_closure(M, F, Arity, CodeServer, TraceServer, local, Fd),
+          {Cl, Cl};
+        {letrec_func, {Mod, F, Arity, Def, E}} -> %% letrec func
+          {CE, SE} = E(),
+          Cl = create_closure(Mod, F, Arity, CodeServer, TraceServer, {letrec_fun, {Def, CE, SE}}, Fd),
+          {Cl, Cl};
+        _ ->
+          {CA, SA}
+      end
+    end,
   ZAs = [Fun(A) || A <- Args],
   {CAs, SAs} = lists:unzip(ZAs),
   case OPcv of %% Check eval_expr(..., #c_var{}, ...) output for reference
@@ -457,24 +450,24 @@ eval_expr(M, CodeServer, TraceServer, {c_bitstr, _Anno, Val, Size, Unit, Type, F
 eval_expr(M, CodeServer, TraceServer, {c_call, _Anno, Mod, Name, Args}, Cenv, Senv, Fd) ->
   {Mcv, _Msv} = eval_expr(M, CodeServer, TraceServer, Mod, Cenv, Senv, Fd),
   {Fcv, _Fsv} = eval_expr(M, CodeServer, TraceServer, Name, Cenv, Senv, Fd),
-  Fun = fun(A) -> %% Will create closures where appropriate
-          {CA, SA} = eval_expr(M, CodeServer, TraceServer, A, Cenv, Senv, Fd),
-          case CA of
-            {func, {F, Arity}} -> %% local func (external func is already in make_fun/3 in core erlang)
-              Cl = create_closure(M, F, Arity, CodeServer, TraceServer, local, Fd),
-              {Cl, Cl};
-            {letrec_func, {Mod, F, Arity, Def, E}} -> %% letrec func
-              {CE, SE} = E(),
-              Cl = create_closure(Mod, F, Arity, CodeServer, TraceServer, {letrec_fun, {Def, CE, SE}}, Fd),
-              {Cl, Cl};
-            _ ->
-              {CA, SA}
-          end
-        end,
+  Fun = 
+    fun(A) -> %% Will create closures where appropriate
+      {CA, SA} = eval_expr(M, CodeServer, TraceServer, A, Cenv, Senv, Fd),
+      case CA of
+        {func, {F, Arity}} -> %% local func (external func is already in make_fun/3 in core erlang)
+          Cl = create_closure(M, F, Arity, CodeServer, TraceServer, local, Fd),
+          {Cl, Cl};
+        {letrec_func, {Mod, F, Arity, Def, E}} -> %% letrec func
+          {CE, SE} = E(),
+          Cl = create_closure(Mod, F, Arity, CodeServer, TraceServer, {letrec_fun, {Def, CE, SE}}, Fd),
+          {Cl, Cl};
+        _ ->
+          {CA, SA}
+      end
+    end,
   ZAs = [Fun(A) || A <- Args],
   {CAs, SAs} = lists:unzip(ZAs),
-  %% TODO
-  %% Will make constraints Mcv=Msv and Fcv=Fsv
+  %% TODO Will make constraints Mcv=Msv and Fcv=Fsv
   eval({named, {Mcv, Fcv}}, CAs, SAs, find_call_type(M, Mcv), CodeServer, TraceServer, Fd);
 
 %% c_case
@@ -535,10 +528,10 @@ eval_expr(M, CodeServer, TraceServer, {c_letrec, _Anno, Defs, Body}, Cenv, Senv,
   H = fun(F) -> fun() ->
     lists:foldl(
       fun({Func, Def}, {Ce, Se}) ->
-          LetRec = {letrec_func, {M, Def, F}},
-          NCe = concolic_lib:add_binding(Func#c_var.name, LetRec, Ce),
-          NSe = concolic_lib:add_binding(Func#c_var.name, LetRec, Se),
-          {NCe, NSe}
+        LetRec = {letrec_func, {M, Def, F}},
+        NCe = concolic_lib:add_binding(Func#c_var.name, LetRec, Ce),
+        NSe = concolic_lib:add_binding(Func#c_var.name, LetRec, Se),
+        {NCe, NSe}
       end,
       {Cenv, Senv}, Defs
     )
@@ -563,15 +556,14 @@ eval_expr(M, CodeServer, TraceServer, {c_primop, _Anno, Name, Args}, Cenv, Senv,
     'raise' ->
       [CClass, CReason] = CAs,
       [_SClass, SReason] = SAs,
-      %% TODO
-      %% Will create costraint CClass=SClass
+      %% TODO Will create costraint CClass=SClass
       eval({named, {erlang, CClass}}, [CReason], [SReason], external, CodeServer, TraceServer, Fd);
     'match_fail' ->
       [Cv]= CAs,
       [Sv] = SAs,
       eval({named, {erlang, error}}, [{badmatch, Cv}], [{badmatch, Sv}], external, CodeServer, TraceServer, Fd);
     _ ->
-      exception(error, {not_supported_primop, Primop})
+      exception(error, {'not_supported_primop', Primop})
   end;
 
 %% c_receive

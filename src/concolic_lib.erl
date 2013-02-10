@@ -16,9 +16,7 @@
 
 %% Environments are rather small so orddict is more efficient
 -opaque environment()  :: orddict:orddict().
-%% cerl:var_name() :: integer() | atom() | {atom(), integer()}.
 -type semantic_var()   :: cerl:var_name().
-%% valuelist() is actually a term but this definition is more descriptive
 -type semantic_value() :: concolic_eval:valuelist() | term().
 
 %%====================================================================

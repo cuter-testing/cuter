@@ -89,7 +89,7 @@ log_pid(Fd, Pid) ->
 log_eq(Fd, M, V1, V2) when M =:= 'eq'; M =:= 'neq' ->
   case concolic_symbolic:is_symbolic(V1) orelse concolic_symbolic:is_symbolic(V2) of
     true  -> log_term(Fd, {M, V1, V2});
-    false -> 'ok'
+    false -> ok
   end.
 
 
@@ -107,7 +107,7 @@ log_tuple_size(Fd, M, Tup, Sz) when M =:= 'eq'; M =:= 'neq' ->
   case {concolic_symbolic:is_symbolic(Tup), M} of
     {true, 'eq'}  -> log_term(Fd, {'tuple_size_eq', Tup, Sz});
     {true, 'neq'} -> log_term(Fd, {'tuple_size_neq', Tup, Sz});
-    {false, _} -> 'ok'
+    {false, _} -> ok
   end.
   
 -spec log_type(file:io_device(), 'non_empty_list' | 'not_list' | 'not_tuple', term()) -> 'ok'.
@@ -115,7 +115,7 @@ log_tuple_size(Fd, M, Tup, Sz) when M =:= 'eq'; M =:= 'neq' ->
 log_type(Fd, T, V) when T =:= 'non_empty_list'; T =:= 'not_list'; T =:= 'not_tuple' ->
   case concolic_symbolic:is_symbolic(V) of
     true  -> log_term(Fd, {T, V});
-    false -> 'ok'
+    false -> ok
   end.
   
 %%====================================================================
