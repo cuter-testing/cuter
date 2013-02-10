@@ -4,8 +4,9 @@
 
 -spec test() -> 'ok' | {'error' | term()}.
 
--spec toy_test_() -> term().
 %% Run most of the bencherl tests
+-spec toy_test_() -> term().
+
 toy_test_() ->
   Setup =
     fun() ->
@@ -26,28 +27,32 @@ toy_test_() ->
     end,
   {foreach, Setup, [Inst]}.
   
--spec simple_test_() -> term().
-simple_test_() ->
-  %% Calculate a fibonacci number
-  R_1 = coordinator:run(demo, fib, [4]),
-  T1 = {"Fibonacci", fun() -> ?_assertMatch({'ok', {3, _}}, R_1) end},
-  %% Test selective receive
-  R_2 = coordinator:run(demo,selective_receive,[100]),
-  T2 = {"Selective Receive", fun() -> ?_assertEqual({'ok', {ok, ok}}, R_2) end},
-  [T1, T2].
+%% Calculate a fibonacci number
+-spec calculate_fibonacci_test() -> 'ok'.
+
+calculate_fibonacci_test() ->
+  R = coordinator:run(demo, fib, [10]),
+  ?assertMatch({ok, {55, _}}, R).
+
+%% Test selective receive
+-spec selective_receive_test() -> 'ok'.
+
+selective_receive_test() ->
+  R = coordinator:run(demo,selective_receive,[100]),
+  ?assertEqual({ok, {ok, ok}}, R).
+
+%% Find the minimum element of a list
+-spec lists_minimum_element_test() -> 'ok'.
+
+lists_minimum_element_test() ->
+  R = coordinator:run(demo, min, [[5,1,3,2,7,6,4]]),
+  ?assertMatch({ok, {1, _}}, R).
   
--spec lists_test_() -> term().
-lists_test_() ->
-  %% Find the minimum element of a list
-  Args_1 = [[5,1,3,2,7,6,4]],
-  R_1 = coordinator:run(demo, min, Args_1),
-  {"Minumum element", fun() -> ?_assertMatch({'ok', {1, _}}, R_1) end}.
-  
--spec distributed_test_() -> term().
-distributed_test_() -> 
-  %% Basic communication between nodes
-  L_1 = lists:seq(1,10),
-  R_1 = coordinator:run(demo, distributed_pp, [L_1]),
-  {"Basic communication between nodes", fun() -> ?_assertMatch({'ok', {10, _}}, R_1) end}.
+%% Basic communication between nodes
+-spec basic_node_communication_test() -> 'ok'.
+
+basic_node_communication_test() -> 
+  R = coordinator:run(demo, distributed_pp, [lists:seq(1,10)]),
+  ?assertMatch({ok, {10, _}}, R).
   
 
