@@ -113,7 +113,7 @@ trace_dir({'internal_concolic_error', _Node, _Error}) ->
   [];
 trace_dir({_Status, _Node, Results}) ->
   Ns = orddict:to_list(Results),
-  Rs = lists:map(fun({_N, R}) -> R end, Ns),
+  Rs = [R || {_N, R} <- Ns],
   Logs = proplists:get_all_values('tlogs', lists:flatten(Rs)),
   [proplists:get_value('dir', L) || L <- Logs].
   
@@ -130,7 +130,7 @@ clear_dir(D) ->
         'ok' -> 'ok';
         {error, eexist} ->
           {'ok', L} = file:list_dir(D),
-          LL = lists:map(fun(X) -> D ++ "/" ++ X end, L),
+          LL = [D ++ "/" ++ X || X <- L],
           lists:foreach(fun clear_dir/1, LL),
           file:del_dir(D);
         _ -> 'ok'
