@@ -1166,28 +1166,30 @@ validate_file_descriptor(TraceServer, Pid, Fd) ->
     true  -> Fd;
     false -> concolic_tserver:file_descriptor(TraceServer)
   end.
-  
+
+%% ----------------------------------------------
 %% Encode and Decode Msgs
+%% ----------------------------------------------
   
-%% Encode Msg
+%% Encode a Message
 encode_msg(TraceServer, Dest, CMsg, SMsg) ->
   case concolic_tserver:is_monitored(TraceServer, Dest) of
-    true  ->
-      Msg = {'__conc', zip_one(CMsg, SMsg)},
-      term_to_binary(Msg, [{compressed, 1}]);
-    false ->
-      CMsg
+%%    true  ->
+%%      Msg = {'__conc', zip_one(CMsg, SMsg)},
+%%      term_to_binary(Msg, [{compressed, 1}]);
+    true  -> {'__conc', zip_one(CMsg, SMsg)};
+    false -> CMsg
   end.
 
-%% Decode Msg
-decode_msg(Msg) when is_binary(Msg) ->
-  try binary_to_term(Msg) of
-    {'__conc', ActMsg} -> unzip_msg(ActMsg)
-  catch
-    error:badarg -> unzip_msg(Msg)
-  end;
-decode_msg(Msg) ->
-  unzip_msg(Msg).
+%% Decode a Message
+%%decode_msg(Msg) when is_binary(Msg) ->
+%%  try binary_to_term(Msg) of
+%%    {'__conc', ActMsg} -> unzip_msg(ActMsg)
+%%  catch
+%%    error:badarg -> unzip_msg(Msg)
+%%  end;
+decode_msg({'__conc', Msg}) -> unzip_msg(Msg);
+decode_msg(Msg) -> unzip_msg(Msg).
   
   
 %% Zip and Unzip concrete-semantic values
