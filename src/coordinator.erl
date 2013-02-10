@@ -1,8 +1,8 @@
 -module(coordinator).
 -export([run/3]).
 
-%-define(PRINT_TRACE, ok).
--define(DELETE_TRACE, ok).
+%-define(PRINT_TRACE, ok).  %% Pretty Prints all traces
+-define(DELETE_TRACE, ok).  %% Deletes all traces
 
 -type internal_error() :: 'internal_concolic_error'
                         | 'internal_codeserver_error'
@@ -10,7 +10,7 @@
 -type result() :: {'ok', node(), concolic:exec_info()}
                 | {'runtime_error', node(), concolic:exec_info()}
                 | {internal_error(), term()}.
--type ret()    :: {'ok', {term(), term()}}               %% Successful Execution
+-type ret()    :: {'ok', concolic_eval:result()}         %% Successful Execution
                 | {'error', term()}                      %% Runtime Error
                 | {'internal_error', internal_error()}.  %% Internal Error
 

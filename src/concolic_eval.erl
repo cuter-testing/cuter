@@ -4,24 +4,26 @@
 
 -export([i/5, eval/7, unzip_error/1]).
 
--export_type([valuelist/0]).
+-export_type([result/0, valuelist/0]).
 
 -include_lib("compiler/src/core_parse.hrl").
 
-%% type declarations
 -type calltype() :: 'local' | 'external'.
--type class()    :: 'error' | 'exit' | 'throw'.  %% XXX: import me from somewhere
+-type class()    :: 'error' | 'exit' | 'throw'.
 -type eval()     :: {'named', {atom(), atom()}}
                   | {'lambda', function()}
                   | {'letrec_func', {atom(), atom(), cerl:c_fun(), function()}}.
 -type exported() :: boolean().
+-type result()   :: {term(), term()} | no_return().
 %% Used to represent list of values for Core Erlang interpretation
 -record(valuelist, {values :: [term()], degree :: non_neg_integer()}).
 -opaque valuelist() :: #valuelist{}.
 
-
-%% Wrapper exported function that spawns an interpreter process
-%% which returns the value of an MFA call to the Concolic Server
+%% --------------------------------------------------------
+%% Wrapper exported function that spawns an interpreter 
+%% process which returns the value of an MFA call 
+%% to the Concolic Server
+%% --------------------------------------------------------
 -spec i(atom(), atom(), [term()], pid(), pid()) -> pid().
 
 i(M, F, As, CodeServer, TraceServer) ->
@@ -36,14 +38,12 @@ i(M, F, As, CodeServer, TraceServer) ->
     end,
   erlang:spawn(I).
 
-  
-%% ===============
+%% --------------------------------------------------------
 %% eval
-%% ===============
-
-%% Concrete/Symbolic Evaluation of MFA
--spec eval(eval(), [term()], [term()], calltype(), pid(), pid(), file:io_device()) ->
-  {concolic_lib:semantic_value(), concolic_lib:semantic_value()} | no_return().
+%%
+%% Concrete/Symbolic Evaluation and Logging of an MFA call
+%% --------------------------------------------------------
+-spec eval(eval(), [term()], [term()], calltype(), pid(), pid(), file:io_device()) -> result().
 
 %% Handle spawns so that the spawned process
 %% will be interpreted
@@ -225,7 +225,6 @@ eval({named, {erlang, send_nosuspend}}, CAs, SAs, _CallType, _CodeServer, TraceS
       exception('error', {'undef', {erlang, send_nosuspend, Arity}})
   end;
 
-
 %% Handle functions that raise exceptions
 %% so as to zip the concrete and symbolic reason
 
@@ -272,7 +271,6 @@ eval({named, {erlang, exit}}, CAs, SAs, _CallType, _CodeServer, _TraceServer, Fd
     _ ->
       exception('error', {'undef', {erlang, exit, Arity}})
   end;
-
     
 %% Handle error/1, error/2
 eval({named, {erlang, error}}, CAs, SAs, _CallType, _CodeServer, _TraceServer, Fd) ->
@@ -303,7 +301,7 @@ eval({named, {erlang, raise}}, CAs, SAs, _CallType, _CodeServer, _TraceServer, F
       R = zip_one(CReason, SReason),
       erlang:raise(CClass, R, CStacktrace);
     _ ->
-        exception('error', {'undef', {erlang, raise, Arity}})
+      exception('error', {'undef', {erlang, raise, Arity}})
   end;
 
 %% Handle other important functions
@@ -344,23 +342,16 @@ eval({named, {M, F}}, CAs_b, SAs_b, CallType, CodeServer, TraceServer, Fd) ->
   {CAs, SAs} = adjust_arguments(M, F, CAs_b, SAs_b, Fd),
   Arity = length(CAs),
   SAs_e = concolic_symbolic:ensure_list(SAs, Arity, Fd),
-  %%  io:format("~n~nCalling ~w:~w/~w~n", [M,F,Arity]),
-  %%  io:format("CAs = ~w~n", [CAs]),
-  %%  io:format("SAs = ~w~n", [SAs_e]),
-  case concolic_lib:is_bif(M, F, Arity) of
+  case concolic_lib:is_bif({M, F, Arity}) of  %% Check if MFA is a BIF
     true ->
-      CR = apply(M, F, CAs),
-      SR = concolic_symbolic:mock_bif({M, F, Arity}, SAs_e, CR, Fd),
-      {CR, SR};
+      evaluate_bif({M, F, Arity}, CAs, SAs_e, Fd);
     false ->
       case get_module_db(M, CodeServer) of
         preloaded ->
-          CR = apply(M, F, CAs),
-          SR = concolic_symbolic:mock_bif({M, F, Arity}, SAs_e, CR, Fd),
-          {CR, SR};
+          evaluate_bif({M, F, Arity}, CAs, SAs_e, Fd);
         {ok, MDb} ->
           Key = {M, F, Arity},
-          {Def, Exported} = retrieve_function(Key, MDb),
+          {Def, Exported} = retrieve_function(Key, MDb),  %% Get the MFA Code
           %%  io:format("Def=~n~p~n", [Def]),
           check_exported(Exported, CallType, Key),
           NCenv = concolic_lib:new_environment(),
@@ -385,18 +376,19 @@ eval({letrec_func, {M, _F, Def, E}}, CAs, SAs, _CallType, CodeServer, TraceServe
   NSenv = concolic_lib:bind_parameters(SAs_e, Def#c_fun.vars, Senv),
   eval_expr(M, CodeServer, TraceServer, Def#c_fun.body, NCenv, NSenv, Fd).
   
-  
-%%--------------------------------------------------------------------
+%% --------------------------------------------------------
 %% @doc Raises the desired exception.
-%%--------------------------------------------------------------------
+%% --------------------------------------------------------
 -spec exception(class(), term()) -> no_return().
 
 exception(Class, Reason) ->
   erlang:Class(Reason).
 
-%% ===============
+%% --------------------------------------------------------
 %% eval_expr
-%% ===============
+%%
+%% Evaluates a Core Erlang expression
+%% --------------------------------------------------------
 -spec eval_expr(atom(), pid(), pid(), cerl:cerl(), concolic_lib:environment(), concolic_lib:environment(), file:io_device()) ->
   {concolic_lib:semantic_value(), concolic_lib:semantic_value()}.
 
@@ -654,9 +646,12 @@ eval_expr(_M, _CodeServer, _TraceServer, {c_var, _Anno, Name}, Cenv, Senv, _Fd) 
   {Cval, Sval}.
 
 
-%% ===============
+%% --------------------------------------------------------
 %% find_message_loop
-%% ===============
+%%
+%% Enters a loop waiting for a message that will match.
+%% Wraps calls to run_message_loop to check for timeout.
+%% --------------------------------------------------------
 find_message_loop(M, CodeServer, TraceServer, Clauses, Action, infinity, STimeout, Cenv, Senv, Start, Msgs, Fd) ->
   %% TODO Constraint: STimeout=infinity but will have been made by chek_timeout
   run_message_loop(M, CodeServer, TraceServer, Clauses, Action, infinity, STimeout, Cenv, Senv, Start, Msgs, Fd);
@@ -670,7 +665,11 @@ find_message_loop(M, CodeServer, TraceServer, Clauses, Action, CTimeout, STimeou
       run_message_loop(M, CodeServer, TraceServer, Clauses, Action, CTimeout, STimeout, Cenv, Senv, Start, Msgs, Fd)
   end.
 
-%% Helper function run_message_loop/11
+%% --------------------------------------------------------
+%% run_message_looop
+%%
+%% Implements the actual waiting receive loop
+%% --------------------------------------------------------
 run_message_loop(M, CodeServer, TraceServer, Clauses, Action, CTimeout, STimeout, Cenv, Senv, Start, Msgs, Fd) ->
   erlang:yield(),
   {message_queue_len, CurrMsgs} = erlang:process_info(self(), message_queue_len),
@@ -691,12 +690,11 @@ run_message_loop(M, CodeServer, TraceServer, Clauses, Action, CTimeout, STimeout
       end
   end.
   
-  
 %% --------------------------------------------------------
 %% find_message
 %%
 %% Wraps calls to find_clause when trying to match 
-%% a message
+%% a message against a series of patterns
 %% --------------------------------------------------------
 find_message(_M, _CodeServer, _TraceServer, _Clauses, [], _Cenv, _Senv, _Fd) ->
   false;
@@ -709,7 +707,6 @@ find_message(M, CodeServer, TraceServer, Clauses, [Msg|Mailbox], Cenv, Senv, Fd)
       %% I can log the received Msg here
       {Msg, Body, NCenv, NSenv, Cnt}
   end.
-
 
 %% --------------------------------------------------------
 %% find_clause
@@ -958,8 +955,7 @@ create_closure(M, _F, Arity, CodeServer, TraceServer, {letrec_fun, {Def, Cenv, S
   make_fun(M, Arity, CodeServer, TraceServer, Def#c_fun.vars, Def#c_fun.body, Cenv, Senv, Fd).
 
 %% --------------------------------------------------------
-%% Create closures
-%%
+%% Create closures.
 %% We need to create a closure of the proper arity thus
 %% we cannot pass the arguments in a list.
 %% Instead, the closure is created manually depending on
@@ -1237,6 +1233,16 @@ validate_file_descriptor(TraceServer, Pid, Fd) ->
     true  -> Fd;
     false -> concolic_tserver:file_descriptor(TraceServer)
   end.
+  
+%% --------------------------------------------------------
+%% Evaluates a BIF call
+%% --------------------------------------------------------
+-spec evaluate_bif(mfa(), [term()], [term()], file:io_device()) -> result().
+
+evaluate_bif({M, F, A}, CAs, SAs, Fd) ->
+  CR = apply(M, F, CAs),
+  SR = concolic_symbolic:mock_bif({M, F, A}, SAs, CR, Fd),
+  {CR, SR}.
 
 %% --------------------------------------------------------
 %% Encode and Decode Msgs

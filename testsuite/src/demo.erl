@@ -1,5 +1,6 @@
 -module(demo).
--export([fib/1, min/1, spawn_apply/3, distributed_pp/1]).
+-export([fib/1, min/1, spawn_apply/3, distributed_pp/1,
+         selective_receive/1]).
 -compile({no_auto_import,[min/2]}).
 
 %% Naive Fibonnaci Number implementation
@@ -19,8 +20,31 @@ min([H|T], CurrentMin) ->
     false -> min(T, CurrentMin)
   end.
   
+%% Test selective receive
+%% coordinator:run(demo,selective_receive,[100]).
+selective_receive(N) ->
+  Msg1 = some_important_message,
+  Msg2 = less_important_message,
+  Msg3 = spam,
+  Fun = 
+    fun() ->
+      receive go -> ok end,
+      receive
+        {From, Msg1} -> From ! {self(), high};
+        {From, Msg2} -> From ! {self(), low}
+      end
+    end,
+  [PH, PL] = [spawn(Fun) || _ <- [1,2]],
+  [Pid ! {self(), Msg3} || _ <- lists:seq(1, N), Pid <- [PH, PL]],
+  PH ! {self(), Msg1},
+  PL ! {self(), Msg2},
+  [Pid ! go || Pid <- [PH, PL]],
+  receive {PH, high} -> ok end,
+  receive {PL, low} -> ok end.
+  
 %% Start a slave node to perform a list operation
 %% and receive the result
+%% coordinator:run(demo,distributed_pp,[lists:seq(1,100)]).
 distributed_pp(X) when is_list(X) ->
   net_kernel:start(['master', 'shortnames']),
   {'ok', Host} = inet:gethostname(),

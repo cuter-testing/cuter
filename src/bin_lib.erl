@@ -12,7 +12,7 @@
 -type bsign() :: 'signed' | 'unsigned'.
 -type bsize() :: non_neg_integer() | 'all'.
 -type btype() :: 'binary' | 'float' | 'integer'.
--type bunit() :: pos_integer().
+-type bunit() :: 1..256.
 
 %% Encodes an erlang term to a bitstring with the specified encoding
 -spec make_bitstring(term(), bsize(), bunit(), btype(), [bflag()]) -> bitstring().

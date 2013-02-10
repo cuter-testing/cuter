@@ -30,7 +30,11 @@ toy_test_() ->
 simple_test_() ->
   %% Calculate a fibonacci number
   R_1 = coordinator:run(demo, fib, [4]),
-  {"Fibonacci", fun() -> ?_assertMatch({'ok', {3, _}}, R_1) end}.
+  T1 = {"Fibonacci", fun() -> ?_assertMatch({'ok', {3, _}}, R_1) end},
+  %% Test selective receive
+  R_2 = coordinator:run(demo,selective_receive,[100]),
+  T2 = {"Selective Receive", fun() -> ?_assertEqual({'ok', {ok, ok}}, R_2) end},
+  [T1, T2].
   
 -spec lists_test_() -> term().
 lists_test_() ->

@@ -53,7 +53,7 @@ close_file(F) ->
 
 -ifdef(LOGGING_FLAG).
 log_term(F, Term) ->
-%  erlang:display(Term),
+%%  erlang:display(Term),
   Bin = erlang:term_to_binary(Term, [{compressed, 1}]),
   Sz = erlang:byte_size(Bin),
   ok = file:write(F, [i32_to_list(Sz), Bin]).
@@ -103,6 +103,7 @@ log_guard(Fd, V, Gv) when is_boolean(Gv) ->
   end.
   
 -spec log_tuple_size(file:io_device(), 'eq' | 'neq', term(), integer()) -> 'ok'.
+
 log_tuple_size(Fd, M, Tup, Sz) when M =:= 'eq'; M =:= 'neq' ->
   case {concolic_symbolic:is_symbolic(Tup), M} of
     {true, 'eq'}  -> log_term(Fd, {'tuple_size_eq', Tup, Sz});
@@ -122,7 +123,7 @@ log_type(Fd, T, V) when T =:= 'non_empty_list'; T =:= 'not_list'; T =:= 'not_tup
 %% Internal functions
 %%====================================================================
 
-%% Decode a 4-byte binary ro the corresponding 32-bit number
+%% Decode a 4-byte binary to the corresponding 32-bit number
 -spec bin_to_i32(binary()) -> non_neg_integer().
 
 bin_to_i32(B) when is_binary(B) ->
@@ -140,7 +141,6 @@ i32_to_list(Int) when is_integer(Int) ->
 
 %% Pretty print a logging term
 %% (used in pprint/1 - for debugging purposes only)
--spec pprint_term(term()) -> 'ok'.
 pprint_term(T) ->
  case T of
    {pid, Pid} ->
