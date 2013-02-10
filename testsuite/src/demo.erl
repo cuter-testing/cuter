@@ -1,6 +1,7 @@
 -module(demo).
--export([fib/1, min/1, spawn_apply/3, distributed_pp/1,
-         selective_receive/1]).
+
+-export([fib/1, min/1, distributed_pp/1, selective_receive/1]).
+
 -compile({no_auto_import,[min/2]}).
 
 %% Naive Fibonnaci Number implementation
@@ -51,22 +52,9 @@ distributed_pp(X) when is_list(X) ->
   {'ok', Node} = slave:start(list_to_atom(Host), 'slave'),
   F = fun() ->
     Rv = length(X),
-    receive
-      {From, 'ping'} -> From ! {self(), Rv}
-    end
+    receive {From, 'ping'} -> From ! {self(), Rv} end
   end,
   Fpid = spawn(Node, F),
   Fpid ! {self(), 'ping'},
-  receive
-    {Fpid, Msg} -> Msg
-  end.
-
-%% Spawn a process that returns the result of apply(M,F,As)
-%% coordinator:run(demo,spawn_apply,[erlang,'++',[[1,2,3],[a,b,c]]]).
-spawn_apply(M, F, As) ->
-  Parent = self(),
-  P = spawn(fun() -> Parent ! {self(), erlang:apply(M, F, As)} end),
-  receive
-    {P, Value} -> Value
-  end.
+  receive {Fpid, Msg} -> Msg end.
 
