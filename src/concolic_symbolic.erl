@@ -3,18 +3,16 @@
 -module(concolic_symbolic).
 
 %% exports appear alphabetically
--export([abstract/1, append_binary/2, empty_binary/0, ensure_list/3, hd/2,
+-export([abstract/1, append_binary/2, empty_binary/0, ensure_list/4, hd/3,
          make_bitstring/5, match_bitstring_const/2, match_bitstring_var/2,
-         mock_bif/4, tl/2, tuple_to_list/3, is_symbolic/1]).
+         mock_bif/4, tl/3, tuple_to_list/4, is_symbolic/1]).
 
 -export_type([mapping/0, sbitstring/0, symbolic/0]).
 
 %% Macros for code abstractions
--define(UNDEF, '_undefined').
 -define(SYMBOLIC_PREFIX, '__s').
 -define(SYMBOLIC_VAR, '__symbvar').
 
-%-type bif() :: {atom(), atom(), integer()}.
 -type sbitstring() :: {'bitstr', [term()]}.
 -type encoding()   :: {bin_lib:bsize(), bin_lib:bunit(), bin_lib:btype(), [bin_lib:bflag()]}.
 -type mapping()    :: {atom(), term()}.
@@ -78,9 +76,6 @@ mock_bif({erlang, unregister, 1}, _Args, true, _Fd) -> true;
 mock_bif({erlang, yield, 0}, _Args, true, _Fd) -> true;
 %% BIFs with arity 0 return the concrete result
 mock_bif({_M, _F, 0}, _Args, Cv, _Fd) -> Cv;
-%% The concrete value will be ?UNDEF if mock_bif is called
-%% from a function of concolic_symbolic
-mock_bif(BIF, Args, ?UNDEF, Fd) -> abstract_bif_call(BIF, Args, Fd);
 %% Symbolic abstraction of a BIF
 mock_bif(BIF, Args, Cv, Fd) ->  
   case lists:any(fun is_symbolic/1, Args) of
@@ -141,69 +136,69 @@ add_symbolic_var(S, Fd) ->
   SVar.
   
 %% ------------------------------------------------------------------------
-%% tuple_to_list/2
+%% tuple_to_list
 %% To create a list of N elements from a symbolic term
 %% that represents a tuple (N is user defined)
 %% ------------------------------------------------------------------------
--spec tuple_to_list(term(), non_neg_integer(), file:io_device()) -> [symbolic() | term()].
-tuple_to_list(S, N, Fd) when is_tuple(S) ->
+-spec tuple_to_list(term(), non_neg_integer(), term(), file:io_device()) -> [symbolic() | term()].
+tuple_to_list(S, N, Cv, Fd) when is_tuple(S) ->
   case is_symbolic(S) of
     true ->
-      break_term('tuple', S, N, Fd);
+      break_term('tuple', S, N, Cv, Fd);
     false ->
       case erlang:size(S) =:= N of
         true  -> erlang:tuple_to_list(S);
-        false -> break_term('tuple', S, N, Fd)
+        false -> break_term('tuple', S, N, Cv, Fd)
       end
   end;
-tuple_to_list(S, N, Fd) ->
-  break_term('tuple', S, N, Fd).
+tuple_to_list(S, N, Cv, Fd) ->
+  break_term('tuple', S, N, Cv, Fd).
 
 %% ------------------------------------------------------------------------
-%% hd/1
+%% hd
 %% Get the head of a symbolic term that represents a list
 %% ------------------------------------------------------------------------
--spec hd(term(), file:io_device()) -> term().
+-spec hd(term(), term(), file:io_device()) -> term().
   
-hd(S, _Fd) when is_list(S) ->
+hd(S, _Cv, _Fd) when is_list(S) ->
   erlang:hd(S);
-hd(S, Fd) ->
-  mock_bif({erlang, hd, 1}, [S], ?UNDEF, Fd).
+hd(S, Cv, Fd) ->
+  mock_bif({erlang, hd, 1}, [S], Cv, Fd).
 
 %% ------------------------------------------------------------------------
-%% tl/1
+%% tl
 %% Get the tail of a symbolic term that represents a list
 %% ------------------------------------------------------------------------
--spec tl(term(), file:io_device()) -> term().
+-spec tl(term(), term(), file:io_device()) -> term().
   
-tl(S, _Fd) when is_list(S) ->
+tl(S, _Cv, _Fd) when is_list(S) ->
   erlang:tl(S);
-tl(S, Fd) ->
-  mock_bif({erlang, tl, 1}, [S], ?UNDEF, Fd).
+tl(S, Cv, Fd) ->
+  mock_bif({erlang, tl, 1}, [S], Cv, Fd).
   
 %% ------------------------------------------------------------------------
-%% ensure_list/2
+%% ensure_list
 %% Ensures that a symbolic term is a list of N elements
 %% (N is user defined)
 %% ------------------------------------------------------------------------
--spec ensure_list(term(), pos_integer(), file:io_device()) -> [term() | symbolic()].
+-spec ensure_list(term(), pos_integer(), term(), file:io_device()) -> [term() | symbolic()].
   
-ensure_list(S, N, Fd) when is_list(S) ->
+ensure_list(S, N, Cv, Fd) when is_list(S) ->
   case length(S) of
     N -> S;
-    _ -> break_term('list', S, N, Fd)
+    _ -> break_term('list', S, N, Cv, Fd)
   end;
-ensure_list(S, N, Fd) ->
-  break_term('list', S, N, Fd).
+ensure_list(S, N, Cv, Fd) ->
+  break_term('list', S, N, Cv, Fd).
   
 %% ------------------------------------------------------------------------
-%% break_term/2
+%% break_term
 %% Creates a list of N elements from a symbolic term that represents
 %% a list or a tuple (N is user defined)
 %% ------------------------------------------------------------------------
--spec break_term('tuple' | 'list', term(), pos_integer(), file:io_device()) -> [symbolic()].
+-spec break_term('tuple' | 'list', term(), pos_integer(), term(), file:io_device()) -> [symbolic()].
 
-break_term(M, S, N, Fd) when M =:= 'tuple'; M =:= 'list'->
+break_term(M, S, N, Cv, Fd) when M =:= 'tuple'; M =:= 'list'->
   BIF =
     case M of
       'tuple' -> {erlang, element, 2};
@@ -214,7 +209,7 @@ break_term(M, S, N, Fd) when M =:= 'tuple'; M =:= 'list'->
       true  -> S;
       false -> add_symbolic_var(S, Fd)
     end,  
-  [mock_bif(BIF, [X, SV], ?UNDEF, Fd) || X <- lists:seq(1, N)].
+  [mock_bif(BIF, [X, SV], Cv, Fd) || X <- lists:seq(1, N)].
   
 %% ========================
 %% for use in binaries
