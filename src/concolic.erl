@@ -169,7 +169,7 @@ handle_call({int_return, Mapping, Return}, {From, _FromTag}, State) ->
       Node = node(FromPid),
       List = [{result, Return}, {mapping, Mapping}],
       NRes = orddict:append_list(Node, List, Res),
-      {reply, ok, State#state{results=NRes, int=ok}};
+      {reply, ok, State#state{results = NRes, int = ok}};
     false ->
       {reply, proc_mismatch, State}
   end;
@@ -180,12 +180,12 @@ handle_call({error_report, Who, Error}, {From, _FromTag}, State) ->
   CPids = State#state.cpids,
   TPids = State#state.tpids,
   Res = State#state.results,
-  {Node, From} = lists:keyfind(From, 2, TPids),  %% Process will never be registered
+  {Node, From} = NF = lists:keyfind(From, 2, TPids),  %% Process will never be registered
   %% Store Runtime Error's Info
   NRes = orddict:append(Node, {runtime_error, {Node, Who, Error}}, Res),
   %% Shutdown execution tree
-  force_terminate(CPids, TPids -- [{Node, From}]),
-  {reply, ok, State#state{results=NRes, int=ok, error={runtime, Node}}};
+  force_terminate(CPids, TPids -- [NF]),
+  {reply, ok, State#state{results = NRes, int = ok, error = {runtime, Node}}};
 %% Handle a request for the servers of a specific node
 %% Call Request : {node_servers, Node}
 %% Reply : Servers | error
@@ -201,35 +201,35 @@ handle_call({node_servers, Node}, _From, State) ->
     false ->
       %% Spawn servers on Node
       case remote_spawn_servers(Node, CoreDir, TraceDir, self()) of
-        {ok, {CodeServer, TraceServer}} ->
+        {ok, {CodeServer, TraceServer} = Servers} ->
           NCPids = [{Node, CodeServer}|CPids],
           NTPids = [{Node, TraceServer}|TPids],
-          {reply, {CodeServer, TraceServer}, State#state{cpids=NCPids, tpids=NTPids}};
+          {reply, Servers, State#state{cpids = NCPids, tpids = NTPids}};
         error ->
           %% Error while spawning servers so shutdown processes and
           %% terminate immediately with internal error
           force_terminate(CPids, TPids),
-          {stop, error, normal, State#state{error={internal, init_servers}}}
+          {stop, error, normal, State#state{error = {internal, init_servers}}}
       end
   end;
 %% Store the logs of a CodeServer
 %% Call Request : {clogs, Logs}
 %% Reply : ok
-handle_call({clogs, Logs}, {From, _FromTag}, State) ->
+handle_call({clogs, _Logs} = Clogs, {From, _FromTag}, State) ->
   CPids = State#state.cpids,
   Res = State#state.results,
   {Node, From} = lists:keyfind(From, 2, CPids),  %% Process will never be registered
-  NRes = orddict:append(Node, {clogs, Logs}, Res),
-  {reply, ok, State#state{results=NRes}};
+  NRes = orddict:append(Node, Clogs, Res),
+  {reply, ok, State#state{results = NRes}};
 %% Store the logs of a TraceServer
 %% Call Request : {tlogs, Logs}
 %% Reply : ok
-handle_call({tlogs, Logs}, {From, _FromTag}, State) ->
+handle_call({tlogs, _Logs} = Tlogs, {From, _FromTag}, State) ->
   TPids = State#state.tpids,
   Res = State#state.results,
   {Node, From} = lists:keyfind(From, 2, TPids),  %% Process will never be registered
-  NRes = orddict:append(Node, {tlogs, Logs}, Res),
-  {reply, ok, State#state{results=NRes}}.
+  NRes = orddict:append(Node, Tlogs, Res),
+  {reply, ok, State#state{results = NRes}}.
 
 %% ------------------------------------------------------------------
 %% gen_server callback : handle_cast/2
