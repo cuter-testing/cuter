@@ -141,18 +141,12 @@ add_symbolic_var(S, Fd) ->
 %% that represents a tuple (N is user defined)
 %% ------------------------------------------------------------------------
 -spec tuple_to_list(term(), non_neg_integer(), term(), file:io_device()) -> [symbolic() | term()].
-tuple_to_list(S, N, Cv, Fd) when is_tuple(S) ->
-  case is_symbolic(S) of
-    true ->
-      break_term('tuple', S, N, Cv, Fd);
-    false ->
-      case erlang:size(S) =:= N of
-        true  -> erlang:tuple_to_list(S);
-        false -> break_term('tuple', S, N, Cv, Fd)
-      end
-  end;
+  
 tuple_to_list(S, N, Cv, Fd) ->
-  break_term('tuple', S, N, Cv, Fd).
+  case is_symbolic(S) of
+    true  -> break_term('tuple', S, N, Cv, Fd);
+    false -> erlang:tuple_to_list(S)
+  end.
 
 %% ------------------------------------------------------------------------
 %% hd
@@ -183,13 +177,11 @@ tl(S, Cv, Fd) ->
 %% ------------------------------------------------------------------------
 -spec ensure_list(term(), pos_integer(), term(), file:io_device()) -> [term() | symbolic()].
   
-ensure_list(S, N, Cv, Fd) when is_list(S) ->
-  case length(S) of
-    N -> S;
-    _ -> break_term('list', S, N, Cv, Fd)
-  end;
 ensure_list(S, N, Cv, Fd) ->
-  break_term('list', S, N, Cv, Fd).
+  case is_symbolic(S) of
+    true  -> break_term('list', S, N, Cv, Fd);
+    false -> S
+  end.
   
 %% ------------------------------------------------------------------------
 %% break_term
