@@ -146,6 +146,7 @@ store_module_funs(M, AST, Db) ->
 
 store_fun(Exps, M, {Fun, Def}, Db) ->
   {FunName, Arity} = Fun#c_var.name,
-  Exported = lists:member({M, FunName, Arity}, Exps),
-  true = ets:insert(Db, {{M, FunName, Arity}, {Def, Exported}}),
+  MFA = {M, FunName, Arity},
+  Exported = lists:member(MFA, Exps),
+  true = ets:insert(Db, {MFA, {Def, Exported}}),
   ok.
