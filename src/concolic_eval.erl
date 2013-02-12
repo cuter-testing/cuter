@@ -14,7 +14,7 @@
                   | {'lambda', function()}
                   | {'letrec_func', {atom(), atom(), cerl:c_fun(), function()}}.
 -type exported() :: boolean().
--type result()   :: {term(), term()} | no_return().
+-type result()   :: {term(), term()}.
 %% Used to represent list of values for Core Erlang interpretation
 -record(valuelist, {values :: [term()], degree :: non_neg_integer()}).
 -opaque valuelist() :: #valuelist{}.
@@ -110,9 +110,9 @@ eval({named, {erlang, spawn_monitor}}, CAs, SAs, _CallType, CodeServer, TraceSer
         exception('error', {'undef', {erlang, spawn_monitor, Arity}})
     end,
   Child = register_and_apply(TraceServer, self(), EvalArgs),
-  {ChildPid, ChildRef} = erlang:spawn_monitor(Child),
+  {ChildPid, _ChildRef} = CC = erlang:spawn_monitor(Child),
   receive
-    {ChildPid, registered} -> {{ChildPid, ChildRef}, {ChildPid, ChildRef}}
+    {ChildPid, registered} -> {CC, CC}
   end;
 
 %% Handle spawn_opt/2, spawn_opt/3, spawn_opt/4, spawn_opt/5
@@ -342,18 +342,18 @@ eval({named, {M, F}}, CAs_b, SAs_b, CallType, CodeServer, TraceServer, Fd) ->
   {CAs, SAs} = adjust_arguments(M, F, CAs_b, SAs_b, Fd),
   Arity = length(CAs),
   SAs_e = concolic_symbolic:ensure_list(SAs, Arity, CAs, Fd),
-  case concolic_lib:is_bif({M, F, Arity}) of  %% Check if MFA is a BIF
+  MFA = {M, F, Arity},
+  case concolic_lib:is_bif(MFA) of  %% Check if MFA is a BIF
     true ->
-      evaluate_bif({M, F, Arity}, CAs, SAs_e, Fd);
+      evaluate_bif(MFA, CAs, SAs_e, Fd);
     false ->
       case get_module_db(M, CodeServer) of
         preloaded ->
-          evaluate_bif({M, F, Arity}, CAs, SAs_e, Fd);
+          evaluate_bif(MFA, CAs, SAs_e, Fd);
         {ok, MDb} ->
-          Key = {M, F, Arity},
-          {Def, Exported} = retrieve_function(Key, MDb),  %% Get the MFA Code
+          {Def, Exported} = retrieve_function(MFA, MDb),  %% Get the MFA Code
           %%  io:format("Def=~n~p~n", [Def]),
-          check_exported(Exported, CallType, Key),
+          check_exported(Exported, CallType, MFA),
           NCenv = concolic_lib:new_environment(),
           NSenv = concolic_lib:new_environment(),
           Cenv = concolic_lib:bind_parameters(CAs, Def#c_fun.vars, NCenv),
@@ -635,8 +635,8 @@ eval_expr(_M, _CodeServer, _TraceServer, {c_var, _Anno, Name}, Cenv, Senv, _Fd)
         R = {letrec_func, {Mod, Fun, Arity, Def, E}},
         {R, R};
       error -> %% either local in module or external
-        {Fun, Arity} = Name,
-        R = {func, {Fun, Arity}},
+        {_Fun, _Arity} = Name,
+        R = {func, Name},
         {R, R}
     end;
 eval_expr(_M, _CodeServer, _TraceServer, {c_var, _Anno, Name}, Cenv, Senv, _Fd) ->
@@ -728,8 +728,8 @@ find_clause(M, Mode, CodeServer, TraceServer, [Cl|Cls], Cv, Sv, Cenv, Senv, Fd, 
   case Match of
     false ->
       find_clause(M, Mode, CodeServer, TraceServer, Cls, Cv, Sv, Cenv, Senv, Fd, Cnt+1);
-    {true, {Body, NCenv, NSenv, Cnt}} ->
-      {Body, NCenv, NSenv, Cnt}
+    {true, {_Body, _NCenv, _NSenv, Cnt} = MatchClause} ->
+      MatchClause
   end.
   
 %% --------------------------------------------------------
@@ -888,7 +888,7 @@ bit_pattern_match(_BitInfo, _Mode, _TraceServer, [], <<>>, _Sv, CMaps, SMaps, _F
   %% TODO Constraint: Sv = <<>>
   {true, {CMaps, SMaps}};
 
-bit_pattern_match({M, CodeServer, Cenv, Senv}, Mode, TraceServer, [{c_bitstr, _Anno, Val, Size, Unit, Type, Flags} | Bs], Cv, Sv, CMaps, SMaps, Fd) ->
+bit_pattern_match({M, CodeServer, Cenv, Senv} = BitInfo, Mode, TraceServer, [{c_bitstr, _Anno, Val, Size, Unit, Type, Flags} | Bs], Cv, Sv, CMaps, SMaps, Fd) ->
   case Val of
     {c_literal, _AnnoL, LitVal} ->
       {CSize, SSize} = eval_expr(M, CodeServer, TraceServer, Size, Cenv, Senv, Fd),
@@ -900,7 +900,7 @@ bit_pattern_match({M, CodeServer, Cenv, Senv}, Mode, TraceServer, [{c_bitstr, _A
           SLit = concolic_symbolic:make_bitstring(LitVal, SSize, SUnit, SType, SFlags),
           %% TODO Constraint: SLit matched Sv
           SRest = concolic_symbolic:match_bitstring_const(SLit, Sv),
-          bit_pattern_match({M, CodeServer, Cenv, Senv}, Mode, TraceServer, Bs, CRest, SRest, CMaps, SMaps, Fd)
+          bit_pattern_match(BitInfo, Mode, TraceServer, Bs, CRest, SRest, CMaps, SMaps, Fd)
       catch
         error:_E ->
           %% TODO Constraint: <<LitVal:CSize/CType-CFlags-unit:CUnit>> didn't match Sv
@@ -1239,9 +1239,9 @@ validate_file_descriptor(TraceServer, Pid, Fd) ->
 %% --------------------------------------------------------
 -spec evaluate_bif(mfa(), [term()], [term()], file:io_device()) -> result().
 
-evaluate_bif({M, F, A}, CAs, SAs, Fd) ->
+evaluate_bif({M, F, _A} = MFA, CAs, SAs, Fd) ->
   CR = apply(M, F, CAs),
-  SR = concolic_symbolic:mock_bif({M, F, A}, SAs, CR, Fd),
+  SR = concolic_symbolic:mock_bif(MFA, SAs, CR, Fd),
   {CR, SR}.
 
 %% --------------------------------------------------------
@@ -1342,16 +1342,17 @@ register_and_apply(TraceServer, Parent, Args) ->
 %% Optimization : For caching purposes, the MDb is stored
 %% in the process dictionary for subsequent lookups
 %% --------------------------------------------------------
--spec get_module_db(atom(), pid()) -> {'ok', ets:tab()} | 'preloaded' | no_return().
+-spec get_module_db(atom(), pid()) -> {'ok', ets:tab()} | 'preloaded'.
 
 get_module_db(M, CodeServer) ->
-  case get({'__conc', M}) of
+  What = {'__conc', M},
+  case get(What) of
     undefined ->
       case concolic_cserver:load(CodeServer, M) of
         %% Module Code loaded
-        {ok, MDb} -> 
-          put({'__conc', M}, MDb),
-          {ok, MDb};
+        {ok, MDb} = Ok -> 
+          put(What, MDb),
+          Ok;
         %% Preloaded Module
         preloaded ->
           preloaded;
@@ -1376,16 +1377,17 @@ get_module_db(M, CodeServer) ->
 %% definition is stored in the process dictionary for 
 %% subsequent lookups
 %% --------------------------------------------------------
--spec retrieve_function(mfa(), ets:tab()) -> {cerl:c_fun(), boolean()} | no_return().
+-spec retrieve_function(mfa(), ets:tab()) -> {cerl:c_fun(), boolean()}.
 
 retrieve_function(FuncKey, ModDb) ->
-  case get({'__conc', FuncKey}) of
+  What = {'__conc', FuncKey},
+  case get(What) of
     undefined ->
       case ets:lookup(ModDb, FuncKey) of
         [] ->
           exception('error', {'undef', FuncKey});
         [{FuncKey, Val}] ->
-          put({'__conc', FuncKey}, Val),
+          put(What, Val),
           Val
       end;
     Val ->
@@ -1396,7 +1398,7 @@ retrieve_function(FuncKey, ModDb) ->
 %% Ensures compatibility between the type of the call
 %% and the exported status of the MFA
 %% --------------------------------------------------------
--spec check_exported(exported(), calltype(), mfa()) -> 'ok' | no_return().
+-spec check_exported(exported(), calltype(), mfa()) -> 'ok'.
 
 check_exported(true, _CallType, _MFA) -> ok;
 check_exported(false, local, _MFA)    -> ok;
