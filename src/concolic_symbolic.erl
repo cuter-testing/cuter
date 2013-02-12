@@ -76,7 +76,7 @@ mock_bif({erlang, unregister, 1}, _Args, true, _Fd) -> true;
 mock_bif({erlang, yield, 0}, _Args, true, _Fd) -> true;
 %% BIFs with arity 0 return the concrete result
 mock_bif({_M, _F, 0}, _Args, Cv, _Fd) -> Cv;
-%% Symbolic abstraction of a BIF
+%% Symbolic execution of a BIF
 mock_bif(BIF, Args, Cv, Fd) ->  
   case lists:any(fun is_symbolic/1, Args) of
     true  -> abstract_bif_call(BIF, Args, Fd);
@@ -101,8 +101,8 @@ bif_to_atom({M, F, A}) when is_atom(M), is_atom(F), is_integer(A) ->
   X = atom_to_list(M) ++ ":" ++ atom_to_list(F) ++ "/" ++ integer_to_list(A),
   list_to_atom(X).
   
-%% Substiture all the same terms in the Args of a bif call
-%% so as to manually preserver sharing
+%% Substitute all the same terms in the Args of a bif call
+%% so as to manually preserve sharing
 -spec add_vars([{integer(), term()}], orddict:orddict(), file:io_device()) -> [term()].
 
 add_vars([], Dict, _Fd) ->
@@ -110,6 +110,7 @@ add_vars([], Dict, _Fd) ->
   {_Ns, Args} = lists:unzip(L),
   Args;
 add_vars([{N, A}|As], Dict, Fd) ->
+  %% Find the same terms
   Same = lists:filter(fun({_I, Arg}) -> erts_debug:same(A, Arg) end, As),
   case Same of
     [] ->
@@ -118,6 +119,7 @@ add_vars([{N, A}|As], Dict, Fd) ->
       case is_symbolic_var(A) of
         true -> 
           add_vars(As -- Same, Dict, Fd);
+        %% Substitute if the term is not a symbolic variable
         false ->
           SVar = add_symbolic_var(A, Fd),
           NDict = 
