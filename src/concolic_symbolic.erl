@@ -140,7 +140,7 @@ add_symbolic_var(S, Fd) ->
 %% To create a list of N elements from a symbolic term
 %% that represents a tuple (N is user defined)
 %% ------------------------------------------------------------------------
--spec tuple_to_list(term(), non_neg_integer(), term(), file:io_device()) -> [symbolic() | term()].
+-spec tuple_to_list(symbolic() | tuple(), non_neg_integer(), [term()], file:io_device()) -> [symbolic() | term()].
   
 tuple_to_list(S, N, Cv, Fd) ->
   case is_symbolic(S) of
@@ -152,7 +152,7 @@ tuple_to_list(S, N, Cv, Fd) ->
 %% hd
 %% Get the head of a symbolic term that represents a list
 %% ------------------------------------------------------------------------
--spec hd(term(), term(), file:io_device()) -> term().
+-spec hd(symbolic() | [term()], term(), file:io_device()) -> term().
   
 hd(S, _Cv, _Fd) when is_list(S) ->
   erlang:hd(S);
@@ -163,7 +163,7 @@ hd(S, Cv, Fd) ->
 %% tl
 %% Get the tail of a symbolic term that represents a list
 %% ------------------------------------------------------------------------
--spec tl(term(), term(), file:io_device()) -> term().
+-spec tl(symbolic() | [term()], term(), file:io_device()) -> term().
   
 tl(S, _Cv, _Fd) when is_list(S) ->
   erlang:tl(S);
@@ -175,7 +175,7 @@ tl(S, Cv, Fd) ->
 %% Ensures that a symbolic term is a list of N elements
 %% (N is user defined)
 %% ------------------------------------------------------------------------
--spec ensure_list(term(), pos_integer(), term(), file:io_device()) -> [term() | symbolic()].
+-spec ensure_list(symbolic() | [term()], pos_integer(), term(), file:io_device()) -> [term() | symbolic()].
   
 ensure_list(S, N, Cv, Fd) ->
   case is_symbolic(S) of
@@ -188,7 +188,7 @@ ensure_list(S, N, Cv, Fd) ->
 %% Creates a list of N elements from a symbolic term that represents
 %% a list or a tuple (N is user defined)
 %% ------------------------------------------------------------------------
--spec break_term('tuple' | 'list', term(), pos_integer(), term(), file:io_device()) -> [symbolic()].
+-spec break_term('tuple' | 'list', symbolic(), pos_integer(), term(), file:io_device()) -> [symbolic()].
 
 break_term(M, S, N, Cv, Fd) when M =:= 'tuple'; M =:= 'list'->
   BIF =
