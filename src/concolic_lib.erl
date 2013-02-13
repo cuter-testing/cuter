@@ -93,8 +93,10 @@ get_endianess([_Fl | Fls]) -> get_endianess(Fls).
 %% Module erlang
 is_bif({erlang, _F, _A}) -> true;
 %% Module beam_asm 
-%% TODO Not BIF but having probs with some primops
+%% XXX Not BIF but with unsupported primops
 is_bif({beam_asm, _F, _A}) -> true;
+%% XXX Not BIF but with unsupported primops
+is_bif({beam_lib, _F, _A}) -> true;
 %% Module binary
 is_bif({binary, compile_pattern, 1}) -> true;
 is_bif({binary, match, 2}) -> true;
@@ -117,6 +119,9 @@ is_bif({binary, copy, 2}) -> true;
 is_bif({binary, referenced_byte_size, 1}) -> true;
 is_bif({binary, decode_unsigned, 1}) -> true;
 is_bif({binary, decode_unsigned, 2}) -> true;
+%% Module epp
+%% XXX Not BIF but with unsupported primops
+is_bif({epp, _F, _A}) -> true;
 % Module ets
 is_bif({ets, all, 0}) -> true;
 is_bif({ets, new, 2}) -> true;
