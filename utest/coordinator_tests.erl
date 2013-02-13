@@ -52,6 +52,7 @@ lists_minimum_element_test() ->
 -spec basic_node_communication_test() -> 'ok'.
 
 basic_node_communication_test() -> 
+  [] = os:cmd("epmd -daemon"),
   R = coordinator:run(demo, distributed_pp, [lists:seq(1,10)]),
   ?assertMatch({ok, {10, _}}, R).
   
