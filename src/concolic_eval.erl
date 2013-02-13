@@ -8,6 +8,8 @@
 
 -include_lib("compiler/src/core_parse.hrl").
 
+-define(FUNCTION_PREFIX, '__func').
+
 -type calltype() :: 'local' | 'external'.
 -type class()    :: 'error' | 'exit' | 'throw'.
 -type eval()     :: {'named', {atom(), atom()}}
@@ -399,7 +401,7 @@ eval_expr(M, CodeServer, TraceServer, {c_apply, _Anno, Op, Args}, Cenv, Senv, Fd
     fun(A) -> %% Will create closures where appropriate
       {CA, SA} = eval_expr(M, CodeServer, TraceServer, A, Cenv, Senv, Fd),
       case CA of
-        {func, {F, Arity}} -> %% local func (external func is already in make_fun/3 in core erlang)
+        {?FUNCTION_PREFIX, {F, Arity}} -> %% local func (external func is already in make_fun/3 in core erlang)
           Cl = create_closure(M, F, Arity, CodeServer, TraceServer, local, Fd),
           {Cl, Cl};
         {letrec_func, {Mod, F, Arity, Def, E}} -> %% letrec func
@@ -413,7 +415,7 @@ eval_expr(M, CodeServer, TraceServer, {c_apply, _Anno, Op, Args}, Cenv, Senv, Fd
   ZAs = [Fun(A) || A <- Args],
   {CAs, SAs} = lists:unzip(ZAs),
   case OPcv of %% Check eval_expr(..., #c_var{}, ...) output for reference
-    {func, {Func, _Arity}} ->
+    {?FUNCTION_PREFIX, {Func, _Arity}} ->
       eval({named, {M, Func}}, CAs, SAs, local, CodeServer, TraceServer, Fd);
     {letrec_func, {Mod, Func, _Arity, Def, E}} ->
       eval({letrec_func, {Mod, Func, Def, E}}, CAs, SAs, local, CodeServer, TraceServer, Fd);
@@ -447,7 +449,7 @@ eval_expr(M, CodeServer, TraceServer, {c_call, _Anno, Mod, Name, Args}, Cenv, Se
     fun(A) -> %% Will create closures where appropriate
       {CA, SA} = eval_expr(M, CodeServer, TraceServer, A, Cenv, Senv, Fd),
       case CA of
-        {func, {F, Arity}} -> %% local func (external func is already in make_fun/3 in core erlang)
+        {?FUNCTION_PREFIX, {F, Arity}} -> %% local func (external func is already in make_fun/3 in core erlang)
           Cl = create_closure(M, F, Arity, CodeServer, TraceServer, local, Fd),
           {Cl, Cl};
         {letrec_func, {Mod, F, Arity, Def, E}} -> %% letrec func
@@ -636,7 +638,7 @@ eval_expr(_M, _CodeServer, _TraceServer, {c_var, _Anno, Name}, Cenv, Senv, _Fd)
         {R, R};
       error -> %% either local in module or external
         {_Fun, _Arity} = Name,
-        R = {func, Name},
+        R = {?FUNCTION_PREFIX, Name},
         {R, R}
     end;
 eval_expr(_M, _CodeServer, _TraceServer, {c_var, _Anno, Name}, Cenv, Senv, _Fd) ->
@@ -747,13 +749,14 @@ match_clause(M, Mode, CodeServer, TraceServer, {c_clause, _Anno, Pats, Guard, Bo
       case Degree of
         1 ->
           Cs = [Cv],
-          Ss = [Sv];
+          S = [Sv];
         _ ->
           {valuelist, Cs, Degree} = Cv,
-          {valuelist, Ss, Degree} = Sv
+          {valuelist, S, Degree} = Sv
       end,
       %% BitInfo is needed for parameterized bit-syntax patterns
       BitInfo = {M, CodeServer, Cenv, Senv},
+      Ss = concolic_symbolic:ensure_list(S, length(Cs), Cs, Fd),
       Match = pattern_match_all(BitInfo, Mode, TraceServer, Pats, Cs, Ss, Fd),
       case Match of
         false ->
@@ -884,9 +887,15 @@ pattern_match(BitInfo, Mode, TraceServer, {c_binary, _Anno, Segments}, Cv, Sv, C
 %% bit_pattern_match
 %% TODO Needs some code cleanup
 %% ===============
-bit_pattern_match(_BitInfo, _Mode, _TraceServer, [], <<>>, _Sv, CMaps, SMaps, _Fd) ->
-  %% TODO Constraint: Sv = <<>>
-  {true, {CMaps, SMaps}};
+bit_pattern_match(_BitInfo, _Mode, _TraceServer, [], Cv, _Sv, CMaps, SMaps, _Fd) ->
+  case Cv =:= <<>> of
+    true ->
+      %% TODO Constraint: Sv =:= <<>>
+      {true, {CMaps, SMaps}};
+    false ->
+      %% TODO Constraint: Sv =/= <<>>
+      false
+  end;
 
 bit_pattern_match({M, CodeServer, Cenv, Senv} = BitInfo, Mode, TraceServer, [{c_bitstr, _Anno, Val, Size, Unit, Type, Flags} | Bs], Cv, Sv, CMaps, SMaps, Fd) ->
   case Val of
@@ -933,7 +942,6 @@ bit_pattern_match({M, CodeServer, Cenv, Senv} = BitInfo, Mode, TraceServer, [{c_
           false
       end
   end.
-
 
 %% --------------------------------------------------------
 %% Wrap calls to make_fun/9 when creating a closure to be
