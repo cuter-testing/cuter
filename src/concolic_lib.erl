@@ -57,18 +57,11 @@ bind_parameters([Arg|Args], [Var|Vars], Env) ->
   bind_parameters(Args, Vars, NewEnv).
   
 %% Add new mappings to the environment
-%% Mappings may be a deeply nested list
-%% TODO Need to check up on this (may not be nested anymore)
 -spec add_mappings_to_environment([concolic_symbolic:mapping()], environment()) -> environment().
-  
-add_mappings_to_environment([], Env) ->
-  Env;
-add_mappings_to_environment([M | Ms], Env) when is_list(M) ->
-  NEnv = add_mappings_to_environment(M, Env),
-  add_mappings_to_environment(Ms, NEnv);
-add_mappings_to_environment([{Var, Val} | Ms], Env) ->
-  NEnv = add_binding(Var, Val, Env),
-  add_mappings_to_environment(Ms, NEnv).
+
+add_mappings_to_environment(Ms, Env) ->
+  F = fun({Var, Val}, E) -> add_binding(Var, Val, E) end,
+  lists:foldl(F, Env, Ms).
   
 %% Returns the type of signedness from a list of options
 -spec get_signedness([bin_lib:bflag(), ...]) -> bin_lib:bsign().
@@ -95,6 +88,7 @@ is_bif({erlang, _F, _A}) -> true;
 %% Module beam_asm 
 %% XXX Not BIF but with unsupported primops
 is_bif({beam_asm, _F, _A}) -> true;
+%% Module beam_lib
 %% XXX Not BIF but with unsupported primops
 is_bif({beam_lib, _F, _A}) -> true;
 %% Module binary
@@ -122,7 +116,7 @@ is_bif({binary, decode_unsigned, 2}) -> true;
 %% Module epp
 %% XXX Not BIF but with unsupported primops
 is_bif({epp, _F, _A}) -> true;
-% Module ets
+%% Module ets
 is_bif({ets, all, 0}) -> true;
 is_bif({ets, new, 2}) -> true;
 is_bif({ets, delete, 1}) -> true;
