@@ -28,12 +28,12 @@ toy_test_() ->
   {foreach, Setup, [Inst]}.
   
 %% Run tests on binaries
--spec binary_test_() -> term().
+-spec bm_test_() -> term().
 
-binary_test_() ->
+bm_test_() ->
   Setup =
     fun() ->
-      [bs_bm, bs_simple_bm]
+      [bin_to_term_bm, bs_simple_bm, call_bm, float_bm, fun_bm, bs_bm, bs_sum_bm, call_tail_bm, freq_bm]
     end,
   Test = 
     fun(T) ->
@@ -42,7 +42,7 @@ binary_test_() ->
     end,
   Inst = 
     fun(L) ->
-      [{atom_to_list(T), fun() -> Test(T) end} || T <- L]
+      [{timeout, 15, {atom_to_list(T), fun() -> Test(T) end}} || T <- L]
     end,
   {foreach, Setup, [Inst]}.
   

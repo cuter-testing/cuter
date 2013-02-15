@@ -44,8 +44,15 @@ SUITE_MODULES = \
 	ran \
 	serialmsg \
 	timer_wheel \
+	bin_to_term_bm \
 	bs_bm \
-	bs_simple_bm
+	bs_simple_bm \
+	bs_sum_bm \
+	call_bm \
+	call_tail_bm \
+	float_bm \
+	freq_bm \
+	fun_bm
 
 UTEST_MODULES = \
 	coordinator_tests
