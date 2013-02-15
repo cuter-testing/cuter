@@ -887,13 +887,15 @@ pattern_match(BitInfo, Mode, TraceServer, {c_binary, _Anno, Segments}, Cv, Sv, C
 %% bit_pattern_match
 %% TODO Needs some code cleanup
 %% ===============
-bit_pattern_match(_BitInfo, _Mode, _TraceServer, [], Cv, _Sv, CMaps, SMaps, _Fd) ->
+bit_pattern_match(_BitInfo, Mode, _TraceServer, [], Cv, Sv, CMaps, SMaps, Fd) ->
   case Cv =:= <<>> of
     true ->
       %% TODO Constraint: Sv =:= <<>>
+      log(Mode, Fd, 'eq', {<<>>, Sv}),
       {true, {CMaps, SMaps}};
     false ->
       %% TODO Constraint: Sv =/= <<>>
+      log(Mode, Fd, 'neq', {<<>>, Sv}),
       false
   end;
 
@@ -904,15 +906,18 @@ bit_pattern_match({M, CodeServer, Cenv, Senv} = BitInfo, Mode, TraceServer, [{c_
       {CUnit, SUnit} = eval_expr(M, CodeServer, TraceServer, Unit, Cenv, Senv, Fd),
       {CType, SType} = eval_expr(M, CodeServer, TraceServer, Type, Cenv, Senv, Fd),
       {CFlags, SFlags} = eval_expr(M, CodeServer, TraceServer, Flags, Cenv, Senv, Fd),
+      SEnc = {SSize, SUnit, SType, SFlags},
       try bin_lib:match_bitstring_const(LitVal, CSize, CUnit, CType, CFlags, Cv) of
         CRest ->
-          %% TODO Constraint: SMatch matched Sv with SRest remaining
-          SEnc = {SSize, SUnit, SType, SFlags},
-          {_SMatch, SRest} = concolic_symbolic:match_bitstring_const(LitVal, SEnc, Sv, CRest, Fd),
+          {SX, SRest} = concolic_symbolic:match_bitstring_const(LitVal, SEnc, Sv, CRest, Fd),
+          %% TODO Constraint: Match
+          log(Mode, Fd, 'match', {SX, SRest, Sv}),
           bit_pattern_match(BitInfo, Mode, TraceServer, Bs, CRest, SRest, CMaps, SMaps, Fd)
       catch
         error:_E ->
-          %% TODO Constraint: <<LitVal:CSize/CType-CFlags-unit:CUnit>> didn't match Sv
+          SX = concolic_symbolic:make_bitstring(Sv, SEnc, 'none', Fd),
+          %% TODO Constraint: Not Match
+          log(Mode, Fd, 'not_match', {SX, Sv}),
           false
       end;
     {c_var, _Anno, VarName} ->
@@ -920,10 +925,12 @@ bit_pattern_match({M, CodeServer, Cenv, Senv} = BitInfo, Mode, TraceServer, [{c_
       {CUnit, SUnit} = eval_expr(M, CodeServer, TraceServer, Unit, Cenv, Senv, Fd),
       {CType, SType} = eval_expr(M, CodeServer, TraceServer, Type, Cenv, Senv, Fd),
       {CFlags, SFlags} = eval_expr(M, CodeServer, TraceServer, Flags, Cenv, Senv, Fd),
+      SEnc = {SSize, SUnit, SType, SFlags},
       try bin_lib:match_bitstring_var(CSize, CUnit, CType, CFlags, Cv) of
         {CX, CRest} ->
-          SEnc = {SSize, SUnit, SType, SFlags},
           {SX, SRest} = concolic_symbolic:match_bitstring_var(SEnc, Sv, CX, CRest, Fd),
+          %% TODO Constraint: Match
+          log(Mode, Fd, 'match', {SX, SRest, Sv}),
           {NewCMaps, NewSMaps} =
             case lists:keymember(VarName, 1, CMaps) of
               true ->
@@ -938,7 +945,8 @@ bit_pattern_match({M, CodeServer, Cenv, Senv} = BitInfo, Mode, TraceServer, [{c_
           bit_pattern_match({M, CodeServer, NewCenv, NewSenv}, Mode, TraceServer, Bs, CRest, SRest, NewCMaps, NewSMaps, Fd)
       catch
         error:_E ->
-          %% TODO Constraint: (X is var) <<X:CSize/CType-CFlags-unit:CUnit>> didn't match Sv
+          %% TODO Constraint: Not Match
+          log(Mode, Fd, 'not_match_v', {SEnc, Sv}),
           false
       end
   end.
@@ -1508,6 +1516,8 @@ log('case', Fd, M, {V1, V2}) when M =:= 'eq'; M=:= 'neq' ->
 log('case', Fd, 'tuple_size', {M, Sv, N}) when M =:= 'eq'; M=:= 'neq' ->
   concolic_encdec:log_tuple_size(Fd, M, Sv, N);
 log('case', Fd, T, V) when T =:= 'non_empty_list'; T =:= 'not_list'; T =:= 'not_tuple' ->
-  concolic_encdec:log_type(Fd, T, V).
+  concolic_encdec:log_type(Fd, T, V);
+log('case', Fd, Bn, Info) when Bn =:= 'match'; Bn =:= 'not_match'; Bn =:= 'not_match_v' ->
+  concolic_encdec:log_binop(Fd, Bn, Info).
   
 

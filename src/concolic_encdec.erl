@@ -4,7 +4,7 @@
 
 %% exports are alphabetically ordered
 -export([close_file/1, get_term/1, open_file/2, pprint/1, log_pid/2,
-         log_guard/3, log_eq/4, log_tuple_size/4, log_type/3]).
+         log_guard/3, log_eq/4, log_tuple_size/4, log_type/3, log_binop/3]).
 
 -define(LOGGING_FLAG, ok).  %% Enables logging
 
@@ -119,6 +119,16 @@ log_tuple_size(Fd, M, Tup, Sz) when M =:= 'eq'; M =:= 'neq' ->
 log_type(Fd, T, V) when T =:= 'non_empty_list'; T =:= 'not_list'; T =:= 'not_tuple' ->
   case concolic_symbolic:is_symbolic(V) of
     true  -> log_term(Fd, {T, V});
+    false -> ok
+  end.
+  
+%% Log bitstring matching
+-spec log_binop(file:io_device(), 'match', tuple()) -> 'ok'.
+
+log_binop(Fd, Bn, Info) when Bn =:= 'match'; Bn =:= 'not_match'; Bn =:= 'not_match_v' ->
+  Is = tuple_to_list(Info),
+  case lists:any(fun concolic_symbolic:is_symbolic/1, Is) of
+    true  -> log_term(Fd, {Bn, Info});
     false -> ok
   end.
   

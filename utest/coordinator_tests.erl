@@ -27,6 +27,25 @@ toy_test_() ->
     end,
   {foreach, Setup, [Inst]}.
   
+%% Run tests on binaries
+-spec binary_test_() -> term().
+
+binary_test_() ->
+  Setup =
+    fun() ->
+      [bs_bm, bs_simple_bm]
+    end,
+  Test = 
+    fun(T) ->
+      R = coordinator:run(T, main, [[]]),
+      ?_assertEqual({'ok', {ok, ok}}, R)
+    end,
+  Inst = 
+    fun(L) ->
+      [{atom_to_list(T), fun() -> Test(T) end} || T <- L]
+    end,
+  {foreach, Setup, [Inst]}.
+  
 %% Calculate a fibonacci number
 -spec calculate_fibonacci_test() -> 'ok'.
 

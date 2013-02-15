@@ -43,7 +43,9 @@ SUITE_MODULES = \
 	pcmark \
 	ran \
 	serialmsg \
-	timer_wheel
+	timer_wheel \
+	bs_bm \
+	bs_simple_bm
 
 UTEST_MODULES = \
 	coordinator_tests
