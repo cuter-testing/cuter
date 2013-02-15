@@ -428,7 +428,7 @@ eval_expr(M, CodeServer, TraceServer, {c_apply, _Anno, Op, Args}, Cenv, Senv, Fd
 eval_expr(M, CodeServer, TraceServer, {c_binary, _Anno, Segments}, Cenv, Senv, Fd) ->
   Segms = [eval_expr(M, CodeServer, TraceServer, S, Cenv, Senv, Fd) || S <- Segments],
   {Cs, Ss} = lists:unzip(Segms),
-  append_segments(Cs, Ss);
+  append_segments(Cs, Ss, Fd);
   
 %% c_bitstr
 eval_expr(M, CodeServer, TraceServer, {c_bitstr, _Anno, Val, Size, Unit, Type, Flags}, Cenv, Senv, Fd) ->
@@ -438,7 +438,7 @@ eval_expr(M, CodeServer, TraceServer, {c_bitstr, _Anno, Val, Size, Unit, Type, F
   {CType, SType} = eval_expr(M, CodeServer, TraceServer, Type, Cenv, Senv, Fd),
   {CFlags, SFlags} = eval_expr(M, CodeServer, TraceServer, Flags, Cenv, Senv, Fd),
   Cbin = bin_lib:make_bitstring(Cv, CSize, CUnit, CType, CFlags),
-  Sbin = concolic_symbolic:make_bitstring(Sv, SSize, SUnit, SType, SFlags),
+  Sbin = concolic_symbolic:make_bitstring(Sv, {SSize, SUnit, SType, SFlags}, {'some', Cbin}, Fd),
   {Cbin, Sbin};
   
 %% c_call
@@ -906,9 +906,9 @@ bit_pattern_match({M, CodeServer, Cenv, Senv} = BitInfo, Mode, TraceServer, [{c_
       {CFlags, SFlags} = eval_expr(M, CodeServer, TraceServer, Flags, Cenv, Senv, Fd),
       try bin_lib:match_bitstring_const(LitVal, CSize, CUnit, CType, CFlags, Cv) of
         CRest ->
-          SLit = concolic_symbolic:make_bitstring(LitVal, SSize, SUnit, SType, SFlags),
-          %% TODO Constraint: SLit matched Sv
-          SRest = concolic_symbolic:match_bitstring_const(SLit, Sv),
+          %% TODO Constraint: SMatch matched Sv with SRest remaining
+          SEnc = {SSize, SUnit, SType, SFlags},
+          {_SMatch, SRest} = concolic_symbolic:match_bitstring_const(LitVal, SEnc, Sv, CRest, Fd),
           bit_pattern_match(BitInfo, Mode, TraceServer, Bs, CRest, SRest, CMaps, SMaps, Fd)
       catch
         error:_E ->
@@ -923,13 +923,13 @@ bit_pattern_match({M, CodeServer, Cenv, Senv} = BitInfo, Mode, TraceServer, [{c_
       try bin_lib:match_bitstring_var(CSize, CUnit, CType, CFlags, Cv) of
         {CX, CRest} ->
           SEnc = {SSize, SUnit, SType, SFlags},
-          {SX, SRest} = concolic_symbolic:match_bitstring_var(SEnc, Sv),
+          {SX, SRest} = concolic_symbolic:match_bitstring_var(SEnc, Sv, CX, CRest, Fd),
           {NewCMaps, NewSMaps} =
             case lists:keymember(VarName, 1, CMaps) of
               true ->
                 {lists:keyreplace(VarName, 1, CMaps, {VarName, CX}),
                  lists:keyreplace(VarName, 1, SMaps, {VarName, SX})};
-                    false ->
+              false ->
                 {[{VarName, CX} | CMaps],
                  [{VarName, SX} | SMaps]}
             end,
@@ -1458,16 +1458,13 @@ check_timeout(Timeout, _Sv, _Fd) ->
 %% --------------------------------------------------------
 %% Concatenate a list of bistrings
 %% --------------------------------------------------------
-append_segments(Cs, Ss) ->
-  EmptyBin = concolic_symbolic:empty_binary(),
-  append_segments(lists:reverse(Cs), <<>>, lists:reverse(Ss), EmptyBin).
-  
-append_segments([], CAcc, [], SAcc) ->
-  {CAcc, SAcc};
-append_segments([Cv|Cvs], CAcc, [Sv|Svs], SAcc) ->
-  Cbin = <<Cv/bitstring, CAcc/bitstring>>,
-  Sbin = concolic_symbolic:append_binary(Sv, SAcc),
-  append_segments(Cvs, Cbin, Svs, Sbin).
+append_segments(Cs, Ss, Fd) ->
+  Cv = lists:foldl(
+    fun(Seg, Bin) -> <<Seg/bitstring, Bin/bitstring>> end,
+    <<>>, lists:reverse(Cs)
+  ),
+  Sv = concolic_symbolic:append_segments(Ss, Fd),
+  {Cv, Sv}.
 
 %% --------------------------------------------------------
 %% Adjust the arguments of a function
