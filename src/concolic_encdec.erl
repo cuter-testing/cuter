@@ -123,7 +123,7 @@ log_type(Fd, T, V) when T =:= 'non_empty_list'; T =:= 'not_list'; T =:= 'not_tup
   end.
   
 %% Log bitstring matching
--spec log_binop(file:io_device(), 'match', tuple()) -> 'ok'.
+-spec log_binop(file:io_device(), 'match' | 'not_match' | 'not_match_v', tuple()) -> 'ok'.
 
 log_binop(Fd, Bn, Info) when Bn =:= 'match'; Bn =:= 'not_match'; Bn =:= 'not_match_v' ->
   Is = tuple_to_list(Info),
