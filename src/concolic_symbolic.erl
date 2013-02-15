@@ -251,7 +251,11 @@ make_bitstring(Sv, {Size, Unit, Type, Flags}, Cv, Fd) ->
     false ->
       case Cv of
         'none' ->
-          bin_lib:make_bitstring(Sv, Size, Unit, Type, Flags);
+          try
+            bin_lib:make_bitstring(Sv, Size, Unit, Type, Flags)
+          catch 
+            error:badarg -> exit({1, Sv})
+          end;
         {'some', Bin} -> 
           Bin
       end

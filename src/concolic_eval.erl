@@ -915,9 +915,8 @@ bit_pattern_match({M, CodeServer, Cenv, Senv} = BitInfo, Mode, TraceServer, [{c_
           bit_pattern_match(BitInfo, Mode, TraceServer, Bs, CRest, SRest, CMaps, SMaps, Fd)
       catch
         error:_E ->
-          SX = concolic_symbolic:make_bitstring(Sv, SEnc, 'none', Fd),
           %% TODO Constraint: Not Match
-          log(Mode, Fd, 'not_match', {SX, Sv}),
+          log(Mode, Fd, 'not_match', {LitVal, SEnc, Sv}),
           false
       end;
     {c_var, _Anno, VarName} ->
