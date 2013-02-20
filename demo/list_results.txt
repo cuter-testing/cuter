@@ -1,0 +1,34 @@
+%% Node nonode@nohost
+%%   Concrete Result = 1
+%%   Symbolic Result = {'__s','erlang:hd/1',
+                              [{'__s','erlang:tl/1',
+                                      [{'__s','__symbvar0.0.0.43'}]}]}
+                                      
+%%   Mapping = [{{'__s','__symbvar0.0.0.43'},[5,1,3]}]
+
+Traces
+
+$  {'__s','__symbvar0.0.0.43'} => non empty list
+=> X : non_empty_list
+
+$  [] != {'__s','erlang:tl/1',[{'__s','__symbvar0.0.0.43'}]}
+=> tl(x) != []
+
+$  {'__s','erlang:tl/1',[{'__s','__symbvar0.0.0.43'}]} => non empty list
+=> tl(x) non_empty_list
+
+$  {'__s','erlang:</2',[{'__s','erlang:hd/1',[{'__s','erlang:tl/1',[{'__s','__symbvar0.0.0.43'}]}]},{'__s','erlang:hd/1',[{'__s','__symbvar0.0.0.43'}]}]} => true guard
+=>  hd(tl(X)) < hd(X) : true
+
+$  [] != {'__s','erlang:tl/1',[{'__s','erlang:tl/1',[{'__s','__symbvar0.0.0.43'}]}]}
+=> tl(tl(X)) != []
+
+$  {'__s','erlang:tl/1',[{'__s','erlang:tl/1',[{'__s','__symbvar0.0.0.43'}]}]} => non empty list
+=> tl(tl(X)) : non_empty_list
+
+$  {'__s','erlang:</2',[{'__s','erlang:hd/1',[{'__s','erlang:tl/1',[{'__s','erlang:tl/1',[{'__s','__symbvar0.0.0.43'}]}]}]},{'__s','erlang:hd/1',[{'__s','erlang:tl/1',[{'__s','__symbvar0.0.0.43'}]}]}]} => false guard
+=> hd(tl(tl(X))) < hd(tl(X)) : false
+
+$  [] == {'__s','erlang:tl/1',[{'__s','erlang:tl/1',[{'__s','erlang:tl/1',[{'__s','__symbvar0.0.0.43'}]}]}]}
+=> tl(tl(tl(X) =:= []
+
