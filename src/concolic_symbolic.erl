@@ -5,7 +5,7 @@
 %% exports appear alphabetically
 -export([abstract/1, append_segments/2, ensure_list/4, hd/3,
          make_bitstring/4, match_bitstring_const/5, match_bitstring_var/5,
-         mock_bif/4, tl/3, tuple_to_list/4, is_symbolic/1]).
+         mock_bif/4, to_list/1, tl/3, tuple_to_list/4, is_symbolic/1]).
 
 -export_type([mapping/0, symbolic/0]).
 
@@ -63,6 +63,11 @@ is_symbolic(_V) -> false.
 is_symbolic_var({?SYMBOLIC_PREFIX, SymbVar}) when is_atom(SymbVar) -> true;
 is_symbolic_var(_V) -> false.
 
+
+-spec to_list(term()) -> list().
+to_list({?SYMBOLIC_PREFIX, BIF, As}) when is_atom(BIF), is_list(As) -> atom_to_list(BIF);
+to_list({?SYMBOLIC_PREFIX, SymbVar}) when is_atom(SymbVar) -> atom_to_list(SymbVar).
+
 %% =============================================================
 %% Symbolic representations of term operations
 %% =============================================================
@@ -91,9 +96,9 @@ mock_bif({erlang, yield, 0}, _Args, true, _Fd) -> true;
 %% BIFs with arity 0 return the concrete result
 mock_bif({_M, _F, 0}, _Args, Cv, _Fd) -> Cv;
 %% Symbolic execution of a BIF
-mock_bif(BIF, Args, Cv, Fd) ->  
-  case lists:any(fun is_symbolic/1, Args) of
-    true  -> abstract_mfa_call(BIF, Args, Fd);
+mock_bif(BIF, {_CArgs, SArgs}, Cv, Fd) ->  
+  case lists:any(fun is_symbolic/1, SArgs) of
+    true  -> abstract_mfa_call(BIF, SArgs, Fd);
     false -> Cv
   end.
 
@@ -148,7 +153,7 @@ add_vars([{N, A}|As], Dict, Fd) ->
   
 add_symbolic_var(S, Fd) ->
   SVar = fresh_symbolic_var(),
-  'ok' = concolic_encdec:log_eq(Fd, 'eq', SVar, S),
+  'ok' = concolic_encdec:log('case', Fd, 'eq', {SVar, S}),
   SVar.
   
 %% Create a list of N elements from a symbolic term
@@ -168,7 +173,7 @@ tuple_to_list(S, N, Cv, Fd) ->
 hd(S, _Cv, _Fd) when is_list(S) ->
   erlang:hd(S);
 hd(S, Cv, Fd) ->
-  mock_bif({erlang, hd, 1}, [S], Cv, Fd).
+  mock_bif({erlang, hd, 1}, {[S], [S]}, Cv, Fd).
 
 %% Return the tail of a symbolic term that represents a list
 -spec tl(maybe_s([term()]), term(), file:io_device()) -> term().
@@ -176,7 +181,7 @@ hd(S, Cv, Fd) ->
 tl(S, _Cv, _Fd) when is_list(S) ->
   erlang:tl(S);
 tl(S, Cv, Fd) ->
-  mock_bif({erlang, tl, 1}, [S], Cv, Fd).
+  mock_bif({erlang, tl, 1}, {[S], [S]}, Cv, Fd).
   
 %% Ensures that a symbolic term is a list of N elements
 -spec ensure_list(maybe_s([term()]), pos_integer(), term(), file:io_device()) -> [maybe_s(term())].
@@ -202,7 +207,7 @@ break_term(M, S, N, Cv, Fd) when M =:= 'tuple'; M =:= 'list'->
       true  -> S;
       false -> add_symbolic_var(S, Fd)
     end,  
-  [mock_bif(BIF, [X, SV], Cv, Fd) || X <- lists:seq(1, N)].
+  [mock_bif(BIF, {[X, SV], [X, SV]}, Cv, Fd) || X <- lists:seq(1, N)].
   
 %% =============================================================
 %% Symbolic representation of binaries and binary operations

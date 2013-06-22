@@ -3,8 +3,8 @@
 -module(concolic_encdec).
 
 %% exports are alphabetically ordered
--export([close_file/1, get_term/1, open_file/2, pprint/1, log_pid/2,
-         log_guard/3, log_eq/4, log_tuple_size/4, log_type/3, log_binop/3]).
+-export([close_file/1, get_data/1, open_file/2, pprint/1, log_pid/2,
+         log/3, log/4]).
 
 -define(LOGGING_FLAG, ok).  %% Enables logging
 
@@ -27,37 +27,27 @@ close_file(F) ->
   ok = file:close(F).
 
 %% Return the next term stored in a file
--spec get_term(file:io_device()) -> {'ok', term()} | 'eof' | no_return().
+-spec get_data(file:io_device()) -> {'ok', {integer(), binary()}} | 'eof'.
 
-get_term(F) ->
-  case file:read(F, 4) of
-    {ok, B} ->
-      Sz = bin_to_i32(B),
-      case file:read(F, Sz) of
-        {ok, Bin} ->
-          Term = erlang:binary_to_term(Bin),
-          {ok, Term};
-        eof ->
-          exit('unexpected_eof');
-        {error, Reason} ->
-          exit({'file_read_failed', Reason})
-      end;
+get_data(F) ->
+  case safe_read(F, 1, true) of
     eof ->
       eof;
-    {error, Reason} ->
-      exit({'file_read_failed', Reason})
- end.
+    Id ->
+      Sz = bin_to_i32(safe_read(F, 4, false)),
+      Bin = safe_read(F, Sz, false),
+      {ok, {Id, Bin}}
+  end.
 
 %% Store a term in a file
--spec log_term(file:io_device(), term()) -> 'ok'.
+-spec write_data(file:io_device(), term(), binary()) -> 'ok'.
 
 -ifdef(LOGGING_FLAG).
-log_term(F, Term) ->
-  Bin = erlang:term_to_binary(Term, [{compressed, 1}]),
-  Sz = erlang:byte_size(Bin),
-  ok = file:write(F, [i32_to_list(Sz), Bin]).
+write_data(F, Id, Data) when is_integer(Id), is_binary(Data) ->
+  Sz = erlang:byte_size(Data),
+  ok = file:write(F, [Id, i32_to_list(Sz), Data]).
 -else.
-log_term(_F, _Term) ->
+write_data(_F, _Cmd, _Data) ->
   ok.
 -endif.
 
@@ -66,71 +56,78 @@ log_term(_F, _Term) ->
 -spec pprint(file:io_device()) -> 'ok'.
 
 pprint(F) ->
- case get_term(F) of
-   {ok, Term} ->
-     pprint_term(Term),
-     pprint(F);
-   eof -> 
-     ok
- end.
+  case get_data(F) of
+    eof -> ok;
+    {ok, {Id, Data}} ->
+      io:format("~w -> ~p~n", [Id, Data]),
+      pprint(F)
+  end.
  
 %% ------------------------------------------------------------------
-%% Wrappers for log_term/2
+%% Wrappers for write_data/3
 %% ------------------------------------------------------------------
+
+-spec log('receive' | 'case', file:io_device(), term(), term()) -> 'ok'.
+
+%% Do not log 'Receive'
+log('receive', _Fd, _Type, _Info) ->
+  ok;
+
+%% 'Guard True' and 'Guard False' constraints
+log('case', Fd, 'guard', {Sv, G}) when is_boolean(G) ->
+  case concolic_symbolic:is_symbolic(Sv) of
+    false -> ok;
+    true  -> log_helper(Fd, {'guard', G}, [Sv])
+  end;
+
+%% 'Eq' and 'Neq' constraints
+log('case', Fd, M, {V1, V2}) when M =:= 'eq'; M=:= 'neq' ->
+  case concolic_symbolic:is_symbolic(V1) orelse concolic_symbolic:is_symbolic(V2) of
+    false -> ok;
+    true  -> log_helper(Fd, M, [V1, V2])
+  end;
+
+%% 'Tuple of Size' and 'Tuple of not Size' constraints
+log('case', Fd, 'tuple_size', {M, Sv, N}) when (M =:= 'eq' orelse M=:= 'neq') andalso is_integer(N) ->
+  case concolic_symbolic:is_symbolic(Sv) of
+    false -> ok;
+    true  -> log_helper(Fd, {'tuple_size', M}, [Sv, N])
+  end;
+
+%% 'Non Empty List', 'Not List', 'Not Tuple' constraints
+log('case', Fd, T, V) when T =:= 'non_empty_list'; T =:= 'not_list'; T =:= 'not_tuple' ->
+  case concolic_symbolic:is_symbolic(V) of
+    false -> ok;
+    true  -> log_helper(Fd, T, [V])
+  end;
+
+%% TODO bitstring matching constraints
+log('case', Fd, Bn, Info) when Bn =:= 'match'; Bn =:= 'not_match'; Bn =:= 'not_match_v' ->
+  Is = tuple_to_list(Info),
+  case lists:any(fun concolic_symbolic:is_symbolic/1, Is) of
+    false -> ok;
+    true  -> log_helper(Fd, Bn, [Info])
+  end.
+
+%% Generic logging function
+-spec log(file:io_device(), atom(), [term()]) -> 'ok'.
+
+log(Fd, Cmd, Data) when is_list(Data) ->
+  case lists:any(fun concolic_symbolic:is_symbolic/1, Data) of
+    false -> ok;
+    true  -> log_helper(Fd, Cmd, Data)
+  end.
+
+log_helper(Fd, Cmd, Data) ->
+  Op = json_command_op(Cmd),
+  Json_data = concolic_json:command_to_json(Op, Data),
+  write_data(Fd, command_type(Cmd), Json_data).
 
 %% Log a pid
 -spec log_pid(file:io_device(), pid()) -> 'ok'.
 
 log_pid(Fd, Pid) ->
-  log_term(Fd, {'pid', Pid}).
-
-%% Log equality and inequality between terms
--spec log_eq(file:io_device(), 'eq' | 'neq', term(), term()) -> 'ok'.
-
-log_eq(Fd, M, V1, V2) when M =:= 'eq'; M =:= 'neq' ->
-  case concolic_symbolic:is_symbolic(V1) orelse concolic_symbolic:is_symbolic(V2) of
-    true  -> log_term(Fd, {M, V1, V2});
-    false -> ok
-  end.
-
-%% Log guard values
--spec log_guard(file:io_device(), term(), boolean()) -> 'ok'.
-
-log_guard(Fd, V, Gv) when is_boolean(Gv) ->
-  case {V =:= Gv, Gv} of
-    {true, _} -> 'ok';
-    {false, true}  -> log_term(Fd, {'guard_true', V});
-    {false, false} -> log_term(Fd, {'guard_false', V}) 
-  end.
-
-%% Log tuples and their size
--spec log_tuple_size(file:io_device(), 'eq' | 'neq', term(), integer()) -> 'ok'.
-
-log_tuple_size(Fd, M, Tup, Sz) when M =:= 'eq'; M =:= 'neq' ->
-  case {concolic_symbolic:is_symbolic(Tup), M} of
-    {true, 'eq'}  -> log_term(Fd, {'tuple_size_eq', Tup, Sz});
-    {true, 'neq'} -> log_term(Fd, {'tuple_size_neq', Tup, Sz});
-    {false, _} -> ok
-  end.
-
-%% Log type matches and mismatches
--spec log_type(file:io_device(), 'non_empty_list' | 'not_list' | 'not_tuple', term()) -> 'ok'.
-  
-log_type(Fd, T, V) when T =:= 'non_empty_list'; T =:= 'not_list'; T =:= 'not_tuple' ->
-  case concolic_symbolic:is_symbolic(V) of
-    true  -> log_term(Fd, {T, V});
-    false -> ok
-  end.
-  
-%% Log bitstring matching
--spec log_binop(file:io_device(), 'match' | 'not_match' | 'not_match_v', tuple()) -> 'ok'.
-
-log_binop(Fd, Bn, Info) when Bn =:= 'match'; Bn =:= 'not_match'; Bn =:= 'not_match_v' ->
-  Is = tuple_to_list(Info),
-  case lists:any(fun concolic_symbolic:is_symbolic/1, Is) of
-    true  -> log_term(Fd, {Bn, Info});
-    false -> ok
-  end.
+  write_data(Fd, 1, list_to_binary("PID = " ++ pid_to_list(Pid))).
   
 %%====================================================================
 %% Internal functions
@@ -152,30 +149,41 @@ i32_to_list(Int) when is_integer(Int) ->
    (Int bsr  8) band 255,
     Int band 255].
 
-%% Pretty print a logging term
-%% (used in pprint/1 - for debugging purposes only)
-pprint_term(T) ->
- case T of
-   {pid, Pid} ->
-     io:format("$  Pid : ~w~n", [Pid]);
-   {'eq', V1, V2} ->
-     io:format("$  ~w == ~w~n", [V1, V2]);
-   {'neq', V1, V2} ->
-     io:format("$  ~w != ~w~n", [V1, V2]);
-   {'tuple_size_eq', V, N} ->
-     io:format("$  ~w => tuple and size of ~w~n", [V, N]);
-   {'tuple_size_neq', V, N} ->
-     io:format("$  ~w => tuple but size not ~w~n", [V, N]);
-   {'non_empty_list', V} ->
-     io:format("$  ~w => non empty list~n", [V]);
-   {'not_tuple', V} ->
-     io:format("$  ~w => not tuple~n", [V]);
-   {'not_list', V} ->
-     io:format("$  ~w => not list~n", [V]);
-   {'guard_true', V} ->
-     io:format("$  ~w => true guard~n", [V]);
-   {'guard_false', V} ->
-     io:format("$  ~w => false guard~n", [V]);
-   {msg, Msg} ->
-     io:format("$  ~p => msg~n", [Msg])
- end.
+command_type({'guard', true}) -> 1;
+command_type({'guard', false}) -> 1;
+command_type('eq') -> 1;
+command_type('neq') -> 1;
+command_type({'tuple_size', 'eq'}) -> 1;
+command_type({'tuple_size', 'neq'}) -> 1;
+command_type('non_empty_list') -> 1;
+command_type('not_list') -> 1;
+command_type('not_tuple') -> 1;
+command_type('match') -> 1;
+command_type('not_match') -> 1;
+command_type('not_match_v') -> 1;
+command_type(_) -> 2.
+
+
+json_command_op({'guard', true}) -> "T";
+json_command_op({'guard', false}) -> "F";
+json_command_op('eq') -> "Eq";
+json_command_op('neq') -> "Neq";
+json_command_op({'tuple_size', 'eq'}) -> "Ts";
+json_command_op({'tuple_size', 'neq'}) -> "Nts";
+json_command_op('non_empty_list') -> "Nel";
+json_command_op('not_list') -> "Nl";
+json_command_op('not_tuple') -> "Nt";
+json_command_op('match') -> "M";
+json_command_op('not_match') -> "Nm";
+json_command_op('not_match_v') -> "Nmv";
+json_command_op('params') -> "Pms".
+
+
+safe_read(Fd, Sz, AllowEOF) ->
+  case file:read(Fd, Sz) of
+    {ok, Bin} -> Bin;
+    eof when AllowEOF -> eof;
+    eof -> exit('unexpected_eof');
+    {error, Reason} -> exit({'file_read_failed', Reason})
+  end.
+

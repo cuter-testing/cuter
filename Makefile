@@ -22,6 +22,7 @@ ERLC_MACROS = -DEBIN=\"$(EBIN)\"
 SRC_MODULES = \
 	bin_lib \
 	concolic \
+	concolic_json \
 	concolic_cserver \
 	concolic_encdec \
 	concolic_eval \

@@ -34,6 +34,7 @@ i(M, F, As, CodeServer, TraceServer) ->
     fun() ->
       {SymbAs, Mapping} = concolic_symbolic:abstract(As),
       {ok, Fd} = concolic_tserver:register_to_trace(TraceServer, Root),
+      concolic_encdec:log(Fd, 'params', SymbAs),
       NMF = {named, {M, F}},
       Val = eval(NMF, As, SymbAs, external, CodeServer, TraceServer, Fd),
       concolic:send_return(Root, Mapping, Val)
@@ -315,7 +316,7 @@ eval({named, {erlang, make_fun}}, CAs, SAs, _CallType, CodeServer, TraceServer, 
   case CAs of
     [M, F, A] ->
       CR = make_fun(M, F, A, CodeServer, TraceServer, Fd),
-      SR = concolic_symbolic:mock_bif({erlang, make_fun, 3}, SAs_e, CR, Fd),
+      SR = concolic_symbolic:mock_bif({erlang, make_fun, 3}, {CAs, SAs_e}, CR, Fd),
       {CR, SR};
     _ ->
       exception('error', {'undef', {erlang, make_fun, Arity}})
@@ -1256,7 +1257,7 @@ validate_file_descriptor(TraceServer, Pid, Fd) ->
 
 evaluate_bif({M, F, _A} = MFA, CAs, SAs, Fd) ->
   CR = apply(M, F, CAs),
-  SR = concolic_symbolic:mock_bif(MFA, SAs, CR, Fd),
+  SR = concolic_symbolic:mock_bif(MFA, {CAs, SAs}, CR, Fd),
   {CR, SR}.
 
 %% --------------------------------------------------------
@@ -1506,17 +1507,6 @@ adjust_arguments(_M, _F, CAs, SAs, _Fd) -> {CAs, SAs}.
 %% Logging function that wraps all the calls
 %% to the proper concolic_encdec logging functions
 %% --------------------------------------------------------
-log('receive', _Fd, _Type, _Info) ->
-  ok;
-log('case', Fd, 'guard', {Sv, Cv}) ->
-  concolic_encdec:log_guard(Fd, Sv, Cv);
-log('case', Fd, M, {V1, V2}) when M =:= 'eq'; M=:= 'neq' ->
-  concolic_encdec:log_eq(Fd, M, V1, V2);
-log('case', Fd, 'tuple_size', {M, Sv, N}) when M =:= 'eq'; M=:= 'neq' ->
-  concolic_encdec:log_tuple_size(Fd, M, Sv, N);
-log('case', Fd, T, V) when T =:= 'non_empty_list'; T =:= 'not_list'; T =:= 'not_tuple' ->
-  concolic_encdec:log_type(Fd, T, V);
-log('case', Fd, Bn, Info) when Bn =:= 'match'; Bn =:= 'not_match'; Bn =:= 'not_match_v' ->
-  concolic_encdec:log_binop(Fd, Bn, Info).
+log(T, D, C, I) -> concolic_encdec:log(T, D, C, I).
   
 
