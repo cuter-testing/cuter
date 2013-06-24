@@ -163,7 +163,6 @@ command_type('not_match') -> 1;
 command_type('not_match_v') -> 1;
 command_type(_) -> 2.
 
-
 json_command_op({'guard', true}) -> "T";
 json_command_op({'guard', false}) -> "F";
 json_command_op('eq') -> "Eq";
@@ -176,6 +175,8 @@ json_command_op('not_tuple') -> "Nt";
 json_command_op('match') -> "M";
 json_command_op('not_match') -> "Nm";
 json_command_op('not_match_v') -> "Nmv";
+json_command_op('break_list') -> "Bkl";
+json_command_op('break_tuple') -> "Bkt";
 json_command_op('params') -> "Pms";
 json_command_op({erlang, '=:=', 2}) -> "=:=";
 json_command_op({erlang, '=/=', 2}) -> "=/=";

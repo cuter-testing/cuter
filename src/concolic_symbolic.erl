@@ -178,7 +178,7 @@ add_symbolic_var(S, Fd) ->
   
 tuple_to_list(S, N, _Cv, Fd) ->
   case is_symbolic(S) of
-    true  -> break_term(Fd, 'tuple', S, N);
+    true  -> break_term(Fd, 'break_tuple', S, N);
     false -> erlang:tuple_to_list(S)
   end.
 
@@ -203,27 +203,19 @@ tl(S, _Cv, Fd) ->
   
 ensure_list(S, N, _Cv, Fd) ->
   case is_symbolic(S) of
-    true  -> break_term(Fd, 'list', S, N);
+    true  -> break_term(Fd, 'break_list', S, N);
     false -> S
   end.
   
 %% Create a list of N elements from a symbolic term that represents
 %% a list or a tuple with size N
--spec break_term(file:io_device(), 'tuple' | 'list', symbolic(), pos_integer()) -> [symbolic()].
+-spec break_term(file:io_device(), 'break_tuple' | 'break_list', symbolic(), pos_integer()) -> [symbolic()].
 
-break_term(Fd, M, Sv, N) when M =:= 'tuple'; M =:= 'list' ->
-  break_term(Fd, M, Sv, 1, N, []).
+break_term(Fd, M, Sv, N) when M =:= 'break_tuple'; M =:= 'break_list' ->
+  Vs = [fresh_symbolic_var() || _ <- lists:seq(1, N)],
+  concolic_encdec:log(Fd, M, [Sv, Vs]),
+  Vs.
 
-break_term(Fd, 'list'=M, S, I, N, Acc) when I =< N ->
-  H = generic_mock_mfa(Fd, {erlang, hd, 1}, [S]),
-  T = generic_mock_mfa(Fd, {erlang, tl, 1}, [S]),
-  break_term(Fd, M, T, I+1, N, [H|Acc]);
-break_term(Fd, 'tuple'=M, S, I, N, Acc) when I =< N ->
-  H = generic_mock_mfa(Fd, {erlang, element, 2}, [I, S]),
-  break_term(Fd, M, S, I+1, N, [H|Acc]);
-break_term(_Fd, _M, _S, _I, _N, Acc) ->
-  lists:reverse(Acc).
-  
 %% =============================================================
 %% Symbolic representation of binaries and binary operations
 %% =============================================================

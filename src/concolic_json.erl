@@ -17,7 +17,15 @@
 
 -spec command_to_json(term(), term()) -> binary().
 
-command_to_json(_Cmd, []) -> error(no_arguments_in_command);
+command_to_json(M, [S, Vs]) when M =:= "Bkt"; M =:= "Bkl" ->
+  F = fun(X, Acc) ->
+    EncX = json_encode(X),
+    [$,, EncX | Acc]
+  end,
+  [$, | Ss] = lists:foldl(F, [], Vs),
+  S0 = json_encode(S),
+  Str = ?ENC_CMD(M, [S0, $,, $\[, lists:reverse(Ss), $\]]),
+  list_to_binary(Str);
 command_to_json(Cmd, Args) when is_list(Args) ->
   F = fun(X, Acc) ->
     EncX = json_encode(X),
