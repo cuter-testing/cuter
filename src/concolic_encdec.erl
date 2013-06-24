@@ -110,7 +110,7 @@ log('case', Fd, Bn, Info) when Bn =:= 'match'; Bn =:= 'not_match'; Bn =:= 'not_m
   end.
 
 %% Generic logging function
--spec log(file:io_device(), atom(), [term()]) -> 'ok'.
+-spec log(file:io_device(), mfa() | atom(), [term()]) -> 'ok'.
 
 log(Fd, Cmd, Data) when is_list(Data) ->
   case lists:any(fun concolic_symbolic:is_symbolic/1, Data) of
@@ -127,7 +127,7 @@ log_helper(Fd, Cmd, Data) ->
 -spec log_pid(file:io_device(), pid()) -> 'ok'.
 
 log_pid(Fd, Pid) ->
-  write_data(Fd, 1, list_to_binary("PID = " ++ pid_to_list(Pid))).
+  write_data(Fd, 2, list_to_binary("PID = " ++ pid_to_list(Pid))).
   
 %%====================================================================
 %% Internal functions
@@ -176,7 +176,34 @@ json_command_op('not_tuple') -> "Nt";
 json_command_op('match') -> "M";
 json_command_op('not_match') -> "Nm";
 json_command_op('not_match_v') -> "Nmv";
-json_command_op('params') -> "Pms".
+json_command_op('params') -> "Pms";
+json_command_op({erlang, '=:=', 2}) -> "=:=";
+json_command_op({erlang, '=/=', 2}) -> "=/=";
+json_command_op({erlang, '+', 2}) -> "+";
+json_command_op({erlang, '-', 2}) -> "-";
+json_command_op({erlang, '*', 2}) -> "*";
+json_command_op({erlang, '/', 2}) -> "/";
+json_command_op({erlang, 'div', 2}) -> "div";
+json_command_op({erlang, 'rem', 2}) -> "rem";
+json_command_op({erlang, 'or', 2}) -> "or";
+json_command_op({erlang, 'orelse', 2}) -> "ore";
+json_command_op({erlang, 'and', 2}) -> "and";
+json_command_op({erlang, 'andalso', 2}) -> "anda";
+json_command_op({erlang, 'not', 1}) -> "not";
+json_command_op({erlang, 'hd', 1}) -> "hd";
+json_command_op({erlang, 'tl', 1}) -> "tl";
+json_command_op({erlang, 'abs', 1}) -> "abs";
+json_command_op({erlang, 'element', 2}) -> "elm";
+json_command_op({erlang, 'float', 1}) -> "flt";
+json_command_op({erlang, 'is_atom', 1}) -> "isa";
+json_command_op({erlang, 'is_boolean', 1}) -> "isb";
+json_command_op({erlang, 'is_float', 1}) -> "isf";
+json_command_op({erlang, 'is_integer', 1}) -> "isi";
+json_command_op({erlang, 'is_list', 1}) -> "isl";
+json_command_op({erlang, 'is_number', 1}) -> "isn";
+json_command_op({erlang, 'is_tuple', 1}) -> "ist";
+json_command_op({erlang, 'round', 1}) -> "rnd";
+json_command_op({erlang, 'trunc', 1}) -> "trc".
 
 
 safe_read(Fd, Sz, AllowEOF) ->
