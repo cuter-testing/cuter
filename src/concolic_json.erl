@@ -122,6 +122,12 @@ encode_term(T, Seen, false) when is_tuple(T) ->
     {true, R} -> encode_term_alias(R);
     false -> encode_term_structure(T, Seen)
   end;
+encode_term(T, Seen, true) when is_reference(T) -> encode_term_structure(T, Seen);
+encode_term(T, Seen, false) when is_reference(T) ->
+  case is_shared(T, Seen) of
+    {true, R} -> encode_term_alias(R);
+    false -> encode_term_structure(T, Seen)
+  end;
 encode_term(_Term, _Seen, _Top) ->
   throw(unsupported_term).
 
@@ -150,7 +156,10 @@ encode_term_structure(T, Seen) when is_tuple(T) ->
     [$,, S | Acc]
   end,
   [$, | Ss] = tuple_foldl(F, [], T),
-  ?ENC("Tuple", [$\[, lists:reverse(Ss), $\]]).
+  ?ENC("Tuple", [$\[, lists:reverse(Ss), $\]]);
+encode_term_structure(T, _Seen) when is_reference(T) ->
+  I = erlang:ref_to_list(T) -- "#Ref<>",
+  ?ENC("Ref", [?Q, I, ?Q]).
 
 is_shared(Term, Seen) ->
   case gb_trees:lookup(Term, Seen) of
