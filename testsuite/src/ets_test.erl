@@ -26,57 +26,50 @@
 
 -module(ets_test).
 
--export([bench_args/2, run/3]).
+-export([gen_args/0, run/3]).
 
-bench_args(Version, Conf) ->
-    {_,Cores} = lists:keyfind(number_of_cores, 1, Conf),
-	[F1, F2, F3] = case Version of
-		short -> [157, 1, 8];
-		intermediate -> [157, 32, 32];
-		long -> [157, 79, 40]
-	end,
-	[[N,W,R] || N <- [F1 * Cores], W <- [F2 * Cores], R <- [F3 * Cores]].
+gen_args() -> [[314, 2, 16]].
 
-run([N,W,R|_], _, _) ->
-	Parent = self(),
+run(N, W, R) ->
+  Parent = self(),
     io:format("xxxxxx"),
-	T = ets:new(x, [public]),
-	io:format("xxx"),
-	w(T, N, init),
-	Ws = lists:map(fun (_) ->
-			spawn_link(fun () ->
-				receive go -> ok end,
-				w(T, N, self()),
-				w(T, N, self()),
-				Parent ! {done, self()},
-				receive {Parent, bye} -> ok after infinity -> ok end
-			end)
-		end,lists:seq(1, W)),
-	Rs = lists:map(fun (_) ->
-			spawn_link(fun () ->
-				receive go -> ok end,
-				r(T, N),
-				r(T, N),
-				Parent ! {done, self()},
-				receive {Parent, bye} -> ok after infinity -> ok end
-			end)
-		end, lists:seq(1, R)),
-	lists:foreach(fun (P) -> P ! go end, Ws),
-	lists:foreach(fun (P) -> P ! go end, Rs),
-	lists:foreach(fun (P) -> receive {done, P} -> ok end end, Ws),
-	lists:foreach(fun (P) -> receive {done, P} -> ok end end, Rs),
-	lists:foreach(fun (P) -> unlink(P), P ! {self(), bye} end, Ws),
-	lists:foreach(fun (P) -> unlink(P), P ! {self(), bye} end, Rs),
-	ok.
+  T = ets:new(x, [public]),
+  io:format("xxx"),
+  w(T, N, init),
+  Ws = lists:map(fun (_) ->
+      spawn_link(fun () ->
+        receive go -> ok end,
+        w(T, N, self()),
+        w(T, N, self()),
+        Parent ! {done, self()},
+        receive {Parent, bye} -> ok after infinity -> ok end
+      end)
+    end,lists:seq(1, W)),
+  Rs = lists:map(fun (_) ->
+      spawn_link(fun () ->
+        receive go -> ok end,
+        r(T, N),
+        r(T, N),
+        Parent ! {done, self()},
+        receive {Parent, bye} -> ok after infinity -> ok end
+      end)
+    end, lists:seq(1, R)),
+  lists:foreach(fun (P) -> P ! go end, Ws),
+  lists:foreach(fun (P) -> P ! go end, Rs),
+  lists:foreach(fun (P) -> receive {done, P} -> ok end end, Ws),
+  lists:foreach(fun (P) -> receive {done, P} -> ok end end, Rs),
+  lists:foreach(fun (P) -> unlink(P), P ! {self(), bye} end, Ws),
+  lists:foreach(fun (P) -> unlink(P), P ! {self(), bye} end, Rs),
+  ok.
 
 r(_T, 0) ->
-	ok;
+  ok;
 r(T, N) ->
-	[{N, _}] = ets:lookup(T, N),
-	r(T, N-1).
+  [{N, _}] = ets:lookup(T, N),
+  r(T, N-1).
 
 w(_T, 0, _V) ->
-	ok;
+  ok;
 w(T, N, V) ->
-	true = ets:insert(T, {N, V}),	
-	w(T, N-1, V).
+  true = ets:insert(T, {N, V}),  
+  w(T, N-1, V).

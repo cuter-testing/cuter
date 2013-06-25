@@ -23,7 +23,7 @@
 
 -behaviour(gen_server).
 
--export([bench_args/2, run/3]).
+-export([gen_args/0, run/4]).
 
 % %gen cb:s
 
@@ -33,23 +33,16 @@
 
 -record(state, {mstate}).
 
-bench_args(Version, Conf) ->
-    {_,Cores} = lists:keyfind(number_of_cores, 1, Conf),
-	[F1, F2, F3] = case Version of
-		short -> [16, 4, 8]; 
-		intermediate -> [16, 10, 11]; 
-		long -> [16, 47, 79]
-	end,
-    [[Type,Np,N,Cqueue] || Type <- [proc_call,gen_call], Np <- [F1 * Cores], N <- [F2 * Cores], Cqueue <- [F3 * Cores]].
+gen_args() -> [[proc_call, 32, 8, 16], [gen_call, 32, 8, 16]].
 
-run([Type,Np,N,Cqueue|_], _, _) ->
-	Server  = start_server(Type),
-	Clients = start_clients(Np, Cqueue),
-	[Pid ! {{Type, Server}, N, self()} || Pid <- Clients],
-	[receive {Pid, ok} -> ok end || Pid <- Clients],
-	stop_server({Type, Server}),
-	stop_clients(Clients),
-	ok.
+run(Type, Np, N, Cqueue) ->
+  Server  = start_server(Type),
+  Clients = start_clients(Np, Cqueue),
+  [Pid ! {{Type, Server}, N, self()} || Pid <- Clients],
+  [receive {Pid, ok} -> ok end || Pid <- Clients],
+  stop_server({Type, Server}),
+  stop_clients(Clients),
+  ok.
 
 start_server(gen_call) -> genstress:start();
 start_server(proc_call) -> spawn_link(fun() -> server() end).
@@ -58,34 +51,34 @@ stop_server({gen_call,  _}) -> genstress:stop();
 stop_server({proc_call, S}) -> S ! stop.
 
 start_clients(Np, Queue) -> 
-	[spawn_link(fun() -> client(Queue) end) || _ <- lists:seq(1, Np)].
+  [spawn_link(fun() -> client(Queue) end) || _ <- lists:seq(1, Np)].
 
 stop_clients(Clients) ->
-	[erlang:exit(Client, normal) || Client <- Clients],
-	ok.
+  [erlang:exit(Client, normal) || Client <- Clients],
+  ok.
 
 client(Queue) ->
-	[self() ! dont_match_me || _ <- lists:seq(1, Queue)],
-	client().
+  [self() ! dont_match_me || _ <- lists:seq(1, Queue)],
+  client().
 client() ->
-	receive
-		{{gen_call,  _}, N, Pid} -> client(gen_call, N, Pid);
-		{{proc_call, S}, N, Pid} -> client({proc_call,S}, N, Pid)
-	end.
+  receive
+    {{gen_call,  _}, N, Pid} -> client(gen_call, N, Pid);
+    {{proc_call, S}, N, Pid} -> client({proc_call,S}, N, Pid)
+  end.
 
 client(_, 0, Pid) -> Pid ! {self(), ok};
 client(CallType , N, Pid) ->
-	stress = client_call(CallType, stress),
-	client(CallType, N - 1, Pid).
+  stress = client_call(CallType, stress),
+  client(CallType, N - 1, Pid).
 
 client_call(gen_call, Msg) -> gen_server:call(?MODULE, Msg);
 client_call({proc_call,S}, Msg) -> S ! {self(), Msg}, receive {S,Ans} -> Ans end.
 
 server() ->
-	receive 
-		stop -> ok;
-		{From, Msg} -> From ! {self(), Msg}, server()
-	end.
+  receive 
+    stop -> ok;
+    {From, Msg} -> From ! {self(), Msg}, server()
+  end.
 
 %% -------------------------------------------------------------------- %%
 %%
@@ -94,13 +87,13 @@ server() ->
 %% -------------------------------------------------------------------- %%
 
 start() ->
-	gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+  gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
     
 stop() ->
-	gen_server:call(?MODULE, stop).
+  gen_server:call(?MODULE, stop).
 
 init(_Args) ->
-	{ok, #state{}}.
+  {ok, #state{}}.
 
 %% -------------------------------------------------------------------- %%
 %%
@@ -112,7 +105,7 @@ handle_call(stop, From, S) ->
   {stop, normal, stopped, S#state{mstate=From}};
   
 handle_call(Command, From, S)->
-	{reply, Command, S#state{mstate=From}}.
+  {reply, Command, S#state{mstate=From}}.
 
 %% -------------------------------------------------------------------- %%
 %%
@@ -121,7 +114,7 @@ handle_call(Command, From, S)->
 %% -------------------------------------------------------------------- %%
 
 handle_cast(_Other, State) ->
-	{noreply, State}.
+  {noreply, State}.
 
 %% -------------------------------------------------------------------- %%
 %%
@@ -130,7 +123,7 @@ handle_cast(_Other, State) ->
 %% -------------------------------------------------------------------- %%
 
 handle_info(_Info, State) ->
-	{noreply, State}.
+  {noreply, State}.
 
 %% -------------------------------------------------------------------- %%
 %%
@@ -139,7 +132,7 @@ handle_info(_Info, State) ->
 %% -------------------------------------------------------------------- %%
 
 terminate(_Reason, _State) ->
-	ok.
+  ok.
 
 %% -------------------------------------------------------------------- %%
 %%
@@ -148,5 +141,4 @@ terminate(_Reason, _State) ->
 %% -------------------------------------------------------------------- %%
 
 code_change(_OldVsn, State, _Extra) ->
-	{ok, State}.
-
+  {ok, State}.

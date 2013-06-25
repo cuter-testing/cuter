@@ -26,27 +26,20 @@
 
 -module(bang).
 
--export([bench_args/2, run/3]).
+-export([gen_args/0, run/2]).
 
-bench_args(Version, Conf) ->
-	{_,Cores} = lists:keyfind(number_of_cores, 1, Conf),
-	F = case Version of
-		short -> 16;
-		intermediate -> 55;
-		long -> 79
-	end,
-	[[S,M] || S <- [F * Cores], M <- [F * Cores]].
+gen_args() -> [[32, 32]].
 
-run([S,M|_], _, _) ->
-	Parent = self(),
-	Done   = make_ref(),
-	Bang   = {make_ref(),make_ref(),make_ref(),make_ref(),make_ref()},
-	Rec    = spawn_opt(fun () -> rec(Bang, S*M), Parent ! Done end, [link]),
-	lists:foreach(fun(_) ->
-		spawn_link(fun () -> send(Rec, Bang, M) end)
-	end, lists:seq(1, S)),
-	receive Done -> ok end,
-	ok.
+run(S, M) ->
+  Parent = self(),
+  Done   = make_ref(),
+  Bang   = {make_ref(),make_ref(),make_ref(),make_ref(),make_ref()},
+  Rec    = spawn_opt(fun () -> rec(Bang, S*M), Parent ! Done end, [link]),
+  lists:foreach(fun(_) ->
+    spawn_link(fun () -> send(Rec, Bang, M) end)
+  end, lists:seq(1, S)),
+  receive Done -> ok end,
+  ok.
 
 send(_T, _M, 0) -> ok;
 send(T, M, N)   -> T ! M, send(T, M, N-1).

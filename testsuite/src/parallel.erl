@@ -21,28 +21,20 @@
 
 -module(parallel).
 
--export([bench_args/2, run/3]).
+-export([gen_args/0, run/2]).
 
-bench_args(Version, Conf) ->
-    {_,Cores} = lists:keyfind(number_of_cores, 1, Conf),
-	[F1, F2] = case Version of
-		short -> [313, 4];
-		intermediate -> [469, 8];
-		long -> [1094, 10]
-	end,
-    [[N,M] || N <- [F1 * Cores], M <- [F2 * Cores]].
+gen_args() -> [[628, 8]].
 
-run([N,M|_], _, _) ->
-	Me   = self(),
-	Base = [ok || _ <- lists:seq(1, M)],
-	Pids = [spawn_link(fun() -> loop(Me, N, []) end) || _ <- lists:seq(1, M)],
-	Res  = [receive {Pid, What} -> What end || Pid <- Pids],
-	Base = Res,
-	ok.
+run(N, M) ->
+  Me   = self(),
+  Base = [ok || _ <- lists:seq(1, M)],
+  Pids = [spawn_link(fun() -> loop(Me, N, []) end) || _ <- lists:seq(1, M)],
+  Res  = [receive {Pid, What} -> What end || Pid <- Pids],
+  Base = Res,
+  ok.
 
 loop(Pid, 0, Out) -> Pid ! {self(), check_now(Out)};
 loop(Pid, N, Out) -> loop(Pid, N - 1, [now()|Out]).
 
 check_now([_,_]) -> ok;
 check_now([_|Ts]) -> check_now(Ts).
-

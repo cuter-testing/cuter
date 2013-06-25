@@ -13,12 +13,12 @@ toy_test_() ->
       Version = 'short',
       Conf = [{'number_of_cores', 2}],
       Toys = [bang, genstress, big, ehb, ets_test, parallel, pcmark, serialmsg, timer_wheel, mbrot, ran],
-      X = [{T, T:bench_args(Version, Conf)} || T <- Toys],
+      X = [{T, T:gen_args(Version, Conf)} || T <- Toys],
       [{T, A} || {T, L} <- X, A <- L]
     end,
   Test = 
     fun({Toy, Arg}) ->
-      R = coordinator:run(Toy, run, [Arg, 'foo', 'bar']),
+      R = coordinator:run(Toy, run, Arg),
       ?_assertEqual({'ok', {ok, ok}}, R)
     end,
   Inst = 

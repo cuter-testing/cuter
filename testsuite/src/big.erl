@@ -25,71 +25,63 @@
 %%%-------------------------------------------------------------------
 -module(big).
 
--export([bench_args/2, run/3]).
+-export([gen_args/0, run/1]).
 
-bench_args(Version, Conf) ->
-	{_,Cores} = lists:keyfind(number_of_cores, 1, Conf),
-	F = case Version of 
-		short -> 8;
-		intermediate -> 16;
-		long -> 24
-	end,
-	[[N] || N <- [F * Cores]].
+gen_args() -> [[16]].
 
-run([N|_], _, _) ->
-	Procs = spawn_procs(N),
-	RMsgs = lists:map(fun (P) -> {done, P} end, Procs),
-	send_procs(Procs, {procs, Procs, self()}),
-	receive_msgs(RMsgs),
-	lists:foreach(fun (P) -> P ! die end, Procs),
-	ok.
+run(N) ->
+  Procs = spawn_procs(N),
+  RMsgs = lists:map(fun (P) -> {done, P} end, Procs),
+  send_procs(Procs, {procs, Procs, self()}),
+  receive_msgs(RMsgs),
+  lists:foreach(fun (P) -> P ! die end, Procs),
+  ok.
 
 pinger([], [], true) ->
-	receive
-		{procs, Procs, ReportTo} -> pinger(Procs, [], ReportTo)
+  receive
+    {procs, Procs, ReportTo} -> pinger(Procs, [], ReportTo)
     end;
 pinger([], [], false) ->
-	receive
-		{ping, From} -> 
-			From ! {pong, self()},
-			pinger([],[],false);
-		die ->
-			ok			
-	end;
+  receive
+    {ping, From} -> 
+      From ! {pong, self()},
+      pinger([],[],false);
+    die ->
+      ok      
+  end;
 pinger([], [], ReportTo) ->
-	ReportTo ! {done, self()},
-	pinger([],[],false);
+  ReportTo ! {done, self()},
+  pinger([],[],false);
 pinger([],[Po|Pos] = Pongers, ReportTo) ->
-	receive
-	{ping, From} -> 
-		From ! {pong, self()},
-		pinger([], Pongers, ReportTo);
-	{pong, Po} ->
-		pinger([], Pos, ReportTo)
-	end;
+  receive
+  {ping, From} -> 
+    From ! {pong, self()},
+    pinger([], Pongers, ReportTo);
+  {pong, Po} ->
+    pinger([], Pos, ReportTo)
+  end;
 pinger([Pi|Pis], Pongers, ReportTo) ->
-	receive 
-		{ping, From} -> From ! {pong, self()}
-		after 0 -> ok
-	end,
-	Pi ! {ping, self()},
-	pinger(Pis, [Pi|Pongers], ReportTo).
+  receive 
+    {ping, From} -> From ! {pong, self()}
+    after 0 -> ok
+  end,
+  Pi ! {ping, self()},
+  pinger(Pis, [Pi|Pongers], ReportTo).
 
 spawn_procs(N) when N =< 0 ->
-	[];
+  [];
 spawn_procs(N) ->
-	[spawn_link(fun () -> pinger([], [], true) end) | spawn_procs(N-1)].
+  [spawn_link(fun () -> pinger([], [], true) end) | spawn_procs(N-1)].
 
 send_procs([], Msg) ->
-	Msg;
+  Msg;
 send_procs([P|Ps], Msg) ->
-	P ! Msg,
-	send_procs(Ps, Msg).
+  P ! Msg,
+  send_procs(Ps, Msg).
 
 receive_msgs([]) ->
-	ok;
+  ok;
 receive_msgs([M|Ms]) ->
-	receive
-		M -> receive_msgs(Ms)
-	end.
-
+  receive
+    M -> receive_msgs(Ms)
+  end.
