@@ -67,7 +67,7 @@ scan_term(Term, Ds) when is_tuple(Term) ->
     Ds1 -> scan_tuple(1, tuple_size(Term), Term, Ds1)
   end;
 scan_term(Term, _Ds) when is_function(Term) ->
-  error(unsupported_term);
+  throw(unsupported_term);
 scan_term(Term, Ds) ->
   case remember_term(Term, Ds) of
     {seen, Ds1} -> Ds1;
@@ -123,7 +123,7 @@ encode_term(T, Seen, false) when is_tuple(T) ->
     false -> encode_term_structure(T, Seen)
   end;
 encode_term(_Term, _Seen, _Top) ->
-  error(unsupported_term).
+  throw(unsupported_term).
 
 encode_term_alias(R) -> ?ENC_ALIAS(R).
 
