@@ -4,47 +4,45 @@
 
 -spec test() -> 'ok' | {'error' | term()}.
 
-%% Run most of the bencherl tests
--spec toy_test_() -> term().
+%%% Run most of the bencherl tests
+%-spec toy_test_() -> term().
 
-toy_test_() ->
-  Setup =
-    fun() ->
-      Version = 'short',
-      Conf = [{'number_of_cores', 2}],
-      Toys = [bang, genstress, big, ehb, ets_test, parallel, pcmark, serialmsg, timer_wheel, mbrot, ran],
-      X = [{T, T:gen_args(Version, Conf)} || T <- Toys],
-      [{T, A} || {T, L} <- X, A <- L]
-    end,
-  Test = 
-    fun({Toy, Arg}) ->
-      R = coordinator:run(Toy, run, Arg),
-      ?_assertEqual({'ok', {ok, ok}}, R)
-    end,
-  Inst = 
-    fun(L) ->
-      [{timeout, 100, {atom_to_list(T), fun() -> Test({T, A}) end}} || {T, A} <- L]
-    end,
-  {foreach, Setup, [Inst]}.
+%toy_test_() ->
+%  Setup =
+%    fun() ->
+%      Toys = [bang, genstress, big, ehb, ets_test, parallel, pcmark, serialmsg, timer_wheel, mbrot, ran],
+%      X = [{T, T:gen_args()} || T <- Toys],
+%      [{T, A} || {T, L} <- X, A <- L]
+%    end,
+%  Test = 
+%    fun({Toy, Arg}) ->
+%      R = coordinator:run(Toy, run, Arg),
+%      ?_assertEqual({'ok', {ok, ok}}, R)
+%    end,
+%  Inst = 
+%    fun(L) ->
+%      [{timeout, 200, {atom_to_list(T), fun() -> Test({T, A}) end}} || {T, A} <- L]
+%    end,
+%  {foreach, Setup, [Inst]}.
   
-%% Run tests on binaries
--spec bm_test_() -> term().
+%%% Run tests on binaries
+%-spec bm_test_() -> term().
 
-bm_test_() ->
-  Setup =
-    fun() ->
-      [bin_to_term_bm, bs_simple_bm, call_bm, float_bm, fun_bm, bs_bm, bs_sum_bm, call_tail_bm, freq_bm]
-    end,
-  Test = 
-    fun(T) ->
-      R = coordinator:run(T, main, [[]]),
-      ?_assertEqual({'ok', {ok, ok}}, R)
-    end,
-  Inst = 
-    fun(L) ->
-      [{timeout, 15, {atom_to_list(T), fun() -> Test(T) end}} || T <- L]
-    end,
-  {foreach, Setup, [Inst]}.
+%bm_test_() ->
+%  Setup =
+%    fun() ->
+%      [bin_to_term_bm, bs_simple_bm, call_bm, float_bm, fun_bm, bs_bm, bs_sum_bm, call_tail_bm, freq_bm]
+%    end,
+%  Test = 
+%    fun(T) ->
+%      R = coordinator:run(T, main, [[]]),
+%      ?_assertEqual({'ok', {ok, ok}}, R)
+%    end,
+%  Inst = 
+%    fun(L) ->
+%      [{timeout, 100, {atom_to_list(T), fun() -> Test(T) end}} || T <- L]
+%    end,
+%  {foreach, Setup, [Inst]}.
   
 %% Calculate a fibonacci number
 -spec calculate_fibonacci_test() -> 'ok'.
