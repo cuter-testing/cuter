@@ -28,7 +28,7 @@
 
 -export([gen_args/0, run/1]).
 
-gen_args() -> [[2]].
+gen_args() -> [[1]].
 
 mk_ranlist(0, _, Acc) -> Acc;
 mk_ranlist(N, M, Acc) -> mk_ranlist(N-1, M, [random:uniform(M) | Acc]). 
