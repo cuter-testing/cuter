@@ -87,15 +87,20 @@ log('case', Fd, M, {V1, V2}) when M =:= 'eq'; M=:= 'neq' ->
     true  -> log_helper(Fd, M, [V1, V2])
   end;
 
-%% 'Tuple of Size' and 'Tuple of not Size' constraints
+%% 'Tuple of Size', 'Tuple of not Size', 'Not Tuple' constraints
 log('case', Fd, 'tuple_size', {M, Sv, N}) when (M =:= 'eq' orelse M=:= 'neq') andalso is_integer(N) ->
   case concolic_symbolic:is_symbolic(Sv) of
     false -> ok;
     true  -> log_helper(Fd, {'tuple_size', M}, [Sv, N])
   end;
+log('case', Fd, 'not_tuple'=M, {Sv, N}) ->
+  case concolic_symbolic:is_symbolic(Sv) of
+    false -> ok;
+    true  -> log_helper(Fd, M, [Sv, N])
+  end;
 
-%% 'Non Empty List', 'Not List', 'Not Tuple' constraints
-log('case', Fd, T, V) when T =:= 'non_empty_list'; T =:= 'not_list'; T =:= 'not_tuple' ->
+%% 'Non Empty List', 'Not List' constraints
+log('case', Fd, T, V) when T =:= 'non_empty_list'; T =:= 'not_list' ->
   case concolic_symbolic:is_symbolic(V) of
     false -> ok;
     true  -> log_helper(Fd, T, [V])
@@ -150,18 +155,18 @@ i32_to_list(Int) when is_integer(Int) ->
     Int band 255].
 
 command_type({'guard', true}) -> 1;
-command_type({'guard', false}) -> 1;
+command_type({'guard', false}) -> 2;
 command_type('eq') -> 1;
-command_type('neq') -> 1;
+command_type('neq') -> 2;
 command_type({'tuple_size', 'eq'}) -> 1;
-command_type({'tuple_size', 'neq'}) -> 1;
+command_type({'tuple_size', 'neq'}) -> 2;
+command_type('not_tuple') -> 2;
 command_type('non_empty_list') -> 1;
-command_type('not_list') -> 1;
-command_type('not_tuple') -> 1;
+command_type('not_list') -> 2;
 command_type('match') -> 1;
-command_type('not_match') -> 1;
-command_type('not_match_v') -> 1;
-command_type(_) -> 2.
+command_type('not_match') -> 2;
+command_type('not_match_v') -> 2;
+command_type(_) -> 3.
 
 json_command_op({'guard', true}) -> "T";
 json_command_op({'guard', false}) -> "F";

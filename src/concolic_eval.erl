@@ -844,9 +844,10 @@ pattern_match(BitInfo, Mode, TraceServer, {c_tuple, _Anno, Es}, Cv, Sv, CMaps, S
         log(Mode, Fd, 'tuple_size', {'neq', Sv, Ne}),
         false
     end;    
-pattern_match(_BitInfo, Mode, _TraceServer, {c_tuple, _Anno, _Es}, _Cv, Sv, _CMaps, _SMaps, Fd) ->
+pattern_match(_BitInfo, Mode, _TraceServer, {c_tuple, _Anno, Es}, _Cv, Sv, _CMaps, _SMaps, Fd) ->
+  Ne = length(Es),
   %% TODO Constraint: Sv not tuple
-  log(Mode, Fd, 'not_tuple', Sv),
+  log(Mode, Fd, 'not_tuple', {Sv, Ne}),
   false;
   
 %% List constructor pattern
