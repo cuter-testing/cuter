@@ -122,18 +122,19 @@ encode_term(T, Seen, false) when is_tuple(T) ->
     {true, R} -> encode_term_alias(R);
     false -> encode_term_structure(T, Seen)
   end;
-encode_term(T, Seen, true) when is_reference(T) -> encode_term_structure(T, Seen);
-encode_term(T, Seen, false) when is_reference(T) ->
-  case is_shared(T, Seen) of
-    {true, R} -> encode_term_alias(R);
-    false -> encode_term_structure(T, Seen)
-  end;
-encode_term(P, Seen, true) when is_pid(P) -> encode_term_structure(P, Seen);
-encode_term(P, Seen, false) when is_pid(P) ->
-  case is_shared(P, Seen) of
-    {true, R} -> encode_term_alias(R);
-    false -> encode_term_structure(P, Seen)
-  end;
+%% XXX Do not support other types yet!
+%encode_term(T, Seen, true) when is_reference(T) -> encode_term_structure(T, Seen);
+%encode_term(T, Seen, false) when is_reference(T) ->
+%  case is_shared(T, Seen) of
+%    {true, R} -> encode_term_alias(R);
+%    false -> encode_term_structure(T, Seen)
+%  end;
+%encode_term(P, Seen, true) when is_pid(P) -> encode_term_structure(P, Seen);
+%encode_term(P, Seen, false) when is_pid(P) ->
+%  case is_shared(P, Seen) of
+%    {true, R} -> encode_term_alias(R);
+%    false -> encode_term_structure(P, Seen)
+%  end;
 encode_term(Term, _Seen, _Top) ->
   throw({unsupported_term, Term}).
 

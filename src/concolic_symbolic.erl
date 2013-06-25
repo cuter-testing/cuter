@@ -95,15 +95,21 @@ to_list({?SYMBOLIC_PREFIX, SymbVar}) when is_list(SymbVar) -> SymbVar.
 %% Symbolically represent the call of an erlang BIF
 -spec mock_bif(mfa(), {[term()], [term()]}, term(), file:io_device()) -> maybe_s(term()).
 
-mock_bif(MFA, {_CArgs, SArgs}, _Cv, Fd) when ?IS_GENERIC_MFA(MFA) ->
+mock_bif(MFA, Args, Cv, Fd) ->
+  try
+    safe_mock_bif(MFA, Args, Cv, Fd)
+  catch
+    throw:{unsupported_term, _T} -> Cv
+  end.
+
+safe_mock_bif(MFA, {_CArgs, SArgs}, _Cv, Fd) when ?IS_GENERIC_MFA(MFA) ->
   generic_mock_mfa(Fd, MFA, SArgs);
-mock_bif({erlang, element, 2}=MFA, {[I, _], [X, Y]}, _Cv, Fd) ->
+safe_mock_bif({erlang, element, 2}=MFA, {[I, _], [X, Y]}, _Cv, Fd) ->
   case is_integer(X) of
     true  -> generic_mock_mfa(Fd, MFA, [X, Y]);
     false -> generic_mock_mfa(Fd, MFA, [I, Y])
   end;
-
-mock_bif(_MFA, _Args, Cv, _Fd) -> Cv.
+safe_mock_bif(_MFA, _Args, Cv, _Fd) -> Cv.
 
 
 generic_mock_mfa(Fd, MFA, [X]) ->
