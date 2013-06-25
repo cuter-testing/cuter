@@ -67,7 +67,7 @@ scan_term(Term, Ds) when is_tuple(Term) ->
     Ds1 -> scan_tuple(1, tuple_size(Term), Term, Ds1)
   end;
 scan_term(Term, _Ds) when is_function(Term) ->
-  throw(unsupported_term);
+  throw(unsupported_term_fun);
 scan_term(Term, Ds) ->
   case remember_term(Term, Ds) of
     {seen, Ds1} -> Ds1;
@@ -128,8 +128,14 @@ encode_term(T, Seen, false) when is_reference(T) ->
     {true, R} -> encode_term_alias(R);
     false -> encode_term_structure(T, Seen)
   end;
-encode_term(_Term, _Seen, _Top) ->
-  throw(unsupported_term).
+encode_term(P, Seen, true) when is_pid(P) -> encode_term_structure(P, Seen);
+encode_term(P, Seen, false) when is_pid(P) ->
+  case is_shared(P, Seen) of
+    {true, R} -> encode_term_alias(R);
+    false -> encode_term_structure(P, Seen)
+  end;
+encode_term(Term, _Seen, _Top) ->
+  throw({unsupported_term, Term}).
 
 encode_term_alias(R) -> ?ENC_ALIAS(R).
 
@@ -159,7 +165,10 @@ encode_term_structure(T, Seen) when is_tuple(T) ->
   ?ENC("Tuple", [$\[, lists:reverse(Ss), $\]]);
 encode_term_structure(T, _Seen) when is_reference(T) ->
   I = erlang:ref_to_list(T) -- "#Ref<>",
-  ?ENC("Ref", [?Q, I, ?Q]).
+  ?ENC("Ref", [?Q, I, ?Q]);
+encode_term_structure(P, _Seen) when is_pid(P) ->
+  I = pid_to_list(P) -- "<>",
+  ?ENC("Pid", [?Q, I, ?Q]).
 
 is_shared(Term, Seen) ->
   case gb_trees:lookup(Term, Seen) of
