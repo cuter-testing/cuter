@@ -25,16 +25,12 @@ run(M, F, As) ->
   TmpDir = "temp",
   CoreDir = TmpDir ++ "/" ++ "core",      %% Set Directory to store .core files
   TraceDir = TmpDir ++ "/" ++  "traces",  %% Set Directory to store traces
-%%  Start = now(),
   Concolic = concolic:init_server(M, F, As, CoreDir, TraceDir),
   R = 
     receive
       {'EXIT', Concolic, Why} -> {'internal_concolic_error', node(), Why};
       {Concolic, Results} -> Results
     end,
-%%  End  = now(),
-%%  Time = timer:now_diff(End, Start),
-%%  io:format("%% Time elapsed = ~w secs~n", [Time/1000000]),
   analyze(R),
   Traces = trace_dir(R),
   lists:foreach(fun clear_dir/1, Traces),
