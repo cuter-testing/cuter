@@ -45,6 +45,12 @@
   MFA =:= {erlang, 'round', 1} orelse
   MFA =:= {erlang, 'trunc', 1}
 )).
+-define(IS_COMPARISON_MFA(MFA), (
+  MFA =:= {erlang, '<', 2} orelse
+  MFA =:= {erlang, '>', 2} orelse
+  MFA =:= {erlang, '>=', 2} orelse
+  MFA =:= {erlang, '=<', 2}
+)).
 
 -type bitop()    :: ?CONCAT_BITSTR
                   | ?MAKE_BITSTR
@@ -104,7 +110,12 @@ mock_bif(MFA, Args, Cv, Fd) ->
 
 safe_mock_bif(MFA, {_CArgs, SArgs}, _Cv, Fd) when ?IS_GENERIC_MFA(MFA) ->
   generic_mock_mfa(Fd, MFA, SArgs);
-safe_mock_bif({erlang, element, 2}=MFA, {[I, _], [X, Y]}, Cv, Fd) ->
+safe_mock_bif(MFA, {[CX, CY], [SX, SY]}, Cv, Fd) when ?IS_COMPARISON_MFA(MFA) ->
+  case is_number(CX) andalso is_number(CY) of
+    true  -> generic_mock_mfa(Fd, MFA, [SX, SY]);
+    false -> Cv
+  end;
+safe_mock_bif({erlang, element, 2}=MFA, {[_I, _], [X, Y]}, Cv, Fd) ->
   case is_integer(X) of
     true  -> generic_mock_mfa(Fd, MFA, [X, Y]);
 %    false -> generic_mock_mfa(Fd, MFA, [I, Y])

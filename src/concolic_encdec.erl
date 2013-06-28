@@ -18,7 +18,7 @@
 -spec open_file(file:name(), mode()) -> {'ok', file:io_device()}.
 
 open_file(F, M) when M =:= 'read'; M =:= 'write' ->
-  file:open(F, [M, raw, binary, {delayed_write, 262144, 2000}]).
+  file:open(F, [M, raw, binary, compressed, {delayed_write, 262144, 2000}]).
 
 %% Wrapper for closing a file
 -spec close_file(file:io_device()) -> 'ok'.
@@ -185,6 +185,10 @@ json_command_op('break_tuple') -> "Bkt";
 json_command_op('params') -> "Pms";
 json_command_op({erlang, '=:=', 2}) -> "=:=";
 json_command_op({erlang, '=/=', 2}) -> "=/=";
+json_command_op({erlang, '<', 2}) -> "<";
+json_command_op({erlang, '>', 2}) -> ">";
+json_command_op({erlang, '>=', 2}) -> ">=";
+json_command_op({erlang, '=<', 2}) -> "=<";
 json_command_op({erlang, '+', 2}) -> "+";
 json_command_op({erlang, '-', 2}) -> "-";
 json_command_op({erlang, '*', 2}) -> "*";
