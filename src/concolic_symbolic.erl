@@ -104,10 +104,11 @@ mock_bif(MFA, Args, Cv, Fd) ->
 
 safe_mock_bif(MFA, {_CArgs, SArgs}, _Cv, Fd) when ?IS_GENERIC_MFA(MFA) ->
   generic_mock_mfa(Fd, MFA, SArgs);
-safe_mock_bif({erlang, element, 2}=MFA, {[I, _], [X, Y]}, _Cv, Fd) ->
+safe_mock_bif({erlang, element, 2}=MFA, {[I, _], [X, Y]}, Cv, Fd) ->
   case is_integer(X) of
     true  -> generic_mock_mfa(Fd, MFA, [X, Y]);
-    false -> generic_mock_mfa(Fd, MFA, [I, Y])
+%    false -> generic_mock_mfa(Fd, MFA, [I, Y])
+    false -> Cv
   end;
 safe_mock_bif(_MFA, _Args, Cv, _Fd) -> Cv.
 
