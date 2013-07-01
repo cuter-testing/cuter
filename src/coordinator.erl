@@ -1,8 +1,11 @@
 -module(coordinator).
--export([run/3]).
+-export([run/3, test_run/3]).
 
 %-define(PRINT_TRACE, ok).  %% Pretty Prints all traces
 -define(DELETE_TRACE, ok).  %% Deletes all traces
+
+-define(TRACEDIR(BaseDir), BaseDir ++ "/traces").
+-define(COREDIR(BaseDir), BaseDir ++ "/core").
 
 -type internal_error() :: 'internal_concolic_error'
                         | 'internal_codeserver_error'
@@ -18,48 +21,143 @@
 %% External exports
 %% ============================================================================
 
-%% Concolic Execution of an M, F, As
+
 -spec run(atom(), atom(), [term()]) -> ret().
 run(M, F, As) ->
+  io:format("Testing ~p:~p/~p.~n", [M, F, length(As)]),
+  process_flag(trap_exit, true),
+  E = 0,
+  TmpDir = "temp",
+  io:format("Input ~p~n", [As]),
+  CR = concolic_execute(M, F, As, TmpDir, E),
+  
+  {DataDir, _Traces, _Mapping} = analyze_execution_info(CR),
+  
+  %% SIMPLIFICATION - ASSUME SEQUENCIAL PROGRAM
+%  [File] = proplists:get_value(node(), Traces),
+%  As2 = z3_solve(File, 1, Mapping),
+%  io:format("New Args : ~p~n", [As2]),
+  
+  _ = delete_execution_trace(DataDir),
+  %% Directory will only be deleted if it's empty
+  _ = file:del_dir(filename:absname(TmpDir)).
+
+
+analyze_execution_info({'internal_error', IError}) ->
+  io:format("Internal Error in Concolic Execution : ~p~n", [IError]);
+analyze_execution_info({'ok', {Result, DataDir, Traces, Mapping}}) ->
+  report_execution_status(Result),
+  
+%  io:format("~p~n", [Traces]),
+  report_exec_vertices(Traces),
+  
+  {DataDir, Traces, Mapping}.
+
+
+%z3_solve(F, I, Ms) ->
+%  io:format("Reversing ~p constraint~n", [I]),
+%  P = python:start(),
+%  ok.
+
+
+%% Concolic Execution of an M, F, As
+concolic_execute(M, F, As, Dir, E) ->
+  DataDir = Dir ++ "/exec" ++ integer_to_list(E),
+  CoreDir = ?COREDIR(DataDir),    %% Directory to store .core files
+  TraceDir = ?TRACEDIR(DataDir),  %% Directory to store traces
+  Concolic = concolic:init_server(M, F, As, CoreDir, TraceDir),
+  R = wait_for_execution(Concolic),
+  analyze(R),
+  case get_result(R) of
+    {'internal_error', _IError} = IE -> IE;
+    Result ->
+%      io:format("~p~n", [R]),
+      {'ok', {Result, DataDir, get_traces_dir(R), get_mapping(R)}}
+  end.
+
+
+wait_for_execution(Concolic) ->
+  receive
+    {'EXIT', Concolic, Why} -> {'internal_concolic_error', node(), Why};
+    {Concolic, Results} -> Results
+  end.
+
+
+
+
+-spec test_run(atom(), atom(), [term()]) -> ret().
+test_run(M, F, As) ->
   process_flag(trap_exit, true),
   TmpDir = "temp",
-  CoreDir = TmpDir ++ "/" ++ "core",      %% Set Directory to store .core files
-  TraceDir = TmpDir ++ "/" ++  "traces",  %% Set Directory to store traces
-  Concolic = concolic:init_server(M, F, As, CoreDir, TraceDir),
-  R = 
-    receive
-      {'EXIT', Concolic, Why} -> {'internal_concolic_error', node(), Why};
-      {Concolic, Results} -> Results
-    end,
-  analyze(R),
-  Traces = trace_dir(R),
-  lists:foreach(fun clear_dir/1, Traces),
-  %% Directory will only be deleted if it's empty
-  _ = file:del_dir(filename:absname(TraceDir)),
+  {ok, {R, DataDir, _, _}} = concolic_execute(M, F, As, TmpDir, 0),
+  _ = delete_execution_trace(DataDir),
   _ = file:del_dir(filename:absname(TmpDir)),
-  get_result(R).
-  
+  R.
+
 %% ============================================================================
 %% Internal functions
 %% ============================================================================
+
+get_mapping({X, _Node, Result}) when X =:= 'ok'; X =:= 'runtime_error' ->
+  {ok, Info} = orddict:find(node(), Result),
+  {ok, proplists:get_value('mapping', Info)};
+get_mapping({_Error, _Node, _R}) -> 'internal_error'.
   
 %% Retrieve the outcome of the concolic execution
 %% from the resulting execution information
 -spec get_result(result()) -> ret().
 
 get_result({'ok', Node, R}) ->
-  {'ok', Info} = orddict:find(Node, R),
-  {'ok', proplists:get_value('result', Info)};
+  {ok, Info} = orddict:find(Node, R),
+  {ok, proplists:get_value('result', Info)};
 get_result({'runtime_error', Node, R}) ->
-  {'ok', Info} = orddict:find(Node, R),
+  {ok, Info} = orddict:find(Node, R),
   {Node, _Who, {CErr, _Serr}} = proplists:get_value('runtime_error', Info),
   {'error', CErr};
 get_result({Error, _Node, _R}) ->
   {'internal_error', Error}.
+
+
+
+%% Delete the trace files / folders of an execution
+delete_execution_trace(D) ->
+  {ok, CWD} = file:get_cwd(),
+  clear_dir(CWD ++ "/" ++ D).
+
+%% Create a proplist with the trace files in the form:
+%% [{Node, Files}] where Node :: node(), Files :: [file:name()]
+-spec get_traces_dir(result()) -> [{node(), [file:name()]}].
+
+get_traces_dir({_Status, _Node, Results}) ->
+  Ns = orddict:to_list(Results),
+  [{N, trace_files(R)} || {N, R} <- Ns].
+
+trace_files(R) ->
+  Logs = proplists:get_value('tlogs', R),
+  Dir = proplists:get_value('dir', Logs),
+  {ok, Fs} = file:list_dir(Dir),
+  lists:map(fun(F) -> Dir ++ "/" ++ F end, Fs).
   
 %% ------------------------------------------------------------------
 %% Report Results
 %% ------------------------------------------------------------------
+
+report_execution_status({ok, _}) -> io:format("Passed~n");
+report_execution_status(_) -> io:format("Execution Error~n").
+
+
+report_exec_vertices([]) -> ok;
+report_exec_vertices([{Node, Fs}|Rest]) ->
+  io:format("~p~n", [Node]),
+  F = fun(X) ->
+    V = concolic_encdec:path_vertex(X),
+    io:format("~p -> ~p~n", [X, V])
+  end,
+  lists:foreach(F, Fs),
+  report_exec_vertices(Rest).
+
+
+
 analyze({'internal_concolic_error', _Node, Error}) ->
   io:format("%%   Internal ConcServer error : ~p~n", [Error]);
 analyze({'internal_codeserver_error', Node, Results}) ->
@@ -105,14 +203,6 @@ report_result(X) ->
 
 %% ------------------------------------------------------------------
 
-trace_dir({'internal_concolic_error', _Node, _Error}) ->
-  [];
-trace_dir({_Status, _Node, Results}) ->
-  Ns = orddict:to_list(Results),
-  Rs = [R || {_N, R} <- Ns],
-  Logs = proplists:get_all_values('tlogs', lists:flatten(Rs)),
-  [proplists:get_value('dir', L) || L <- Logs].
-  
 %% temporary deleting all traces
 clear_dir(D) ->
   case filelib:is_regular(D) of
