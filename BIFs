@@ -1,0 +1,44 @@
+
++-----------------------------------------+
+| Module : erlang                         |
++---------------------------+-------------+
+| Function                  | Supported   |
++---------------------------+-------------+
+| '=:='/2                   | Yes         |
+| '=/='/2                   | Yes         |
+| '=='/2                    |             |
+| '/='/2                    |             |
+| '>'/2                     | Yes (*)     |
+| '<'/2                     | Yes (*)     |
+| '=<'/2                    | Yes (*)     |
+| '>='/2                    | Yes (*)     |
+| '+'/2                     | Yes         |
+| '-'/2                     | Yes         |
+| '*'/2                     | Yes         |
+| '/'/2                     | Yes         |
+| 'div'/2                   | Yes         |
+| 'rem'/2                   | Yes         |
+| '++'/2                    |             |
+| 'or'/2                    | Yes         |
+| 'orelse'/2                | Yes         |
+| 'and'/2                   | Yes         |
+| 'andalso'/2               | Yes         |
+| 'not'/1                   | Yes         |
+| 'xor'/1                   |             |
+| hd/1                      | Yes         |
+| tl/1                      | Yes         |
+| abs/2                     | Yes         |
+| element/2                 | Yes (*)     |
+| float/1                   | Yes         |
+| is_atom/1                 | Yes         |
+| is_boolean/1              | Yes         |
+| is_float/1                | Yes         |
+| is_integer/1              | Yes         |
+| is_list/1                 | Yes         |
+| is_number/1               | Yes         |
+| is_tuple/1                | Yes         |
+| round/1                   | Yes         |
+| trunc/1                   | Yes         |
++---------------------------+-------------+
+
+

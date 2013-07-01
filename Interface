@@ -1,0 +1,68 @@
+JSON Structure
+==============
+
+See (http://docs.python.org/2/library/json.html) for JSON-Python type translations
+
++-----------+---------------------------+---------------------------------------------------+------------------------------------------------------+
+| Symbol    | Description               | Structure                                         | Explanation                                          |
++-----------+---------------------------+---------------------------------------------------+------------------------------------------------------+
+| Term      | Integer                   | {"t" : "Int", "v" : int-value}                    |                                                      |
+|           | Real                      | {"t" : "Real", "v" : float-value}                 |                                                      |
+|           | List                      | {"t" : "List", "v" : [Term*]}                     |                                                      |
+|           | Tuple                     | {"t" : "Tuple", "v" : [Term*]}                    |                                                      |
+|           | Atom                      | {"t" : "Atom", "v" : [int-value+]}                |                                                      |
+|           | Symbolic Variable         | {"s" : unicode-value}                             |                                                      |
++-----------+---------------------------+---------------------------------------------------+------------------------------------------------------+
+| Command   | Define Parameters         | {"c" : "Pms", "a" : [Term*]}                      | Term* are the parameters                             |
+|           | Break List                | {"c" : "Bkl", "a" : [Term1, Term*]}               | Break a list (Term1) into its elements (Term*)       |
+|           | Break Tuple               | {"c" : "Bkt", "a" : [Term1, Term*]}               | Break a tuple (Term1) into its elements (Term*)      |
+|           +---------------------------+---------------------------------------------------+------------------------------------------------------+
+|           | Equal                     | {"c" : "Eq", "a" : [Term1, Term2]}                | Term1 == Term2                                       |
+|           | Not Equal                 | {"c" : "Neq", "a" : [Term1, Term2]}               | Term1 != Term2                                       |
+|           | Guard True                | {"c" : "T", "a" : [Term]}                         | Term == True [116,114,117,101]                       |
+|           | Guard False               | {"c" : "F", "a" : [Term]}                         | Term == False [102,97,108,115,101]                   |
+|           | Non Empty List            | {"c" : "Nel", "a" : [Term]}                       | Term is a Non Empty List                             |
+|           | Not List                  | {"c" : "Nl", "a" : [Term]}                        | Term is not a List                                   |
+|           | Not Tuple                 | {"c" : "Nt", "a" : [Term]}                        | Term is not a Tuple                                  |
+|           | Tuple Size                | {"c" : "Ts", "a" : [Term, Integer]}               | Term is a tuple of int-value size                    |
+|           | Not Tuple Size            | {"c" : "Nts", "a" : [Term, Integer]}              | Term is not a tuple of int-value size                |
+|           +---------------------------+---------------------------------------------------+------------------------------------------------------+
+|           | Operator '=:='            | {"c" : "=:=", "a" : [Term1, Term2, Term3]}        | Term3 = (Term1 =:= Term2)                            |
+|           | Operator '=/='            | {"c" : "=/=", "a" : [Term1, Term2, Term3]}        | Term3 = (Term1 =/= Term2)                            |
+|           | Operator '+'              | {"c" : "+", "a" : [Term1, Term2, Term3]}          | Term3 = Term1 + Term2                                |
+|           | Operator '-'              | {"c" : "-", "a" : [Term1, Term2, Term3]}          | Term3 = Term1 - Term2                                |
+|           | Operator '*'              | {"c" : "*", "a" : [Term1, Term2, Term3]}          | Term3 = Term1 * Term2                                |
+|           | Operator '/'              | {"c" : "/", "a" : [Term1, Term2, Term3]}          | Term3 = Term1 / Term2                                |
+|           | Operator 'div'            | {"c" : "div", "a" : [Term1, Term2, Term3]}        | Term3 = Term1 div Term2                              |
+|           | Operator 'rem'            | {"c" : "rem", "a" : [Term1, Term2, Term3]}        | Term3 = Term1 rem Term2                              |
+|           | Operator 'or'             | {"c" : "or", "a" : [Term1, Term2, Term3]}         | Term3 = Term1 or Term2                               |
+|           | Operator 'and'            | {"c" : "and", "a" : [Term1, Term2, Term3]}        | Term3 = Term1 and Term2                              |
+|           | Operator 'orelse'         | {"c" : "ore", "a" : [Term1, Term2, Term3]}        | Term3 = Term1 orelse Term2                           |
+|           | Operator 'andalso'        | {"c" : "anda", "a" : [Term1, Term2, Term3]}       | Term3 = Term1 andalso Term2                          |
+|           | Operator 'not'            | {"c" : "not", "a" : [Term1, Term2]}               | Term2 = not(Term1)                                   |
+|    (*)    | Operator '<'              | {"c" : "<", "a" : [Term1, Term2, Term3]}          | Term3 = Term1 < Term2 (Only for numbers)             |
+|    (*)    | Operator '>'              | {"c" : ">", "a" : [Term1, Term2, Term3]}          | Term3 = Term1 > Term2 (Only for numbers)             |
+|    (*)    | Operator '>='             | {"c" : ">=", "a" : [Term1, Term2, Term3]}         | Term3 = Term1 >= Term2 (Only for numbers)            |
+|    (*)    | Operator '=<'             | {"c" : "=<", "a" : [Term1, Term2, Term3]}         | Term3 = Term1 =< Term2 (Only for numbers)            |
+|           +---------------------------+---------------------------------------------------+------------------------------------------------------+
+|           | BIF 'erlang:hd/1'         | {"c" : "hd", "a" : [Term1, Term2]}                | Term2 = hd(Term1)                                    |
+|           | BIF 'erlang:tl/1'         | {"c" : "tl", "a" : [Term1, Term2]}                | Term2 = tl(Term1)                                    |
+|           | BIF 'erlang:abs/1'        | {"c" : "abs", "a" : [Term1, Term2]}               | Term2 = abs(Term1)                                   |
+|    (*)    | BIF 'erlang:element/2'    | {"c" : "elm", "a" : [Term1, Term2, Term3]}        | Term3 = element(Term1, Term2), Term1 : int-value     |
+|           | BIF 'erlang:float/2'      | {"c" : "flt", "a" : [Term1, Term2]}               | Term2 = float(Term1)                                 |
+|           | BIF 'erlang:is_atom/1'    | {"c" : "isa", "a" : [Term1, Term2]}               | Term2 = is_atom(Term1)                               |
+|           | BIF 'erlang:is_boolean/1' | {"c" : "isb", "a" : [Term1, Term2]}               | Term2 = is_boolean(Term1)                            |
+|           | BIF 'erlang:is_float/1'   | {"c" : "isf", "a" : [Term1, Term2]}               | Term2 = is_float(Term1)                              |
+|           | BIF 'erlang:is_integer/1' | {"c" : "isi", "a" : [Term1, Term2]}               | Term2 = is_integer(Term1)                            |
+|           | BIF 'erlang:is_list/1'    | {"c" : "isl", "a" : [Term1, Term2]}               | Term2 = is_list(Term1)                               |
+|           | BIF 'erlang:is_number/1'  | {"c" : "isn", "a" : [Term1, Term2]}               | Term2 = is_number(Term1)                             |
+|           | BIF 'erlang:is_tuple/1'   | {"c" : "ist", "a" : [Term1, Term2]}               | Term2 = is_tuple(Term1)                              |
+|           | BIF 'erlang:round/1'      | {"c" : "rnd", "a" : [Term1, Term2]}               | Term2 = round(Term1)                                 |
+|           | BIF 'erlang:trunc/1'      | {"c" : "trc", "a" : [Term1, Term2]}               | Term2 = trunc(Term1)                                 |
++-----------+---------------------------+---------------------------------------------------+------------------------------------------------------+
+| Port      | Load Commands From File   | {"t" : "load", "f" : File, "s" : X, "e" : Y}      | Load Command X to Y from File (X, Y : int-value)     |
+| Command   |                           |                                                   |                                                      |
++-----------+---------------------------+---------------------------------------------------+------------------------------------------------------+
+
+
+
