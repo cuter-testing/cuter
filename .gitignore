@@ -1,3 +1,4 @@
 *.beam
 *.erl
 dev/*
+sol

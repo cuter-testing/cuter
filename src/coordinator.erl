@@ -31,11 +31,11 @@ run(M, F, As) ->
   io:format("Input ~p~n", [As]),
   CR = concolic_execute(M, F, As, TmpDir, E),
   
-  {DataDir, _Traces, _Mapping} = analyze_execution_info(CR),
+  {DataDir, Traces, Mapping} = analyze_execution_info(CR),
   
   %% SIMPLIFICATION - ASSUME SEQUENCIAL PROGRAM
-%  [File] = proplists:get_value(node(), Traces),
-%  As2 = z3_solve(File, 1, Mapping),
+  [File] = proplists:get_value(node(), Traces),
+  _ = z3_solve(File, 2, Mapping),
 %  io:format("New Args : ~p~n", [As2]),
   
   _ = delete_execution_trace(DataDir),
@@ -54,10 +54,21 @@ analyze_execution_info({'ok', {Result, DataDir, Traces, Mapping}}) ->
   {DataDir, Traces, Mapping}.
 
 
-%z3_solve(F, I, Ms) ->
-%  io:format("Reversing ~p constraint~n", [I]),
-%  P = python:start(),
-%  ok.
+z3_solve(F, I, _Ms) ->
+  io:format("Reversing ~p constraint~n", [I]),
+  P = python:start(),
+  python:exec(P, "python -u priv/erlang_port.py"),
+  python:load_file(P, {F, 1, I}),
+  Chk = python:check_model(P),
+  io:format("Chk = ~p~n", [Chk]),
+  case Chk of
+    <<"sat">> ->
+      M = python:get_model(P),
+      io:format("Model = ~p~n", [M]);
+    _ ->
+      ok
+  end,
+  python:stop(P).
 
 
 %% Concolic Execution of an M, F, As
