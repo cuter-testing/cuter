@@ -2,19 +2,43 @@
 %%------------------------------------------------------------------------------
 -module(concolic_json).
 
+-export([command_to_json/2, prepare_port_command/2, decode_z3_result/1]).
+
 -define(Q, $\").
 -define(ENC(T, V), [$\{, ?Q, $t, ?Q, $:, ?Q, T, ?Q, $,, ?Q, $v, ?Q, $:, V, $\}]).
+-define(ENC_KEY_VAL(K, V), [?Q, K, ?Q, $:, V]).
 -define(ENC_ALIAS(V), [$\{, ?Q, $l, ?Q, $:, ?Q, V, ?Q, $\}]).
 -define(ENC_SYMB(V), [$\{, ?Q, $s, ?Q, $:, ?Q, V, ?Q, $\}]).
 -define(ENC_DICT_ENTRY(K, V), [?Q, K, ?Q, $:, V]).
 -define(ENC_DICT(S), [?Q, $d, ?Q, $:, $\{, S, $\}]).
 -define(ENC_CMD(Cmd, As), [$\{, ?Q, $c, ?Q, $:, ?Q, Cmd, ?Q, $,, ?Q, $a, ?Q, $:, $\[, As, $\], $\}]).
 
--export([command_to_json/2]).
+-define(IS_WHITESPACE(C), (C =:= $\s orelse C =:= $\t orelse C =:= $\r orelse C =:= $\n)).
+-define(IS_DIGIT(C), (C >= $0 andalso C =< $9)).
+-define(IS_SIGN(C), (C =:= $-)).
+-define(IS_DECIMAL_POINT(C), (C =:= $.)).
+-define(INC_OFFSET(D), D#decoder{offset = D#decoder.offset + 1}).
+-define(PUSH(X, D), D#decoder{acc = [X | D#decoder.acc]}).
+-define(OFFSET(D), D#decoder.offset).
 
-%% ==============================================================================
-%% Encode Terms to JSON
+-record(decoder, {
+  state,
+  offset = 1,
+  type = null,
+  acc = []
+}).
 
+%% ============================================================================
+%% External exports
+%% ============================================================================
+
+%% Decode Z3 result
+-spec decode_z3_result(binary()) -> orddict:orddict().
+
+decode_z3_result(JSON) ->
+  decode_solution(JSON, #decoder{state = start}, orddict:new()).
+
+%% Encode a Command to JSON
 -spec command_to_json(term(), term()) -> binary().
 
 command_to_json(M, [S, Vs]) when M =:= "Bkt"; M =:= "Bkl" ->
@@ -34,6 +58,227 @@ command_to_json(Cmd, Args) when is_list(Args) ->
   [$, | Ss] = lists:foldl(F, [], Args),
   Str = ?ENC_CMD(Cmd, lists:reverse(Ss)),
   list_to_binary(Str).
+
+%% Encode a Port Command to JSON
+-spec prepare_port_command(atom(), term()) -> binary().
+
+prepare_port_command(load_file, {File, From, To}) ->
+  T = ?ENC_KEY_VAL($t, [?Q, "load", ?Q]),
+  A0 = [?Q, File, ?Q],
+  A1 = integer_to_list(From),
+  A2 = integer_to_list(To),
+  As = ?ENC_KEY_VAL($a, [$\[, A0, $,, A1, $,, A2, $\]]),
+  L = [$\{, T, $,, As, $\}],
+  list_to_binary(L);
+prepare_port_command(check_model, _) ->
+  T = ?ENC_KEY_VAL($t, [?Q, "check", ?Q]),
+  L = [$\{, T, $\}],
+  list_to_binary(L);
+prepare_port_command(get_model, _) ->
+  T = ?ENC_KEY_VAL($t, [?Q, "model", ?Q]),
+  L = [$\{, T, $\}],
+  list_to_binary(L).
+
+
+%% ==============================================================================
+%% Decode JSON Solution
+
+decode_solution(JSON, #decoder{state = start}, Ms) ->
+  case trim_whitespace(JSON) of
+    <<$\{, Rest/binary>> -> decode_solution(Rest, #decoder{state = key}, Ms);
+    _ -> throw({expected_character, $\{})
+  end;
+decode_solution(JSON, #decoder{state = next_or_end}, Ms) ->
+  case trim_whitespace(JSON) of
+    <<$\}, Rest/binary>> ->
+      case trim_whitespace(Rest) of
+        <<>> -> Ms;
+        _ -> throw(invalid_json_object)
+      end;
+    <<$,, Rest/binary>> ->
+      decode_solution(Rest, #decoder{state = key}, Ms);
+    _ ->
+      throw(parse_error)
+  end;
+decode_solution(JSON, D=#decoder{state=key}, Ms) ->
+  O = ?OFFSET(D),
+  case trim_whitespace(JSON) of
+    <<?Q, Key:O/binary, ?Q, $:, Rest/binary>> ->
+      K = concolic_symbolic:list_to_symbolic(binary_to_list(Key)),
+      {Obj, Rest1} = decode_object(Rest, #decoder{state = start}),
+      Ms1 = orddict:store(K, Obj, Ms),
+      decode_solution(Rest1, #decoder{state = next_or_end}, Ms1);
+    <<?Q, _:O/binary, _/binary>> ->
+      decode_solution(JSON, ?INC_OFFSET(D), Ms);
+    _ ->
+      throw(parse_error)
+  end.
+
+decode_object(JSON, #decoder{state = start}) ->
+  case trim_whitespace(JSON) of
+    <<$\{, Rest/binary>> ->
+      {T, Rest1} = decode_object_type(Rest, #decoder{state = key}),
+      {Obj, Rest2} = decode_object_value(T, trim_separator(Rest1, $,)),
+      decode_object(Rest2, #decoder{state = endpoint, acc = [Obj]});
+    <<?Q, "any", ?Q, Rest/binary>> ->
+      {'__any', Rest}; %% Unbound Variable
+    _ ->
+      throw(parse_error)
+    end;
+decode_object(JSON, #decoder{state = endpoint, acc = [Obj]}) ->
+  case trim_whitespace(JSON) of
+    <<$\}, Rest/binary>> -> {Obj, Rest};
+    _ -> throw(parse_error)
+  end.
+
+decode_object_type(JSON, #decoder{state = key}) ->
+  case trim_whitespace(JSON) of
+    <<?Q, $t, ?Q, Rest/binary>> ->
+      decode_object_type(trim_separator(Rest, $:), #decoder{state = value});
+    _ ->
+      throw(parse_error)
+  end;
+decode_object_type(JSON, D=#decoder{state = value}) ->
+  O = ?OFFSET(D),
+  case trim_whitespace(JSON) of
+    <<?Q, Typ:O/binary, ?Q, Rest/binary>> ->
+      {binary_to_list(Typ), Rest};
+    <<?Q, _:O/binary, _/binary>> ->
+      decode_object_type(JSON, ?INC_OFFSET(D));
+    _ ->
+      throw(parse_error)
+  end.
+
+decode_object_value("Int", JSON) -> decode_int(JSON, #decoder{state = key});
+decode_object_value("Real", JSON) -> decode_real(JSON, #decoder{state = key});
+decode_object_value("List", JSON) -> decode_list(JSON, #decoder{state = key});
+decode_object_value("Tuple", JSON) -> decode_tuple(JSON, #decoder{state = key});
+decode_object_value("Atom", JSON) -> decode_atom(JSON, #decoder{state = key}).
+
+decode_int(JSON, #decoder{state = key}) ->
+  case trim_whitespace(JSON) of
+    <<?Q, $v, ?Q, Rest/binary>> ->
+      Rest1 = trim_separator(Rest, $:),
+      decode_int(trim_whitespace(Rest1), #decoder{state = value}); %% Ensure we pass a trimmed JSON string
+    _ ->
+      throw(parse_error)
+  end;
+decode_int(JSON, D=#decoder{state = value}) ->
+  case JSON of
+    <<I, Rest/binary>> when ?IS_DIGIT(I); ?IS_SIGN(I) ->
+      decode_int(Rest, ?PUSH(I, D));
+    _ ->
+      I = list_to_integer(lists:reverse(D#decoder.acc)),
+      {validate_int(I), JSON}
+  end.
+
+decode_real(JSON, #decoder{state = key}) ->
+  case trim_whitespace(JSON) of
+    <<?Q, $v, ?Q, Rest/binary>> ->
+      Rest1 = trim_separator(Rest, $:),
+      decode_real(trim_whitespace(Rest1), #decoder{state = value}); %% Ensure we pass a trimmed JSON string
+    _ ->
+      throw(parse_error)
+  end;
+decode_real(JSON, D=#decoder{state = value}) ->
+  case JSON of
+    <<I, Rest/binary>> when ?IS_DIGIT(I); ?IS_SIGN(I); ?IS_DECIMAL_POINT(I) ->
+      decode_real(Rest, ?PUSH(I, D));
+    _ ->
+      F = list_to_float(lists:reverse(D#decoder.acc)),
+      {validate_float(F), JSON}
+  end.
+
+decode_list(JSON, #decoder{state = key}) ->
+  case trim_whitespace(JSON) of
+    <<?Q, $v, ?Q, Rest/binary>> ->
+      decode_list(trim_separator(Rest, $:), #decoder{state = value_start});
+    _ ->
+      throw(parse_error)
+  end;
+decode_list(JSON, #decoder{state = value_start}) ->
+  case trim_whitespace(JSON) of
+    <<$\[, $\], Rest/binary>> ->
+      {[], Rest};
+    <<$\[, Rest/binary>> ->
+      {Obj, Rest1} = decode_object(Rest, #decoder{state = start}),
+      S1 = #decoder{state = value_next_or_end, acc = [Obj]},
+      decode_list(Rest1, S1);
+    _ ->
+      throw(parse_error)
+  end;
+decode_list(JSON, D=#decoder{state = value_next_or_end}) ->
+  case trim_whitespace(JSON) of
+    <<$\], Rest/binary>> ->
+      {lists:reverse(D#decoder.acc), Rest};
+    <<$,, Rest/binary>> ->
+      {Obj, Rest1} = decode_object(Rest, #decoder{state = start}),
+      decode_list(Rest1, ?PUSH(Obj, D));
+    _ ->
+      throw(parse_error)
+  end.
+
+decode_tuple(JSON, #decoder{state = key}) ->
+  case trim_whitespace(JSON) of
+    <<?Q, $v, ?Q, Rest/binary>> ->
+      {L, Rest1} = decode_list(trim_separator(Rest, $:), #decoder{state = value_start}),
+      {list_to_tuple(L), Rest1};
+    _ ->
+      throw(parse_error)
+  end.
+
+decode_atom(JSON, #decoder{state = key}) ->
+  case trim_whitespace(JSON) of
+    <<?Q, $v, ?Q, Rest/binary>> ->
+      decode_atom(trim_separator(Rest, $:), #decoder{state = value_start});
+    _ ->
+      throw(parse_error)
+  end;
+decode_atom(JSON, #decoder{state = value_start}) ->
+  case trim_whitespace(JSON) of
+    <<$\[, Rest/binary>> ->
+      decode_atom(Rest, #decoder{state = value_next_or_end});
+    _ ->
+      throw(parse_error)
+  end;
+decode_atom(JSON, D=#decoder{state = value_next_or_end}) ->
+  case trim_whitespace(JSON) of
+    <<I, Rest/binary>> when ?IS_DIGIT(I); I =:= $, ->
+      decode_atom(Rest, ?PUSH(I, D));
+    <<$\], Rest/binary>> ->
+      Ts = string:tokens(lists:reverse(D#decoder.acc), ","),
+      A = list_to_atom(lists:map(fun list_to_integer/1, Ts)),
+      {validate_atom(A), Rest};
+    _ ->
+      throw(parse_error)
+  end.
+
+trim_whitespace(JSON) ->
+  case JSON of
+    <<C, Rest/binary>> when ?IS_WHITESPACE(C) -> trim_whitespace(Rest);
+    _ -> JSON
+  end.
+  
+trim_separator(JSON, S) ->
+  case trim_whitespace(JSON) of
+    <<S, Rest/binary>> -> Rest;
+    _ -> throw({expected_separator, S})
+  end.
+
+validate_int(I) when is_integer(I) -> I;
+validate_int(I) -> throw({invalid_int, I}).
+
+validate_float(F) when is_float(F) -> F;
+validate_float(F) -> throw({invalid_float, F}).
+
+validate_atom(A) when is_atom(A) -> A;
+validate_atom(A) -> throw({invalid_atom, A}).
+
+%% ==============================================================================
+
+
+%% ==============================================================================
+%% Encode Terms to JSON
 
 %% Encode an Erlang Term to JSON (nested list)
 json_encode(Term) ->

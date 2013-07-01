@@ -5,7 +5,7 @@
 %% exports appear alphabetically
 -export([abstract/1, append_segments/2, ensure_list/4, hd/3,
          make_bitstring/4, match_bitstring_const/5, match_bitstring_var/5,
-         mock_bif/4, to_list/1, tl/3, tuple_to_list/4, is_symbolic/1]).
+         mock_bif/4, to_list/1, tl/3, tuple_to_list/4, is_symbolic/1, list_to_symbolic/1]).
 
 -export_type([mapping/0, symbolic/0]).
 
@@ -93,6 +93,11 @@ is_symbolic(_V) -> false.
 -spec to_list(symbolic()) -> list().
 
 to_list({?SYMBOLIC_PREFIX, SymbVar}) when is_list(SymbVar) -> SymbVar.
+
+%% Create a symbolic value from a List representation
+-spec list_to_symbolic(list()) -> symbolic().
+
+list_to_symbolic(L) when is_list(L) -> {?SYMBOLIC_PREFIX, L}.
 
 %% =============================================================
 %% Symbolic representations of term operations
