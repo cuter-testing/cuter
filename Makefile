@@ -30,7 +30,8 @@ SRC_MODULES = \
 	concolic_load \
 	concolic_symbolic \
 	concolic_tserver \
-	coordinator
+	coordinator \
+	python
 
 SUITE_MODULES = \
 	bang \
