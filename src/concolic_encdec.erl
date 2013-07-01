@@ -4,7 +4,7 @@
 
 %% exports are alphabetically ordered
 -export([close_file/1, get_data/1, open_file/2, pprint/1, log_pid/2,
-         log/3, log/4]).
+         log/3, log/4, path_vertex/1]).
 
 -define(LOGGING_FLAG, ok).  %% Enables logging
 
@@ -62,7 +62,30 @@ pprint(F) ->
       io:format("~w -> ~p~n", [Id, Data]),
       pprint(F)
   end.
- 
+
+%% ------------------------------------------------------------------
+%% Read Data
+%% ------------------------------------------------------------------
+-spec path_vertex(file:name()) -> list().
+path_vertex(File) ->
+  {ok, Fd} = open_file(File, 'read'),
+  generate_vertex(Fd, []).
+
+generate_vertex(Fd, Acc) ->
+  case safe_read(Fd, 1, true) of
+    eof ->
+      close_file(Fd),
+      lists:reverse(Acc);
+    <<N>> ->
+      Sz = bin_to_i32(safe_read(Fd, 4, false)),
+      {ok, _} = file:position(Fd, {cur, Sz}),
+      case N of
+        1 -> generate_vertex(Fd, [$T|Acc]);
+        2 -> generate_vertex(Fd, [$F|Acc]);
+        _ -> generate_vertex(Fd, Acc)
+      end
+  end.
+
 %% ------------------------------------------------------------------
 %% Wrappers for write_data/3
 %% ------------------------------------------------------------------
