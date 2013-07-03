@@ -61,7 +61,8 @@ See (http://docs.python.org/2/library/json.html) for JSON-Python type translatio
 |           | BIF 'erlang:trunc/1'      | {"c" : "trc", "a" : [Term1, Term2]}               | Term2 = trunc(Term1)                                 |
 +-----------+---------------------------+---------------------------------------------------+------------------------------------------------------+
 | Port      | Load Commands From File   | {"t" : "load", "f" : File, "s" : X, "e" : Y}      | Load Command X to Y from File (X, Y : int-value)     |
-| Command   |                           |                                                   |                                                      |
+| Command   | Check Model for SAT       | {"t" : "check"}                                   | Check Model for Satisfiability                       |
+|           | Get Model                 | {"t" : "model"}                                   | Get the Model Interpretation                         |
 +-----------+---------------------------+---------------------------------------------------+------------------------------------------------------+
 
 
