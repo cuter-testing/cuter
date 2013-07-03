@@ -31,8 +31,8 @@ try:
       sol = erlz3.z3_solution_to_json()
       erlport.send(str(json.dumps(sol)))
     
-    yy = JsonWriter("sol")
-    yy.write(sol)
+#    yy = JsonWriter("sol")
+#    yy.write(sol)
 except:
   e = traceback.format_exc()
   erlport.send(e)
