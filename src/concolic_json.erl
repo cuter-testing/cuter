@@ -121,7 +121,7 @@ decode_object(JSON, #decoder{state = start}) ->
       {Obj, Rest2} = decode_object_value(T, trim_separator(Rest1, $,)),
       decode_object(Rest2, #decoder{state = endpoint, acc = [Obj]});
     <<?Q, "any", ?Q, Rest/binary>> ->
-      {'__any', Rest}; %% Unbound Variable
+      {'__any', Rest}; %% XXX Unbound Variable
     _ ->
       throw(parse_error)
     end;
@@ -169,7 +169,7 @@ decode_int(JSON, D=#decoder{state = value}) ->
       decode_int(Rest, ?PUSH(I, D));
     _ ->
       I = list_to_integer(lists:reverse(D#decoder.acc)),
-      {validate_int(I), JSON}
+      {I, JSON}
   end.
 
 decode_real(JSON, #decoder{state = key}) ->
@@ -186,7 +186,7 @@ decode_real(JSON, D=#decoder{state = value}) ->
       decode_real(Rest, ?PUSH(I, D));
     _ ->
       F = list_to_float(lists:reverse(D#decoder.acc)),
-      {validate_float(F), JSON}
+      {F, JSON}
   end.
 
 decode_list(JSON, #decoder{state = key}) ->
@@ -248,7 +248,7 @@ decode_atom(JSON, D=#decoder{state = value_next_or_end}) ->
     <<$\], Rest/binary>> ->
       Ts = string:tokens(lists:reverse(D#decoder.acc), ","),
       A = list_to_atom(lists:map(fun list_to_integer/1, Ts)),
-      {validate_atom(A), Rest};
+      {A, Rest};
     _ ->
       throw(parse_error)
   end.
@@ -264,15 +264,6 @@ trim_separator(JSON, S) ->
     <<S, Rest/binary>> -> Rest;
     _ -> throw({expected_separator, S})
   end.
-
-validate_int(I) when is_integer(I) -> I;
-validate_int(I) -> throw({invalid_int, I}).
-
-validate_float(F) when is_float(F) -> F;
-validate_float(F) -> throw({invalid_float, F}).
-
-validate_atom(A) when is_atom(A) -> A;
-validate_atom(A) -> throw({invalid_atom, A}).
 
 %% ==============================================================================
 
