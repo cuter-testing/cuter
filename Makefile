@@ -100,6 +100,15 @@ $(SUITE_EBIN)/%.beam : %.erl
 utest: $(TARGETS)
 	@(./runtests.rb)
 
+demo: $(TARGETS) $(SUITE_EBIN)/demo.beam
+	@(echo "foo(X, Y) ->")
+	@(echo "Z = 2*Y,")
+	@(echo "case X =:= 100000 andalso X < Z of")
+	@(echo "  false -> ok;")
+	@(echo "  true -> error(assertion)")
+	@(echo "end.\n")
+	erl -noinput -kernel error_logger false -pa $(EBIN) -pa $(SUITE_EBIN) -eval "coordinator:run(demo, foo, [1, 1])" -s init stop
+
 dialyzer: $(TARGETS)
 	dialyzer -n -Wunmatched_returns $(EBIN)/*.beam
 

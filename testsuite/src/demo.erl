@@ -1,8 +1,15 @@
 -module(demo).
 
--export([fib/1, min/1, distributed_pp/1, selective_receive/1]).
+-export([fib/1, min/1, distributed_pp/1, selective_receive/1, foo/2]).
 
 -compile({no_auto_import,[min/2]}).
+
+foo(X, Y) ->
+  Z = 2*Y,
+  case X =:= 100000 andalso X < Z of
+    false -> ok;
+    true -> error(assertion)
+  end.
 
 %% Naive Fibonnaci Number implementation
 %% coordinator:run(demo,fib,[4]).
