@@ -107,7 +107,7 @@ demo: $(TARGETS) $(SUITE_EBIN)/demo.beam
 	@(echo "  false -> ok;")
 	@(echo "  true -> error(assertion)")
 	@(echo "end.\n")
-	erl -noinput -kernel error_logger false -pa $(EBIN) -pa $(SUITE_EBIN) -eval "coordinator:run(demo, foo, [1, 1])" -s init stop
+	erl -noinput -pa $(EBIN) -pa $(SUITE_EBIN) -eval "error_logger:tty(false)" -eval "coordinator:run(demo, foo, [1, 1])" -s init stop
 
 dialyzer: $(TARGETS)
 	dialyzer -n -Wunmatched_returns $(EBIN)/*.beam
