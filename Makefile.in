@@ -106,7 +106,8 @@ demo: concolic_target $(SUITE_EBIN)/demo.beam
 	@(echo "case X =:= 100000 andalso X < Z of")
 	@(echo "  false -> ok;")
 	@(echo "  true -> error(assertion)")
-	@(echo "end.\n")
+	@(echo "end.")
+	@(echo "")
 	erl -noinput -pa $(EBIN) -pa $(SUITE_EBIN) -eval "coordinator:run(demo, foo, [1, 1])" -s init stop
 
 dialyzer: $(TARGETS)
