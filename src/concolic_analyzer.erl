@@ -21,6 +21,7 @@
                 | {'error', term()}                      %% Runtime Error
                 | {'internal_error', internal_error()}.  %% Internal Error
 
+%-define(PRINT_TRACE, ok).  %% Pretty Prints all traces
 -define(DELETE_TRACE, ok).  %% Deletes execution traces
 
 %%====================================================================
@@ -100,7 +101,9 @@ clear_and_delete_dir(D) ->
 
 clear_dir(D) ->
   case filelib:is_regular(D) of
-    true -> delete_file(D);
+    true ->
+      print_file(D),
+      delete_file(D);
     false ->
       case file:del_dir(D) of
         ok -> ok;
@@ -112,6 +115,15 @@ clear_dir(D) ->
         _ -> ok
       end
   end.
+
+-ifdef(PRINT_TRACE).
+print_file(D) ->
+  {ok, F} = concolic_encdec:open_file(D, 'read'),
+  concolic_encdec:pprint(F),
+  concolic_encdec:close_file(F).
+-else.
+print_file(_) -> ok.
+-endif.
   
 -ifdef(DELETE_TRACE).
 delete_file(F) -> file:delete(F).
