@@ -100,8 +100,9 @@ test_run(M, F, As) ->
 
 pprint_input([H|T]) ->
   lists:foreach(fun(_) -> io:format("-") end, lists:seq(1,50)),
-  io:format("~nInput: ~w~n", [H]),
-  lists:foreach(fun(X) -> io:format(", ~w", [X]) end, T).
+  io:format("~nInput: ~w", [H]),
+  lists:foreach(fun(X) -> io:format(", ~w", [X]) end, T),
+  io:format("~n").
 
 report_execution_status({ok, {Cv, _}}) -> io:format(" Result: ~w~n", [Cv]);
 report_execution_status({error, CR}) -> io:format(" Runtime Error: ~w~n", [CR]).
