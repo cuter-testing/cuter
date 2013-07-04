@@ -4,7 +4,8 @@
 -behaviour(gen_fsm).
 
 %% External exports
--export([start/0, exec/2, load_file/2, check_model/1, get_model/1, stop/1]).
+-export([start/0, exec/2, load_file/2, check_model/1, get_model/1,
+         stop/1, solve/4]).
 
 %% gen_fsm callbacks
 -export([init/1, handle_event/3, handle_sync_event/4, handle_info/3,
@@ -71,6 +72,27 @@ get_model(Pid) ->
 
 stop(Pid) ->
   gen_fsm:sync_send_event(Pid, stop).
+
+%% Interact with Z3 to solve a set of constraints
+%% SIMPLIFICATION - Assume Sequential program
+-spec solve(file:name(), integer(), [concolic_symbolic:mapping()], string()) -> {ok, [term()]} | error.
+
+solve(File, I, Mapping, Python) ->
+  FSM = python:start(),
+  python:exec(FSM, Python),
+  python:load_file(FSM, {File, 1, I}),
+  Sat = python:check_model(FSM),
+  case Sat of
+    <<"sat">> ->
+      M = python:get_model(FSM),
+      Decoded = concolic_json:decode_z3_result(M),
+      Inp = concolic_symbolic:generate_new_input(Mapping, Decoded),
+      python:stop(FSM),
+      {ok, Inp};
+    _ ->
+      python:stop(FSM),
+      error
+  end.
 
 %% ============================================================================
 %% gen_fsm callbacks
