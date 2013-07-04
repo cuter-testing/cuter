@@ -14,6 +14,7 @@
 
 -spec run(atom(), atom(), [term()]) -> ok.
 run(M, F, As) ->
+  error_logger:tty(false),  %% Disable error_logger
   io:format("Testing ~p:~p/~p ...~n", [M, F, length(As)]),
   {TmpDir, E, S} = init(),
   pprint_input(As),
