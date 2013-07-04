@@ -66,7 +66,8 @@ pprint(F) ->
 %% ------------------------------------------------------------------
 %% Read Data
 %% ------------------------------------------------------------------
--spec path_vertex(file:name()) -> list().
+-spec path_vertex(file:name()) -> concolic_analyzer:path_vertex().
+
 path_vertex(File) ->
   {ok, Fd} = open_file(File, 'read'),
   generate_vertex(Fd, []).
@@ -80,8 +81,8 @@ generate_vertex(Fd, Acc) ->
       Sz = bin_to_i32(safe_read(Fd, 4, false)),
       {ok, _} = file:position(Fd, {cur, Sz}),
       case N of
-        1 -> generate_vertex(Fd, [$T|Acc]);
-        2 -> generate_vertex(Fd, [$F|Acc]);
+        1 -> generate_vertex(Fd, [concolic_analyzer:constraint_true()|Acc]);
+        2 -> generate_vertex(Fd, [concolic_analyzer:constraint_false()|Acc]);
         _ -> generate_vertex(Fd, Acc)
       end
   end.
@@ -177,6 +178,10 @@ i32_to_list(Int) when is_integer(Int) ->
    (Int bsr  8) band 255,
     Int band 255].
 
+%% Maps commands to their type
+%% 1 : True constraint
+%% 2 : False constraint
+%% 3 : Everything else
 command_type({'guard', true}) -> 1;
 command_type({'guard', false}) -> 2;
 command_type('eq') -> 1;
@@ -191,6 +196,7 @@ command_type('not_match') -> 2;
 command_type('not_match_v') -> 2;
 command_type(_) -> 3.
 
+%% Maps commands to their JSON Opcodes
 json_command_op({'guard', true}) -> "T";
 json_command_op({'guard', false}) -> "F";
 json_command_op('eq') -> "Eq";
@@ -237,7 +243,6 @@ json_command_op({erlang, 'is_number', 1}) -> "isn";
 json_command_op({erlang, 'is_tuple', 1}) -> "ist";
 json_command_op({erlang, 'round', 1}) -> "rnd";
 json_command_op({erlang, 'trunc', 1}) -> "trc".
-
 
 safe_read(Fd, Sz, AllowEOF) ->
   case file:read(Fd, Sz) of
