@@ -9,7 +9,7 @@ SRC  = src
 EBIN = ebin
 SUITE_SRC = testsuite/src
 SUITE_EBIN = testsuite/ebin
-ERLC = erlc
+ERLC = @ERLC@
 
 ###----------------------------------------------------------------------
 ### Flags
@@ -17,7 +17,7 @@ ERLC = erlc
 
 WARNS = +warn_exported_vars +warn_unused_import +warn_missing_spec #+warn_untyped_record
 ERLC_FLAGS = +debug_info $(WARNS)
-ERLC_MACROS = -DEBIN=\"$(EBIN)\"
+ERLC_MACROS = -DEBIN=\"$(EBIN)\" -DPYTHON_PATH=\"@PYTHON_PATH@\"
 
 SRC_MODULES = \
 	bin_lib \
@@ -100,7 +100,7 @@ $(SUITE_EBIN)/%.beam : %.erl
 utest: $(TARGETS)
 	@(./runtests.rb)
 
-demo: $(TARGETS) $(SUITE_EBIN)/demo.beam
+demo: concolic_target $(SUITE_EBIN)/demo.beam
 	@(echo "foo(X, Y) ->")
 	@(echo "Z = 2*Y,")
 	@(echo "case X =:= 100000 andalso X < Z of")

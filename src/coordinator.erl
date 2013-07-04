@@ -2,11 +2,10 @@
 -export([run/3, test_run/3]).
 
 %-define(PRINT_ANALYSIS, ok). %% Prints an execution analysis
-%-define(PRINT_TRACE, ok).  %% Pretty Prints all traces
 
 -define(TRACEDIR(BaseDir), BaseDir ++ "/traces").
 -define(COREDIR(BaseDir), BaseDir ++ "/core").
--define(PYTHON_CALL, "python -u priv/erlang_port.py").
+-define(PYTHON_CALL, ?PYTHON_PATH ++ " -u priv/erlang_port.py").
 
 %% ============================================================================
 %% External exports

@@ -4,6 +4,8 @@ conc-test
 How to compile & test
 ---------------------
 
+*  Run `autoconf && ./configure`
+
 *  Compile just the source files : `make fast`
 
 *  Compile the source files & the tests & run dialyzer : `make`

@@ -1,2 +1,11 @@
+autom4te.cache
+
+/Makefile
+/configure
+/config.log
+/config.status
+
+
+
 dev/*
 sol
