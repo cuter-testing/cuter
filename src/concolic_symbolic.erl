@@ -5,7 +5,8 @@
 %% exports appear alphabetically
 -export([abstract/1, append_segments/2, ensure_list/4, hd/3,
          make_bitstring/4, match_bitstring_const/5, match_bitstring_var/5,
-         mock_bif/4, to_list/1, tl/3, tuple_to_list/4, is_symbolic/1, list_to_symbolic/1]).
+         mock_bif/4, to_list/1, tl/3, tuple_to_list/4, is_symbolic/1,
+         list_to_symbolic/1, generate_new_input/2]).
 
 -export_type([mapping/0, symbolic/0]).
 
@@ -74,8 +75,7 @@ fresh_symbolic_var() ->
   Id = erlang:ref_to_list(erlang:make_ref()) -- "#Ref<>",
   {?SYMBOLIC_PREFIX, Id}.
 
-%% Abstract a list of concrete values and return
-%% the symbolic variables and the mapping
+%% Abstract a list of concrete values
 -spec abstract([term()]) -> {[symbolic()], [mapping()]}.
 
 abstract(Vs) ->
@@ -83,7 +83,7 @@ abstract(Vs) ->
   Maps = lists:zip(Symbs, Vs),
   {Symbs, Maps}.
   
-%% Check whether a term represents a symbolic value or not
+%% Check whether a term represents a symbolic value
 -spec is_symbolic(term()) -> boolean().
 
 is_symbolic({?SYMBOLIC_PREFIX, SymbVar}) when is_list(SymbVar) -> true;
@@ -98,6 +98,18 @@ to_list({?SYMBOLIC_PREFIX, SymbVar}) when is_list(SymbVar) -> SymbVar.
 -spec list_to_symbolic(list()) -> symbolic().
 
 list_to_symbolic(L) when is_list(L) -> {?SYMBOLIC_PREFIX, L}.
+
+%% Extract new concrete input from the symbolic mapping and Z3's result
+-spec generate_new_input([mapping()], orddict:orddict()) -> [term()].
+
+generate_new_input(Ms, Vs) ->
+  F = fun({Sv, Cv}) ->
+    case orddict:fetch(Sv, Vs) of
+      '__any' -> Cv;
+      V -> V
+    end
+  end,
+  lists:map(F, Ms).
 
 %% =============================================================
 %% Symbolic representations of term operations
