@@ -10,6 +10,8 @@ How to compile & test
 
 *  Run the tests : `make utest`
 
+*  Run the demo : `make demo`
+
 *  All the above : `make all`
 
 How to run
@@ -17,7 +19,5 @@ How to run
 
 You can simulate the execution of an MFA with `coordinator:run(Module, Function, Arguments).`
 
-e.g. `coordinator:run(orddict, store, [key,val,orddict:new()]).`
-
-PS. You must start the interpreter with `erl -pa ebin`.
+e.g. `erl -noinput -pa ebin -pa testsuite/ebin -eval "error_logger:tty(false)" -eval "coordinator:run(demo, foo, [1, 1])" -s init stop` after running `make`
 
