@@ -35,9 +35,10 @@ i(M, F, As, CodeServer, TraceServer) ->
       {SymbAs, Mapping} = concolic_symbolic:abstract(As),
       {ok, Fd} = concolic_tserver:register_to_trace(TraceServer, Root),
       concolic_encdec:log(Fd, 'params', SymbAs),
+      concolic:send_mapping(Root, Mapping),
       NMF = {named, {M, F}},
       Val = eval(NMF, As, SymbAs, external, CodeServer, TraceServer, Fd),
-      concolic:send_return(Root, Mapping, Val)
+      concolic:send_return(Root, Val)
     end,
   erlang:spawn(I).
 

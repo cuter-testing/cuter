@@ -6,7 +6,7 @@
 
 %% External exports
 -export([init_server/5, node_servers/2, send_clogs/2,
-         send_error_report/3, send_return/3, send_tlogs/2]).
+         send_error_report/3, send_return/2, send_tlogs/2, send_mapping/2]).
 
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3,
@@ -16,7 +16,8 @@
 -export_type([exec_info/0, servers/0]).
 
 %% type declarations
--type call()      :: {'int_return', concolic_symbolic:mapping(), term()}
+-type call()      :: {'int_return', term()}
+                   | {'mapping', [concolic_symbolic:mapping()]}
                    | {'node_servers', node()}
                    | {'error_report', pid(), term()}
                    | {'clogs', concolic_cserver:clogs()}
@@ -54,10 +55,16 @@ init_server(M, F, As, CoreDir, TraceDir) ->
   end.
   
 %% Send the result of the first interpreted process
--spec send_return(pid(), [concolic_symbolic:mapping()], term()) -> 'ok' | 'proc_mismatch'.
+-spec send_return(pid(), term()) -> 'ok' | 'proc_mismatch'.
 
-send_return(ConcServer, Mapping, Return) ->
-  gen_server:call(ConcServer, {int_return, Mapping, Return}).
+send_return(ConcServer, Return) ->
+  gen_server:call(ConcServer, {int_return, Return}).
+
+%% Send the mapping of the concrete to symbolic values
+-spec send_mapping(pid(), [concolic_symbolic:mapping()]) -> 'ok' | 'proc_mismatch'.
+
+send_mapping(ConcServer, Mapping) ->
+  gen_server:call(ConcServer, {mapping, Mapping}).
   
 %% Send the report of a Runtime Error
 -spec send_error_report(pid(), pid(), term()) -> 'ok'.
@@ -153,10 +160,10 @@ code_change(_OldVsn, State, _Extra) ->
 -spec handle_call(call(), {pid(), reference()}, state()) ->
   {'reply', reply(), state()} | {'stop', 'error', 'normal', state()}.
 
-%% Log the result of the first spawned process
-%% Call Request : {int_return, Mapping, Ret}
+%% Log the mapping of concrete to symbolic values
+%% Call Request : {mapping, Mapping}
 %% Reply : ok | proc_mismatch
-handle_call({int_return, Mapping, Return}, {From, _FromTag}, State) ->
+handle_call({mapping, Mapping}, {From, _FromTag}, State) ->
   Ipid = State#state.int,
   Res = State#state.results,
   FromPid = 
@@ -167,7 +174,27 @@ handle_call({int_return, Mapping, Return}, {From, _FromTag}, State) ->
   case Ipid =:= FromPid of
     true  ->
       Node = node(FromPid),
-      List = [{result, Return}, {mapping, Mapping}],
+      List = [{mapping, Mapping}],
+      NRes = orddict:append_list(Node, List, Res),
+      {reply, ok, State#state{results = NRes}};
+    false ->
+      {reply, proc_mismatch, State}
+  end;
+%% Log the result of the first spawned process
+%% Call Request : {int_return, Ret}
+%% Reply : ok | proc_mismatch
+handle_call({int_return, Return}, {From, _FromTag}, State) ->
+  Ipid = State#state.int,
+  Res = State#state.results,
+  FromPid = 
+    case is_atom(From) of
+     true ->  whereis(From);  %% Always this will be a local process
+     false -> From
+    end,
+  case Ipid =:= FromPid of
+    true  ->
+      Node = node(FromPid),
+      List = [{result, Return}],
       NRes = orddict:append_list(Node, List, Res),
       {reply, ok, State#state{results = NRes, int = ok}};
     false ->
