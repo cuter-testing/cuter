@@ -46,8 +46,8 @@
 | setelement/3              |             |
 | tuple_size/1              |             |
 | length/1                  |             |
-| list_to_tuple/1           |             |
-| tuple_to_list/1           |             |
+| list_to_tuple/1           | Yes         |
+| tuple_to_list/1           | Yes         |
 | make_tuple/2              |             |
 | max/2                     |             |
 | min/2                     |             |
