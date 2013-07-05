@@ -164,10 +164,10 @@ eval({named, {erlang, spawn_opt}}, CAs, SAs, _CallType, CodeServer, TraceServer,
   receive
     {ChildPid, registered} -> {R, R}
   end;
-    
+
 %% Handle message sending primitives
 %% so as to zip the concrete and symbolic reason
-  
+
 %% Handle '!'/2
 eval({named, {erlang, '!'}}, [_, _] = CAs, SAs, CallType, CodeServer, TraceServer, Fd) ->
   eval({named, {erlang, send}}, CAs, SAs, CallType, CodeServer, TraceServer, Fd);
@@ -657,7 +657,7 @@ eval_expr(_M, _CodeServer, _TraceServer, {c_var, _Anno, Name}, Cenv, Senv, _Fd) 
 %% Wraps calls to run_message_loop to check for timeout.
 %% --------------------------------------------------------
 find_message_loop(M, CodeServer, TraceServer, Clauses, Action, infinity, STimeout, Cenv, Senv, Start, Msgs, Fd) ->
-  %% TODO Constraint: STimeout=infinity but will have been made by chek_timeout
+  %% TODO Constraint: STimeout=infinity but will have been made by check_timeout
   run_message_loop(M, CodeServer, TraceServer, Clauses, Action, infinity, STimeout, Cenv, Senv, Start, Msgs, Fd);
 find_message_loop(M, CodeServer, TraceServer, Clauses, Action, CTimeout, STimeout, Cenv, Senv, Start, Msgs, Fd) ->
   Now = erlang:now(),
@@ -735,7 +735,7 @@ find_clause(M, Mode, CodeServer, TraceServer, [Cl|Cls], Cv, Sv, Cenv, Senv, Fd, 
     {true, {_Body, _NCenv, _NSenv, Cnt} = MatchClause} ->
       MatchClause
   end.
-  
+
 %% --------------------------------------------------------
 %% match_clause
 %%
@@ -769,11 +769,11 @@ match_clause(M, Mode, CodeServer, TraceServer, {c_clause, _Anno, Pats, Guard, Bo
           %% Make silent guards
           try eval_expr(M, CodeServer, TraceServer, Guard, NCenv, NSenv, Fd) of
             {true, SGv} ->
-              %% TODO make constraint SGv=true
+              %% CONSTRAINT: SGv is a True guard
               log(Mode, Fd, 'guard', {SGv, true}),
               {true, {Body, NCenv, NSenv, Cnt}};
             {false, SGv} ->
-              %% TODO make constraint SGv=false
+              %% CONSTRAINT: SGv is a False guard
               log(Mode, Fd, 'guard', {SGv, false}),
               false
           catch
@@ -791,7 +791,7 @@ match_clause(M, Mode, CodeServer, TraceServer, {c_clause, _Anno, Pats, Guard, Bo
 
 pattern_match_all(BitInfo, Mode, TraceServer, Pats, Cvs, Svs, Fd) ->
   pattern_match_all(BitInfo, Mode, TraceServer, Pats, Cvs, Svs, [], [], Fd).
-  
+
 pattern_match_all(_BitInfo, _Mode, _TraceServer, [], [], [], CMaps, SMaps, _Fd) ->
   {true, {CMaps, SMaps}};
 pattern_match_all(BitInfo, Mode, TraceServer, [P|Ps], [Cv|Cvs], [Sv|Svs], CMaps, SMaps, Fd) ->
@@ -814,21 +814,21 @@ pattern_match_all(BitInfo, Mode, TraceServer, [P|Ps], [Cv|Cvs], [Sv|Svs], CMaps,
 pattern_match(_BitInfo, Mode, _TraceServer, {c_literal, _Anno, LitVal}, Cv, Sv, CMaps, SMaps, Fd) ->
   case LitVal =:= Cv of
     true ->
-      %% TODO Constraint Sv == Litval
+      %% CONSTRAINT: Sv =:= Litval
       log(Mode, Fd, 'eq', {LitVal, Sv}),
       {true, {CMaps, SMaps}};
     false ->
-      %% TODO Constraint Sv != Litval
+      %% CONSTRAINT: Sv =/= Litval
       log(Mode, Fd, 'neq', {LitVal, Sv}),
       false
   end;
-  
+
 %% VariableName pattern
 pattern_match(_BitInfo, _Mode, _TraceServer, {c_var, _Anno, Name}, Cv, Sv, CMaps, SMaps, _Fd) ->
   CMs = [{Name, Cv}|CMaps],
   SMs = [{Name, Sv}|SMaps],
   {true, {CMs, SMs}};
-  
+
 %% Tuple pattern
 pattern_match(BitInfo, Mode, TraceServer, {c_tuple, _Anno, Es}, Cv, Sv, CMaps, SMaps, Fd)
   when is_tuple(Cv) ->
@@ -836,24 +836,24 @@ pattern_match(BitInfo, Mode, TraceServer, {c_tuple, _Anno, Es}, Cv, Sv, CMaps, S
     case tuple_size(Cv) of
       Ne ->
         Cs = tuple_to_list(Cv),
-        %% TODO Constraint: Sv tuple with Ne elements
+        %% CONSTRAINT: Sv is a tuple of Ne elements
         log(Mode, Fd, 'tuple_size', {'eq', Sv, Ne}),
         Ss = concolic_symbolic:tuple_to_list(Sv, Ne, Cs, Fd),
         pattern_match_all(BitInfo, Mode, TraceServer, Es, Cs, Ss, CMaps, SMaps, Fd);
       _ ->
-        %% TODO Constraint: Sv not tuple with Ne elements
+        %% CONSTRAINT: Sv is a tuple of not Ne elements
         log(Mode, Fd, 'tuple_size', {'neq', Sv, Ne}),
         false
-    end;    
+    end;
 pattern_match(_BitInfo, Mode, _TraceServer, {c_tuple, _Anno, Es}, _Cv, Sv, _CMaps, _SMaps, Fd) ->
   Ne = length(Es),
-  %% TODO Constraint: Sv not tuple
+  %% CONSTRAINT: Sv is not a tuple
   log(Mode, Fd, 'not_tuple', {Sv, Ne}),
   false;
-  
+
 %% List constructor pattern
 pattern_match(BitInfo, Mode, TraceServer, {c_cons, _Anno, Hd, Tl}, [Cv|Cvs], S, CMaps, SMaps, Fd) ->
-  %% TODO Constraing: S is non empty list
+  %% CONSTRAINT: S is a non empty list
   log(Mode, Fd, 'non_empty_list', S),
   Sv = concolic_symbolic:hd(S, Cv, Fd),
   Svs = concolic_symbolic:tl(S, Cvs, Fd),
@@ -864,11 +864,11 @@ pattern_match(BitInfo, Mode, TraceServer, {c_cons, _Anno, Hd, Tl}, [Cv|Cvs], S, 
       false
   end;
 pattern_match(_BitInfo, Mode, _TraceServer, {c_cons, _Anno, _Hd, _Tl}, [], Sv, _CMaps, _SMaps, Fd) ->
-  %% TODO Constraing: S is empty list
+  %% CONSTRAINT: Sv is an empty list
   log(Mode, Fd, 'empty_list', Sv),
   false;
 pattern_match(_BitInfo, Mode, _TraceServer, {c_cons, _Anno, _Hd, _Tl}, _Cv, Sv, _CMaps, _SMaps, Fd) ->
-  %% TODO Constraint: Sv not list
+  %% CONSTRAINT: Sv is not a list
   log(Mode, Fd, 'not_list', Sv),
   false;
 
@@ -884,7 +884,7 @@ pattern_match(BitInfo, Mode, TraceServer, {c_alias, _Anno, Var, Pat}, Cv, Sv, CM
     false ->
       false
   end;
-  
+
 %% Binary pattern
 pattern_match(BitInfo, Mode, TraceServer, {c_binary, _Anno, Segments}, Cv, Sv, CMaps, SMaps, Fd) ->
   bit_pattern_match(BitInfo, Mode, TraceServer, Segments, Cv, Sv, CMaps, SMaps, Fd).
@@ -1243,7 +1243,7 @@ validate_servers(CodeServer, TraceServer) ->
     true  -> {CodeServer, TraceServer};
     false -> concolic_tserver:node_servers(TraceServer, Node)
   end.
- 
+
 %% --------------------------------------------------------
 %% Check if the given file descriptor correponds to this 
 %% process. If not get the proper file descriptor.
@@ -1269,27 +1269,18 @@ evaluate_bif({M, F, _A} = MFA, CAs, SAs, Fd) ->
 %% --------------------------------------------------------
 %% Encode and Decode Msgs
 %% --------------------------------------------------------
-  
+
 %% Encode a Message
 encode_msg(TraceServer, Dest, CMsg, SMsg) ->
   case concolic_tserver:is_monitored(TraceServer, Dest) of
-%%    true  ->
-%%      Msg = {'__conc', zip_one(CMsg, SMsg)},
-%%      term_to_binary(Msg, [{compressed, 1}]);
     true  -> {'__conc', zip_one(CMsg, SMsg)};
     false -> CMsg
   end.
 
 %% Decode a Message
-%%decode_msg(Msg) when is_binary(Msg) ->
-%%  try binary_to_term(Msg) of
-%%    {'__conc', ActMsg} -> unzip_msg(ActMsg)
-%%  catch
-%%    error:badarg -> unzip_msg(Msg)
-%%  end;
 decode_msg({'__conc', Msg}) -> unzip_msg(Msg);
 decode_msg(Msg) -> unzip_msg(Msg).
-  
+
 %% --------------------------------------------------------
 %% Zip and Unzip concrete-semantic values
 %%
@@ -1300,7 +1291,7 @@ decode_msg(Msg) -> unzip_msg(Msg).
 
 %% zip_one
 zip_one(Cv, Sv) -> {'__zip', Cv, Sv}.
-  
+
 %% unzip_one
 unzip_one({'__zip', Cv, Sv}) -> {Cv, Sv};
 unzip_one(V) -> {V, V}.
@@ -1308,11 +1299,11 @@ unzip_one(V) -> {V, V}.
 %% zip_args
 zip_args(CAs, SAs) when is_list(CAs), is_list(SAs) ->
   lists:zipwith(fun zip_one/2, CAs, SAs).
-  
+
 %% unzip_args
 unzip_args(As) when is_list(As) ->
    lists:unzip([unzip_one(A) || A <- As]).
-  
+
 %% unzip_error // for exception reasons
 -spec unzip_error(term()) -> {term(), term()}.
 unzip_error({nocatch, {'__zip', Cv, Sv}}) ->
@@ -1514,5 +1505,5 @@ adjust_arguments(_M, _F, CAs, SAs, _Fd) -> {CAs, SAs}.
 %% to the proper concolic_encdec logging functions
 %% --------------------------------------------------------
 log(T, D, C, I) -> concolic_encdec:log(T, D, C, I).
-  
+
 
