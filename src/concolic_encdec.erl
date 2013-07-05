@@ -31,8 +31,7 @@ close_file(F) ->
 
 get_data(F) ->
   case safe_read(F, 1, true) of
-    eof ->
-      eof;
+    eof -> eof;
     Id ->
       Sz = bin_to_i32(safe_read(F, 4, false)),
       Bin = safe_read(F, Sz, false),
