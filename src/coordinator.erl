@@ -7,30 +7,32 @@
 -define(COREDIR(BaseDir), BaseDir ++ "/core").
 -define(PYTHON_CALL, ?PYTHON_PATH ++ " -u priv/erlang_port.py").
 
-%% ============================================================================
-%% External exports
-%% ============================================================================
+%% ------------------------------------------------------------------
+%% Run function
+%% ------------------------------------------------------------------
 
 -spec run(atom(), atom(), [term()]) -> ok.
+
 run(M, F, As) ->
   error_logger:tty(false),  %% Disable error_logger
   io:format("Testing ~p:~p/~p ...~n", [M, F, length(As)]),
   {TmpDir, E, S} = init(),
   pprint_input(As),
   CR = concolic_execute(M, F, As, TmpDir, E),
-  {DataDir, Traces, Mapping} = analyze_execution_info(CR),
+  {DataDir, Traces, Mapping} = prepare_execution_info(S, CR),
   ok = concolic_scheduler:initial_execution(S, DataDir, Traces, Mapping),
   loop(M, F, TmpDir, E+1, S).
 
 loop(M, F, TmpDir, E, S) ->
   case concolic_scheduler:request_input(S) of
     empty ->
+      concolic_scheduler:stop(S),
       _ = file:del_dir(filename:absname(TmpDir)),
       ok;
     {R, As} ->
       pprint_input(As),
       CR = concolic_execute(M, F, As, TmpDir, E),
-      {DataDir, Traces, Mapping} = analyze_execution_info(CR),
+      {DataDir, Traces, Mapping} = prepare_execution_info(S, CR),
       ok = concolic_scheduler:store_execution(S, R, DataDir, Traces, Mapping),
       loop(M, F, TmpDir, E+1, S)
   end.
@@ -42,19 +44,29 @@ init() ->
   S = concolic_scheduler:start(?PYTHON_CALL),
   {TmpDir, E, S}.
 
-
-analyze_execution_info({'internal_error', IError}) ->
-  io:format("Internal Error in Concolic Execution : ~p~n", [IError]);
-analyze_execution_info({'ok', {Result, DataDir, Traces, Mapping}}) ->
+prepare_execution_info(S, {'internal_error', IError}) ->
+  io:format("Internal Error in Concolic Execution : ~p~n", [IError]),
+  concolic_scheduler:stop(S),
+  exit(normal);
+prepare_execution_info(_S, {'ok', {Result, DataDir, Traces, Mapping}}) ->
   report_execution_status(Result),
-  
-%  io:format("~p~n", [Traces]),
   report_exec_vertices(Traces),
-  
   {DataDir, Traces, Mapping}.
 
+%% Run function for testing
+-spec test_run(atom(), atom(), [term()]) -> concolic_analyzer:ret().
 
+test_run(M, F, As) ->
+  process_flag(trap_exit, true),
+  TmpDir = "temp",
+  {ok, {R, DataDir, _, _}} = concolic_execute(M, F, As, TmpDir, 0),
+  _ = concolic_analyzer:clear_and_delete_dir(DataDir),
+  _ = file:del_dir(filename:absname(TmpDir)),
+  R.
 
+%% ------------------------------------------------------------------
+%% Concolic Execution
+%% ------------------------------------------------------------------
 
 %% Concolic Execution of an M, F, As
 concolic_execute(M, F, As, Dir, E) ->
@@ -67,32 +79,14 @@ concolic_execute(M, F, As, Dir, E) ->
   case concolic_analyzer:get_result(R) of
     {'internal_error', _IError} = IE -> IE;
     Result ->
-%      io:format("~p~n", [R]),
-      {'ok', {Result, DataDir, concolic_analyzer:get_traces(R), concolic_analyzer:get_mapping(R)}}
+      {ok, {Result, DataDir, concolic_analyzer:get_traces(R), concolic_analyzer:get_mapping(R)}}
   end.
-
 
 wait_for_execution(Concolic) ->
   receive
     {'EXIT', Concolic, Why} -> {'internal_concolic_error', node(), Why};
     {Concolic, Results} -> Results
   end.
-
-
-
-
--spec test_run(atom(), atom(), [term()]) -> concolic_analyzer:ret().
-test_run(M, F, As) ->
-  process_flag(trap_exit, true),
-  TmpDir = "temp",
-  {ok, {R, DataDir, _, _}} = concolic_execute(M, F, As, TmpDir, 0),
-  _ = concolic_analyzer:clear_and_delete_dir(DataDir),
-  _ = file:del_dir(filename:absname(TmpDir)),
-  R.
-
-%% ============================================================================
-%% Internal functions
-%% ============================================================================
 
 %% ------------------------------------------------------------------
 %% Report Results
@@ -164,43 +158,4 @@ report_result(X) ->
 -else.
 analyze(_) -> ok.
 -endif.
-
-%% ------------------------------------------------------------------
-
-%% temporary deleting all traces
-%clear_dir(D) ->
-%  case filelib:is_regular(D) of
-%    true ->
-%      {'ok', F} = concolic_encdec:open_file(D, 'read'),
-%      print_trace(F, D),
-%      concolic_encdec:close_file(F),
-%      delete_trace(D);
-%    false ->
-%      case file:del_dir(D) of
-%        'ok' -> 'ok';
-%        {error, eexist} ->
-%          {'ok', L} = file:list_dir(D),
-%          LL = [D ++ "/" ++ X || X <- L],
-%          lists:foreach(fun clear_dir/1, LL),
-%          file:del_dir(D);
-%        _ -> 'ok'
-%      end
-%  end.
-
-%-ifdef(PRINT_TRACE).
-%print_trace(F, D) ->
-%  io:format("%% Contents of ~p~n", [D]),
-%  concolic_encdec:pprint(F).
-%-else.
-%print_trace(_F, _D) ->
-%  'ok'.
-%-endif.
-
-%-ifdef(DELETE_TRACE).
-%delete_trace(F) ->
-%  file:delete(F).
-%-else.
-%delete_trace(_F) ->
-%  'ok'.
-%-endif.
 

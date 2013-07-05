@@ -114,48 +114,35 @@ handle_info(Msg, State) ->
 -spec handle_call(call(), {pid(), reference()}, state()) -> {reply, reply(), state()}.
 
 handle_call({'init_execution', DataDir, Traces, Mapping}, _From, S=#state{queue = Q, info = I}) ->
-%  io:format("[~s] : Got Init Execution~n", [?MODULE]),
   R = make_ref(),
-%  io:format("Saving ~p~n", [R]),
   Q1 = queue:in(R, Q),
   %% SIMPLIFICATION : Assume Sequential Execution
   [{_, [V]}] = concolic_analyzer:get_execution_vertices(Traces),
-%  io:format("Len = ~p~n", [length(V)]),
   Data = create_info(1, length(V), DataDir, Traces, Mapping),
   ets:insert(I, {R, Data}),
-%  io:format("Init Execution : ok~n"),
   {reply, ok, S#state{queue = Q1}};
 
 handle_call({'store_execution', Ref, DataDir, Traces, Mapping}, _From, S=#state{queue = Q, info = I}) ->
-%  io:format("[~s] : Got Store Execution~n", [?MODULE]),
-%  io:format("Saving ~p~n", [Ref]),
   [{Ref, Ps}] = ets:lookup(I, Ref),
   %% SIMPLIFICATION : Assume Sequential Execution
   [{_, [V]}] = concolic_analyzer:get_execution_vertices(Traces),
   L = length(V),
-%  io:format("Len = ~p~n", [L]),
   case next_constraint(Ps) > L of
     true ->
-%      io:format("Will not queue ~p~n", [Ref]),
       concolic_analyzer:clear_and_delete_dir(DataDir),
       {reply, ok, S};
     false ->
     Ps1 = update_partial_info(Ps, L, DataDir, Traces, Mapping),
     ets:insert(I, {Ref, Ps1}),
     Q1 = queue:in(Ref, Q),
-%    io:format("Store Execution : ok~n"),
     {reply, ok, S#state{queue = Q1}}
   end;
 
 handle_call('request_input', _From, S=#state{queue = Q, info = I, python = P}) ->
-%  io:format("[~s] : Got Request Input~n", [?MODULE]),
   case generate_testcase(Q, I, P) of
     {empty, Q1} ->
-%      io:format("Empty~n"),
       {reply, empty, S#state{queue = Q1}};
     {ok, {R, Inp}, Q1} ->
-%      io:format("Sending ~p ", [R]),
-%      io:format("New Inp ok : ~p~n", [Inp]),
       {reply, {R, Inp}, S#state{queue = Q1}}
   end.
 
@@ -180,12 +167,10 @@ generate_testcase(Q, I, P) ->
 expand_state(Q, I, P) ->
   case queue:out(Q) of
     {{value, R}, Q1} ->
-%      io:format("Will expand ~p~n", [R]),
       [{R, Ps}] = ets:lookup(I, R),
       %% SIMPLIFICATION : Assume Sequential Execution
       [File] = proplists:get_value(node(), traces(Ps)),
       X = next_constraint(Ps),
-%      io:format("[~s] Reversing ~p of ~p~n", [?MODULE, X, path_length(Ps)]),
       case python:solve(File, X, mapping(Ps), P) of
         error ->
           Q2 = requeue_state(Ps, Q1, R, I),
@@ -203,12 +188,10 @@ expand_state(Q, I, P) ->
 requeue_state(Ps, Q, R, I) ->
   case increase_next_constraint(Ps) of
     false ->
-%      io:format("Did not requeue ~p~n", [R]),
       DataDir = datadir(Ps),
       concolic_analyzer:clear_and_delete_dir(DataDir),
       Q;
     {ok, Ps1} ->
-%      io:format("Requeued ~p~n", [R]),
       Q1 = queue:in(R, Q),
       ets:insert(I, {R, Ps1}),
       Q1
@@ -237,15 +220,15 @@ increase_next_constraint(Ps) ->
   L = path_length(Ps),
   case X > L orelse X > ?DEPTH of
     true -> false;
-    false ->
-      F = fun({K, _}=P) ->
-        case K of
-          'next_constraint' -> {K, X};
-          _ -> P
-        end
-      end,
-      {ok, lists:map(F, Ps)}
+    false -> {ok, replace_property('next_constraint', X, Ps)}
   end.
+
+replace_property(Key, Value, Ps) -> replace_property(Key, Value, Ps, []).
+
+replace_property(Key, Value, [{Key, _V}|Ps], Acc) ->
+  Acc ++ [{Key, Value}|Ps];
+replace_property(Key, Value, [{_K, _V}=P|Ps], Acc) ->
+  replace_property(Key, Value, Ps, [P|Acc]).
 
 create_info(I, L, DataDir, Ts, Ms) ->
   [{'next_constraint', I}, {'path_length', L}, {'datadir', DataDir}, {'traces', Ts}, {'mapping', Ms}].

@@ -4,7 +4,7 @@
 
 -export([constraint_true/0, constraint_false/0, get_execution_vertices/1,
          get_traces/1, get_result/1, get_mapping/1,
-         clear_and_delete_dir/1]).
+         clear_and_delete_dir/1, print_trace/1]).
 
 %% exported types
 -export_type([path_vertex/0, traces/0, internal_error/0, result/0, ret/0]).
@@ -92,6 +92,14 @@ get_execution_vertices([{Node, Fs} | Rest], Acc) ->
   Vs = lists:map(fun concolic_encdec:path_vertex/1, Fs),
   get_execution_vertices(Rest, [{Node, Vs} | Acc]).
 
+%% Print the contents of a trace file
+-spec print_trace(file:name()) -> ok.
+
+print_trace(D) ->
+  {ok, F} = concolic_encdec:open_file(D, 'read'),
+  concolic_encdec:pprint(F),
+  concolic_encdec:close_file(F).
+
 %% Delete the trace files / folders of an execution
 -spec clear_and_delete_dir(string()) -> ok.
 
@@ -117,10 +125,7 @@ clear_dir(D) ->
   end.
 
 -ifdef(PRINT_TRACE).
-print_file(D) ->
-  {ok, F} = concolic_encdec:open_file(D, 'read'),
-  concolic_encdec:pprint(F),
-  concolic_encdec:close_file(F).
+print_file(D) -> print_trace(D).
 -else.
 print_file(_) -> ok.
 -endif.
