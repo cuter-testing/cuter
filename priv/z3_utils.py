@@ -239,6 +239,8 @@ class ErlangZ3:
       "ist" : self._json_bif_is_tuple_to_z3,
       "rnd" : self._json_bif_round_to_z3,
       "trc" : self._json_bif_trunc_to_z3,
+      "ltt" : self._json_bif_list_to_tuple_to_z3,
+      "ttl" : self._json_bif_tuple_to_list_to_z3,
       # Other Useful Commands
       "Pms" : self._json_cmd_define_params_to_z3,
       "Bkt" : self._json_cmd_break_tuple_to_z3,
@@ -360,6 +362,40 @@ class ErlangZ3:
       t = self.List.tl(t)
     preds.append(t == self.List.nil)
     s.add(Not(And(*preds)))
+  
+  # Other Useful Commands
+  
+  # Define Parameters
+  def _json_cmd_define_params_to_z3(self, *args):
+    for s in args:
+      x = self._json_symbolic_term_to_z3(s)
+      self.env.add_param(s["s"])
+  
+  # 'Break Tuple'
+  def _json_cmd_break_tuple_to_z3(self, term1, terms):
+    s = self.solver
+    t1 = self.json_term_to_z3(term1)
+    s.add(self.Term.is_tpl(t1))
+    t1 = self.Term.tval(t1)
+    for term in terms:
+      t = self.json_term_to_z3(term)
+      s.add(self.List.is_cons(t1))
+      s.add(t == self.List.hd(t1))
+      t1 = self.List.tl(t1)
+    s.add(t1 == self.List.nil)
+  
+  # 'Break List'
+  def _json_cmd_break_list_to_z3(self, term1, terms):
+    s = self.solver
+    t1 = self.json_term_to_z3(term1)
+    s.add(self.Term.is_lst(t1))
+    t1 = self.Term.lval(t1)
+    for term in terms:
+      t = self.json_term_to_z3(term)
+      s.add(self.List.is_cons(t1))
+      s.add(t == self.List.hd(t1))
+      t1 = self.List.tl(t1)
+    s.add(t1 == self.List.nil)
   
   # BIFs
   
@@ -752,39 +788,25 @@ class ErlangZ3:
     ))
     s.add(Or(e1, e2))
   
-  # Other Useful Commands
-  
-  # Define Parameters
-  def _json_cmd_define_params_to_z3(self, *args):
-    for s in args:
-      x = self._json_symbolic_term_to_z3(s)
-      self.env.add_param(s["s"])
-  
-  # 'Break Tuple'
-  def _json_cmd_break_tuple_to_z3(self, term1, terms):
+  # erlang:list_to_tuple/1
+  def _json_bif_list_to_tuple_to_z3(self, term1, term2):
+    T = self.Term
     s = self.solver
     t1 = self.json_term_to_z3(term1)
-    s.add(self.Term.is_tpl(t1))
-    t1 = self.Term.tval(t1)
-    for term in terms:
-      t = self.json_term_to_z3(term)
-      s.add(self.List.is_cons(t1))
-      s.add(t == self.List.hd(t1))
-      t1 = self.List.tl(t1)
-    s.add(t1 == self.List.nil)
+    t2 = self.json_term_to_z3(term2)
+    s.add(T.is_lst(t1))
+    s.add(T.is_tpl(t2))
+    s.add(T.lval(t1) == T.tval(t2))
   
-  # 'Break List'
-  def _json_cmd_break_list_to_z3(self, term1, terms):
+  # erlang:tuple_to_list/1
+  def _json_bif_tuple_to_list_to_z3(self, term1, term2):
+    T = self.Term
     s = self.solver
     t1 = self.json_term_to_z3(term1)
-    s.add(self.Term.is_lst(t1))
-    t1 = self.Term.lval(t1)
-    for term in terms:
-      t = self.json_term_to_z3(term)
-      s.add(self.List.is_cons(t1))
-      s.add(t == self.List.hd(t1))
-      t1 = self.List.tl(t1)
-    s.add(t1 == self.List.nil)
+    t2 = self.json_term_to_z3(term2)
+    s.add(T.is_tpl(t1))
+    s.add(T.is_lst(t2))
+    s.add(T.tval(t1) == T.lval(t2))
   
   ## Decode the Z3 solution to JSON
   def z3_solution_to_json(self):
