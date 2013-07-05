@@ -27,7 +27,7 @@
 }).
 -type state() :: #state{}.
 
--define(DEPTH, 7).
+-define(DEPTH, 15).
 
 %% ============================================================================
 %% External exports
@@ -196,7 +196,6 @@ requeue_state(Ps, Q, R, I) ->
       ets:insert(I, {R, Ps1}),
       Q1
   end.
-
 
 %% ------------------------------------------------------------------
 %% Functions that handle the info stored in the ETS table
