@@ -201,6 +201,7 @@ class ErlangZ3:
       "T" : self._json_cmd_true_to_z3,
       "F" : self._json_cmd_false_to_z3,
       "Nel" : self._json_cmd_nel_to_z3,
+      "El" : self._json_cmd_el_to_z3,
       "Nl" : self._json_cmd_nl_to_z3,
       "Nt" : self._json_cmd_nt_to_z3,
       "Ts" : self._json_cmd_ts_to_z3,
@@ -250,6 +251,7 @@ class ErlangZ3:
       "T" : self._json_cmd_false_to_z3,
       "F" : self._json_cmd_true_to_z3,
       "Nel" : self._json_rev_cmd_nel_to_z3,
+      "El" : self._json_cmd_nel_to_z3,
       "Nl" : self._json_rev_cmd_nl_to_z3,
       "Ts" : self._json_rev_cmd_ts_to_z3,
       "Nt" : self._json_cmd_ts_to_z3,
@@ -299,6 +301,12 @@ class ErlangZ3:
       self.List.is_cons(self.Term.lval(t))
     )
     self.solver.add(Not(e))
+  
+  # "Empty List"
+  def _json_cmd_el_to_z3(self, term):
+    t = self.json_term_to_z3(term)
+    s.add(self.Term.is_lst(t))
+    s.add(self.List.is_nil(self.Term.lval(t)))
   
   # "Not List"
   def _json_cmd_nl_to_z3(self, term):

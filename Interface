@@ -22,6 +22,7 @@ See (http://docs.python.org/2/library/json.html) for JSON-Python type translatio
 |           | Guard True                | {"c" : "T", "a" : [Term]}                         | Term == True [116,114,117,101]                       |
 |           | Guard False               | {"c" : "F", "a" : [Term]}                         | Term == False [102,97,108,115,101]                   |
 |           | Non Empty List            | {"c" : "Nel", "a" : [Term]}                       | Term is a Non Empty List                             |
+|           | Empty List                | {"c" : "El", "a" : [Term]}                        | Term is an Empty List                                |
 |           | Not List                  | {"c" : "Nl", "a" : [Term]}                        | Term is not a List                                   |
 |           | Not Tuple                 | {"c" : "Nt", "a" : [Term]}                        | Term is not a Tuple                                  |
 |           | Tuple Size                | {"c" : "Ts", "a" : [Term, Integer]}               | Term is a tuple of int-value size                    |

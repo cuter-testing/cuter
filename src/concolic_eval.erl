@@ -862,7 +862,11 @@ pattern_match(BitInfo, Mode, TraceServer, {c_cons, _Anno, Hd, Tl}, [Cv|Cvs], S, 
       pattern_match(BitInfo, Mode, TraceServer, Tl, Cvs, Svs, CMs, SMs, Fd);
     false ->
       false
-  end;  
+  end;
+pattern_match(_BitInfo, Mode, _TraceServer, {c_cons, _Anno, _Hd, _Tl}, [], Sv, _CMaps, _SMaps, Fd) ->
+  %% TODO Constraing: S is empty list
+  log(Mode, Fd, 'empty_list', Sv),
+  false;
 pattern_match(_BitInfo, Mode, _TraceServer, {c_cons, _Anno, _Hd, _Tl}, _Cv, Sv, _CMaps, _SMaps, Fd) ->
   %% TODO Constraint: Sv not list
   log(Mode, Fd, 'not_list', Sv),

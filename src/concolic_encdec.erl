@@ -123,7 +123,7 @@ log('case', Fd, 'not_tuple'=M, {Sv, N}) ->
   end;
 
 %% 'Non Empty List', 'Not List' constraints
-log('case', Fd, T, V) when T =:= 'non_empty_list'; T =:= 'not_list' ->
+log('case', Fd, T, V) when T =:= 'non_empty_list'; T =:= 'not_list'; T =:= 'empty_list' ->
   case concolic_symbolic:is_symbolic(V) of
     false -> ok;
     true  -> log_helper(Fd, T, [V])
@@ -189,6 +189,7 @@ command_type({'tuple_size', 'eq'}) -> 1;
 command_type({'tuple_size', 'neq'}) -> 2;
 command_type('not_tuple') -> 2;
 command_type('non_empty_list') -> 1;
+command_type('empty_list') -> 2;
 command_type('not_list') -> 2;
 command_type('match') -> 1;
 command_type('not_match') -> 2;
@@ -203,6 +204,7 @@ json_command_op('neq') -> "Neq";
 json_command_op({'tuple_size', 'eq'}) -> "Ts";
 json_command_op({'tuple_size', 'neq'}) -> "Nts";
 json_command_op('non_empty_list') -> "Nel";
+json_command_op('empty_list') -> "El";
 json_command_op('not_list') -> "Nl";
 json_command_op('not_tuple') -> "Nt";
 json_command_op('match') -> "M";
