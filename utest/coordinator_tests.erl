@@ -10,7 +10,8 @@
 toy_test_() ->
   Setup =
     fun() ->
-      Toys = [bang, genstress, big, ehb, ets_test, parallel, pcmark, serialmsg, timer_wheel, mbrot, ran],
+%      Toys = [bang, genstress, big, ehb, ets_test, parallel, pcmark, serialmsg, timer_wheel, mbrot, ran],
+      Toys = [bang, genstress, big, ehb, ets_test, parallel, pcmark, serialmsg, timer_wheel, mbrot],
       X = [{T, T:gen_args()} || T <- Toys],
       [{T, A} || {T, L} <- X, A <- L]
     end,
