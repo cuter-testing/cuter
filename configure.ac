@@ -9,10 +9,9 @@ AC_ARG_WITH(erlc,
 [AS_HELP_STRING([--with-erlc=ERLC],
 		[specify the location of the erlang compiler.])])
 
+ERLC="erlc"
 if test "x$with_erlc" != x; then
   ERLC="$with_erlc"
-else
-  ERLC=`which erlc`
 fi
 
 AC_SUBST(ERLC)
@@ -46,10 +45,9 @@ AC_ARG_WITH(python,
 [AS_HELP_STRING([--with-python=PYTHON_PATH],
 		[specify the location of the python 2.x executable.])])
 
+PYTHON_PATH="python"
 if test "x$with_python" != x; then
   PYTHON_PATH="$with_python"
-else
-  PYTHON_PATH=`which python`
 fi
 
 AC_SUBST(PYTHON_PATH)
