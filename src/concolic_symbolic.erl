@@ -44,7 +44,9 @@
   MFA =:= {erlang, 'is_number', 1} orelse
   MFA =:= {erlang, 'is_tuple', 1} orelse
   MFA =:= {erlang, 'round', 1} orelse
-  MFA =:= {erlang, 'trunc', 1}
+  MFA =:= {erlang, 'trunc', 1} orelse
+  MFA =:= {erlang, 'list_to_tuple', 1} orelse
+  MFA =:= {erlang, 'tuple_to_list', 1}
 )).
 -define(IS_COMPARISON_MFA(MFA), (
   MFA =:= {erlang, '<', 2} orelse
@@ -103,13 +105,14 @@ list_to_symbolic(L) when is_list(L) -> {?SYMBOLIC_PREFIX, L}.
 -spec generate_new_input([mapping()], orddict:orddict()) -> [term()].
 
 generate_new_input(Ms, Vs) ->
-  F = fun({Sv, Cv}) ->
-    case orddict:fetch(Sv, Vs) of
-      '__any' -> Cv;
-      V -> V
+  NewVal = fun({Sv, Cv}) ->
+    V = orddict:fetch(Sv, Vs),  %% Do not expect an exception to be raised
+    case concolic_json:is_unbound_var(V) of
+      true  -> Cv;
+      false -> V
     end
   end,
-  lists:map(F, Ms).
+  lists:map(NewVal, Ms).
 
 %% =============================================================
 %% Symbolic representations of term operations
@@ -132,6 +135,7 @@ safe_mock_bif(MFA, {[CX, CY], [SX, SY]}, Cv, Fd) when ?IS_COMPARISON_MFA(MFA) ->
     true  -> generic_mock_mfa(Fd, MFA, [SX, SY]);
     false -> Cv
   end;
+%% SPECIAL: erlang:element/2
 safe_mock_bif({erlang, element, 2}=MFA, {[_I, _], [X, Y]}, Cv, Fd) ->
   case is_integer(X) of
     true  -> generic_mock_mfa(Fd, MFA, [X, Y]);
@@ -149,7 +153,6 @@ generic_mock_mfa(Fd, MFA, [X, Y]) ->
   Z = fresh_symbolic_var(),
   concolic_encdec:log(Fd, MFA, [X, Y, Z]),
   Z.
-
 
 
 %% Abstract an MFA call

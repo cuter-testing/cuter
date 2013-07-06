@@ -2,7 +2,7 @@
 %%------------------------------------------------------------------------------
 -module(concolic_json).
 
--export([command_to_json/2, prepare_port_command/2, decode_z3_result/1]).
+-export([command_to_json/2, prepare_port_command/2, decode_z3_result/1, is_unbound_var/1]).
 
 -define(Q, $\").
 -define(ENC(T, V), [$\{, ?Q, $t, ?Q, $:, ?Q, T, ?Q, $,, ?Q, $v, ?Q, $:, V, $\}]).
@@ -13,6 +13,7 @@
 -define(ENC_DICT(S), [?Q, $d, ?Q, $:, $\{, S, $\}]).
 -define(ENC_CMD(Cmd, As), [$\{, ?Q, $c, ?Q, $:, ?Q, Cmd, ?Q, $,, ?Q, $a, ?Q, $:, $\[, As, $\], $\}]).
 
+-define(UNBOUND_VAR, '__any').
 -define(IS_WHITESPACE(C), (C =:= $\s orelse C =:= $\t orelse C =:= $\r orelse C =:= $\n)).
 -define(IS_DIGIT(C), (C >= $0 andalso C =< $9)).
 -define(IS_SIGN(C), (C =:= $-)).
@@ -79,6 +80,11 @@ prepare_port_command(get_model, _) ->
   L = [$\{, T, $\}],
   list_to_binary(L).
 
+%% Check if a term represents the value of an unbound variable
+-spec is_unbound_var(term()) -> boolean().
+
+is_unbound_var(?UNBOUND_VAR) -> true;
+is_unbound_var(_) -> false.
 
 %% ==============================================================================
 %% Decode JSON Solution
@@ -121,7 +127,7 @@ decode_object(JSON, #decoder{state = start}) ->
       {Obj, Rest2} = decode_object_value(T, trim_separator(Rest1, $,)),
       decode_object(Rest2, #decoder{state = endpoint, acc = [Obj]});
     <<?Q, "any", ?Q, Rest/binary>> ->
-      {'__any', Rest}; %% XXX Unbound Variable
+      {?UNBOUND_VAR, Rest};
     _ ->
       throw(parse_error)
     end;
