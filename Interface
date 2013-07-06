@@ -62,6 +62,8 @@ See (http://docs.python.org/2/library/json.html) for JSON-Python type translatio
 |            | 'erlang:trunc/1'          | {"c" : "trc", "a" : [Term1, Term2]}               | Term2 = trunc(Term1)                                |
 |            | 'erlang:list_to_tuple/1'  | {"c" : "ltt", "a" : [Term1, Term2]}               | Term2 = list_to_tuple(Term1)                        |
 |            | 'erlang:tuple_to_list/1'  | {"c" : "ttl", "a" : [Term1, Term2]}               | Term2 = tuple_to_list(Term1)                        |
+|    (*)     | 'erlang:length/1'         | {"c" : "len", "a" : [Term1, Term2]}               | Term2 = length(Term1)                               |
+|    (*)     | 'erlang:tuple_size/1'     | {"c" : "tpls", "a" : [Term1, Term2]}              | Term2 = tuple_size(Term1)                           |
 +------------+---------------------------+---------------------------------------------------+-----------------------------------------------------+
 | Port       | Load Commands From File   | {"t" : "load", "f" : File, "s" : X, "e" : Y}      | Load Command X to Y from File (X, Y : int-value)    |
 | Command    | Check Model for SAT       | {"t" : "check"}                                   | Check Model for Satisfiability                      |

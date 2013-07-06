@@ -29,6 +29,7 @@ class ErlangZ3:
     self.solver = Solver()
     self.atom_true = self.json_term_to_z3(json.loads("{\"t\" : \"Atom\", \"v\" : [116,114,117,101]}"))
     self.atom_false = self.json_term_to_z3(json.loads("{\"t\" : \"Atom\", \"v\" : [102,97,108,115,101]}"))
+    self.max_len = 100
     self.check = None
     self.model = None
   
@@ -241,6 +242,8 @@ class ErlangZ3:
       "trc" : self._json_bif_trunc_to_z3,
       "ltt" : self._json_bif_list_to_tuple_to_z3,
       "ttl" : self._json_bif_tuple_to_list_to_z3,
+      "len" : self._json_bif_length_to_z3,
+      "tpls" : self._json_bif_tuple_size_to_z3,
       # Other Useful Commands
       "Pms" : self._json_cmd_define_params_to_z3,
       "Bkt" : self._json_cmd_break_tuple_to_z3,
@@ -807,6 +810,46 @@ class ErlangZ3:
     s.add(T.is_tpl(t1))
     s.add(T.is_lst(t2))
     s.add(T.tval(t1) == T.lval(t2))
+  
+  # erlang:length/1
+  def _json_bif_length_to_z3(self, term1, term2):
+    t1 = self.json_term_to_z3(term1)
+    t2 = self.json_term_to_z3(term2)
+    ax = self._bif_len_h("list", t1, t2)
+    self.solver.add(ax)
+  
+  # erlang:tuple_size/1
+  def _json_bif_tuple_size_to_z3(self, term1, term2):
+    t1 = self.json_term_to_z3(term1)
+    t2 = self.json_term_to_z3(term2)
+    ax = self._bif_len_h("tuple", t1, t2)
+    self.solver.add(ax)
+  
+  # Helper function for erlang:length/1 & erlang:tuple_size/1
+  def _bif_len_h(self, typ, t, n):
+    T = self.Term
+    L = self.List
+    if typ == "list":
+      e = T.is_lst(t)
+      t = T.lval(t)
+    elif typ == "tuple":
+      e = T.is_tpl(t)
+      t = T.tval(t)
+    es = []
+    i = 0
+    while i <= self.max_len:
+      es.append((t, i))
+      t = L.tl(t)
+      i += 1
+    ax = (T.ival(n) >= i)
+    for (x, i) in reversed(es):
+      ax = If(
+        L.is_nil(x),
+        n == T.int(i),
+        And(L.is_cons(x), ax)
+      )
+    ax = And(e, T.is_int(n), ax)
+    return simplify(ax)
   
   ## Decode the Z3 solution to JSON
   def z3_solution_to_json(self):

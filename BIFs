@@ -44,8 +44,8 @@
 | append_element/2          |             |
 | delete_element/2          |             |
 | setelement/3              |             |
-| tuple_size/1              |             |
-| length/1                  |             |
+| tuple_size/1              | Yes (*)     |
+| length/1                  | Yes (*)     |
 | list_to_tuple/1           | Yes         |
 | tuple_to_list/1           | Yes         |
 | make_tuple/2              |             |

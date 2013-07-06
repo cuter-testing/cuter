@@ -245,7 +245,9 @@ json_command_op({erlang, 'is_tuple', 1}) -> "ist";
 json_command_op({erlang, 'round', 1}) -> "rnd";
 json_command_op({erlang, 'trunc', 1}) -> "trc";
 json_command_op({erlang, 'list_to_tuple', 1}) -> "ltt";
-json_command_op({erlang, 'tuple_to_list', 1}) -> "ttl".
+json_command_op({erlang, 'tuple_to_list', 1}) -> "ttl";
+json_command_op({erlang, 'length', 1}) -> "len";
+json_command_op({erlang, 'tuple_size', 1}) -> "tpls".
 
 safe_read(Fd, Sz, AllowEOF) ->
   case file:read(Fd, Sz) of
