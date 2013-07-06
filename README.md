@@ -1,25 +1,54 @@
-conc-test
-=========
+[name pending]
+==============
 
-How to compile & test
----------------------
+This is the source tree for *[name pending]*, a concolic testing tool
+for the Erlang functional programming language.
 
-*  Run `autoconf && ./configure`
+Dependencies
+------------
 
-*  Compile just the source files : `make fast`
+In order to use the tool, you need the following programs:
 
-*  Compile the source files & the tests & run dialyzer : `make`
+ 1. *Erlang/OTP*
 
-*  Run the tests : `make utest`
+  Download the latest [Erlang/OTP distribution] [1] or clone the Erlang/OTP github repository:
 
-*  Run the demo : `make demo`
+        $ git clone git@github.com:erlang/otp.git
 
-*  All the above : `make all`
+ 2. *Python 2.x*
 
-How to run
-----------
+  Download the latest [Python 2.x distribution] [2]
 
-You can simulate the execution of an MFA with `coordinator:run(Module, Function, Arguments).`
+ 2. *Z3 Theorem Prover*
 
-e.g. `erl -noinput -pa ebin -pa testsuite/ebin -eval "error_logger:tty(false)" -eval "coordinator:run(demo, foo, [1, 1])" -s init stop` after running `make`
+  Download the latest [Z3 distribution] [3] or clone the source git repository:
 
+        $ git clone https://git01.codeplex.com/z3
+
+  Make sure that the Z3Py (Python Interface) is installed.
+
+Configuring & Building
+----------------------
+
+**Quick start**: the following gives you a default build:
+
+    $ autoconf
+    $ ./configure
+    $ make fast       # Can also use 'make -jX fast' for X number of jobs
+
+
+The `make fast` step only compiles the necessary source files. For alternative
+build commands you can use:
+
+    $ make         # Compile the source files & the tests & run dialyzer
+    $ make utest   # Compile the source files & the tests & run the tests
+    $ make all     # Compile the source files & the tests & run dialyzer & the tests
+
+Once you have a build you see the demo with:
+
+    $ make demo
+
+
+[1]:  http://www.erlang.org/            "www.erlang.org/"
+[2]:  http://www.python.org/            "www.python.org/"
+[3]:  http://z3.codeplex.com/           "z3.codeplex.com/"
