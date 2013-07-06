@@ -9,6 +9,8 @@
 -include_lib("compiler/src/core_parse.hrl").
 
 -define(FUNCTION_PREFIX, '__func').
+-define(CONCOLIC_PREFIX_MSG, '__concm').
+-define(CONCOLIC_PREFIX_PDICT, '__concp').
 
 -type calltype() :: 'local' | 'external'.
 -type class()    :: 'error' | 'exit' | 'throw'.
@@ -992,133 +994,100 @@ make_fun(Mod, Arity, CServer, TServer, Vars, Body, Cenv, Senv, FileDescr) ->
   case Arity of
     0 ->
       fun() ->
-        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
-        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
-        eval_expr(Mod, CodeServer, TraceServer, Body, Cenv, Senv, Fd)
+        make_fun_h1(Mod, [], CServer, TServer, Vars, Body, Cenv, Senv, Creator, FileDescr)
       end;
     1 ->
       fun(A) ->
         Args = [A],
-        {CAs, SAs} = unzip_args(Args),
-        NCenv = concolic_lib:bind_parameters(CAs, Vars, Cenv),
-        NSenv = concolic_lib:bind_parameters(SAs, Vars, Senv),
-        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
-        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
-        eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv, Fd)
+        make_fun_h1(Mod, Args, CServer, TServer, Vars, Body, Cenv, Senv, Creator, FileDescr)
       end;
     2 ->
       fun(A, B) ->
         Args = [A, B],
-        {CAs, SAs} = unzip_args(Args),
-        NCenv = concolic_lib:bind_parameters(CAs, Vars, Cenv),
-        NSenv = concolic_lib:bind_parameters(SAs, Vars, Senv),
-        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
-        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
-        eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv, Fd)
+        make_fun_h1(Mod, Args, CServer, TServer, Vars, Body, Cenv, Senv, Creator, FileDescr)
       end;
     3 ->
       fun(A, B, C) ->
         Args = [A, B, C],
-        {CAs, SAs} = unzip_args(Args),
-        NCenv = concolic_lib:bind_parameters(CAs, Vars, Cenv),
-        NSenv = concolic_lib:bind_parameters(SAs, Vars, Senv),
-        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
-        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
-        eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv, Fd)
+        make_fun_h1(Mod, Args, CServer, TServer, Vars, Body, Cenv, Senv, Creator, FileDescr)
       end;
     4 ->
       fun(A, B, C, D) ->
         Args = [A, B, C, D],
-        {CAs, SAs} = unzip_args(Args),
-        NCenv = concolic_lib:bind_parameters(CAs, Vars, Cenv),
-        NSenv = concolic_lib:bind_parameters(SAs, Vars, Senv),
-        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
-        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
-        eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv, Fd)
+        make_fun_h1(Mod, Args, CServer, TServer, Vars, Body, Cenv, Senv, Creator, FileDescr)
       end;
     5 ->
       fun(A, B, C, D, E) ->
         Args = [A, B, C, D, E],
-        {CAs, SAs} = unzip_args(Args),
-        NCenv = concolic_lib:bind_parameters(CAs, Vars, Cenv),
-        NSenv = concolic_lib:bind_parameters(SAs, Vars, Senv),
-        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
-        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
-        eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv, Fd)
+        make_fun_h1(Mod, Args, CServer, TServer, Vars, Body, Cenv, Senv, Creator, FileDescr)
       end;
     6 ->
       fun(A, B, C, D, E, F) ->
         Args = [A, B, C, D, E, F],
-        {CAs, SAs} = unzip_args(Args),
-        NCenv = concolic_lib:bind_parameters(CAs, Vars, Cenv),
-        NSenv = concolic_lib:bind_parameters(SAs, Vars, Senv),
-        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
-        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
-        eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv, Fd)
+        make_fun_h1(Mod, Args, CServer, TServer, Vars, Body, Cenv, Senv, Creator, FileDescr)
       end;
     7 ->
       fun(A, B, C, D, E, F, G) ->
         Args = [A, B, C, D, E, F, G],
-        {CAs, SAs} = unzip_args(Args),
-        NCenv = concolic_lib:bind_parameters(CAs, Vars, Cenv),
-        NSenv = concolic_lib:bind_parameters(SAs, Vars, Senv),
-        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
-        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
-        eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv, Fd)
+        make_fun_h1(Mod, Args, CServer, TServer, Vars, Body, Cenv, Senv, Creator, FileDescr)
       end;
     8 ->
       fun(A, B, C, D, E, F, G, H) ->
         Args = [A, B, C, D, E, F, G, H],
-        {CAs, SAs} = unzip_args(Args),
-        NCenv = concolic_lib:bind_parameters(CAs, Vars, Cenv),
-        NSenv = concolic_lib:bind_parameters(SAs, Vars, Senv),
-        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
-        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
-        eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv, Fd)
+        make_fun_h1(Mod, Args, CServer, TServer, Vars, Body, Cenv, Senv, Creator, FileDescr)
       end;
     9 ->
       fun(A, B, C, D, E, F, G, H, I) ->
         Args = [A, B, C, D, E, F, G, H, I],
-        {CAs, SAs} = unzip_args(Args),
-        NCenv = concolic_lib:bind_parameters(CAs, Vars, Cenv),
-        NSenv = concolic_lib:bind_parameters(SAs, Vars, Senv),
-        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
-        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
-        eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv, Fd)
+        make_fun_h1(Mod, Args, CServer, TServer, Vars, Body, Cenv, Senv, Creator, FileDescr)
       end;
     10 ->
       fun(A, B, C, D, E, F, G, H, I, J) ->
         Args = [A, B, C, D, E, F, G, H, I, J],
-        {CAs, SAs} = unzip_args(Args),
-        NCenv = concolic_lib:bind_parameters(CAs, Vars, Cenv),
-        NSenv = concolic_lib:bind_parameters(SAs, Vars, Senv),
-        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
-        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
-        eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv, Fd)
+        make_fun_h1(Mod, Args, CServer, TServer, Vars, Body, Cenv, Senv, Creator, FileDescr)
       end;
     11 ->
       fun(A, B, C, D, E, F, G, H, I, J, K) ->
         Args = [A, B, C, D, E, F, G, H, I, J, K],
-        {CAs, SAs} = unzip_args(Args),
-        NCenv = concolic_lib:bind_parameters(CAs, Vars, Cenv),
-        NSenv = concolic_lib:bind_parameters(SAs, Vars, Senv),
-        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
-        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
-        eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv, Fd)
+        make_fun_h1(Mod, Args, CServer, TServer, Vars, Body, Cenv, Senv, Creator, FileDescr)
       end;
     12 ->
       fun(A, B, C, D, E, F, G, H, I, J, K, L) ->
         Args = [A, B, C, D, E, F, G, H, I, J, K, L],
-        {CAs, SAs} = unzip_args(Args),
-        NCenv = concolic_lib:bind_parameters(CAs, Vars, Cenv),
-        NSenv = concolic_lib:bind_parameters(SAs, Vars, Senv),
-        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
-        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
-        eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv, Fd)
+        make_fun_h1(Mod, Args, CServer, TServer, Vars, Body, Cenv, Senv, Creator, FileDescr)
+      end;
+    13 ->
+      fun(A, B, C, D, E, F, G, H, I, J, K, L, M) ->
+        Args = [A, B, C, D, E, F, G, H, I, J, K, L, M],
+        make_fun_h1(Mod, Args, CServer, TServer, Vars, Body, Cenv, Senv, Creator, FileDescr)
+      end;
+    14 ->
+      fun(A, B, C, D, E, F, G, H, I, J, K, L, M, N) ->
+        Args = [A, B, C, D, E, F, G, H, I, J, K, L, M, N],
+        make_fun_h1(Mod, Args, CServer, TServer, Vars, Body, Cenv, Senv, Creator, FileDescr)
+      end;
+    15 ->
+      fun(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O) ->
+        Args = [A, B, C, D, E, F, G, H, I, J, K, L, M, N, O],
+        make_fun_h1(Mod, Args, CServer, TServer, Vars, Body, Cenv, Senv, Creator, FileDescr)
       end;
     _ ->
       exception('error', {'over_lambda_fun_argument_limit', Arity})
   end.
+
+make_fun_h1(Mod, Args, CServer, TServer, Vars, Body, Cenv, Senv, Creator, FileDescr) ->
+  {NCenv, NSenv} = register_new_environments(Args, Vars, Cenv, Senv),
+  {CodeServer, TraceServer} = validate_servers(CServer, TServer),
+  Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
+  eval_expr(Mod, CodeServer, TraceServer, Body, NCenv, NSenv, Fd).
+
+register_new_environments([], _Vars, Cenv, Senv) ->
+  {Cenv, Senv};
+register_new_environments(Args, Vars, Cenv, Senv) ->
+  {CAs, SAs} = unzip_args(Args),
+  NCenv = concolic_lib:bind_parameters(CAs, Vars, Cenv),
+  NSenv = concolic_lib:bind_parameters(SAs, Vars, Senv),
+  {NCenv, NSenv}.
 
 %% Creates a closure from an MFA (emulates the behaviour
 %% of erlang:make_fun/3) 
@@ -1127,109 +1096,92 @@ make_fun(Mod, Func, Arity, CServer, TServer, FileDescr) ->
   case Arity of
     0 ->
       fun() ->
-        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
-        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
-        eval({named, {Mod, Func}}, [], [], external, CodeServer, TraceServer, Fd)
+        make_fun_h2(Mod, Func, [], CServer, TServer, Creator, FileDescr)
       end;
     1 ->
       fun(A) ->
         Args = [A],
-        {CAs, SAs} = unzip_args(Args),
-        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
-        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
-        eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer, Fd)
+        make_fun_h2(Mod, Func, Args, CServer, TServer, Creator, FileDescr)
       end;
     2 ->
       fun(A, B) ->
         Args = [A, B],
-        {CAs, SAs} = unzip_args(Args),
-        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
-        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
-        eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer, Fd)
+        make_fun_h2(Mod, Func, Args, CServer, TServer, Creator, FileDescr)
       end;
     3 ->
       fun(A, B, C) ->
         Args = [A, B, C],
-        {CAs, SAs} = unzip_args(Args),
-        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
-        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
-        eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer, Fd)
+        make_fun_h2(Mod, Func, Args, CServer, TServer, Creator, FileDescr)
       end;
     4 ->
       fun(A, B, C, D) ->
         Args = [A, B, C, D],
-        {CAs, SAs} = unzip_args(Args),
-        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
-        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
-        eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer, Fd)
+        make_fun_h2(Mod, Func, Args, CServer, TServer, Creator, FileDescr)
       end;
     5 ->
       fun(A, B, C, D, E) ->
         Args = [A, B, C, D, E],
-        {CAs, SAs} = unzip_args(Args),
-        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
-        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
-        eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer, Fd)
+        make_fun_h2(Mod, Func, Args, CServer, TServer, Creator, FileDescr)
       end;
     6 ->
       fun(A, B, C, D, E, F) ->
         Args = [A, B, C, D, E, F],
-        {CAs, SAs} = unzip_args(Args),
-        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
-        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
-        eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer, Fd)
+        make_fun_h2(Mod, Func, Args, CServer, TServer, Creator, FileDescr)
       end;
     7 ->
       fun(A, B, C, D, E, F, G) ->
         Args = [A, B, C, D, E, F, G],
-        {CAs, SAs} = unzip_args(Args),
-        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
-        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
-        eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer, Fd)
+        make_fun_h2(Mod, Func, Args, CServer, TServer, Creator, FileDescr)
       end;
     8 ->
       fun(A, B, C, D, E, F, G, H) ->
         Args = [A, B, C, D, E, F, G, H],
-        {CAs, SAs} = unzip_args(Args),
-        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
-        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
-        eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer, Fd)
+        make_fun_h2(Mod, Func, Args, CServer, TServer, Creator, FileDescr)
       end;
     9 ->
       fun(A, B, C, D, E, F, G, H, I) ->
         Args = [A, B, C, D, E, F, G, H, I],
-        {CAs, SAs} = unzip_args(Args),
-        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
-        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
-        eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer, Fd)
+        make_fun_h2(Mod, Func, Args, CServer, TServer, Creator, FileDescr)
       end;
     10 ->
       fun(A, B, C, D, E, F, G, H, I, J) ->
         Args = [A, B, C, D, E, F, G, H, I, J],
-        {CAs, SAs} = unzip_args(Args),
-        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
-        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
-        eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer, Fd)
+        make_fun_h2(Mod, Func, Args, CServer, TServer, Creator, FileDescr)
       end;
     11 ->
       fun(A, B, C, D, E, F, G, H, I, J, K) ->
         Args = [A, B, C, D, E, F, G, H, I, J, K],
-        {CAs, SAs} = unzip_args(Args),
-        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
-        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
-        eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer, Fd)
+        make_fun_h2(Mod, Func, Args, CServer, TServer, Creator, FileDescr)
       end;
     12 ->
       fun(A, B, C, D, E, F, G, H, I, J, K, L) ->
         Args = [A, B, C, D, E, F, G, H, I, J, K, L],
-        {CAs, SAs} = unzip_args(Args),
-        {CodeServer, TraceServer} = validate_servers(CServer, TServer),
-        Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
-        eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer, Fd)
+        make_fun_h2(Mod, Func, Args, CServer, TServer, Creator, FileDescr)
+      end;
+    13 ->
+      fun(A, B, C, D, E, F, G, H, I, J, K, L, M) ->
+        Args = [A, B, C, D, E, F, G, H, I, J, K, L, M],
+        make_fun_h2(Mod, Func, Args, CServer, TServer, Creator, FileDescr)
+      end;
+    14 ->
+      fun(A, B, C, D, E, F, G, H, I, J, K, L, M, N) ->
+        Args = [A, B, C, D, E, F, G, H, I, J, K, L, M, N],
+        make_fun_h2(Mod, Func, Args, CServer, TServer, Creator, FileDescr)
+      end;
+    15 ->
+      fun(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O) ->
+        Args = [A, B, C, D, E, F, G, H, I, J, K, L, M, N, O],
+        make_fun_h2(Mod, Func, Args, CServer, TServer, Creator, FileDescr)
       end;
     _ ->
       exception('error', {'over_lambda_fun_argument_limit', Arity})
   end.
+
+make_fun_h2(Mod, Func, Args, CServer, TServer, Creator, FileDescr) ->
+  {CAs, SAs} = unzip_args(Args), %% If Args =:= [] then unzip_args([]) will return {[], []}
+  {CodeServer, TraceServer} = validate_servers(CServer, TServer),
+  Fd = validate_file_descriptor(TraceServer, Creator, FileDescr),
+  eval({named, {Mod, Func}}, CAs, SAs, external, CodeServer, TraceServer, Fd).
 
 %% --------------------------------------------------------
 %% Check if the given servers correspond to the current 
@@ -1273,12 +1225,12 @@ evaluate_bif({M, F, _A} = MFA, CAs, SAs, Fd) ->
 %% Encode a Message
 encode_msg(TraceServer, Dest, CMsg, SMsg) ->
   case concolic_tserver:is_monitored(TraceServer, Dest) of
-    true  -> {'__conc', zip_one(CMsg, SMsg)};
+    true  -> {?CONCOLIC_PREFIX_MSG, zip_one(CMsg, SMsg)};
     false -> CMsg
   end.
 
 %% Decode a Message
-decode_msg({'__conc', Msg}) -> unzip_msg(Msg);
+decode_msg({?CONCOLIC_PREFIX_MSG, Msg}) -> unzip_msg(Msg);
 decode_msg(Msg) -> unzip_msg(Msg).
 
 %% --------------------------------------------------------
@@ -1358,7 +1310,7 @@ register_and_apply(TraceServer, Parent, Args) ->
 -spec get_module_db(atom(), pid()) -> {'ok', ets:tab()} | 'preloaded'.
 
 get_module_db(M, CodeServer) ->
-  What = {'__conc', M},
+  What = {?CONCOLIC_PREFIX_PDICT, M},
   case get(What) of
     undefined ->
       case concolic_cserver:load(CodeServer, M) of
@@ -1393,7 +1345,7 @@ get_module_db(M, CodeServer) ->
 -spec retrieve_function(mfa(), ets:tab()) -> {cerl:c_fun(), boolean()}.
 
 retrieve_function(FuncKey, ModDb) ->
-  What = {'__conc', FuncKey},
+  What = {?CONCOLIC_PREFIX_PDICT, FuncKey},
   case get(What) of
     undefined ->
       case ets:lookup(ModDb, FuncKey) of
