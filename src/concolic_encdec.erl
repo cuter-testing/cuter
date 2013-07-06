@@ -145,11 +145,15 @@ log(Fd, Cmd, Data) when is_list(Data) ->
     false -> ok;
     true  -> log_helper(Fd, Cmd, Data)
   end.
-
+  
+-ifdef(LOGGING_FLAG).
 log_helper(Fd, Cmd, Data) ->
   Op = json_command_op(Cmd),
   Json_data = concolic_json:command_to_json(Op, Data),
   write_data(Fd, command_type(Cmd), Json_data).
+-else.
+log_helper(_, _, _) -> ok.
+-endif.
 
 %% Log a pid
 -spec log_pid(file:io_device(), pid()) -> 'ok'.
