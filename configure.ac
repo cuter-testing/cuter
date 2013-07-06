@@ -30,9 +30,7 @@ else
 fi
 rm -f test_erlc.erl
 
-if test "$ERLC" = ""; then 
-   AC_MSG_ERROR([You need the Erlang Compiler. Please download Erlang at http://www.erlang.org/])
-elif test "$HAS_ERLC" = "0"; then 
+if test "$HAS_ERLC" = "0"; then 
    AC_MSG_ERROR([You need the Erlang Compiler. Please download Erlang at http://www.erlang.org/])
 fi
 
