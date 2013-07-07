@@ -34,7 +34,8 @@ Configuring & Building
 
     $ autoconf
     $ ./configure
-    $ make fast       # Can also use 'make -jX fast' for X number of jobs
+    $ make depend
+    $ make fast    # Can also use 'make -jX fast' for X number of jobs
 
 
 The `make fast` step only compiles the necessary source files. For alternative

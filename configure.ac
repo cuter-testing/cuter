@@ -116,5 +116,6 @@ Python:             $PYTHON_PATH
 Z3Py:               $HAS_Z3_MSG
 
 To build Concolic, execute:
+  make depend
   make fast
 EOF

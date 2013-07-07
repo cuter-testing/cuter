@@ -1,4 +1,4 @@
-.PHONY: clean distclean all
+.PHONY: depend clean cleandep distclean all
 
 ###----------------------------------------------------------------------
 ### Orientation information
@@ -18,6 +18,9 @@ ERLC = @ERLC@
 WARNS = +warn_exported_vars +warn_unused_import +warn_missing_spec #+warn_untyped_record
 ERLC_FLAGS = +debug_info $(WARNS)
 ERLC_MACROS = -DEBIN=\"$(EBIN)\" -DPYTHON_PATH=\"@PYTHON_PATH@\"
+
+HRL_FILES = \
+	concolic_prefixes
 
 SRC_MODULES = \
 	bin_lib \
@@ -76,6 +79,8 @@ ERL_DIRS = \
 
 vpath %.erl $(ERL_DIRS)
 
+vpath %.hrl $(ERL_DIRS)
+
 default: $(TARGETS) dialyzer
 
 fast: concolic_target
@@ -101,21 +106,34 @@ utest: $(TARGETS)
 	@(./runtests.rb)
 
 demo: concolic_target $(SUITE_EBIN)/demo.beam
-	@(echo "foo(X, Y) ->")
-	@(echo "Z = 2*Y,")
-	@(echo "case X =:= 100000 andalso X < Z of")
-	@(echo "  false -> ok;")
-	@(echo "  true -> error(assertion)")
-	@(echo "end.")
-	@(echo "")
+	@echo "foo(X, Y) ->"
+	@echo "Z = 2*Y,"
+	@echo "case X =:= 100000 andalso X < Z of"
+	@echo "  false -> ok;"
+	@echo "  true -> error(assertion)"
+	@echo "end."
+	@echo ""
 	erl -noinput -pa $(EBIN) -pa $(SUITE_EBIN) -eval "coordinator:run(demo, foo, [1, 1])" -s init stop
 
 dialyzer: $(TARGETS)
 	dialyzer -n -Wunmatched_returns $(EBIN)/*.beam
 
+-include .depend
+
+depend: cleandep $(SRC_MODULES:%=%.dep) $(HRL_FILES:%=%.hrl)
+	@echo ""
+	@echo "To build Concolic, execute:"
+	@echo "  make fast"
+
+%.dep: %.erl
+	$(ERLC) -M -MT $(patsubst $(SRC)/%.erl,$(EBIN)/%.beam,$<) $< >> .depend
+
 clean:
 	$(RM) $(EBIN)/*.beam
 
-distclean: clean
+cleandep:
+	$(RM) .depend
+
+distclean: clean cleandep
 	$(RM) $(SUITE_EBIN)/*.beam
 

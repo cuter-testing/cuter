@@ -10,6 +10,7 @@
 /configure
 /config.log
 /config.status
+/.depend
 
 # Custom rules for development
 
