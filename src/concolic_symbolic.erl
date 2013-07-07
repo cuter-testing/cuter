@@ -10,13 +10,14 @@
 
 -export_type([mapping/0, symbolic/0]).
 
+-include("concolic_macros.hrl").
+
 %% Macros for code abstractions
 -define(CONCAT_BITSTR, 'concat_bitstr').
 -define(MAKE_BITSTR, 'make_bitstr').
 -define(MATCH_BITSTR_C, 'match_bitstr_c').
 -define(MATCH_BITSTR_X, 'match_bitstr_x').
 -define(MATCH_BITSTR_R, 'match_bitstr_r').
--define(SYMBOLIC_PREFIX, '__s').
 -define(BITOP, '__bitop').
 -define(IS_GENERIC_MFA(MFA), (
   MFA =:= {erlang, '=:=', 2} orelse

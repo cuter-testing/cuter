@@ -6,8 +6,7 @@
 -export([close_file/1, get_data/1, open_file/2, pprint/1, log_pid/2,
          log/3, log/4, path_vertex/1]).
 
--define(LOGGING_FLAG, ok).  %% Enables logging
--define(DEPTH_PREFIX, '__conc_depth').
+-include("concolic_macros.hrl").
 
 -type mode() :: 'read' | 'write'.
 

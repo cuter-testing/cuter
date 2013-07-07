@@ -1,7 +1,10 @@
+%% -*- erlang-indent-level: 2 -*-
+%%------------------------------------------------------------------------------
 -module(coordinator).
+
 -export([run/3, test_run/3]).
 
-%-define(PRINT_ANALYSIS, ok). %% Prints an execution analysis
+-include("concolic_macros.hrl").
 
 -define(TRACEDIR(BaseDir), BaseDir ++ "/traces").
 -define(COREDIR(BaseDir), BaseDir ++ "/core").
@@ -16,14 +19,15 @@
 run(M, F, As) ->
   error_logger:tty(false),  %% Disable error_logger
   io:format("Testing ~p:~p/~p ...~n", [M, F, length(As)]),
-  {TmpDir, E, S} = init(),
+  Depth = 20,
+  {TmpDir, E, S} = init(Depth),
   pprint_input(As),
-  CR = concolic_execute(M, F, As, TmpDir, E, 15),
+  CR = concolic_execute(M, F, As, TmpDir, E, Depth),
   {DataDir, Traces, Mapping} = prepare_execution_info(S, CR),
   ok = concolic_scheduler:initial_execution(S, DataDir, Traces, Mapping),
-  loop(M, F, TmpDir, E+1, S).
+  loop(M, F, TmpDir, E+1, S, Depth).
 
-loop(M, F, TmpDir, E, S) ->
+loop(M, F, TmpDir, E, S, Depth) ->
   case concolic_scheduler:request_input(S) of
     empty ->
       concolic_scheduler:stop(S),
@@ -31,17 +35,17 @@ loop(M, F, TmpDir, E, S) ->
       ok;
     {R, As} ->
       pprint_input(As),
-      CR = concolic_execute(M, F, As, TmpDir, E, 15),
+      CR = concolic_execute(M, F, As, TmpDir, E, Depth),
       {DataDir, Traces, Mapping} = prepare_execution_info(S, CR),
       ok = concolic_scheduler:store_execution(S, R, DataDir, Traces, Mapping),
-      loop(M, F, TmpDir, E+1, S)
+      loop(M, F, TmpDir, E+1, S, Depth)
   end.
 
-init() ->
+init(Depth) ->
   process_flag(trap_exit, true),
   TmpDir = "temp",
   E = 0,
-  S = concolic_scheduler:start(?PYTHON_CALL, 15),
+  S = concolic_scheduler:start(?PYTHON_CALL, Depth),
   {TmpDir, E, S}.
 
 prepare_execution_info(S, {'internal_error', IError}) ->

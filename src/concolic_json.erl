@@ -4,6 +4,8 @@
 
 -export([command_to_json/2, prepare_port_command/2, decode_z3_result/1, is_unbound_var/1]).
 
+-include("concolic_macros.hrl").
+
 -define(Q, $\").
 -define(ENC(T, V), [$\{, ?Q, $t, ?Q, $:, ?Q, T, ?Q, $,, ?Q, $v, ?Q, $:, V, $\}]).
 -define(ENC_KEY_VAL(K, V), [?Q, K, ?Q, $:, V]).
@@ -13,7 +15,6 @@
 -define(ENC_DICT(S), [?Q, $d, ?Q, $:, $\{, S, $\}]).
 -define(ENC_CMD(Cmd, As), [$\{, ?Q, $c, ?Q, $:, ?Q, Cmd, ?Q, $,, ?Q, $a, ?Q, $:, $\[, As, $\], $\}]).
 
--define(UNBOUND_VAR, '__any').
 -define(IS_WHITESPACE(C), (C =:= $\s orelse C =:= $\t orelse C =:= $\r orelse C =:= $\n)).
 -define(IS_DIGIT(C), (C >= $0 andalso C =< $9)).
 -define(IS_SIGN(C), (C =:= $-)).

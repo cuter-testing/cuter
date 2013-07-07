@@ -6,11 +6,8 @@
 
 -export_type([result/0, valuelist/0]).
 
+-include("concolic_macros.hrl").
 -include_lib("compiler/src/core_parse.hrl").
-
--define(FUNCTION_PREFIX, '__func').
--define(CONCOLIC_PREFIX_MSG, '__concm').
--define(CONCOLIC_PREFIX_PDICT, '__concp').
 
 -type calltype() :: 'local' | 'external'.
 -type class()    :: 'error' | 'exit' | 'throw'.
@@ -22,8 +19,6 @@
 %% Used to represent list of values for Core Erlang interpretation
 -record(valuelist, {values :: [term()], degree :: non_neg_integer()}).
 -opaque valuelist() :: #valuelist{}.
-
--define(DEPTH_PREFIX, '__conc_depth').
 
 %% --------------------------------------------------------
 %% Wrapper exported function that spawns an interpreter 

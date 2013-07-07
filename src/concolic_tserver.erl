@@ -14,6 +14,8 @@
 %% exported types
 -export_type([tlogs/0]).
 
+-include("concolic_macros.hrl").
+
 %% type declarations
 -type call()  :: {'register_parent', pid()}
                | {'is_monitored', pid()}
@@ -38,8 +40,6 @@
 }).
 -type state() :: #state{}.
 -type tlogs() :: [proplists:property()].
-
--define(DEPTH_PREFIX, '__conc_depth').
 
 %% ============================================================================
 %% External exports
