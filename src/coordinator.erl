@@ -4,7 +4,7 @@
 
 -export([run/3, test_run/3]).
 
--include("concolic_macros.hrl").
+%-define(PRINT_ANALYSIS, ok). %% Prints an execution analysis
 
 -define(TRACEDIR(BaseDir), BaseDir ++ "/traces").
 -define(COREDIR(BaseDir), BaseDir ++ "/core").

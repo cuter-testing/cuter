@@ -9,7 +9,8 @@
 %% exported types
 -export_type([path_vertex/0, traces/0, internal_error/0, result/0, ret/0]).
 
--include("concolic_macros.hrl").
+%-define(PRINT_TRACE, ok).  %% Pretty Prints all traces
+-define(DELETE_TRACE, ok).  %% Deletes execution traces
 
 -type traces() :: [{node(), [file:name()]}].
 -type path_vertex() :: [84 | 70]. %% [$T | $F]

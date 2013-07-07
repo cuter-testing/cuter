@@ -4,7 +4,7 @@
 
 -export([command_to_json/2, prepare_port_command/2, decode_z3_result/1, is_unbound_var/1]).
 
--include("concolic_macros.hrl").
+-include("concolic_prefixes.hrl").
 
 -define(Q, $\").
 -define(ENC(T, V), [$\{, ?Q, $t, ?Q, $:, ?Q, T, ?Q, $,, ?Q, $v, ?Q, $:, V, $\}]).
