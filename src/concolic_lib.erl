@@ -21,6 +21,10 @@
 %% External exports
 %%====================================================================
 
+%% ------------------------------------------------------------------
+%% Environment Functions
+%% ------------------------------------------------------------------
+
 %% Creates a new empty environment
 -spec new_environment() -> environment().
   
@@ -62,7 +66,11 @@ bind_parameters([Arg|Args], [Var|Vars], Env) ->
 add_mappings_to_environment(Ms, Env) ->
   F = fun({Var, Val}, E) -> add_binding(Var, Val, E) end,
   lists:foldl(F, Env, Ms).
-  
+
+%% ------------------------------------------------------------------
+%% Various Helpful Functions
+%% ------------------------------------------------------------------
+
 %% Returns the type of signedness from a list of options
 -spec get_signedness([bin_lib:bflag(), ...]) -> bin_lib:bsign().
 
