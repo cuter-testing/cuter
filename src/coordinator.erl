@@ -19,7 +19,7 @@
 run(M, F, As) ->
   error_logger:tty(false),  %% Disable error_logger
   io:format("Testing ~p:~p/~p ...~n", [M, F, length(As)]),
-  Depth = 200,
+  Depth = 20,
   {TmpDir, E, S} = init(Depth),
   pprint_input(As),
   CR = concolic_execute(M, F, As, TmpDir, E, Depth),
