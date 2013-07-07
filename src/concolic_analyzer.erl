@@ -9,8 +9,7 @@
 %% exported types
 -export_type([path_vertex/0, traces/0, internal_error/0, result/0, ret/0]).
 
-%-define(PRINT_TRACE, ok).  %% Pretty Prints all traces
--define(DELETE_TRACE, ok).  %% Deletes execution traces
+-include("concolic_flags.hrl").
 
 -type traces() :: [{node(), [file:name()]}].
 -type path_vertex() :: [84 | 70]. %% [$T | $F]
@@ -110,7 +109,6 @@ clear_and_delete_dir(D) ->
 clear_dir(D) ->
   case filelib:is_regular(D) of
     true ->
-      print_file(D),
       delete_file(D);
     false ->
       case file:del_dir(D) of
@@ -124,12 +122,6 @@ clear_dir(D) ->
       end
   end.
 
--ifdef(PRINT_TRACE).
-print_file(D) -> print_trace(D).
--else.
-print_file(_) -> ok.
--endif.
-  
 -ifdef(DELETE_TRACE).
 delete_file(F) -> file:delete(F).
 -else.

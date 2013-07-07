@@ -4,7 +4,7 @@
 
 -export([run/3, test_run/3]).
 
-%-define(PRINT_ANALYSIS, ok). %% Prints an execution analysis
+-include("concolic_flags.hrl").
 
 -define(TRACEDIR(BaseDir), BaseDir ++ "/traces").
 -define(COREDIR(BaseDir), BaseDir ++ "/core").
@@ -55,6 +55,7 @@ prepare_execution_info(S, {'internal_error', IError}) ->
 prepare_execution_info(_S, {'ok', {Result, DataDir, Traces, Mapping}}) ->
   report_execution_status(Result),
   report_exec_vertices(Traces),
+  report_trace_contents(Traces),
   {DataDir, Traces, Mapping}.
 
 %% Run function for testing
@@ -107,14 +108,26 @@ report_execution_status({error, CR}) -> io:format(" Runtime Error: ~w~n", [CR]).
 
 report_exec_vertices([]) -> ok;
 report_exec_vertices([{_Node, Fs}|Rest]) ->
-%  io:format("~p~n", [Node]),
   F = fun(X) ->
     V = concolic_encdec:path_vertex(X),
-%    io:format("~p -> ~p~n", [X, V])
     io:format(" Path Vertex: ~p~n", [V])
   end,
   lists:foreach(F, Fs),
   report_exec_vertices(Rest).
+
+-ifdef(PRINT_TRACES).
+report_trace_contents(Traces) ->
+  lists:foreach(fun report_trace_contents_node/1, Traces).
+
+report_trace_contents_node({_Node, TraceFiles}) ->
+  F = fun(X) ->
+    ok = concolic_analyzer:print_trace(X),
+    io:format("~n")
+  end,
+  lists:foreach(F, TraceFiles).
+-else.
+report_trace_contents(_) -> ok.
+-endif.
 
 -ifdef(PRINT_ANALYSIS).
 analyze({'internal_concolic_error', _Node, Error}) ->

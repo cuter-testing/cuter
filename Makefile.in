@@ -20,7 +20,8 @@ ERLC_FLAGS = +debug_info $(WARNS)
 ERLC_MACROS = -DEBIN=\"$(EBIN)\" -DPYTHON_PATH=\"@PYTHON_PATH@\"
 
 HRL_FILES = \
-	concolic_prefixes
+	concolic_prefixes \
+	concolic_flags
 
 SRC_MODULES = \
 	bin_lib \

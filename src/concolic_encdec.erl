@@ -7,8 +7,7 @@
          log/3, log/4, path_vertex/1]).
 
 -include("concolic_prefixes.hrl").
-
--define(LOGGING_FLAG, ok).  %% Enables logging
+-include("concolic_flags.hrl").
 
 -type mode() :: 'read' | 'write'.
 
@@ -60,9 +59,13 @@ pprint(F) ->
   case get_data(F) of
     eof -> ok;
     {ok, {Id, Data}} ->
-      io:format("~w -> ~p~n", [Id, Data]),
+      io:format("~w : ~p~n", [pprint_id(Id), Data]),
       pprint(F)
   end.
+
+pprint_id(<<1>>) -> 'T';
+pprint_id(<<2>>) -> 'F';
+pprint_id(_) -> ' '.
 
 %% ------------------------------------------------------------------
 %% Read Data
