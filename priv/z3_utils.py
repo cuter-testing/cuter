@@ -259,7 +259,7 @@ class ErlangZ3:
       "F" : self._json_cmd_true_to_z3,
       "Nel" : self._json_rev_cmd_nel_to_z3,
       "El" : self._json_cmd_nel_to_z3,
-      "Nl" : self._json_rev_cmd_nl_to_z3,
+      "Nl" : self._json_cmd_nel_to_z3,
       "Ts" : self._json_rev_cmd_ts_to_z3,
       "Nt" : self._json_cmd_ts_to_z3,
       "Nts" : self._json_cmd_ts_to_z3,
@@ -320,16 +320,6 @@ class ErlangZ3:
     t = self.json_term_to_z3(term)
     self.solver.add(self.Term.is_lst(t) == False)
   
-  # Reversed "Not List"
-  def _json_rev_cmd_nl_to_z3(self, term):
-    t = self.json_term_to_z3(term)
-    self.solver.add(self.Term.is_lst(t))
-  
-  # "Not Tuple"
-  def _json_cmd_nt_to_z3(self, term, l_json):
-    t = self.json_term_to_z3(term)
-    self.solver.add(self.Term.is_tpl(t) == False)
-  
   # "Tuple of size N"
   def _json_cmd_ts_to_z3(self, term, l_json):
     s = self.solver
@@ -367,6 +357,11 @@ class ErlangZ3:
       t = self.List.tl(t)
     preds.append(t == self.List.nil)
     s.add(Not(And(*preds)))
+  
+  # "Not Tuple"
+  def _json_cmd_nt_to_z3(self, term, l_json):
+    t = self.json_term_to_z3(term)
+    self.solver.add(self.Term.is_tpl(t) == False)
   
   # Other Useful Commands
   
