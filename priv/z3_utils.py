@@ -245,6 +245,7 @@ class ErlangZ3:
       "ttl" : self._json_bif_tuple_to_list_to_z3,
       "len" : self._json_bif_length_to_z3,
       "tpls" : self._json_bif_tuple_size_to_z3,
+      "mtpl2": self._json_bif_make_tuple_2_to_z3,
       # Other Useful Commands
       "Pms" : self._json_cmd_define_params_to_z3,
       "Bkt" : self._json_cmd_break_tuple_to_z3,
@@ -864,6 +865,27 @@ class ErlangZ3:
         And(L.is_cons(x), ax)
       )
     ax = And(e, T.is_int(n), ax)
+    return simplify(ax)
+  
+  # erlang:make_tuple/2
+  def _json_bif_make_tuple_2_to_z3(self, term1, term2, term3):
+    t1 = self.json_term_to_z3(term1)
+    t2 = self.json_term_to_z3(term2)
+    t3 = self.json_term_to_z3(term3)
+    ax = self._make_tuple_h(t1, t2, t3)
+    self.solver.add(ax)
+  
+  # Helper function for erlang:make_tuple/2
+  def _make_tuple_h(self, x, n, y):
+    T = self.Term
+    L = self.List
+    t = L.nil
+    es = [And(n == T.int(0), y == T.tpl(t))]
+    for i in range(1, self.max_len+1):
+      t = L.cons(x, t)
+      es.append(And(n == T.int(i), y == T.tpl(t)))
+    es.append(T.ival(n) > self.max_len)
+    ax = And(T.is_int(n), Or(*es))
     return simplify(ax)
   
   ## Decode the Z3 solution to JSON

@@ -50,7 +50,8 @@
   MFA =:= {erlang, 'list_to_tuple', 1} orelse
   MFA =:= {erlang, 'tuple_to_list', 1} orelse
   MFA =:= {erlang, 'length', 1} orelse
-  MFA =:= {erlang, 'tuple_size', 1} 
+  MFA =:= {erlang, 'tuple_size', 1} orelse
+  MFA =:= {erlang, 'make_tuple', 2}
 )).
 -define(IS_COMPARISON_MFA(MFA), (
   MFA =:= {erlang, '<', 2} orelse
