@@ -4,7 +4,7 @@
 -behaviour(gen_server).
 
 %% External exports
--export([start/1, stop/1, initial_execution/4, request_input/1,
+-export([start/2, stop/1, initial_execution/4, request_input/1,
          store_execution/5]).
 
 %% gen_server callbacks
@@ -23,21 +23,20 @@
 -record(state, {
   queue,
   info,
-  python
+  python,
+  depth
 }).
 -type state() :: #state{}.
-
--define(DEPTH, 15).
 
 %% ============================================================================
 %% External exports
 %% ============================================================================
 
 %% Start the Scheduler
--spec start(string()) -> pid() | no_return().
+-spec start(string(), integer()) -> pid() | no_return().
 
-start(Python) ->
-  case gen_server:start_link(?MODULE, [Python], []) of
+start(Python, Depth) ->
+  case gen_server:start_link(?MODULE, [Python, Depth], []) of
     {ok, Scheduler} -> Scheduler;
     {error, R} -> exit({error_starting_scheduler, R})
   end.
@@ -74,12 +73,12 @@ stop(Scheduler) ->
 %% ------------------------------------------------------------------
 %% gen_server callback : init/1
 %% ------------------------------------------------------------------
--spec init([string(), ...]) -> {ok, state()}.
+-spec init([string() | integer(), ...]) -> {ok, state()}.
 
-init([Python]) ->
+init([Python, Depth]) ->
   Q = queue:new(),
   I = ets:new(?MODULE, [ordered_set, protected]),
-  {ok, #state{queue = Q, info = I, python = Python}}.
+  {ok, #state{queue = Q, info = I, python = Python, depth = Depth}}.
 
 %% ------------------------------------------------------------------
 %% gen_server callback : terminate/2
@@ -138,8 +137,8 @@ handle_call({'store_execution', Ref, DataDir, Traces, Mapping}, _From, S=#state{
     {reply, ok, S#state{queue = Q1}}
   end;
 
-handle_call('request_input', _From, S=#state{queue = Q, info = I, python = P}) ->
-  case generate_testcase(Q, I, P) of
+handle_call('request_input', _From, S=#state{queue = Q, info = I, python = P, depth = D}) ->
+  case generate_testcase(Q, I, P, D) of
     {empty, Q1} ->
       {reply, empty, S#state{queue = Q1}};
     {ok, {R, Inp}, Q1} ->
@@ -158,13 +157,13 @@ handle_cast(stop, State) ->
 %% Internal functions
 %% ============================================================================
 
-generate_testcase(Q, I, P) ->
-  case expand_state(Q, I, P) of
-    {error, Q1} -> generate_testcase(Q1, I, P);
+generate_testcase(Q, I, P, D) ->
+  case expand_state(Q, I, P, D) of
+    {error, Q1} -> generate_testcase(Q1, I, P, D);
     X -> X
   end.
 
-expand_state(Q, I, P) ->
+expand_state(Q, I, P, D) ->
   case queue:out(Q) of
     {{value, R}, Q1} ->
       [{R, Ps}] = ets:lookup(I, R),
@@ -173,20 +172,20 @@ expand_state(Q, I, P) ->
       X = next_constraint(Ps),
       case python:solve(File, X, mapping(Ps), P) of
         error ->
-          Q2 = requeue_state(Ps, Q1, R, I),
+          Q2 = requeue_state(Ps, Q1, R, I, D),
           {error, Q2};
         {ok, Inp} ->
           R1 = make_ref(),
           ets:insert(I, {R1, create_partial_info(X+1)}),
-          Q2 = requeue_state(Ps, Q1, R, I),
+          Q2 = requeue_state(Ps, Q1, R, I, D),
           {ok, {R1, Inp}, Q2}
       end;
     {empty, Q} = E -> E;
     X -> throw(X)
   end.
 
-requeue_state(Ps, Q, R, I) ->
-  case increase_next_constraint(Ps) of
+requeue_state(Ps, Q, R, I, D) ->
+  case increase_next_constraint(Ps, D) of
     false ->
       DataDir = datadir(Ps),
       concolic_analyzer:clear_and_delete_dir(DataDir),
@@ -214,10 +213,10 @@ create_partial_info(I) ->
 update_partial_info(Ps, L, DataDir, Ts, Ms) ->
   [{'path_length', L}, {'datadir', DataDir}, {'traces', Ts}, {'mapping', Ms} | Ps].
 
-increase_next_constraint(Ps) ->
+increase_next_constraint(Ps, Depth) ->
   X = next_constraint(Ps) + 1,
   L = path_length(Ps),
-  case X > L orelse X > ?DEPTH of
+  case X > L orelse X > Depth of
     true -> false;
     false -> {ok, replace_property('next_constraint', X, Ps)}
   end.

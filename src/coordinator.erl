@@ -41,7 +41,7 @@ init() ->
   process_flag(trap_exit, true),
   TmpDir = "temp",
   E = 0,
-  S = concolic_scheduler:start(?PYTHON_CALL),
+  S = concolic_scheduler:start(?PYTHON_CALL, 15),
   {TmpDir, E, S}.
 
 prepare_execution_info(S, {'internal_error', IError}) ->
