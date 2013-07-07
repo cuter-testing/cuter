@@ -241,6 +241,7 @@ json_command_op({erlang, 'orelse', 2}) -> "ore";
 json_command_op({erlang, 'and', 2}) -> "and";
 json_command_op({erlang, 'andalso', 2}) -> "anda";
 json_command_op({erlang, 'not', 1}) -> "not";
+json_command_op({erlang, 'xor', 2}) -> "xor";
 json_command_op({erlang, 'hd', 1}) -> "hd";
 json_command_op({erlang, 'tl', 1}) -> "tl";
 json_command_op({erlang, 'abs', 1}) -> "abs";

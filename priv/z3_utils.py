@@ -221,6 +221,7 @@ class ErlangZ3:
       "ore" : self._json_bif_orelse_to_z3,
       "anda" : self._json_bif_andalso_to_z3,
       "not" : self._json_bif_not_to_z3,
+      "xor" : self._json_bif_xor_to_z3,
       "<" : self._json_bif_lt_to_z3,
       ">" : self._json_bif_gt_to_z3,
       ">=" : self._json_bif_gteq_to_z3,
@@ -594,6 +595,20 @@ class ErlangZ3:
     self.solver.add(Or(
       And(t1 == T, t2 == F),
       And(t1 == F, t2 == T)
+    ))
+  
+  # erlang:'xor'/2
+  def _json_bif_xor_to_z3(self, term1, term2, term3):
+    T = self.atom_true
+    F = self.atom_false
+    t1 = self.json_term_to_z3(term1)
+    t2 = self.json_term_to_z3(term2)
+    t3 = self.json_term_to_z3(term3)
+    self.solver.add(Or(
+      And(t1 == T, t2 == F, t3 == T),
+      And(t1 == F, t2 == T, t3 == T),
+      And(t1 == T, t2 == T, t3 == F),
+      And(t1 == F, t2 == F, t3 == F)
     ))
   
   # erlang:'<'/2

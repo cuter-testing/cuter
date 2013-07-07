@@ -33,6 +33,7 @@
   MFA =:= {erlang, 'and', 2} orelse
   MFA =:= {erlang, 'andalso', 2} orelse
   MFA =:= {erlang, 'not', 1} orelse
+  MFA =:= {erlang, 'xor', 2} orelse
   MFA =:= {erlang, 'hd', 1} orelse
   MFA =:= {erlang, 'tl', 1} orelse
   MFA =:= {erlang, 'abs', 1} orelse

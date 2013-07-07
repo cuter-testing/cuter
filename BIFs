@@ -19,12 +19,13 @@
 | 'div'/2                   | Yes         |
 | 'rem'/2                   | Yes         |
 | '++'/2                    |             |
+| '--'/2                    |             |
 | 'or'/2                    | Yes         |
 | 'orelse'/2                | Yes         |
 | 'and'/2                   | Yes         |
 | 'andalso'/2               | Yes         |
 | 'not'/1                   | Yes         |
-| 'xor'/1                   |             |
+| 'xor'/1                   | Yes         |
 | hd/1                      | Yes         |
 | tl/1                      | Yes         |
 | abs/2                     | Yes         |

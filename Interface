@@ -41,6 +41,7 @@ See (http://docs.python.org/2/library/json.html) for JSON-Python type translatio
 |            | 'orelse'                  | {"c" : "ore", "a" : [Term1, Term2, Term3]}        | Term3 = Term1 orelse Term2                          |
 |            | 'andalso'                 | {"c" : "anda", "a" : [Term1, Term2, Term3]}       | Term3 = Term1 andalso Term2                         |
 |            | 'not'                     | {"c" : "not", "a" : [Term1, Term2]}               | Term2 = not(Term1)                                  |
+|            | 'xor'                     | {"c" : "xor", "a" : [Term1, Term2, Term3]}        | Term3 = Term1 xor Term2                             |
 |    (*)     | '<'                       | {"c" : "<", "a" : [Term1, Term2, Term3]}          | Term3 = Term1 < Term2 (Only for numbers)            |
 |    (*)     | '>'                       | {"c" : ">", "a" : [Term1, Term2, Term3]}          | Term3 = Term1 > Term2 (Only for numbers)            |
 |    (*)     | '>='                      | {"c" : ">=", "a" : [Term1, Term2, Term3]}         | Term3 = Term1 >= Term2 (Only for numbers)           |
