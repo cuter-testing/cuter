@@ -114,6 +114,7 @@ handle_info(Msg, State) ->
 
 handle_call({'init_execution', DataDir, Traces, Mapping}, _From, S=#state{queue = Q, info = I}) ->
   R = make_ref(),
+%  io:format("[~s]: Init = ~p~n", [?MODULE, R]),
   Q1 = queue:in(R, Q),
   %% SIMPLIFICATION : Assume Sequential Execution
   [{_, [V]}] = concolic_analyzer:get_execution_vertices(Traces),
@@ -128,13 +129,14 @@ handle_call({'store_execution', Ref, DataDir, Traces, Mapping}, _From, S=#state{
   L = length(V),
   case next_constraint(Ps) > L of
     true ->
+%      io:format("[~s]: Wont queue ~p (~w > ~w)~n", [?MODULE, Ref, next_constraint(Ps), L]),
       concolic_analyzer:clear_and_delete_dir(DataDir),
       {reply, ok, S};
     false ->
-    Ps1 = update_partial_info(Ps, L, DataDir, Traces, Mapping),
-    ets:insert(I, {Ref, Ps1}),
-    Q1 = queue:in(Ref, Q),
-    {reply, ok, S#state{queue = Q1}}
+      Ps1 = update_partial_info(Ps, L, DataDir, Traces, Mapping),
+      ets:insert(I, {Ref, Ps1}),
+      Q1 = queue:in(Ref, Q),
+      {reply, ok, S#state{queue = Q1}}
   end;
 
 handle_call('request_input', _From, S=#state{queue = Q, info = I, python = P, depth = D}) ->
@@ -170,12 +172,15 @@ expand_state(Q, I, P, D) ->
       %% SIMPLIFICATION : Assume Sequential Execution
       [File] = proplists:get_value(node(), traces(Ps)),
       X = next_constraint(Ps),
+%      io:format("[~s]: Try to expand ~p at ~w~n", [?MODULE, R, X]),
       case python:solve(File, X, mapping(Ps), P) of
         error ->
+%          io:format("[~s]: Failed~n", [?MODULE]),
           Q2 = requeue_state(Ps, Q1, R, I, D),
           {error, Q2};
         {ok, Inp} ->
           R1 = make_ref(),
+%          io:format("[~s]: New Inp = ~p~n", [?MODULE, R1]),
           ets:insert(I, {R1, create_partial_info(X+1)}),
           Q2 = requeue_state(Ps, Q1, R, I, D),
           {ok, {R1, Inp}, Q2}
@@ -185,12 +190,15 @@ expand_state(Q, I, P, D) ->
   end.
 
 requeue_state(Ps, Q, R, I, D) ->
+%  io:format("[~s]: Will try to requeue ~p~n", [?MODULE, R]),
   case increase_next_constraint(Ps, D) of
     false ->
+%      io:format("[~s]: Failed~n", [?MODULE]),
       DataDir = datadir(Ps),
       concolic_analyzer:clear_and_delete_dir(DataDir),
       Q;
     {ok, Ps1} ->
+%      io:format("[~s]: Done~n", [?MODULE]),
       Q1 = queue:in(R, Q),
       ets:insert(I, {R, Ps1}),
       Q1
