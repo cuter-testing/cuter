@@ -615,66 +615,118 @@ class ErlangZ3:
   # erlang:'<'/2
   #!# SIMPLIFIED (Only supports numbers)
   def _json_bif_lt_to_z3(self, term1, term2, term3):
-    T = self.Term
-    Tr = self.atom_true
-    F = self.atom_false
     t1 = self.json_term_to_z3(term1)
     t2 = self.json_term_to_z3(term2)
     t3 = self.json_term_to_z3(term3)
-    self.solver.add(Or(
-      And(T.is_int(t1), T.is_int(t2), If(T.ival(t1) < T.ival(t2), t3 == Tr, t3 == F)),
-      And(T.is_int(t1), T.is_real(t2), If(T.ival(t1) < T.rval(t2), t3 == Tr, t3 == F)),
-      And(T.is_real(t1), T.is_int(t2), If(T.rval(t1) < T.ival(t2), t3 == Tr, t3 == F)),
-      And(T.is_real(t1), T.is_real(t2), If(T.rval(t1) < T.rval(t2), t3 == Tr, t3 == F))
-    ))
+    ax = self._term_comparison("<", t1, t2, t3)
+    self.solver.add(ax)
   
   # erlang:'>'/2
   #!# SIMPLIFIED (Only supports numbers)
   def _json_bif_gt_to_z3(self, term1, term2, term3):
-    T = self.Term
-    Tr = self.atom_true
-    F = self.atom_false
     t1 = self.json_term_to_z3(term1)
     t2 = self.json_term_to_z3(term2)
     t3 = self.json_term_to_z3(term3)
-    self.solver.add(Or(
-      And(T.is_int(t1), T.is_int(t2), If(T.ival(t1) > T.ival(t2), t3 == Tr, t3 == F)),
-      And(T.is_int(t1), T.is_real(t2), If(T.ival(t1) > T.rval(t2), t3 == Tr, t3 == F)),
-      And(T.is_real(t1), T.is_int(t2), If(T.rval(t1) > T.ival(t2), t3 == Tr, t3 == F)),
-      And(T.is_real(t1), T.is_real(t2), If(T.rval(t1) > T.rval(t2), t3 == Tr, t3 == F))
-    ))
+    ax = self._term_comparison(">", t1, t2, t3)
+    self.solver.add(ax)
   
   # erlang:'>='/2
   #!# SIMPLIFIED (Only supports numbers)
   def _json_bif_gteq_to_z3(self, term1, term2, term3):
-    T = self.Term
-    Tr = self.atom_true
-    F = self.atom_false
     t1 = self.json_term_to_z3(term1)
     t2 = self.json_term_to_z3(term2)
     t3 = self.json_term_to_z3(term3)
-    self.solver.add(Or(
-      And(T.is_int(t1), T.is_int(t2), If(T.ival(t1) >= T.ival(t2), t3 == Tr, t3 == F)),
-      And(T.is_int(t1), T.is_real(t2), If(T.ival(t1) >= T.rval(t2), t3 == Tr, t3 == F)),
-      And(T.is_real(t1), T.is_int(t2), If(T.rval(t1) >= T.ival(t2), t3 == Tr, t3 == F)),
-      And(T.is_real(t1), T.is_real(t2), If(T.rval(t1) >= T.rval(t2), t3 == Tr, t3 == F))
-    ))
+    ax = self._term_comparison(">=", t1, t2, t3)
+    self.solver.add(ax)
   
   # erlang:'=<'/2
   #!# SIMPLIFIED (Only supports numbers)
   def _json_bif_lteq_to_z3(self, term1, term2, term3):
-    T = self.Term
-    Tr = self.atom_true
-    F = self.atom_false
     t1 = self.json_term_to_z3(term1)
     t2 = self.json_term_to_z3(term2)
     t3 = self.json_term_to_z3(term3)
-    self.solver.add(Or(
-      And(T.is_int(t1), T.is_int(t2), If(T.ival(t1) <= T.ival(t2), t3 == Tr, t3 == F)),
-      And(T.is_int(t1), T.is_real(t2), If(T.ival(t1) <= T.rval(t2), t3 == Tr, t3 == F)),
-      And(T.is_real(t1), T.is_int(t2), If(T.rval(t1) <= T.ival(t2), t3 == Tr, t3 == F)),
-      And(T.is_real(t1), T.is_real(t2), If(T.rval(t1) <= T.rval(t2), t3 == Tr, t3 == F))
+    ax = self._term_comparison("=<", t1, t2, t3)
+    self.solver.add(ax)
+  
+  def _term_comparison(self, op, x, y, z):
+    Tm = self.Term
+    T = self.atom_true
+    F = self.atom_false
+    opts_asc = {"<" : T, "=<" : T, ">" : F, ">=" : F}
+    opts_desc = {"<" : F, "=<" : F, ">" : T, ">=" : T}
+    es = []
+    # Int - Int
+    es.append(And(
+      Tm.is_int(x),
+      Tm.is_int(y),
+      If(self._comp_h(op, Tm.ival(x), Tm.ival(y)) , z == T, z == F)
     ))
+    # Float - Float
+    es.append(And(
+      Tm.is_real(x),
+      Tm.is_real(y),
+      If(self._comp_h(op, Tm.rval(x), Tm.rval(y)), z == T, z == F)
+    ))
+    # Int - Float
+    es.append(And(
+      Tm.is_int(x),
+      Tm.is_real(y),
+      If(self._comp_h(op, Tm.ival(x), Tm.rval(y)) , z == T, z == F)
+    ))
+    # Float - Int
+    es.append(And(
+      Tm.is_real(x),
+      Tm.is_int(y),
+      If(self._comp_h(op, Tm.rval(x), Tm.ival(y)) , z == T, z == F)
+    ))
+    # (Int or Float) - (Atom or Tuple or List)
+    es.append(And(
+      Or(Tm.is_int(x), Tm.is_real(x)),
+      Or(Tm.is_atm(y), Tm.is_lst(y), Tm.is_tpl(y)),
+      z == opts_asc[op]
+    ))
+    # (Atom or Tuple or List) - (Int or Float)
+    es.append(And(
+      Or(Tm.is_atm(x), Tm.is_lst(x), Tm.is_tpl(x)),
+      Or(Tm.is_int(y), Tm.is_real(y)),
+      z == opts_desc[op]
+    ))
+    # Atom - (Tuple or List)
+    es.append(And(
+      Tm.is_atm(x),
+      Or(Tm.is_lst(y), Tm.is_tpl(y)),
+      z == opts_asc[op]
+    ))
+    # (Tuple or List) - Atom
+    es.append(And(
+      Or(Tm.is_lst(x), Tm.is_tpl(x)),
+      Tm.is_atm(y),
+      z == opts_desc[op]
+    ))
+    # Tuple - List
+    es.append(And(
+      Tm.is_tpl(x),
+      Tm.is_lst(y),
+      z == opts_asc[op]
+    ))
+    # List - Tuple
+    es.append(And(
+      Tm.is_lst(x),
+      Tm.is_tpl(y),
+      z == opts_desc[op]
+    ))
+    # Missing (Atom - Atom) & (Tuple - Tuple) & (List - List)
+    return Or(*es)
+
+  def _comp_h(self, op, x, y):
+    if op == ">":
+      return x > y
+    elif op == "<":
+      return x < y
+    elif op == "=<":
+      return x <= y
+    elif op == ">=":
+      return x >= y
   
   # erlang:element/2
   #!# SIMPLIFIED (Expect term1 to represent an Integer)
