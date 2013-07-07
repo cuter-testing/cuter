@@ -774,11 +774,11 @@ match_clause(M, Mode, CodeServer, TraceServer, {c_clause, _Anno, Pats, Guard, Bo
           try eval_expr(M, CodeServer, TraceServer, Guard, NCenv, NSenv, Fd) of
             {true, SGv} ->
               %% CONSTRAINT: SGv is a True guard
-              log(Mode, Fd, 'guard', {SGv, true}),
+              log_constraint(Mode, Fd, 'guard', {SGv, true}),
               {true, {Body, NCenv, NSenv, Cnt}};
             {false, SGv} ->
               %% CONSTRAINT: SGv is a False guard
-              log(Mode, Fd, 'guard', {SGv, false}),
+              log_constraint(Mode, Fd, 'guard', {SGv, false}),
               false
           catch
             error:_E -> false
@@ -819,11 +819,11 @@ pattern_match(_BitInfo, Mode, _TraceServer, {c_literal, _Anno, LitVal}, Cv, Sv, 
   case LitVal =:= Cv of
     true ->
       %% CONSTRAINT: Sv =:= Litval
-      log(Mode, Fd, 'eq', {LitVal, Sv}),
+      log_constraint(Mode, Fd, 'eq', {LitVal, Sv}),
       {true, {CMaps, SMaps}};
     false ->
       %% CONSTRAINT: Sv =/= Litval
-      log(Mode, Fd, 'neq', {LitVal, Sv}),
+      log_constraint(Mode, Fd, 'neq', {LitVal, Sv}),
       false
   end;
 
@@ -841,24 +841,24 @@ pattern_match(BitInfo, Mode, TraceServer, {c_tuple, _Anno, Es}, Cv, Sv, CMaps, S
       Ne ->
         Cs = tuple_to_list(Cv),
         %% CONSTRAINT: Sv is a tuple of Ne elements
-        log(Mode, Fd, 'tuple_size', {'eq', Sv, Ne}),
+        log_constraint(Mode, Fd, 'tuple_size', {'eq', Sv, Ne}),
         Ss = concolic_symbolic:tuple_to_list(Sv, Ne, Cs, Fd),
         pattern_match_all(BitInfo, Mode, TraceServer, Es, Cs, Ss, CMaps, SMaps, Fd);
       _ ->
         %% CONSTRAINT: Sv is a tuple of not Ne elements
-        log(Mode, Fd, 'tuple_size', {'neq', Sv, Ne}),
+        log_constraint(Mode, Fd, 'tuple_size', {'neq', Sv, Ne}),
         false
     end;
 pattern_match(_BitInfo, Mode, _TraceServer, {c_tuple, _Anno, Es}, _Cv, Sv, _CMaps, _SMaps, Fd) ->
   Ne = length(Es),
   %% CONSTRAINT: Sv is not a tuple
-  log(Mode, Fd, 'not_tuple', {Sv, Ne}),
+  log_constraint(Mode, Fd, 'not_tuple', {Sv, Ne}),
   false;
 
 %% List constructor pattern
 pattern_match(BitInfo, Mode, TraceServer, {c_cons, _Anno, Hd, Tl}, [Cv|Cvs], S, CMaps, SMaps, Fd) ->
   %% CONSTRAINT: S is a non empty list
-  log(Mode, Fd, 'non_empty_list', S),
+  log_constraint(Mode, Fd, 'non_empty_list', S),
   Sv = concolic_symbolic:hd(S, Cv, Fd),
   Svs = concolic_symbolic:tl(S, Cvs, Fd),
   case pattern_match(BitInfo, Mode, TraceServer, Hd, Cv, Sv, CMaps, SMaps, Fd) of
@@ -869,11 +869,11 @@ pattern_match(BitInfo, Mode, TraceServer, {c_cons, _Anno, Hd, Tl}, [Cv|Cvs], S, 
   end;
 pattern_match(_BitInfo, Mode, _TraceServer, {c_cons, _Anno, _Hd, _Tl}, [], Sv, _CMaps, _SMaps, Fd) ->
   %% CONSTRAINT: Sv is an empty list
-  log(Mode, Fd, 'empty_list', Sv),
+  log_constraint(Mode, Fd, 'empty_list', Sv),
   false;
 pattern_match(_BitInfo, Mode, _TraceServer, {c_cons, _Anno, _Hd, _Tl}, _Cv, Sv, _CMaps, _SMaps, Fd) ->
   %% CONSTRAINT: Sv is not a list
-  log(Mode, Fd, 'not_list', Sv),
+  log_constraint(Mode, Fd, 'not_list', Sv),
   false;
 
 %% Alias pattern
@@ -902,11 +902,11 @@ bit_pattern_match(_BitInfo, Mode, _TraceServer, [], Cv, Sv, CMaps, SMaps, Fd) ->
   case Cv =:= <<>> of
     true ->
       %% TODO Constraint: Sv =:= <<>>
-      log(Mode, Fd, 'eq', {<<>>, Sv}),
+      log_constraint(Mode, Fd, 'eq', {<<>>, Sv}),
       {true, {CMaps, SMaps}};
     false ->
       %% TODO Constraint: Sv =/= <<>>
-      log(Mode, Fd, 'neq', {<<>>, Sv}),
+      log_constraint(Mode, Fd, 'neq', {<<>>, Sv}),
       false
   end;
 
@@ -922,12 +922,12 @@ bit_pattern_match({M, CodeServer, Cenv, Senv} = BitInfo, Mode, TraceServer, [{c_
         CRest ->
           {SX, SRest} = concolic_symbolic:match_bitstring_const(LitVal, SEnc, Sv, CRest, Fd),
           %% TODO Constraint: Match
-          log(Mode, Fd, 'match', {SX, SRest, Sv}),
+          log_constraint(Mode, Fd, 'match', {SX, SRest, Sv}),
           bit_pattern_match(BitInfo, Mode, TraceServer, Bs, CRest, SRest, CMaps, SMaps, Fd)
       catch
         error:_E ->
           %% TODO Constraint: Not Match
-          log(Mode, Fd, 'not_match', {LitVal, SEnc, Sv}),
+          log_constraint(Mode, Fd, 'not_match', {LitVal, SEnc, Sv}),
           false
       end;
     {c_var, _Anno, VarName} ->
@@ -940,7 +940,7 @@ bit_pattern_match({M, CodeServer, Cenv, Senv} = BitInfo, Mode, TraceServer, [{c_
         {CX, CRest} ->
           {SX, SRest} = concolic_symbolic:match_bitstring_var(SEnc, Sv, CX, CRest, Fd),
           %% TODO Constraint: Match
-          log(Mode, Fd, 'match', {SX, SRest, Sv}),
+          log_constraint(Mode, Fd, 'match', {SX, SRest, Sv}),
           {NewCMaps, NewSMaps} =
             case lists:keymember(VarName, 1, CMaps) of
               true ->
@@ -956,7 +956,7 @@ bit_pattern_match({M, CodeServer, Cenv, Senv} = BitInfo, Mode, TraceServer, [{c_
       catch
         error:_E ->
           %% TODO Constraint: Not Match
-          log(Mode, Fd, 'not_match_v', {SEnc, Sv}),
+          log_constraint(Mode, Fd, 'not_match_v', {SEnc, Sv}),
           false
       end
   end.
@@ -1458,15 +1458,13 @@ adjust_arguments(_M, _F, CAs, SAs, _Fd) -> {CAs, SAs}.
 %% Logging function that wraps all the calls
 %% to the proper concolic_encdec logging functions
 %% --------------------------------------------------------
-log(T, D, C, I) ->
+log_constraint(T, D, C, I) ->
   case get(?DEPTH_PREFIX) of
-    undefined ->
-      throw(depth_undefined_in_pdict);
+    undefined -> throw(depth_undefined_in_pdict);
+    0 -> ok;
     N when is_integer(N), N > 0 ->
       concolic_encdec:log(T, D, C, I),
-      put(?DEPTH_PREFIX, N-1);
-    N when is_integer(N) ->
-      ok
+      put(?DEPTH_PREFIX, N-1)
   end.
 
 

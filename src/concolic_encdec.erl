@@ -7,6 +7,7 @@
          log/3, log/4, path_vertex/1]).
 
 -define(LOGGING_FLAG, ok).  %% Enables logging
+-define(DEPTH_PREFIX, '__conc_depth').
 
 -type mode() :: 'read' | 'write'.
 
@@ -148,9 +149,14 @@ log(Fd, Cmd, Data) when is_list(Data) ->
   
 -ifdef(LOGGING_FLAG).
 log_helper(Fd, Cmd, Data) ->
-  Op = json_command_op(Cmd),
-  Json_data = concolic_json:command_to_json(Op, Data),
-  write_data(Fd, command_type(Cmd), Json_data).
+  case get(?DEPTH_PREFIX) of
+    undefined -> throw(depth_undefined_in_pdict);
+    0 -> ok;
+    N when is_integer(N), N > 0 ->
+      Op = json_command_op(Cmd),
+      Json_data = concolic_json:command_to_json(Op, Data),
+      write_data(Fd, command_type(Cmd), Json_data)
+  end.
 -else.
 log_helper(_, _, _) -> ok.
 -endif.
