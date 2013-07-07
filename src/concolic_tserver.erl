@@ -4,7 +4,7 @@
 -behaviour(gen_server).
 
 %% External exports
--export([init_traceserver/2, terminate/1, register_to_trace/2,
+-export([init_traceserver/3, terminate/1, register_to_trace/2,
          is_monitored/2, node_servers/2, file_descriptor/1]).
 
 %% gen_server callbacks
@@ -22,13 +22,14 @@
 -type cast()  :: {'store_fd', pid(), file:io_device()}
                | {'terminate', pid()}.
 -type info()  :: {'DOWN', reference(), 'process', pid(), term()}.
--type reply() :: {'ok', file:name()}
+-type reply() :: {'ok', file:name(), integer()}
                | boolean()
                | {'ok', {pid(), pid()}}
                | {'ok', file:io_device()}.
 %% gen_server state datatype
 -record(state, {
   super :: pid(),      %% Concolic Server (supervisor) process
+  depth :: integer(),  %% Number of constraints to log
   procs :: ets:tab(),  %% Pids of Live Evaluator processes
   ptree :: ets:tab(),  %% ETS table where {Parent, Child} process pids are stored
   fds   :: ets:tab(),  %% ETS table where {Pid, Fd} are stored
@@ -38,15 +39,17 @@
 -type state() :: #state{}.
 -type tlogs() :: [proplists:property()].
 
+-define(DEPTH_PREFIX, '__conc_depth').
+
 %% ============================================================================
 %% External exports
 %% ============================================================================
 
 %% Initialize a TraceServer
--spec init_traceserver(string(), pid()) -> pid() | no_return().
+-spec init_traceserver(string(), pid(), integer()) -> pid() | no_return().
 
-init_traceserver(TraceDir, Super) ->
-  case gen_server:start(?MODULE, [TraceDir, Super], []) of
+init_traceserver(TraceDir, Super, Depth) ->
+  case gen_server:start(?MODULE, [TraceDir, Super, Depth], []) of
     {ok, TraceServer} -> TraceServer;
     {error, Reason}   -> exit({traceserver_init, Reason})
   end.
@@ -61,9 +64,10 @@ terminate(TraceServer) ->
 -spec register_to_trace(pid(), pid()) -> {'ok', file:io_device()}.
 
 register_to_trace(TraceServer, Parent) ->
-  {ok, Filename} = gen_server:call(TraceServer, {register_parent, Parent}),
+  {ok, Filename, Depth} = gen_server:call(TraceServer, {register_parent, Parent}),
   {ok, Fd} = concolic_encdec:open_file(Filename, 'write'),
   store_file_descriptor(TraceServer, Fd),
+  put(?DEPTH_PREFIX, Depth), %% Set Remaining Constraint counter to Depth
 %  ok = concolic_encdec:log_pid(Fd, self()),
   {ok, Fd}.
 
@@ -94,9 +98,9 @@ file_descriptor(TraceServer) ->
 %% ------------------------------------------------------------------
 %% gen_server callback : init/1
 %% ------------------------------------------------------------------
--spec init([string() | pid(), ...]) -> {'ok', state()}.
+-spec init([string() | pid() | integer(), ...]) -> {'ok', state()}.
 
-init([Dir, Super]) ->
+init([Dir, Super, Depth]) ->
   process_flag(trap_exit, true),
   link(Super),
   Ptree = ets:new(?MODULE, [bag, protected]),
@@ -107,6 +111,7 @@ init([Dir, Super]) ->
   ok = filelib:ensure_dir(TraceDir ++ "/"),  %% Create the directory
   InitState = #state{
     super = Super,
+    depth = Depth,
     procs = Procs,
     ptree = Ptree,
     fds = Fds,
@@ -149,12 +154,13 @@ code_change(_OldVsn, State, _Extra) ->
 -spec handle_call(call(), {pid(), reference()}, state()) -> {'reply', reply(), state()}.
   
 %% Call Request : {register_parent, Parent, Link}
-%% Ret Msg : {ok, Filename}
+%% Ret Msg : {ok, Filename, Depth}
 handle_call({register_parent, Parent}, {From, _FromTag}, State) ->
   Procs = State#state.procs,
   Ptree = State#state.ptree,
   Dir = State#state.dir,
   Logs = State#state.logs,
+  Depth = State#state.depth,
   FromPid = 
     case is_atom(From) of
      true ->  whereis(From);
@@ -170,7 +176,7 @@ handle_call({register_parent, Parent}, {From, _FromTag}, State) ->
   %% Create the filename of the log file
   F = erlang:pid_to_list(FromPid) -- "<>",
   Filename = filename:absname(Dir ++ "/proc-" ++ F),
-  {reply, {ok, Filename}, State#state{logs=NewLogs}};
+  {reply, {ok, Filename, Depth}, State#state{logs=NewLogs}};
 %% Call Request : {is_monitored, Who}
 %% Ret Msg : boolean()
 handle_call({is_monitored, Who}, {_From, _FromTag}, State) ->

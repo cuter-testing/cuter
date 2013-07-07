@@ -18,7 +18,7 @@ run(M, F, As) ->
   io:format("Testing ~p:~p/~p ...~n", [M, F, length(As)]),
   {TmpDir, E, S} = init(),
   pprint_input(As),
-  CR = concolic_execute(M, F, As, TmpDir, E),
+  CR = concolic_execute(M, F, As, TmpDir, E, 15),
   {DataDir, Traces, Mapping} = prepare_execution_info(S, CR),
   ok = concolic_scheduler:initial_execution(S, DataDir, Traces, Mapping),
   loop(M, F, TmpDir, E+1, S).
@@ -31,7 +31,7 @@ loop(M, F, TmpDir, E, S) ->
       ok;
     {R, As} ->
       pprint_input(As),
-      CR = concolic_execute(M, F, As, TmpDir, E),
+      CR = concolic_execute(M, F, As, TmpDir, E, 15),
       {DataDir, Traces, Mapping} = prepare_execution_info(S, CR),
       ok = concolic_scheduler:store_execution(S, R, DataDir, Traces, Mapping),
       loop(M, F, TmpDir, E+1, S)
@@ -59,7 +59,7 @@ prepare_execution_info(_S, {'ok', {Result, DataDir, Traces, Mapping}}) ->
 test_run(M, F, As) ->
   process_flag(trap_exit, true),
   TmpDir = "temp",
-  {ok, {R, DataDir, _, _}} = concolic_execute(M, F, As, TmpDir, 0),
+  {ok, {R, DataDir, _, _}} = concolic_execute(M, F, As, TmpDir, 0, 1),
   _ = concolic_analyzer:clear_and_delete_dir(DataDir),
   _ = file:del_dir(filename:absname(TmpDir)),
   R.
@@ -69,11 +69,11 @@ test_run(M, F, As) ->
 %% ------------------------------------------------------------------
 
 %% Concolic Execution of an M, F, As
-concolic_execute(M, F, As, Dir, E) ->
+concolic_execute(M, F, As, Dir, E, Depth) ->
   DataDir = Dir ++ "/exec" ++ integer_to_list(E),
   CoreDir = ?COREDIR(DataDir),    %% Directory to store .core files
   TraceDir = ?TRACEDIR(DataDir),  %% Directory to store traces
-  Concolic = concolic:init_server(M, F, As, CoreDir, TraceDir),
+  Concolic = concolic:init_server(M, F, As, CoreDir, TraceDir, Depth),
   R = wait_for_execution(Concolic),
   analyze(R),
   case concolic_analyzer:get_result(R) of

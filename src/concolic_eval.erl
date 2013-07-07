@@ -23,6 +23,8 @@
 -record(valuelist, {values :: [term()], degree :: non_neg_integer()}).
 -opaque valuelist() :: #valuelist{}.
 
+-define(DEPTH_PREFIX, '__conc_depth').
+
 %% --------------------------------------------------------
 %% Wrapper exported function that spawns an interpreter 
 %% process which returns the value of an MFA call 
@@ -1456,6 +1458,15 @@ adjust_arguments(_M, _F, CAs, SAs, _Fd) -> {CAs, SAs}.
 %% Logging function that wraps all the calls
 %% to the proper concolic_encdec logging functions
 %% --------------------------------------------------------
-log(T, D, C, I) -> concolic_encdec:log(T, D, C, I).
+log(T, D, C, I) ->
+  case get(?DEPTH_PREFIX) of
+    undefined ->
+      throw(depth_undefined_in_pdict);
+    N when is_integer(N), N > 0 ->
+      concolic_encdec:log(T, D, C, I),
+      put(?DEPTH_PREFIX, N-1);
+    N when is_integer(N) ->
+      ok
+  end.
 
 

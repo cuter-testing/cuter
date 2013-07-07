@@ -5,7 +5,7 @@
 -behaviour(gen_server).
 
 %% External exports
--export([init_server/5, node_servers/2, send_clogs/2,
+-export([init_server/6, node_servers/2, send_clogs/2,
          send_error_report/3, send_return/2, send_tlogs/2, send_mapping/2]).
 
 %% gen_server callbacks
@@ -32,6 +32,7 @@
   coord    :: pid(),                     %% Pid of the Coordinator Process
   coredir  :: string(),                  %% Directory to store .core files
   tracedir :: string(),                  %% Directory to store trace files
+  depth    :: integer(),                 %% Number of constraints to log
   cpids    :: [spid()],                  %% Proplist of CodeServers
   tpids    :: [spid()],                  %% Proplist of TraceServers
   results  :: exec_info(),               %% Info about the concolic execution
@@ -45,10 +46,10 @@
 %% ============================================================================
 
 %% Initialize the Concolic Server
--spec init_server(atom(), atom(), [term()], string(), string()) -> pid() | term().
+-spec init_server(atom(), atom(), [term()], string(), string(), integer()) -> pid() | term().
 
-init_server(M, F, As, CoreDir, TraceDir) ->
-  Args = [M, F, As, CoreDir, TraceDir, self()],
+init_server(M, F, As, CoreDir, TraceDir, Depth) ->
+  Args = [M, F, As, CoreDir, TraceDir, self(), Depth],
   case gen_server:start_link(?MODULE, Args, []) of
     {ok, Server} -> Server;
     {error, _Reason} = R -> R
@@ -97,18 +98,19 @@ node_servers(ConcServer, Node) ->
 %% ------------------------------------------------------------------
 %% gen_server callback : init/1
 %% ------------------------------------------------------------------
--spec init([atom() | string() | pid() | [term()], ...]) -> {'ok', state()}.
+-spec init([atom() | string() | pid() | [term()] | integer(), ...]) -> {'ok', state()}.
 
-init([M, F, As, CoreDir, TraceDir, Coord]) ->
+init([M, F, As, CoreDir, TraceDir, Coord, Depth]) ->
   process_flag(trap_exit, true),
   Node = node(),
   CodeServer = concolic_cserver:init_codeserver(CoreDir, self()),
-  TraceServer = concolic_tserver:init_traceserver(TraceDir, self()),
+  TraceServer = concolic_tserver:init_traceserver(TraceDir, self(), Depth),
   Ipid = concolic_eval:i(M, F, As, CodeServer, TraceServer),
   InitState = #state{
     coord = Coord,
     coredir = CoreDir,
     tracedir = TraceDir,
+    depth = Depth,
     cpids = [{Node, CodeServer}],
     tpids = [{Node, TraceServer}],
     results = orddict:new(),
@@ -221,13 +223,14 @@ handle_call({node_servers, Node}, _From, State) ->
   TPids = State#state.tpids,
   CoreDir = State#state.coredir,
   TraceDir = State#state.tracedir,
+  Depth = State#state.depth,
   case node_monitored(Node, CPids, TPids) of
     %% Servers are already up on Node
     {true, Servers} ->
       {reply, Servers, State};
     false ->
       %% Spawn servers on Node
-      case remote_spawn_servers(Node, CoreDir, TraceDir, self()) of
+      case remote_spawn_servers(Node, CoreDir, TraceDir, self(), Depth) of
         {ok, {CodeServer, TraceServer} = Servers} ->
           NCPids = [{Node, CodeServer}|CPids],
           NTPids = [{Node, TraceServer}|TPids],
@@ -380,14 +383,14 @@ node_monitored(Node, CPids, TPids) ->
   end.
   
 %% Spawn a TraceServer and a CodeServer at a remote node
--spec remote_spawn_servers(node(), string(), string(), pid()) -> {'ok', servers()} | 'error'.
+-spec remote_spawn_servers(node(), string(), string(), pid(), integer()) -> {'ok', servers()} | 'error'.
   
-remote_spawn_servers(Node, CoreDir, TraceDir, Super) ->
+remote_spawn_servers(Node, CoreDir, TraceDir, Super, Depth) ->
   Me = self(),
   F = fun() ->
     process_flag(trap_exit, true),
     CodeServer = concolic_cserver:init_codeserver(CoreDir, Super),
-    TraceServer = concolic_tserver:init_traceserver(TraceDir, Super),
+    TraceServer = concolic_tserver:init_traceserver(TraceDir, Super, Depth),
     Me ! {self(), {CodeServer, TraceServer}}
   end,
   P = spawn_link(Node, F),
