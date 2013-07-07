@@ -14,7 +14,7 @@
 %% exported types
 -export_type([tlogs/0]).
 
--include("concolic_prefixes.hrl").
+-include("concolic_internal.hrl").
 
 %% type declarations
 -type call()  :: {'register_parent', pid()}

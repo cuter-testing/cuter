@@ -6,8 +6,12 @@
 -export([close_file/1, get_data/1, open_file/2, pprint/1, log_pid/2,
          log/3, log/4, path_vertex/1]).
 
--include("concolic_prefixes.hrl").
+-include("concolic_internal.hrl").
 -include("concolic_flags.hrl").
+
+-define(CONSTRAINT_TRUE_OP, 1).
+-define(CONSTRAINT_FALSE_OP, 2).
+-define(OTHER_COMMAND_OP, 3).
 
 -type mode() :: 'read' | 'write'.
 
@@ -63,8 +67,8 @@ pprint(F) ->
       pprint(F)
   end.
 
-pprint_id(<<1>>) -> 'T';
-pprint_id(<<2>>) -> 'F';
+pprint_id(<<?CONSTRAINT_TRUE_OP>>) -> 'T';
+pprint_id(<<?CONSTRAINT_FALSE_OP>>) -> 'F';
 pprint_id(_) -> ' '.
 
 %% ------------------------------------------------------------------
@@ -85,9 +89,9 @@ generate_vertex(Fd, Acc) ->
       Sz = bin_to_i32(safe_read(Fd, 4, false)),
       {ok, _} = file:position(Fd, {cur, Sz}),
       case N of
-        1 -> generate_vertex(Fd, [concolic_analyzer:constraint_true()|Acc]);
-        2 -> generate_vertex(Fd, [concolic_analyzer:constraint_false()|Acc]);
-        _ -> generate_vertex(Fd, Acc)
+        ?CONSTRAINT_TRUE_OP -> generate_vertex(Fd, [?CONSTRAINT_TRUE_REP|Acc]);
+        ?CONSTRAINT_FALSE_OP -> generate_vertex(Fd, [?CONSTRAINT_FALSE_REP|Acc]);
+        ?OTHER_COMMAND_OP -> generate_vertex(Fd, Acc)
       end
   end.
 
@@ -195,20 +199,20 @@ i32_to_list(Int) when is_integer(Int) ->
 %% 1 : True constraint
 %% 2 : False constraint
 %% 3 : Everything else
-command_type({'guard', true}) -> 1;
-command_type({'guard', false}) -> 2;
-command_type('eq') -> 1;
-command_type('neq') -> 2;
-command_type({'tuple_size', 'eq'}) -> 1;
-command_type({'tuple_size', 'neq'}) -> 2;
-command_type('not_tuple') -> 2;
-command_type('non_empty_list') -> 1;
-command_type('empty_list') -> 2;
-command_type('not_list') -> 2;
-command_type('match') -> 1;
-command_type('not_match') -> 2;
-command_type('not_match_v') -> 2;
-command_type(_) -> 3.
+command_type({'guard', true}) -> ?CONSTRAINT_TRUE_OP;
+command_type({'guard', false}) -> ?CONSTRAINT_FALSE_OP;
+command_type('eq') -> ?CONSTRAINT_TRUE_OP;
+command_type('neq') -> ?CONSTRAINT_FALSE_OP;
+command_type({'tuple_size', 'eq'}) -> ?CONSTRAINT_TRUE_OP;
+command_type({'tuple_size', 'neq'}) -> ?CONSTRAINT_FALSE_OP;
+command_type('not_tuple') -> ?CONSTRAINT_FALSE_OP;
+command_type('non_empty_list') -> ?CONSTRAINT_TRUE_OP;
+command_type('empty_list') -> ?CONSTRAINT_FALSE_OP;
+command_type('not_list') -> ?CONSTRAINT_FALSE_OP;
+command_type('match') -> ?CONSTRAINT_TRUE_OP;
+command_type('not_match') -> ?CONSTRAINT_FALSE_OP;
+command_type('not_match_v') -> ?CONSTRAINT_FALSE_OP;
+command_type(_) -> ?OTHER_COMMAND_OP.
 
 %% Maps commands to their JSON Opcodes
 json_command_op({'guard', true}) -> "T";

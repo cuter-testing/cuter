@@ -18,3 +18,11 @@
 -define(FUNCTION_PREFIX, '__func').
 -define(CONCOLIC_PREFIX_MSG, '__concm').
 -define(CONCOLIC_PREFIX_PDICT, '__concp').
+
+%%====================================================================
+%% Shared Macros
+%%====================================================================
+
+%% concolic_encdec, concolic_analyzer
+-define(CONSTRAINT_TRUE_REP, 84).   %% $T
+-define(CONSTRAINT_FALSE_REP, 70).  %% $F

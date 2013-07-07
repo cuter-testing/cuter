@@ -10,7 +10,7 @@
 
 -export_type([mapping/0, symbolic/0]).
 
--include("concolic_prefixes.hrl").
+-include("concolic_internal.hrl").
 
 %% Macros for code abstractions
 -define(CONCAT_BITSTR, 'concat_bitstr').

@@ -2,17 +2,18 @@
 %%------------------------------------------------------------------------------
 -module(concolic_analyzer).
 
--export([constraint_true/0, constraint_false/0, get_execution_vertices/1,
+-export([get_execution_vertices/1,
          get_traces/1, get_result/1, get_mapping/1,
          clear_and_delete_dir/1, print_trace/1]).
 
 %% exported types
 -export_type([path_vertex/0, traces/0, internal_error/0, result/0, ret/0]).
 
+-include("concolic_internal.hrl").
 -include("concolic_flags.hrl").
 
 -type traces() :: [{node(), [file:name()]}].
--type path_vertex() :: [84 | 70]. %% [$T | $F]
+-type path_vertex() :: [?CONSTRAINT_TRUE_REP | ?CONSTRAINT_FALSE_REP]. %% [$T | $F]
 -type internal_error() :: 'internal_concolic_error'
                         | 'internal_codeserver_error'
                         | 'internal_traceserver_error'.
@@ -26,13 +27,6 @@
 %%====================================================================
 %% External exports
 %%====================================================================
-
-%% Primitives for path vertices
--spec constraint_true() -> 84.
-constraint_true() -> $T.
-
--spec constraint_false() -> 70.
-constraint_false() -> $F.
 
 %% ------------------------------------------------------------------
 %% Extract Information from the Concolic Result

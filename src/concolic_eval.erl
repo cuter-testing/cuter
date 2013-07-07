@@ -6,7 +6,7 @@
 
 -export_type([result/0, valuelist/0]).
 
--include("concolic_prefixes.hrl").
+-include("concolic_internal.hrl").
 -include_lib("compiler/src/core_parse.hrl").
 
 -type calltype() :: 'local' | 'external'.
