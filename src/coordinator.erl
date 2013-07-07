@@ -19,7 +19,7 @@
 run(M, F, As) ->
   error_logger:tty(false),  %% Disable error_logger
   io:format("Testing ~p:~p/~p ...~n", [M, F, length(As)]),
-  Depth = 20,
+  Depth = 200,
   {TmpDir, E, S} = init(Depth),
   pprint_input(As),
   CR = concolic_execute(M, F, As, TmpDir, E, Depth),
@@ -64,7 +64,7 @@ prepare_execution_info(_S, {'ok', {Result, DataDir, Traces, Mapping}}) ->
 test_run(M, F, As) ->
   process_flag(trap_exit, true),
   TmpDir = "temp",
-  {ok, {R, DataDir, _, _}} = concolic_execute(M, F, As, TmpDir, 0, 1),
+  {ok, {R, DataDir, _, _}} = concolic_execute(M, F, As, TmpDir, 0, 1000),
   _ = concolic_analyzer:clear_and_delete_dir(DataDir),
   _ = file:del_dir(filename:absname(TmpDir)),
   R.
@@ -121,8 +121,8 @@ report_trace_contents(Traces) ->
 
 report_trace_contents_node({_Node, TraceFiles}) ->
   F = fun(X) ->
-    ok = concolic_analyzer:print_trace(X),
-    io:format("~n")
+    io:format("Contents of ~p~n", [X]),
+    ok = concolic_analyzer:print_trace(X)
   end,
   lists:foreach(F, TraceFiles).
 -else.

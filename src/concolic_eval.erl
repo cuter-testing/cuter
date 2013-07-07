@@ -1453,13 +1453,6 @@ adjust_arguments(_M, _F, CAs, SAs, _Fd) -> {CAs, SAs}.
 %% Logging function that wraps all the calls
 %% to the proper concolic_encdec logging functions
 %% --------------------------------------------------------
-log_constraint(T, D, C, I) ->
-  case get(?DEPTH_PREFIX) of
-    undefined -> throw(depth_undefined_in_pdict);
-    0 -> ok;
-    N when is_integer(N), N > 0 ->
-      concolic_encdec:log(T, D, C, I),
-      put(?DEPTH_PREFIX, N-1)
-  end.
+log_constraint(T, D, C, I) -> concolic_encdec:log(T, D, C, I).
 
 

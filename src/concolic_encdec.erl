@@ -162,12 +162,18 @@ log_helper(Fd, Cmd, Data) ->
     0 -> ok;
     N when is_integer(N), N > 0 ->
       Op = json_command_op(Cmd),
+      ComType = command_type(Cmd),
       Json_data = concolic_json:command_to_json(Op, Data),
-      write_data(Fd, command_type(Cmd), Json_data)
+      write_data(Fd, ComType, Json_data),
+      update_constraint_counter(ComType, N)
   end.
 -else.
 log_helper(_, _, _) -> ok.
 -endif.
+
+update_constraint_counter(T, X) when T =:= ?CONSTRAINT_TRUE_OP; T =:= ?CONSTRAINT_FALSE_OP ->
+  put(?DEPTH_PREFIX, X-1);
+update_constraint_counter(_T, _X) -> ok.
 
 %% Log a pid
 -spec log_pid(file:io_device(), pid()) -> 'ok'.
