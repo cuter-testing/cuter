@@ -1,0 +1,32 @@
+
++-----------------------+
+|    Z3 Basic Types     |
++-----------------------+
+| integer -> IntSort()  |
+| float   -> RealSort() |
++-----------------------+
+
+
++----------------------------------------------------------+
+| The Encoding of the Erlang Type System for Z3 SMT Solver |
++----------------------------------------------------------+
+|                                                          |
+|    Constructor                                           |
+|         |                                                |
+|         | Accessor                                       |
+|         |    |                                           |
+|         v    v                                           |
+| Term = int (ival, IntSort())                             |
+|      | real (rval, RealSort()                            |
+|      | lst (lval, List)                                  |
+|      | tpl (tval, List)                                  |
+|      | atm (aval, Atom)                                  |
+|                                                          |
+| List = nil                                               |
+|      | cons (hd, Term) (tl, List)                        |
+|                                                          |
+| Atom = anil                                              |
+|      | acons (ahd, IntSort()) (atl, Atom)                |
+|                                                          |
++----------------------------------------------------------+
+
