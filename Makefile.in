@@ -34,6 +34,7 @@ SRC_MODULES = \
 	concolic_lib \
 	concolic_load \
 	concolic_scheduler \
+	concolic_spec_parse \
 	concolic_symbolic \
 	concolic_tserver \
 	coordinator \
