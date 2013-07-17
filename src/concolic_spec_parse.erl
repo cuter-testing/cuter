@@ -66,6 +66,7 @@
 %%       | {type, _Ln, tuple, [any] | (Type)+}
 %%       | {type, _Ln, union, (Type)+}
 %%       | {type, _Ln, UserDefinedType :: atom(), (Type)*}
+%%       | {parent_type, _Ln, [Type]}
 %%       | {ann_type, _Ln, [VarName :: atom(), Type]}
 %%       | {remote_type, _Ln, RemType}
 %%       | BoundedVar (when we have a BoundedFun or a UserDefinedType)
@@ -144,7 +145,9 @@ parse_all_specs(Specs, BoundTypes) ->
     try
       {{F, A}, T} = parse_spec(X, BoundTypes),
       io:format("Spec for ~p/~p~n", [F, A]),
-      pp_sig(T)
+      pp_sig(T),
+      io:format("~n"),
+      pp_sig(simplify(T))
     catch
       exit:E -> io:format("Parse Spec Exception: ~p~n", [E])
     end,
@@ -170,7 +173,7 @@ retrieve_spec(MFA, Attrs) ->
 locate_mfa_spec(_MFA, [], _BoundTypes) -> error;
 locate_mfa_spec({_M, F, A}=MFA, [S|Ss], BoundTypes) ->
   case parse_spec(S, BoundTypes) of
-    {{F, A}, T} -> {ok, T};
+    {{F, A}, T} -> {ok, simplify(T)};
     _ -> locate_mfa_spec(MFA, Ss, BoundTypes)
   end.
 
@@ -180,11 +183,30 @@ filter_specs(_Attr) -> false.
 filter_types({#c_literal{val = type}, #c_literal{val = [Type]}}) -> {true, Type};
 filter_types(_Attr) -> false.
 
+%% Replace unions that have an any clause with any
+%% (also nested unions)
+-spec simplify(type_sig()) -> type_sig().
+
+simplify({function, Ps, R}) ->
+  {function, lists:map(fun simplify/1, Ps), simplify(R)};
+simplify({list, Empty, Vs}) ->
+  {list, Empty, lists:map(fun simplify/1, Vs)};
+simplify({range, From, To}) ->
+  {range, simplify(From), simplify(To)};
+simplify({tuple, Vs}) ->
+  {tuple, lists:map(fun simplify/1, Vs)};
+simplify({union, Vs}) ->
+  SimpVs = lists:map(fun simplify/1, Vs),
+  case lists:any(fun(T) -> T =:= any end, SimpVs) of
+    true  -> any;
+    false -> {union, SimpVs}
+  end;
+simplify(T) -> T.
+
 %% -------------------------------------------------
 %% Declare Types
 %% -------------------------------------------------
 
-%5
 declare_types(Types) ->
   F = fun(X, Y) -> 
 %    io:format("~n$$$~n~p~n$$$~n", [X]),
@@ -302,6 +324,9 @@ parse_type(#type{name = product, args = Args}, Bound) ->
   lists:map(fun(X) -> parse_type(X, Bound) end, Args);
 %% annotated type
 parse_type({ann_type, _Ln, [_Var, Type]}, Bound) ->
+  parse_type(Type, Bound);
+%% parenthesized type
+parse_type({paren_type, _Ln, [Type]}, Bound) ->
   parse_type(Type, Bound);
 %% record()
 parse_type(#type{name = record, args = [{atom, _Ln, Rec}]}, Bound) ->
