@@ -208,7 +208,7 @@ declare_type({Name, TypeSig, Vars}, Bound) ->
     BX1 = lists:foldl(fun({A, B}, C) -> orddict:store(A, B, C) end, BX, Zs),
     parse_type(TypeSig, BX1)
   end,
-  orddict:store({type, Name}, F, Bound);
+  orddict:store({type, {Name, length(Vars)}}, F, Bound);
 %% XXX Do not expect to get here
 declare_type(Type, _) -> exit({unknown_type, Type}).
 
@@ -309,7 +309,7 @@ parse_type(#type{name = record, args = [{atom, _Ln, Rec}]}, Bound) ->
   V(Bound);
 %% user defined type
 parse_type(#type{name = Type, args = Args}, Bound) ->
-  V = orddict:fetch({type, Type}, Bound),
+  V = orddict:fetch({type, {Type, length(Args)}}, Bound),
   V(Args, Bound);
 %% bound variable (used in bounded_funs, records, user defined types)
 parse_type({var, _Ln, Var}, Bound) ->
