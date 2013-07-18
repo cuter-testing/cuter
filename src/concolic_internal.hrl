@@ -14,6 +14,9 @@
 %% concolic_json
 -define(UNBOUND_VAR, '__any').
 
+%% concolic_json, concolic_spec_parse
+-define(TYPE_SIG_PREFIX, '__type_sig').
+
 %% concolic_eval
 -define(FUNCTION_PREFIX, '__func').
 -define(CONCOLIC_PREFIX_MSG, '__concm').

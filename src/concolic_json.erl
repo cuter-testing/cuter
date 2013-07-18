@@ -2,7 +2,8 @@
 %%------------------------------------------------------------------------------
 -module(concolic_json).
 
--export([command_to_json/2, prepare_port_command/2, decode_z3_result/1, is_unbound_var/1]).
+-export([command_to_json/2, prepare_port_command/2, decode_z3_result/1,
+         is_unbound_var/1, typesig_to_json/1]).
 
 -include("concolic_internal.hrl").
 
@@ -14,6 +15,13 @@
 -define(ENC_DICT_ENTRY(K, V), [?Q, K, ?Q, $:, V]).
 -define(ENC_DICT(S), [?Q, $d, ?Q, $:, $\{, S, $\}]).
 -define(ENC_CMD(Cmd, As), [$\{, ?Q, $c, ?Q, $:, ?Q, Cmd, ?Q, $,, ?Q, $a, ?Q, $:, $\[, As, $\], $\}]).
+
+-define(ENC_TYPESIG_TYPE(T), [?Q, $t, ?Q, $:, ?Q, T, ?Q]).
+-define(ENC_TYPESIG_INFO(I), [?Q, $i, ?Q, $:, I]).
+-define(ENC_TYPESIG_ARGS(As), [?Q, $a, ?Q, $:, $\[, As, $\]]).
+-define(ENC_TYPESIG_1(V1), [$\{, V1, $\}]).
+-define(ENC_TYPESIG_2(V1, V2), [$\{, V1, $,, V2, $\}]).
+-define(ENC_TYPESIG_3(V1, V2, V3), [$\{, V1, $,, V2, $,, V3, $\}]).
 
 -define(IS_WHITESPACE(C), (C =:= $\s orelse C =:= $\t orelse C =:= $\r orelse C =:= $\n)).
 -define(IS_DIGIT(C), (C >= $0 andalso C =< $9)).
@@ -86,6 +94,12 @@ prepare_port_command(get_model, _) ->
 
 is_unbound_var(?UNBOUND_VAR) -> true;
 is_unbound_var(_) -> false.
+
+%% Encode a type_sig() to JSON
+-spec typesig_to_json(concolic_spec_parse:type_sig()) -> binary().
+
+typesig_to_json({?TYPE_SIG_PREFIX, Typesig}) ->
+  list_to_binary(json_encode_typesig(Typesig)).
 
 %% ==============================================================================
 %% Decode JSON Solution
@@ -279,11 +293,67 @@ trim_separator(JSON, S) ->
 %% Encode Terms to JSON
 
 %% Encode an Erlang Term to JSON (nested list)
+json_encode({?TYPE_SIG_PREFIX, Type}) ->
+  json_encode_typesig(Type);
 json_encode(Term) ->
   case concolic_symbolic:is_symbolic(Term) of
     true  -> json_encode_symbolic(Term);
     false -> json_encode_concrete(Term)
   end.
+
+json_encode_typesig({literal, Lit}) ->
+  ET = ?ENC_TYPESIG_TYPE("literal"),
+  EI = ?ENC_TYPESIG_INFO(json_encode(Lit)),
+  ?ENC_TYPESIG_2(ET, EI);
+json_encode_typesig({integer, X}) ->
+  ET = ?ENC_TYPESIG_TYPE("integer"),
+  EI = ?ENC_TYPESIG_INFO([?Q, atom_to_list(X), ?Q]),
+  ?ENC_TYPESIG_2(ET, EI);
+json_encode_typesig({list, Empty, T}) ->
+  Maps = [{maybe_empty, "list"}, {non_empty, "nelist"}],
+  ET = ?ENC_TYPESIG_TYPE(proplists:get_value(Empty, Maps)),
+  EI = ?ENC_TYPESIG_INFO(json_encode_typesig(T)),
+  ?ENC_TYPESIG_2(ET, EI);
+json_encode_typesig({range, From, To}) ->
+  ET = ?ENC_TYPESIG_TYPE("range"),
+  EA = ?ENC_TYPESIG_ARGS([json_encode_typesig(From), $,, json_encode_typesig(To)]),
+  ?ENC_TYPESIG_2(ET, EA);
+json_encode_typesig({string, maybe_empty}) ->
+  ET = ?ENC_TYPESIG_TYPE("string"),
+  ?ENC_TYPESIG_1(ET);
+json_encode_typesig({string, non_empty}) ->
+  ET = ?ENC_TYPESIG_TYPE("nestring"),
+  ?ENC_TYPESIG_1(ET);
+json_encode_typesig({tuple, Ts}) ->
+  ET = ?ENC_TYPESIG_TYPE("tuple"),
+  F = fun(X, Acc) -> [$,, json_encode_typesig(X) | Acc] end,
+  Ss = 
+    case lists:foldr(F, [], Ts) of
+      [] -> [];
+      [$, | Rst] -> Rst
+    end,
+  EA = ?ENC_TYPESIG_ARGS(Ss),
+  ?ENC_TYPESIG_2(ET, EA);
+json_encode_typesig({union, Ts}) ->
+  ET = ?ENC_TYPESIG_TYPE("union"),
+  F = fun(X, Acc) -> [$,, json_encode_typesig(X) | Acc] end,
+  [$, | Ss] = lists:foldr(F, [], Ts),
+  EA = ?ENC_TYPESIG_ARGS(Ss),
+  ?ENC_TYPESIG_2(ET, EA);
+json_encode_typesig(T)
+  when T =:= any;
+       T =:= atom;
+       T =:= boolean;
+       T =:= byte;
+       T =:= char;
+       T =:= float;
+       T =:= number;
+       T =:= timeout ->
+   ET = ?ENC_TYPESIG_TYPE(atom_to_list(T)),
+  ?ENC_TYPESIG_1(ET);
+json_encode_typesig(T) -> throw({unsupported_typesig, T}).
+
+
 
 json_encode_symbolic(Term) -> ?ENC_SYMB(concolic_symbolic:to_list(Term)).
 

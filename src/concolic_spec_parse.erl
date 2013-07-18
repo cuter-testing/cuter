@@ -79,6 +79,9 @@
 -export([retrieve_spec/2,
          parse_specs_in_file/1, locate_spec_in_file/2]).
 
+-export_type([type_sig/0]).
+
+-include("concolic_internal.hrl").
 -include_lib("compiler/src/core_parse.hrl").
 
 -record(type, {
@@ -88,6 +91,7 @@
 }).
 
 -type empty() :: maybe_empty | non_empty.
+-type prefixed_type_sig() :: {?TYPE_SIG_PREFIX, type_sig()}.
 -type type_sig() :: {literal, term()}
                   | any
                   | atom
@@ -99,7 +103,7 @@
                   | float
                   | {function, [type_sig()], type_sig()}
                   | {integer, any | pos | neg | non_neg}
-                  | {list, empty(), [type_sig()]}
+                  | {list, empty(), type_sig()}
                   | mfa
                   | module
                   | node
@@ -147,7 +151,19 @@ parse_all_specs(Specs, BoundTypes) ->
       io:format("Spec for ~p/~p~n", [F, A]),
       pp_sig(T),
       io:format("~n"),
-      pp_sig(simplify(T))
+      ST = simplify(T),
+      pp_sig(ST),
+      io:format("~n"),
+      {function, Ps, R} = ST,
+      FF = fun(XX) ->
+        try
+          JSON = concolic_json:typesig_to_json({'__type_sig', XX}),
+          io:format("~p~n", [JSON])
+        catch
+          throw:Msg -> io:format("ERROR! ~p~n", [Msg])
+        end
+      end,
+      lists:foreach(FF, Ps ++ [R])
     catch
       exit:E -> io:format("Parse Spec Exception: ~p~n", [E])
     end,
@@ -162,7 +178,7 @@ locate_spec_in_file(MFA, File) ->
 
 %% =================================================
 
--spec retrieve_spec(mfa(), [{cerl:cerl(), cerl:cerl()}]) -> {ok, type_sig()} | error.
+-spec retrieve_spec(mfa(), [{cerl:cerl(), cerl:cerl()}]) -> {ok, prefixed_type_sig()} | error.
 
 retrieve_spec(MFA, Attrs) ->
   Types = lists:filtermap(fun filter_types/1, Attrs),
@@ -173,7 +189,7 @@ retrieve_spec(MFA, Attrs) ->
 locate_mfa_spec(_MFA, [], _BoundTypes) -> error;
 locate_mfa_spec({_M, F, A}=MFA, [S|Ss], BoundTypes) ->
   case parse_spec(S, BoundTypes) of
-    {{F, A}, T} -> {ok, simplify(T)};
+    {{F, A}, T} -> {ok, {?TYPE_SIG_PREFIX, simplify(T)}};
     _ -> locate_mfa_spec(MFA, Ss, BoundTypes)
   end.
 
@@ -189,8 +205,8 @@ filter_types(_Attr) -> false.
 
 simplify({function, Ps, R}) ->
   {function, lists:map(fun simplify/1, Ps), simplify(R)};
-simplify({list, Empty, Vs}) ->
-  {list, Empty, lists:map(fun simplify/1, Vs)};
+simplify({list, Empty, T}) ->
+  {list, Empty, simplify(T)};
 simplify({range, From, To}) ->
   {range, simplify(From), simplify(To)};
 simplify({tuple, Vs}) ->
@@ -292,10 +308,10 @@ parse_type(#type{name = string, args = []}, _Bound) -> {string, maybe_empty};
 parse_type(#type{name = nonempty_string, args = []}, _Bound) -> {string, non_empty};
 %% list()
 parse_type(#type{name = L, args = Args}, Bound) when L =:= list; L =:= nonempty_list ->
-  Ts = lists:map(fun(X) -> parse_type(X, Bound) end, Args),
-  case L of
-    list -> {list, maybe_empty, Ts};
-    nonempty_list -> {list, non_empty, Ts}
+  Maps = [{list, maybe_empty}, {nonempty_list, non_empty}],
+  case Args of
+    []  -> {list, proplists:get_value(L, Maps), any};
+    [A] -> {list, proplists:get_value(L, Maps), parse_type(A, Bound)}
   end;
 %% tuple()
 parse_type(#type{name = tuple, args = any}, _Bound) ->
@@ -386,12 +402,9 @@ pp_sig({string, non_empty})   -> io:format("nonempty_string()");
 pp_sig({integer, any}) -> io:format("integer()");
 pp_sig({integer, X})   -> io:format("~p_integer()", [X]);
 %% list
-pp_sig({list, maybe_empty, []}) -> io:format("[any()]");
-pp_sig({list, non_empty, []})   -> io:format("[any(), ...]");
-pp_sig({list, Empty, [S|Sigs]}) ->
+pp_sig({list, Empty, S}) ->
   io:format("["),
   pp_sig(S),
-  lists:foreach(fun(X) -> io:format(" | "), pp_sig(X) end, Sigs),
   case Empty of
     maybe_empty -> ok;
     non_empty -> io:format(", ...")
