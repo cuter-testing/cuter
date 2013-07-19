@@ -29,6 +29,7 @@ class ErlangZ3:
     self.solver = Solver()
     self.atom_true = self.json_term_to_z3(json.loads("{\"t\" : \"Atom\", \"v\" : [116,114,117,101]}"))
     self.atom_false = self.json_term_to_z3(json.loads("{\"t\" : \"Atom\", \"v\" : [102,97,108,115,101]}"))
+    self.atom_infinity = self.json_term_to_z3(json.loads("{\"t\" : \"Atom\", \"v\" : [105,110,102,105,110,105,116,121]}"))
     self.max_len = 100
     self.check = None
     self.model = None
@@ -248,6 +249,7 @@ class ErlangZ3:
       "mtpl2": self._json_bif_make_tuple_2_to_z3,
       # Other Useful Commands
       "Pms" : self._json_cmd_define_params_to_z3,
+      "Psp" : self._json_cmd_parameter_spec_to_z3,
       "Bkt" : self._json_cmd_break_tuple_to_z3,
       "Bkl" : self._json_cmd_break_list_to_z3,
     }
@@ -370,6 +372,178 @@ class ErlangZ3:
     for s in args:
       x = self._json_symbolic_term_to_z3(s)
       self.env.add_param(s["s"])
+  
+  # Parameter Spec
+  def _json_cmd_parameter_spec_to_z3(self, term, typesig):
+    t = self.json_term_to_z3(term)
+    Ax = self._bind_term_to_typesig(t, typesig)
+    print "Ax", Ax
+    if Ax != None:
+      self.solver.add(Ax)
+  
+  # Bind a variable to a specific type
+  def _bind_term_to_typesig(self, x, typesig):
+    opts = {
+      "literal" : self._bind_term_to_literal,
+      "any" : self._bind_term_to_any,
+      "atom" : self._bind_term_to_atom,
+      "boolean" : self._bind_term_to_boolean,
+      "byte" : self._bind_term_to_byte,
+      "char" : self._bind_term_to_char,
+      "float" : self._bind_term_to_float,
+      "integer" : self._bind_term_to_integer,
+      "list" : self._bind_term_to_list,
+      "nelist" : self._bind_term_to_nelist,
+      "number" : self._bind_term_to_number,
+      "range" : self._bind_term_to_range,
+      "string" : self._bind_term_to_string,
+      "nestring" : self._bind_term_to_nestring,
+      "timeout" : self._bind_term_to_timeout,
+      "tuple" : self._bind_term_to_tuple,
+      "union" : self._bind_term_to_union,
+    }
+    info = typesig["i"] if "i" in typesig else None
+    args = typesig["a"] if "a" in typesig else []
+    return opts[typesig["t"]](x, info, args)
+  
+  # Bind variable to literal
+  def _bind_term_to_literal(self, x, info, args):
+    l = self.json_term_to_z3(info)
+    return x == l
+  
+  # Bind variable to any()
+  def _bind_term_to_any(self, x, info, args):
+    return None
+  
+  # Bind variable to atom()
+  def _bind_term_to_atom(self, x, info, args):
+    return self.Term.is_atm(x)
+  
+  # Bind variable to boolean()
+  def _bind_term_to_boolean(self, x, info, args):
+    return Or(x == self.atom_true, x == self.atom_false)
+  
+  # Bind variable to byte()
+  def _bind_term_to_byte(self, x, info, args):
+    Ax = [self.Term.is_int(x)]
+    Ax.append(self.Term.ival(x) >= 0)
+    Ax.append(self.Term.ival(x) <= 255)
+    return And(*Ax)
+  
+  # Bind variable to char()
+  def _bind_term_to_char(self, x, info, args):
+    Ax = []
+    Ax.append(self.Term.is_int(x))
+    Ax.append(self.Term.ival(x) >= 0)
+    Ax.append(self.Term.ival(x) <= 1114111) # 16#10ffff
+    return And(*Ax)
+  
+  # Bind variable to float()
+  def _bind_term_to_float(self, x, info, args):
+    return self.Term.is_real(x)
+  
+  # Bind variable to integer types
+  def _bind_term_to_integer(self, x, info, args):
+    Ax = [self.Term.is_int(x)]
+    opts = {
+      "pos" : self.Term.ival(x) > 0,
+      "neg" : self.Term.ival(x) < 0,
+      "non_neg" : self.Term.ival(x) >= 0,
+    }
+    if info != "any":
+      Ax.append(opts[info])
+    return And(*Ax)
+  
+  # Bind variable to list()
+  def _bind_term_to_list(self, x, info, args):
+    return self._bind_term_to_list_h(x, info, False, False)
+  
+  # Bind variable to non empty list()
+  def _bind_term_to_nelist(self, x, info, args):
+    return self._bind_term_to_list_h(x, info, True, False)
+  
+  # Bind variable to string()
+  def _bind_term_to_string(self, x, info, args):
+    return self._bind_term_to_list_h(x, info, False, True)
+  
+  # Bind variable to non empty string()
+  def _bind_term_to_nestring(self, x, info, args):
+    return self._bind_term_to_list_h(x, info, True, True)
+  
+  # Helper function for binding variables to lists and strings
+  def _bind_term_to_list_h(self, x, info, NonEmpty, String):
+    T = self.Term
+    L = self.List
+    es = [T.is_lst(x)]
+    x = T.lval(x)
+    if NonEmpty:
+      es.append(L.is_cons(x))
+    if String or info["t"] != "any":
+      acc = []
+      for i in range (0, self.max_len):
+        h = L.hd(x)
+        if String:
+          typesig = self._bind_term_to_char(h, "", "")
+        else:
+          typesig = self._bind_term_to_typesig(h, info)
+        acc.append(
+          (L.is_cons(x), typesig, L.is_nil(x))
+        )
+        x = L.tl(x)
+      ax = None
+      for (c, t, f) in reversed(acc):
+        if ax == None:
+          ax = If(c, t, f)
+        else:
+          ax = If(c, And(t, ax), f)
+      es.append(ax)
+    return And(*es)
+  
+  # Bind variable to number()
+  def _bind_term_to_number(self, x, info, args):
+    return Or(self.Term.is_int(x), self.Term.is_real(x))
+  
+  # Bind variable to range()
+  def _bind_term_to_range(self, x, info, args):
+    # Assume that from / to are integer literals
+    T = self.Term
+    Ax = [T.is_int(x)]
+    from_r = self.json_term_to_z3(args[0]["i"])
+    to_r = self.json_term_to_z3(args[1]["i"])
+    Ax.append(T.ival(x) >= T.ival(from_r))
+    Ax.append(T.ival(x) <= T.ival(to_r))
+    return simplify(And(*Ax))
+  
+  # Bind variable to timeout()
+  def _bind_term_to_timeout(self, x, info, args):
+    T = self.Term
+    return Or(
+      x == self.atom_infinity,
+      And(T.is_int(x), T.ival(x) >= 0)
+    )
+    
+  # Bind variable to tuple()
+  def _bind_term_to_tuple(self, x, info, args):
+    T = self.Term
+    L = self.List
+    Ax = [T.is_tpl(x)]
+    if args == []:
+      return Ax[0]
+    else:
+      x = T.tval(x)
+      for typesig in args:
+        Ax.append(L.is_cons(x))
+        Ax.append(self._bind_term_to_typesig(L.hd(x), typesig))
+        x = L.tl(x)
+      Ax.append(L.is_nil(x))
+      return And(*Ax)
+  
+  # Bind variable to union()
+  def _bind_term_to_union(self, x, info, args):
+    Ax = []
+    for typesig in args:
+      Ax.append(self._bind_term_to_typesig(x, typesig))
+    return Or(*Ax)
   
   # 'Break Tuple'
   def _json_cmd_break_tuple_to_z3(self, term1, terms):

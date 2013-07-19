@@ -32,6 +32,7 @@ See (http://docs.python.org/2/library/json.html) for JSON-Python type translatio
 |            | Union                     | {"t" : "union", "a" : [Type+]}                    | union()                                              |
 +------------+---------------------------+---------------------------------------------------+------------------------------------------------------+
 | Command    | Define Parameters         | {"c" : "Pms", "a" : [Term*]}                      | Term* are the parameters                             |
+|            | Parameter Spec            | {"c" : "Psp", "a" : [Term, Type]}                 | Term :: Type                                         |
 |            | Break List                | {"c" : "Bkl", "a" : [Term1, Term*]}               | Break a list (Term1) into its elements (Term*)       |
 |            | Break Tuple               | {"c" : "Bkt", "a" : [Term1, Term*]}               | Break a tuple (Term1) into its elements (Term*)      |
 |            +---------------------------+---------------------------------------------------+------------------------------------------------------+
