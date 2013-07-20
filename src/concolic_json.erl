@@ -96,7 +96,7 @@ is_unbound_var(?UNBOUND_VAR) -> true;
 is_unbound_var(_) -> false.
 
 %% Encode a type_sig() to JSON
--spec typesig_to_json(concolic_spec_parse:type_sig()) -> binary().
+-spec typesig_to_json(concolic_spec_parse:prefixed_type_sig()) -> binary().
 
 typesig_to_json({?TYPE_SIG_PREFIX, Typesig}) ->
   list_to_binary(json_encode_typesig(Typesig)).

@@ -34,6 +34,7 @@ i(M, F, As, CodeServer, TraceServer) ->
       {SymbAs, Mapping} = concolic_symbolic:abstract(As),
       {ok, Fd} = concolic_tserver:register_to_trace(TraceServer, Root),
       concolic_encdec:log(Fd, 'params', SymbAs),
+      log_mfa_spec(Fd, {M, F, length(As)}, SymbAs, CodeServer),
       concolic:send_mapping(Root, Mapping),
       NMF = {named, {M, F}},
       Val = eval(NMF, As, SymbAs, external, CodeServer, TraceServer, Fd),
@@ -1448,6 +1449,16 @@ adjust_arguments(slave, F, CAs, SAs, Fd) when F =:= 'start'; F =:= 'start_link' 
   end;
 %% All other functions will have their arguments unaltered
 adjust_arguments(_M, _F, CAs, SAs, _Fd) -> {CAs, SAs}.
+
+%% Log the Spec of an MFA
+log_mfa_spec(Fd, MFA, SymbAs, CodeServer) ->
+  case concolic_cserver:mfa_spec(CodeServer, MFA) of
+    error -> ok;
+    {ok, PTypeSig} ->
+      {ok, Ps} = concolic_spec_parse:get_params_types(PTypeSig),
+      Zs = lists:zipwith(fun(X, Y) -> [X, Y] end, SymbAs, Ps),
+      lists:foreach(fun(P) -> concolic_encdec:log(Fd, spec, P) end, Zs)
+  end.
 
 %% --------------------------------------------------------
 %% Logging function that wraps all the calls

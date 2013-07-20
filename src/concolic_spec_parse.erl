@@ -76,10 +76,10 @@
 %%  BoundedVar :: {var, _Ln, VarName :: atom()}
 %% 
 
--export([retrieve_spec/2,
+-export([retrieve_spec/2, get_params_types/1,
          parse_specs_in_file/1, locate_spec_in_file/2]).
 
--export_type([type_sig/0]).
+-export_type([type_sig/0, prefixed_type_sig/0]).
 
 -include("concolic_internal.hrl").
 -include_lib("compiler/src/core_parse.hrl").
@@ -218,6 +218,13 @@ simplify({union, Vs}) ->
     false -> {union, SimpVs}
   end;
 simplify(T) -> T.
+
+%% Return the types of a function's parameters
+-spec get_params_types(prefixed_type_sig()) -> {ok, [prefixed_type_sig()]} | error.
+
+get_params_types({?TYPE_SIG_PREFIX, {function, Ps, _R}}) ->
+  {ok, [{?TYPE_SIG_PREFIX, X} || X <- Ps]};
+get_params_types(_) -> error.
 
 %% -------------------------------------------------
 %% Declare Types

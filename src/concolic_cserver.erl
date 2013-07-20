@@ -4,7 +4,7 @@
 -behaviour(gen_server).
 
 %% External exports
--export([init_codeserver/2, terminate/1, load/2]).
+-export([init_codeserver/2, terminate/1, load/2, mfa_spec/2]).
 
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_info/2,
@@ -17,7 +17,7 @@
 -type call()  :: {'load', atom()}.
 -type cast()  :: {'terminate', pid()}.
 -type clogs() :: [atom()].
--type reply() :: {'ok', ets:tab()}
+-type reply() :: {ok, ets:tab()}
                | concolic_load:compile_error()
                | 'preloaded'
                | 'cover_compiled'
@@ -49,7 +49,7 @@ init_codeserver(CoreDir, Super) ->
   end.
   
 %% Terminate a CodeServer
--spec terminate(pid()) -> 'ok'.
+-spec terminate(pid()) -> ok.
 
 terminate(CodeServer) ->
   gen_server:cast(CodeServer, {terminate, self()}).
@@ -60,6 +60,12 @@ terminate(CodeServer) ->
 load(CodeServer, M) ->
   gen_server:call(CodeServer, {load, M}).
 
+%% Request the spec of an MFA
+-spec mfa_spec(pid(), mfa()) -> {ok, concolic_spec_parse:prefixed_type_sig()} | error.
+
+mfa_spec(CodeServer, MFA) ->
+  gen_server:call(CodeServer, {mfa_spec, MFA}).
+
 %% ============================================================================
 %% gen_server callbacks
 %% ============================================================================
@@ -67,7 +73,7 @@ load(CodeServer, M) ->
 %% ------------------------------------------------------------------
 %% gen_server callback : init/1
 %% ------------------------------------------------------------------
--spec init([string() | pid(), ...]) -> {'ok', state()}.
+-spec init([string() | pid(), ...]) -> {ok, state()}.
 
 init([Dir, Super]) when is_list(Dir) ->
   link(Super),
@@ -96,7 +102,7 @@ terminate(_Reason, State) ->
 %% ------------------------------------------------------------------
 %% gen_server callback : code_change/3
 %% ------------------------------------------------------------------
--spec code_change(term(), state(), term()) -> {'ok', state()}.
+-spec code_change(term(), state(), term()) -> {ok, state()}.
   
 code_change(_OldVsn, State, _Extra) ->
   {ok, State}.  %% No change planned.
@@ -130,28 +136,28 @@ handle_call({load, M}, _From, State) ->
     {true, MDb} ->
       {reply, {ok, MDb}, State};
     false ->
-      %% Create an ETS table to store the code of the module
-      Db = State#state.db,
-      MDb = ets:new(M, [ordered_set, protected]),
-      ets:insert(Db, {M, MDb}),
-      
-      %% Load the code of the module
-      Dir = State#state.dir,
-      Reply = concolic_load:load(M, MDb, Dir),
-      case Reply of
-        {ok, M} ->
-	  %%  io:format("[load (~w)]: Loaded module ~p~n", [node(), M]),
-          {reply, {ok, MDb}, State};
-        _ ->
-          {reply, Reply, State}
-      end;
+      %% Load module M
+      Reply = load_mod(M, State),
+      {reply, Reply, State};
     preloaded ->
       {reply, preloaded, State};
     cover_compiled ->
       {reply, cover_compiled, State};
     non_existing ->
       {reply, non_existing, State}
+  end;
+
+handle_call({mfa_spec, {M, _F, _A}=MFA}, _From, State) ->
+  case ensure_mod_loaded(M, State) of
+    error -> {reply, error, State};
+    {ok, MDb} ->
+      [{attributes, Attrs}] = ets:lookup(MDb, attributes),
+      case concolic_spec_parse:retrieve_spec(MFA, Attrs) of
+        error -> {reply, error, State};
+        {ok, _PTypeSig}=OK -> {reply, OK, State}
+      end
   end.
+
   
 %% ------------------------------------------------------------------
 %% gen_server callback : handle_cast/2
@@ -170,6 +176,34 @@ handle_cast({terminate, FromWho}, State) ->
 %% ============================================================================
 %% Internal functions
 %% ============================================================================
+
+%% Ensure a module is loaded and return the ETS table
+%% where its source code is stored
+ensure_mod_loaded(M, State) ->
+  case is_mod_stored(M, State) of
+    {true, MDb} -> {ok, MDb};
+    false ->
+      case load_mod(M, State) of
+        {ok, _Mdb}=OK -> OK;
+        _ -> error
+      end;
+    _ -> error
+  end.
+
+%% Load a module's code
+load_mod(M, #state{db = Db, dir = Dir}) ->
+  %% Create an ETS table to store the code of the module
+  MDb = ets:new(M, [ordered_set, protected]),
+  ets:insert(Db, {M, MDb}),
+  
+  %% Load the code of the module
+  Reply = concolic_load:load(M, MDb, Dir),
+  case Reply of
+    {ok, M} ->
+%      io:format("[load (~w)]: Loaded module ~p~n", [node(), M]),
+      {ok, MDb};
+    _ -> Reply
+  end.
 
 %% Check if a Module is stored in the Db
 %%   Case                             Reply

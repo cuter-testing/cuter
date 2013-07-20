@@ -377,7 +377,7 @@ class ErlangZ3:
   def _json_cmd_parameter_spec_to_z3(self, term, typesig):
     t = self.json_term_to_z3(term)
     Ax = self._bind_term_to_typesig(t, typesig)
-    print "Ax", Ax
+#    print "Ax", Ax
     if Ax != None:
       self.solver.add(Ax)
   
@@ -533,7 +533,9 @@ class ErlangZ3:
       x = T.tval(x)
       for typesig in args:
         Ax.append(L.is_cons(x))
-        Ax.append(self._bind_term_to_typesig(L.hd(x), typesig))
+        e = self._bind_term_to_typesig(L.hd(x), typesig)
+        if e != None:
+          Ax.append(e)
         x = L.tl(x)
       Ax.append(L.is_nil(x))
       return And(*Ax)

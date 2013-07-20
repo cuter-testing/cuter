@@ -237,6 +237,7 @@ json_command_op('not_match_v') -> "Nmv";
 json_command_op('break_list') -> "Bkl";
 json_command_op('break_tuple') -> "Bkt";
 json_command_op('params') -> "Pms";
+json_command_op('spec') -> "Psp";
 json_command_op({erlang, '=:=', 2}) -> "=:=";
 json_command_op({erlang, '=/=', 2}) -> "=/=";
 json_command_op({erlang, '<', 2}) -> "<";
