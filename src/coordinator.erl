@@ -2,7 +2,7 @@
 %%------------------------------------------------------------------------------
 -module(coordinator).
 
--export([run/3, test_run/3]).
+-export([run/4, test_run/3]).
 
 -include("concolic_flags.hrl").
 
@@ -14,12 +14,11 @@
 %% Run function
 %% ------------------------------------------------------------------
 
--spec run(atom(), atom(), [term()]) -> ok.
+-spec run(atom(), atom(), [term()], pos_integer()) -> ok.
 
-run(M, F, As) ->
+run(M, F, As, Depth) ->
   error_logger:tty(false),  %% Disable error_logger
   io:format("Testing ~p:~p/~p ...~n", [M, F, length(As)]),
-  Depth = 20,
   {TmpDir, E, S} = init(Depth),
   pprint_input(As),
   CR = concolic_execute(M, F, As, TmpDir, E, Depth),

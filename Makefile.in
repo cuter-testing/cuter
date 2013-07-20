@@ -116,7 +116,7 @@ demo: concolic_target $(SUITE_EBIN)/demo.beam
 	@echo "  true -> error(assertion)"
 	@echo "end."
 	@echo ""
-	erl -noinput -pa $(EBIN) -pa $(SUITE_EBIN) -eval "coordinator:run(demo, foo, [1, 1])" -s init stop
+	erl -noinput -pa $(EBIN) -pa $(SUITE_EBIN) -eval "coordinator:run(demo, foo, [1, 1], 10)" -s init stop
 
 dialyzer: $(TARGETS)
 	dialyzer -n -Wunmatched_returns $(EBIN)/*.beam
