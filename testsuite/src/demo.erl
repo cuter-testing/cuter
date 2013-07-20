@@ -4,6 +4,7 @@
 
 -compile({no_auto_import,[min/2]}).
 
+-spec foo(integer(), integer()) -> ok.
 foo(X, Y) ->
   Z = 2*Y,
   case X =:= 100000 andalso X < Z of
@@ -13,12 +14,14 @@ foo(X, Y) ->
 
 %% Naive Fibonnaci Number implementation
 %% coordinator:run(demo,fib,[4]).
+-spec fib(non_neg_integer()) -> non_neg_integer().
 fib(0) -> 0;
 fib(1) -> 1;
 fib(N) when N > 1 -> fib(N-1) + fib(N-2).
 
 %% Calculate the Minimum element of a list
 %% coordinator:run(demo,min,[[5,1,3]]).
+-spec min(list()) -> any().
 min([H|T]) -> min(T, H).
 
 min([], CurrentMin) -> CurrentMin;

@@ -108,6 +108,7 @@ utest: $(TARGETS)
 	@(./runtests.rb)
 
 demo: concolic_target $(SUITE_EBIN)/demo.beam
+	@echo "-spec foo(integer(), integer()) -> ok."
 	@echo "foo(X, Y) ->"
 	@echo "Z = 2*Y,"
 	@echo "case X =:= 100000 andalso X < Z of"
