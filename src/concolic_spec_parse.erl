@@ -69,11 +69,11 @@
 %%       | {parent_type, _Ln, [Type]}
 %%       | {ann_type, _Ln, [VarName :: atom(), Type]}
 %%       | {remote_type, _Ln, RemType}
-%%       | BoundedVar (when we have a BoundedFun or a UserDefinedType)
+%%       | MaybeBoundedVar (when we have a BoundedFun or a UserDefinedType)
 %%
 %%  Literal :: {atom, _Ln, atom()} | {integer, _Ln, integer()} | {type, _Ln, nil, []}
 %%  RemType :: [{atom, _Ln, M :: atom()}, {atom, _Ln, T :: atom()}, (Type)*]
-%%  BoundedVar :: {var, _Ln, VarName :: atom()}
+%%  MaybeBoundedVar :: {var, _Ln, VarName :: atom()}
 %% 
 
 -export([retrieve_spec/3, get_params_types/1,
