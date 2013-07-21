@@ -76,7 +76,7 @@
 %%  BoundedVar :: {var, _Ln, VarName :: atom()}
 %% 
 
--export([retrieve_spec/2, get_params_types/1,
+-export([retrieve_spec/3, get_params_types/1,
          parse_specs_in_module/1, locate_spec_in_module/1]).
 
 -export_type([type_sig/0, prefixed_type_sig/0, maybe_prefixed_type_sig/0]).
@@ -126,7 +126,7 @@
 parse_specs_in_module(M) ->
   Server = concolic_cserver:init_codeserver("dev", self()),
   {Specs, BoundTypes} = spec_and_bind_types(Server, M),
-  parse_all_specs(Specs, BoundTypes),
+  parse_all_specs(Server, Specs, BoundTypes),
   error_logger:tty(false),
   concolic_cserver:terminate(Server).
 
@@ -138,15 +138,15 @@ spec_and_bind_types(Server, M) ->
     end,
   Types = lists:filtermap(fun filter_types/1, Attrs),
   Specs = lists:filtermap(fun filter_specs/1, Attrs),
-  BoundTypes = declare_types(Types),
+  BoundTypes = declare_types(Server, Types),
   {Specs, BoundTypes}.
 
-parse_all_specs(Specs, BoundTypes) ->
+parse_all_specs(Server, Specs, BoundTypes) ->
   F = fun(X) ->
     io:format("~n%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%~n"),
 %    io:format("~p~n",[X]),
     try
-      {{F, A}, T} = parse_spec(X, BoundTypes),
+      {{F, A}, T} = parse_spec(Server, X, BoundTypes),
       io:format("Spec for ~p/~p~n", [F, A]),
       pp_sig(T),
       io:format("~n"),
@@ -171,28 +171,31 @@ parse_all_specs(Specs, BoundTypes) ->
   lists:foreach(F, Specs).
 
 -spec locate_spec_in_module(mfa()) -> {ok, type_sig()} | error.
+
 locate_spec_in_module({M, _F, _A}=MFA) ->
   Server = concolic_cserver:init_codeserver("dev", self()),
   {Specs, BoundTypes} = spec_and_bind_types(Server, M),
-  S = locate_mfa_spec(MFA, Specs, BoundTypes), io:format("~p~n", [S]),
+  S = locate_mfa_spec(Server, MFA, Specs, BoundTypes),
+  io:format("~p~n", [S]),
   error_logger:tty(false),
-  concolic_cserver:terminate(Server).
+  concolic_cserver:terminate(Server),
+  S.
 
 %% =================================================
 
--spec retrieve_spec(mfa(), [{cerl:cerl(), cerl:cerl()}]) -> maybe_prefixed_type_sig().
+-spec retrieve_spec(pid(), mfa(), [{cerl:cerl(), cerl:cerl()}]) -> maybe_prefixed_type_sig().
 
-retrieve_spec(MFA, Attrs) ->
+retrieve_spec(Server, MFA, Attrs) ->
   Types = lists:filtermap(fun filter_types/1, Attrs),
   Specs = lists:filtermap(fun filter_specs/1, Attrs),
-  BoundTypes = declare_types(Types),
-  locate_mfa_spec(MFA, Specs, BoundTypes).
+  BoundTypes = declare_types(Server, Types),
+  locate_mfa_spec(Server, MFA, Specs, BoundTypes).
 
-locate_mfa_spec(_MFA, [], _BoundTypes) -> error;
-locate_mfa_spec({_M, F, A}=MFA, [S|Ss], BoundTypes) ->
-  case parse_spec(S, BoundTypes) of
+locate_mfa_spec(_Server, _MFA, [], _BoundTypes) -> error;
+locate_mfa_spec(Server, {_M, F, A}=MFA, [S|Ss], BoundTypes) ->
+  case parse_spec(Server, S, BoundTypes) of
     {{F, A}, T} -> {ok, {?TYPE_SIG_PREFIX, simplify(T)}};
-    _ -> locate_mfa_spec(MFA, Ss, BoundTypes)
+    _ -> locate_mfa_spec(Server, MFA, Ss, BoundTypes)
   end.
 
 filter_specs({#c_literal{val = spec}, #c_literal{val = [Spec]}}) -> {true, Spec};
@@ -232,60 +235,60 @@ get_params_types(_) -> error.
 %% Declare Types
 %% -------------------------------------------------
 
-declare_types(Types) ->
+declare_types(Server, Types) ->
   F = fun(X, Y) -> 
 %    io:format("~n$$$~n~p~n$$$~n", [X]),
-    declare_type(X, Y)
+    declare_type(Server, X, Y)
   end,
   lists:foldl(F, orddict:new(), Types).
 
 %% Store the declaration of a record
-declare_type({{record, RecordName}, RecordSig, []}, Bound) ->
+declare_type(Server, {{record, RecordName}, RecordSig, []}, Bound) ->
   F = fun(BX) ->
-    Ts = lists:map(fun(X) -> parse_record_field(X, BX) end, RecordSig),
+    Ts = lists:map(fun(X) -> parse_record_field(Server, X, BX) end, RecordSig),
     {tuple, [{literal, RecordName} | Ts]}
   end,
   orddict:store({record, RecordName}, F, Bound);
 %% Store the declaration of a type
-declare_type({Name, TypeSig, Vars}, Bound) ->
+declare_type(Server, {Name, TypeSig, Vars}, Bound) ->
   Vs = lists:map(fun({var, _Ln, X}) -> {var, X} end, Vars),
   F = fun(As, BX) ->
-    Ts = lists:map(fun(X) -> fun(T) -> parse_type(X, T) end end, As),
+    Ts = lists:map(fun(X) -> fun(T) -> parse_type(Server, X, T) end end, As),
     Zs = lists:zip(Vs, Ts),
     BX1 = lists:foldl(fun({A, B}, C) -> orddict:store(A, B, C) end, BX, Zs),
-    parse_type(TypeSig, BX1)
+    parse_type(Server, TypeSig, BX1)
   end,
   orddict:store({type, {Name, length(Vars)}}, F, Bound);
 %% XXX Do not expect to get here
-declare_type(Type, _) -> exit({unknown_type, Type}).
+declare_type(_Server, Type, _) -> exit({unknown_type, Type}).
 
 %% Get the type of a record's field
-parse_record_field({record_field, _Ln, _FieldName}, _Bound) ->
+parse_record_field(_Server, {record_field, _Ln, _FieldName}, _Bound) ->
   any;
-parse_record_field({record_field, _Ln, _FieldName, _DefVal}, _Bound) ->
+parse_record_field(_Server, {record_field, _Ln, _FieldName, _DefVal}, _Bound) ->
   any;
-parse_record_field({typed_record_field, {record_field, _Ln, _FieldName}, Type}, Bound) ->
-  parse_type(Type, Bound);
-parse_record_field({typed_record_field, {record_field, _Ln, _FieldName, _DefVal}, Type}, Bound) ->
-  parse_type(Type, Bound).
+parse_record_field(Server, {typed_record_field, {record_field, _Ln, _FieldName}, Type}, Bound) ->
+  parse_type(Server, Type, Bound);
+parse_record_field(Server, {typed_record_field, {record_field, _Ln, _FieldName, _DefVal}, Type}, Bound) ->
+  parse_type(Server, Type, Bound).
 
 %% -------------------------------------------------
 %% Parse a Spec
 %% -------------------------------------------------
 
-parse_spec({FA, [Type]}, Bound) ->
-  {FA, parse_type(Type, Bound)}.
+parse_spec(Server, {FA, [Type]}, Bound) ->
+  {FA, parse_type(Server, Type, Bound)}.
 
 %% literals (atom, integer, [])
-parse_type({atom, _, A}, _Bound) -> {literal, A};
-parse_type({integer, _, I}, _Bound) -> {literal, I};
-parse_type(#type{name = nil, args = []}, _Bound) -> {literal, nil};
+parse_type(_Server, {atom, _, A}, _Bound) -> {literal, A};
+parse_type(_Server, {integer, _, I}, _Bound) -> {literal, I};
+parse_type(_Server, #type{name = nil, args = []}, _Bound) -> {literal, nil};
 %% any(), term()
-parse_type(#type{name = X, args = []}, _Bound) when X =:= any; X =:= term->
+parse_type(_Server, #type{name = X, args = []}, _Bound) when X =:= any; X =:= term->
   any;
 %% atom(), binary(), bitstring(), boolean(), byte(), char()
 %% float(), mfa(), module(), node(), number(), pid(), timeout()
-parse_type(#type{name = X, args = []}, _Bound)
+parse_type(_Server, #type{name = X, args = []}, _Bound)
   when X =:= atom;
        X =:= binary;
        X =:= bitstring;
@@ -301,81 +304,81 @@ parse_type(#type{name = X, args = []}, _Bound)
        X =:= timeout ->
   X;
 %% integer()
-parse_type(#type{name = integer, args = []}, _Bound) ->
+parse_type(_Server, #type{name = integer, args = []}, _Bound) ->
   {integer, any};
-parse_type(#type{name = pos_integer, args = []}, _Bound) ->
+parse_type(_Server, #type{name = pos_integer, args = []}, _Bound) ->
   {integer, pos};
-parse_type(#type{name = neg_integer, args = []}, _Bound) ->
+parse_type(_Server, #type{name = neg_integer, args = []}, _Bound) ->
   {integer, neg};
-parse_type(#type{name = non_neg_integer, args = []}, _Bound) ->
+parse_type(_Server, #type{name = non_neg_integer, args = []}, _Bound) ->
   {integer, non_neg};
 %% none(), no_return()
-parse_type(#type{name = X, args = []}, _Bound) when X =:= none; X =:= no_return ->
+parse_type(_Server, #type{name = X, args = []}, _Bound) when X =:= none; X =:= no_return ->
   none;
 %% string()
-parse_type(#type{name = string, args = []}, _Bound) -> {string, maybe_empty};
-parse_type(#type{name = nonempty_string, args = []}, _Bound) -> {string, non_empty};
+parse_type(_Server, #type{name = string, args = []}, _Bound) -> {string, maybe_empty};
+parse_type(_Server, #type{name = nonempty_string, args = []}, _Bound) -> {string, non_empty};
 %% list()
-parse_type(#type{name = L, args = Args}, Bound) when L =:= list; L =:= nonempty_list ->
+parse_type(Server, #type{name = L, args = Args}, Bound) when L =:= list; L =:= nonempty_list ->
   Maps = [{list, maybe_empty}, {nonempty_list, non_empty}],
   case Args of
     []  -> {list, proplists:get_value(L, Maps), any};
-    [A] -> {list, proplists:get_value(L, Maps), parse_type(A, Bound)}
+    [A] -> {list, proplists:get_value(L, Maps), parse_type(Server, A, Bound)}
   end;
 %% tuple()
-parse_type(#type{name = tuple, args = any}, _Bound) ->
+parse_type(_Server, #type{name = tuple, args = any}, _Bound) ->
   {tuple, []};
-parse_type(#type{name = tuple, args = Args}, Bound) ->
-  Ts = lists:map(fun(X) -> parse_type(X, Bound) end, Args),
+parse_type(Server, #type{name = tuple, args = Args}, Bound) ->
+  Ts = lists:map(fun(X) -> parse_type(Server, X, Bound) end, Args),
   {tuple, Ts};
 %% union()
-parse_type(#type{name = union, args = Args}, Bound) ->
-  Ts = lists:map(fun(X) -> parse_type(X, Bound) end, Args),
+parse_type(Server, #type{name = union, args = Args}, Bound) ->
+  Ts = lists:map(fun(X) -> parse_type(Server, X, Bound) end, Args),
   {union, Ts};
 %% range()
-parse_type(#type{name = range, args = [From, To]}, Bound) ->
-  {range, parse_type(From, Bound), parse_type(To, Bound)};
+parse_type(Server, #type{name = range, args = [From, To]}, Bound) ->
+  {range, parse_type(Server, From, Bound), parse_type(Server, To, Bound)};
 %% bounded_fun
-parse_type(#type{name = bounded_fun, args = [Fun, Cs]}, Bound) ->
-  Bound1 = bind_constraints(Cs, Bound),
-  parse_type(Fun, Bound1);
+parse_type(Server, #type{name = bounded_fun, args = [Fun, Cs]}, Bound) ->
+  Bound1 = bind_constraints(Server, Cs, Bound),
+  parse_type(Server, Fun, Bound1);
 %% fun
-parse_type(#type{name = 'fun', args = [Param, Result]}, Bound) ->
-  Ptype = ensure_param_list(parse_type(Param, Bound)),
-  Rtype = parse_type(Result, Bound),
+parse_type(Server, #type{name = 'fun', args = [Param, Result]}, Bound) ->
+  Ptype = ensure_param_list(parse_type(Server, Param, Bound)),
+  Rtype = parse_type(Server, Result, Bound),
   {function, Ptype, Rtype};
 %% product (used in fun)
-parse_type(#type{name = product, args = Args}, Bound) ->
-  lists:map(fun(X) -> parse_type(X, Bound) end, Args);
+parse_type(Server, #type{name = product, args = Args}, Bound) ->
+  lists:map(fun(X) -> parse_type(Server, X, Bound) end, Args);
 %% annotated type
-parse_type({ann_type, _Ln, [_Var, Type]}, Bound) ->
-  parse_type(Type, Bound);
+parse_type(Server, {ann_type, _Ln, [_Var, Type]}, Bound) ->
+  parse_type(Server, Type, Bound);
 %% parenthesized type
-parse_type({paren_type, _Ln, [Type]}, Bound) ->
-  parse_type(Type, Bound);
+parse_type(Server, {paren_type, _Ln, [Type]}, Bound) ->
+  parse_type(Server, Type, Bound);
 %% record()
-parse_type(#type{name = record, args = [{atom, _Ln, Rec}]}, Bound) ->
+parse_type(_Server, #type{name = record, args = [{atom, _Ln, Rec}]}, Bound) ->
   V = orddict:fetch({record, Rec}, Bound),
   V(Bound);
 %% user defined type
-parse_type(#type{name = Type, args = Args}, Bound) ->
+parse_type(_Server, #type{name = Type, args = Args}, Bound) ->
   V = orddict:fetch({type, {Type, length(Args)}}, Bound),
   V(Args, Bound);
 %% bound variable (used in bounded_funs, records, user defined types)
-parse_type({var, _Ln, Var}, Bound) ->
+parse_type(_Server, {var, _Ln, Var}, Bound) ->
   V = orddict:fetch({var, Var}, Bound),
   V(Bound);
 %% XXX
-parse_type(Type, _) -> exit(Type).
+parse_type(_Server, Type, _) -> exit(Type).
 
 %% Store the constraints of a bounded fun
-bind_constraints(Cs, Bound) ->
-  lists:foldl(fun(X, Y) -> parse_constraint(X, Y) end, Bound, Cs).
+bind_constraints(Server, Cs, Bound) ->
+  lists:foldl(fun(X, Y) -> parse_constraint(Server, X, Y) end, Bound, Cs).
 
 %% Store the type of a constraint (in a bounded fun)
-parse_constraint(#type{name = constraint, args = [{atom, _, is_subtype}, [Var, Type]]}, Bound) ->
+parse_constraint(Server, #type{name = constraint, args = [{atom, _, is_subtype}, [Var, Type]]}, Bound) ->
   {var, _, V} = Var,
-  orddict:store({var, V}, fun(BX) -> parse_type(Type, BX) end, Bound).
+  orddict:store({var, V}, fun(BX) -> parse_type(Server, Type, BX) end, Bound).
 
 ensure_param_list(Ps) when is_list(Ps) -> Ps;
 ensure_param_list(P) -> [P].
