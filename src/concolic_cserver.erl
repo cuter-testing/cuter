@@ -4,7 +4,7 @@
 -behaviour(gen_server).
 
 %% External exports
--export([init_codeserver/2, terminate/1, load/2, mfa_spec/2, return_spec/3, spec_finder/2]).
+-export([init_codeserver/2, terminate/1, load/2, mfa_spec/2, return_spec/3, spec_finder/2, module_attributes/2]).
 
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_info/2,
@@ -77,6 +77,18 @@ mfa_spec(CodeServer, MFA) ->
 return_spec(CodeServer, MFA, MaybeSpec) ->
   gen_server:cast(CodeServer, {return_spec, {MFA, MaybeSpec}, self()}).
 
+%% Get the attributes of a module
+-spec module_attributes(pid(), module()) -> {ok, [{cerl:cerl(), cerl:cerl()}]} | error.
+
+module_attributes(CodeServer, M) ->
+  case load(CodeServer, M) of
+   {ok, MDb} ->
+    [{attributes, Attrs}] = ets:lookup(MDb, attributes),
+    {ok, Attrs};
+   _ ->
+    error
+  end.
+
 %% Extract the spec of an MFA (Worker Process)
 -spec spec_finder(pid(), mfa()) -> ok.
 
@@ -84,7 +96,7 @@ spec_finder(CodeServer, {M, _F, _A}=MFA) ->
   case load(CodeServer, M) of
     {ok, MDb} ->
       [{attributes, Attrs}] = ets:lookup(MDb, attributes),
-      MaybeSpec = concolic_spec_parse:retrieve_spec(MFA, Attrs),
+      MaybeSpec = concolic_spec_parse:retrieve_spec(CodeServer, MFA, Attrs),
       ok = return_spec(CodeServer, MFA, MaybeSpec);
     _ ->
       ok = return_spec(CodeServer, MFA, error)

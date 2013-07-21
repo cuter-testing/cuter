@@ -124,7 +124,7 @@
 -spec parse_specs_in_module(atom()) -> ok.
 
 parse_specs_in_module(M) ->
-  Server = concolic_cserver:init_codeserver("dev", self()),
+  Server = concolic_cserver:init_codeserver("tmp", self()),
   {Specs, BoundTypes} = spec_and_bind_types(Server, M),
   parse_all_specs(Server, Specs, BoundTypes),
   error_logger:tty(false),
@@ -252,8 +252,12 @@ declare_type(Server, {{record, RecordName}, RecordSig, []}, Bound) ->
 %% Store the declaration of a type
 declare_type(Server, {Name, TypeSig, Vars}, Bound) ->
   Vs = lists:map(fun({var, _Ln, X}) -> {var, X} end, Vars),
-  F = fun(As, BX) ->
-    Ts = lists:map(fun(X) -> fun(T) -> parse_type(Server, X, T) end end, As),
+  F = fun(As, BX, Remote) ->
+    Ts = 
+      case Remote of
+        false -> lists:map(fun(X) -> fun(T) -> parse_type(Server, X, T) end end, As);
+        {true, Env} -> lists:map(fun(X) -> fun(_) -> parse_type(Server, X, Env) end end, As)
+      end,
     Zs = lists:zip(Vs, Ts),
     BX1 = lists:foldl(fun({A, B}, C) -> orddict:store(A, B, C) end, BX, Zs),
     parse_type(Server, TypeSig, BX1)
@@ -363,13 +367,17 @@ parse_type(_Server, #type{name = record, args = [{atom, _Ln, Rec}]}, Bound) ->
 %% user defined type
 parse_type(_Server, #type{name = Type, args = Args}, Bound) ->
   V = orddict:fetch({type, {Type, length(Args)}}, Bound),
-  V(Args, Bound);
+  V(Args, Bound, false);
+%% remote type
+parse_type(Server, {remote_type, _, [{atom, _, M}, {atom, _, T}, Args]}, Bound) ->
+  fetch_remote_type(Server, M, T, Args, Bound);
 %% bound variable (used in bounded_funs, records, user defined types)
 parse_type(_Server, {var, _Ln, Var}, Bound) ->
   V = orddict:fetch({var, Var}, Bound),
   V(Bound);
 %% XXX
 parse_type(_Server, Type, _) -> exit(Type).
+
 
 %% Store the constraints of a bounded fun
 bind_constraints(Server, Cs, Bound) ->
@@ -379,6 +387,17 @@ bind_constraints(Server, Cs, Bound) ->
 parse_constraint(Server, #type{name = constraint, args = [{atom, _, is_subtype}, [Var, Type]]}, Bound) ->
   {var, _, V} = Var,
   orddict:store({var, V}, fun(BX) -> parse_type(Server, Type, BX) end, Bound).
+
+%% Get a remote type
+fetch_remote_type(Server, M, Type, Args, Bound) ->
+  case concolic_cserver:module_attributes(Server, M) of
+    error -> exit({cannot_get_attrs, M});
+    {ok, Attrs} ->
+      Types = lists:filtermap(fun filter_types/1, Attrs),
+      RemoteBound = declare_types(Server, Types),
+      V = orddict:fetch({type, {Type, length(Args)}}, RemoteBound),
+      V(Args, RemoteBound, {true, Bound})
+  end.
 
 ensure_param_list(Ps) when is_list(Ps) -> Ps;
 ensure_param_list(P) -> [P].

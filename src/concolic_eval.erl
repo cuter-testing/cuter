@@ -1462,6 +1462,7 @@ log_mfa_spec(Fd, MFA, SymbAs, CodeServer) ->
           concolic_encdec:log(Fd, spec, P)
         catch
           %% Currently unsupported TypeSig
+          exit:_ -> ok;
           throw:{unsupported_typesig, _} -> ok
         end
       end,
