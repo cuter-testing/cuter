@@ -96,8 +96,14 @@ spec_finder(CodeServer, {M, _F, _A}=MFA) ->
   case load(CodeServer, M) of
     {ok, MDb} ->
       [{attributes, Attrs}] = ets:lookup(MDb, attributes),
-      MaybeSpec = concolic_spec_parse:retrieve_spec(CodeServer, MFA, Attrs),
-      ok = return_spec(CodeServer, MFA, MaybeSpec);
+      try
+        MaybeSpec = concolic_spec_parse:retrieve_spec(CodeServer, MFA, Attrs),
+        ok = return_spec(CodeServer, MFA, MaybeSpec)
+      catch
+        _:_ ->
+          io:format("*** WARNING! Error parsing MFA spec! ***~n"),
+          ok = return_spec(CodeServer, MFA, error)
+      end;
     _ ->
       ok = return_spec(CodeServer, MFA, error)
   end.
