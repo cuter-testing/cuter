@@ -164,7 +164,8 @@ parse_all_specs(Server, Specs, BoundTypes) ->
       end,
       lists:foreach(FF, Ps ++ [R])
     catch
-      exit:E -> io:format("Parse Spec Exception: ~p~n", [E])
+      error:Er -> io:format("Parse Spec Error: ~p~n", [Er]);
+      exit:E -> io:format("Parse Spec Exit: ~p~n", [E])
     end,
     io:format("~n")
   end,
@@ -251,7 +252,8 @@ declare_type(Server, {{record, RecordName}, RecordSig, []}, Bound) ->
   orddict:store({record, RecordName}, F, Bound);
 %% Store the declaration of a type
 declare_type(Server, {Name, TypeSig, Vars}, Bound) ->
-  Vs = lists:map(fun({var, _Ln, X}) -> {var, X} end, Vars),
+  Vs = lists:map(fun({var, _Ln, X}) -> {tvar, X} end, Vars),
+  NormTypeSig = typesig_var_to_tvar(TypeSig),
   F = fun(As, BX, Remote) ->
     Ts = 
       case Remote of
@@ -260,7 +262,7 @@ declare_type(Server, {Name, TypeSig, Vars}, Bound) ->
       end,
     Zs = lists:zip(Vs, Ts),
     BX1 = lists:foldl(fun({A, B}, C) -> orddict:store(A, B, C) end, BX, Zs),
-    parse_type(Server, TypeSig, BX1)
+    parse_type(Server, NormTypeSig, BX1)
   end,
   orddict:store({type, {Name, length(Vars)}}, F, Bound);
 %% XXX Do not expect to get here
@@ -275,6 +277,15 @@ parse_record_field(Server, {typed_record_field, {record_field, _Ln, _FieldName},
   parse_type(Server, Type, Bound);
 parse_record_field(Server, {typed_record_field, {record_field, _Ln, _FieldName, _DefVal}, Type}, Bound) ->
   parse_type(Server, Type, Bound).
+
+%% Converts freevars in a type declaration to free typevars
+typesig_var_to_tvar(var) -> tvar;
+typesig_var_to_tvar(L) when is_list(L) ->
+  [typesig_var_to_tvar(X) || X <- L];
+typesig_var_to_tvar(T) when is_tuple(T) ->
+  L = [typesig_var_to_tvar(X) || X <- tuple_to_list(T)],
+  list_to_tuple(L);
+typesig_var_to_tvar(X) -> X.
 
 %% -------------------------------------------------
 %% Parse a Spec
@@ -371,10 +382,12 @@ parse_type(_Server, #type{name = Type, args = Args}, Bound) ->
 %% remote type
 parse_type(Server, {remote_type, _, [{atom, _, M}, {atom, _, T}, Args]}, Bound) ->
   fetch_remote_type(Server, M, T, Args, Bound);
-%% bound variable (used in bounded_funs, records, user defined types)
-parse_type(_Server, {var, _Ln, Var}, Bound) ->
-  V = orddict:fetch({var, Var}, Bound),
-  V(Bound);
+%% (type) variable (used in bounded_funs, records, user defined types)
+parse_type(_Server, {VarType, _Ln, Var}, Bound) when VarType =:= var; VarType =:= tvar ->
+  case orddict:find({VarType, Var}, Bound) of
+    {ok, V} -> V(Bound);
+    error -> any
+  end;
 %% XXX
 parse_type(_Server, Type, _) -> exit(Type).
 
