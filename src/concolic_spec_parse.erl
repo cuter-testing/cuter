@@ -136,6 +136,7 @@ spec_and_bind_types(Server, M) ->
       {ok, MDb} -> ets:lookup(MDb, attributes);
       _ -> exit(module_load_error)
     end,
+%  io:format("~p~n", [Attrs]),
   Types = lists:filtermap(fun filter_types/1, Attrs),
   Specs = lists:filtermap(fun filter_specs/1, Attrs),
   BoundTypes = declare_types(Server, Types),
@@ -164,7 +165,7 @@ parse_all_specs(Server, Specs, BoundTypes) ->
       end,
       lists:foreach(FF, Ps ++ [R])
     catch
-      error:Er -> io:format("Parse Spec Error: ~p~n", [Er]);
+%      error:Er -> io:format("Parse Spec Error: ~p~n", [Er]);
       exit:E -> io:format("Parse Spec Exit: ~p~n", [E])
     end,
     io:format("~n")
@@ -202,7 +203,8 @@ locate_mfa_spec(Server, {_M, F, A}=MFA, [S|Ss], BoundTypes) ->
 filter_specs({#c_literal{val = spec}, #c_literal{val = [Spec]}}) -> {true, Spec};
 filter_specs(_Attr) -> false.
 
-filter_types({#c_literal{val = type}, #c_literal{val = [Type]}}) -> {true, Type};
+filter_types({#c_literal{val = T}, #c_literal{val = [Type]}})
+  when T =:= type; T =:= opaque -> {true, Type};
 filter_types(_Attr) -> false.
 
 %% Replace unions that have an any clause with any
@@ -236,12 +238,23 @@ get_params_types(_) -> error.
 %% Declare Types
 %% -------------------------------------------------
 
+builtin_types() ->
+  %% gb_set_node() :: nil | {term(), _, _}
+  Gb_set_node = {union, [{literal, nil}, {tuple, [any, any, any]}]},
+  %% gb_set() :: {non_neg_integer(), gb_set_node()}
+  Gb_set = {tuple, [{integer, non_neg}, Gb_set_node]},
+  Builtins = [
+    {{type, {gb_set, 0}}, fun(_, _, _) -> Gb_set end}
+  ],
+  orddict:from_list(Builtins).
+
+
 declare_types(Server, Types) ->
   F = fun(X, Y) -> 
 %    io:format("~n$$$~n~p~n$$$~n", [X]),
     declare_type(Server, X, Y)
   end,
-  lists:foldl(F, orddict:new(), Types).
+  lists:foldl(F, builtin_types(), Types).
 
 %% Store the declaration of a record
 declare_type(Server, {{record, RecordName}, RecordSig, []}, Bound) ->
@@ -297,7 +310,7 @@ parse_spec(Server, {FA, [Type]}, Bound) ->
 %% literals (atom, integer, [])
 parse_type(_Server, {atom, _, A}, _Bound) -> {literal, A};
 parse_type(_Server, {integer, _, I}, _Bound) -> {literal, I};
-parse_type(_Server, #type{name = nil, args = []}, _Bound) -> {literal, nil};
+parse_type(_Server, #type{name = nil, args = []}, _Bound) -> {literal, []};
 %% any(), term()
 parse_type(_Server, #type{name = X, args = []}, _Bound) when X =:= any; X =:= term->
   any;
