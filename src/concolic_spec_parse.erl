@@ -243,8 +243,16 @@ builtin_types() ->
   Gb_set_node = {union, [{literal, nil}, {tuple, [any, any, any]}]},
   %% gb_set() :: {non_neg_integer(), gb_set_node()}
   Gb_set = {tuple, [{integer, non_neg}, Gb_set_node]},
+  %% gb_tree_node() :: nil | {_, _, _, _}
+  Gb_tree_node = {union, [{literal, nil}, {tuple, [any, any, any, any]}]},
+  %% gb_tree() :: {non_neg_integer(), gb_tree_node()}
+  Gb_tree = {tuple, [{integer, non_neg}, Gb_tree_node]},
+  %% queue = {list(), list()}
+  Queue = {tuple, [{list, maybe_empty, any}, {list, maybe_empty, any}]},
   Builtins = [
-    {{type, {gb_set, 0}}, fun(_, _, _) -> Gb_set end}
+    {{type, {gb_set, 0}}, fun(_, _, _) -> Gb_set end},
+    {{type, {gb_tree, 0}}, fun(_, _, _) -> Gb_tree end},
+    {{type, {queue, 0}}, fun(_, _, _) -> Queue end}
   ],
   orddict:from_list(Builtins).
 
