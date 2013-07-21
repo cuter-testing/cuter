@@ -117,7 +117,7 @@ generate_new_input(Ms, Vs) ->
       false -> V
     end
   end,
-  lists:map(NewVal, Ms).
+  [NewVal(M) || M <- Ms].
 
 %% =============================================================
 %% Symbolic representations of term operations

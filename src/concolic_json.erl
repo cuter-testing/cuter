@@ -268,7 +268,7 @@ decode_atom(JSON, D=#decoder{state = value_next_or_end}) ->
       decode_atom(Rest, ?PUSH(I, D));
     <<$\], Rest/binary>> ->
       Ts = string:tokens(lists:reverse(D#decoder.acc), ","),
-      A = list_to_atom(lists:map(fun list_to_integer/1, Ts)),
+      A = list_to_atom([list_to_integer(L) || L <- Ts]),
       {A, Rest};
     _ ->
       throw(parse_error)

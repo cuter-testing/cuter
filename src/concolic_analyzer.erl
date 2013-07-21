@@ -59,7 +59,7 @@ get_traces_files(R) ->
   Logs = proplists:get_value('tlogs', R),
   Dir = proplists:get_value('dir', Logs),
   {ok, Fs} = file:list_dir(Dir),
-  lists:map(fun(F) -> Dir ++ "/" ++ F end, Fs).
+  [Dir ++ "/" ++ F || F <- Fs].
 
 %% Retrieve the mapping of the concrete to symbolic values
 -spec get_mapping(result()) -> [concolic_symbolic:mapping()].
@@ -82,7 +82,7 @@ get_execution_vertices(Paths) ->
 get_execution_vertices([], Acc) ->
   lists:reverse(Acc);
 get_execution_vertices([{Node, Fs} | Rest], Acc) ->
-  Vs = lists:map(fun concolic_encdec:path_vertex/1, Fs),
+  Vs = [concolic_encdec:path_vertex(F) || F <- Fs],
   get_execution_vertices(Rest, [{Node, Vs} | Acc]).
 
 %% Print the contents of a trace file

@@ -212,15 +212,15 @@ filter_types(_Attr) -> false.
 -spec simplify(type_sig()) -> type_sig().
 
 simplify({function, Ps, R}) ->
-  {function, lists:map(fun simplify/1, Ps), simplify(R)};
+  {function, [simplify(X) || X <- Ps], simplify(R)};
 simplify({list, Empty, T}) ->
   {list, Empty, simplify(T)};
 simplify({range, From, To}) ->
   {range, simplify(From), simplify(To)};
 simplify({tuple, Vs}) ->
-  {tuple, lists:map(fun simplify/1, Vs)};
+  {tuple, [simplify(X) || X <- Vs]};
 simplify({union, Vs}) ->
-  SimpVs = lists:map(fun simplify/1, Vs),
+  SimpVs = [simplify(X) || X <- Vs],
   case lists:any(fun(T) -> T =:= any end, SimpVs) of
     true  -> any;
     false -> {union, SimpVs}
@@ -267,19 +267,19 @@ declare_types(Server, Types) ->
 %% Store the declaration of a record
 declare_type(Server, {{record, RecordName}, RecordSig, []}, Bound) ->
   F = fun(BX) ->
-    Ts = lists:map(fun(X) -> parse_record_field(Server, X, BX) end, RecordSig),
+    Ts = [parse_record_field(Server, X, BX) || X <- RecordSig],
     {tuple, [{literal, RecordName} | Ts]}
   end,
   orddict:store({record, RecordName}, F, Bound);
 %% Store the declaration of a type
 declare_type(Server, {Name, TypeSig, Vars}, Bound) ->
-  Vs = lists:map(fun({var, _Ln, X}) -> {tvar, X} end, Vars),
+  Vs = [{tvar, X} || {var, _Ln, X} <- Vars],
   NormTypeSig = typesig_var_to_tvar(TypeSig),
   F = fun(As, BX, Remote) ->
     Ts = 
       case Remote of
-        false -> lists:map(fun(X) -> fun(T) -> parse_type(Server, X, T) end end, As);
-        {true, Env} -> lists:map(fun(X) -> fun(_) -> parse_type(Server, X, Env) end end, As)
+        false -> [fun(T) -> parse_type(Server, X, T) end || X <- As];
+        {true, Env} -> [fun(_) -> parse_type(Server, X, Env) end || X <- As]
       end,
     Zs = lists:zip(Vs, Ts),
     BX1 = lists:foldl(fun({A, B}, C) -> orddict:store(A, B, C) end, BX, Zs),
@@ -365,12 +365,10 @@ parse_type(Server, #type{name = L, args = Args}, Bound) when L =:= list; L =:= n
 parse_type(_Server, #type{name = tuple, args = any}, _Bound) ->
   {tuple, []};
 parse_type(Server, #type{name = tuple, args = Args}, Bound) ->
-  Ts = lists:map(fun(X) -> parse_type(Server, X, Bound) end, Args),
-  {tuple, Ts};
+  {tuple, [parse_type(Server, X, Bound) || X <- Args]};
 %% union()
 parse_type(Server, #type{name = union, args = Args}, Bound) ->
-  Ts = lists:map(fun(X) -> parse_type(Server, X, Bound) end, Args),
-  {union, Ts};
+  {union, [parse_type(Server, X, Bound) || X <- Args]};
 %% range()
 parse_type(Server, #type{name = range, args = [From, To]}, Bound) ->
   {range, parse_type(Server, From, Bound), parse_type(Server, To, Bound)};
@@ -385,7 +383,7 @@ parse_type(Server, #type{name = 'fun', args = [Param, Result]}, Bound) ->
   {function, Ptype, Rtype};
 %% product (used in fun)
 parse_type(Server, #type{name = product, args = Args}, Bound) ->
-  lists:map(fun(X) -> parse_type(Server, X, Bound) end, Args);
+  [parse_type(Server, X, Bound) || X <- Args];
 %% annotated type
 parse_type(Server, {ann_type, _Ln, [_Var, Type]}, Bound) ->
   parse_type(Server, Type, Bound);
