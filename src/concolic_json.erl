@@ -56,17 +56,17 @@ command_to_json(M, [S, Vs]) when M =:= "Bkt"; M =:= "Bkl" ->
     EncX = json_encode(X),
     [$,, EncX | Acc]
   end,
-  [$, | Ss] = lists:foldl(F, [], Vs),
+  [$, | Ss] = lists:foldr(F, [], Vs),
   S0 = json_encode(S),
-  Str = ?ENC_CMD(M, [S0, $,, $\[, lists:reverse(Ss), $\]]),
+  Str = ?ENC_CMD(M, [S0, $,, $\[, Ss, $\]]),
   list_to_binary(Str);
 command_to_json(Cmd, Args) when is_list(Args) ->
   F = fun(X, Acc) ->
     EncX = json_encode(X),
     [$,, EncX | Acc]
   end,
-  [$, | Ss] = lists:foldl(F, [], Args),
-  Str = ?ENC_CMD(Cmd, lists:reverse(Ss)),
+  [$, | Ss] = lists:foldr(F, [], Args),
+  Str = ?ENC_CMD(Cmd, Ss),
   list_to_binary(Str).
 
 %% Encode a Port Command to JSON
@@ -459,8 +459,8 @@ encode_term_structure(F, _Seen) when is_float(F) ->
   ?ENC("Real", float_to_list(F, [{decimals, 10}, compact]));
 encode_term_structure(A, _Seen) when is_atom(A) ->
   F = fun(X, Acc) -> [$,, integer_to_list(X) | Acc] end,
-  [$, | Ss] = lists:foldl(F, [], atom_to_list(A)),
-  ?ENC("Atom", [$\[, lists:reverse(Ss), $\]]);
+  [$, | Ss] = lists:foldr(F, [], atom_to_list(A)),
+  ?ENC("Atom", [$\[, Ss, $\]]);
 encode_term_structure([], _Seen) ->
   ?ENC("List", [$\[, $\]]);
 encode_term_structure(L, Seen) when is_list(L) ->
@@ -468,15 +468,16 @@ encode_term_structure(L, Seen) when is_list(L) ->
     S = encode_term(X, Seen, false),
     [$,, S | Acc]
   end,
-  [$, | Ss] = lists:foldl(F, [], L),
-  ?ENC("List", [$\[, lists:reverse(Ss), $\]]);
+  %% FIXME will fail for improper lists
+  [$, | Ss] = lists:foldr(F, [], L),
+  ?ENC("List", [$\[, Ss, $\]]);
 encode_term_structure(T, Seen) when is_tuple(T) ->
   F = fun(X, Acc) ->
     S = encode_term(X, Seen, false),
     [$,, S | Acc]
   end,
-  [$, | Ss] = tuple_foldl(F, [], T),
-  ?ENC("Tuple", [$\[, lists:reverse(Ss), $\]]).
+  [$, | Ss] = tuple_foldr(F, [], T),
+  ?ENC("Tuple", [$\[, Ss, $\]]).
 %% XXX Comment out code to satisfy dialyzer!
 %encode_term_structure(T, _Seen) when is_reference(T) ->
 %  I = erlang:ref_to_list(T) -- "#Ref<>",
