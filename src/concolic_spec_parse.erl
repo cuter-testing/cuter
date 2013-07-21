@@ -145,7 +145,7 @@ spec_and_bind_types(Server, M) ->
 parse_all_specs(Server, Specs, BoundTypes) ->
   F = fun(X) ->
     io:format("~n%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%~n"),
-    io:format("~p~n",[X]),
+%    io:format("~p~n",[X]),
     try
       {{F, A}, T} = parse_spec(Server, X, BoundTypes),
       io:format("Spec for ~p/~p~n", [F, A]),
