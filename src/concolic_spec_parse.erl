@@ -79,7 +79,7 @@
 -export([retrieve_spec/2, get_params_types/1,
          parse_specs_in_file/1, locate_spec_in_file/2]).
 
--export_type([type_sig/0, prefixed_type_sig/0]).
+-export_type([type_sig/0, prefixed_type_sig/0, maybe_prefixed_type_sig/0]).
 
 -include("concolic_internal.hrl").
 -include_lib("compiler/src/core_parse.hrl").
@@ -91,6 +91,7 @@
 }).
 
 -type empty() :: maybe_empty | non_empty.
+-type maybe_prefixed_type_sig() :: {ok, prefixed_type_sig()} | error.
 -type prefixed_type_sig() :: {?TYPE_SIG_PREFIX, type_sig()}.
 -type type_sig() :: {literal, term()}
                   | any
@@ -178,7 +179,7 @@ locate_spec_in_file(MFA, File) ->
 
 %% =================================================
 
--spec retrieve_spec(mfa(), [{cerl:cerl(), cerl:cerl()}]) -> {ok, prefixed_type_sig()} | error.
+-spec retrieve_spec(mfa(), [{cerl:cerl(), cerl:cerl()}]) -> maybe_prefixed_type_sig().
 
 retrieve_spec(MFA, Attrs) ->
   Types = lists:filtermap(fun filter_types/1, Attrs),

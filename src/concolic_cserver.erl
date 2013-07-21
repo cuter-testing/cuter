@@ -4,7 +4,7 @@
 -behaviour(gen_server).
 
 %% External exports
--export([init_codeserver/2, terminate/1, load/2, mfa_spec/2]).
+-export([init_codeserver/2, terminate/1, load/2, mfa_spec/2, return_spec/3, spec_finder/2]).
 
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_info/2,
@@ -14,14 +14,17 @@
 -export_type([clogs/0]).
 
 %% type declarations
--type call()  :: {'load', atom()}.
--type cast()  :: {'terminate', pid()}.
+-type call()  :: {'load', atom()}
+               | {'mfa_spec', mfa()}.
+-type cast()  :: {'terminate', pid()}
+               | {'return_spec', {mfa(), concolic_spec_parse:maybe_prefixed_type_sig()}, pid()}.
 -type clogs() :: [atom()].
 -type reply() :: {ok, ets:tab()}
                | concolic_load:compile_error()
                | 'preloaded'
                | 'cover_compiled'
-               | 'non_existing'.
+               | 'non_existing'
+               | concolic_spec_parse:maybe_prefixed_type_sig().
 %% gen_server state datatype
 -record(state, {
   %%-- Modules' database -------------------
@@ -29,9 +32,11 @@
   %% {Key, Value} -> {Module, ModuleDb}
   %%   Module   :: atom()
   %%   ModuleDb :: ets:tab()
-  db    :: ets:tab(),      %% Database of the modules and their stored code
-  dir   :: string(),       %% Directory where .core files are saved
-  super :: pid()           %% Concolic Server (supervisor) process
+  db :: ets:tab(),          %% Database of the modules and their stored code
+  dir :: string(),          %% Directory where .core files are saved
+  waiting = orddict:new() :: [{{mfa_spec, mfa()}, pid()}], %% Info on the waiting processes
+  workers = [] :: [pid()],  %% PIDs of the workers
+  super :: pid()            %% Concolic Server (supervisor) process
 }).
 -type state() :: #state{}.
 
@@ -61,10 +66,29 @@ load(CodeServer, M) ->
   gen_server:call(CodeServer, {load, M}).
 
 %% Request the spec of an MFA
--spec mfa_spec(pid(), mfa()) -> {ok, concolic_spec_parse:prefixed_type_sig()} | error.
+-spec mfa_spec(pid(), mfa()) -> concolic_spec_parse:maybe_prefixed_type_sig().
 
 mfa_spec(CodeServer, MFA) ->
-  gen_server:call(CodeServer, {mfa_spec, MFA}).
+  gen_server:call(CodeServer, {mfa_spec, MFA}, 10000).
+
+%% Return the extracted spec of an MFA (Used by worker processes)
+-spec return_spec(pid(), mfa(), concolic_spec_parse:maybe_prefixed_type_sig()) -> ok.
+
+return_spec(CodeServer, MFA, MaybeSpec) ->
+  gen_server:cast(CodeServer, {return_spec, {MFA, MaybeSpec}, self()}).
+
+%% Extract the spec of an MFA (Worker Process)
+-spec spec_finder(pid(), mfa()) -> ok.
+
+spec_finder(CodeServer, {M, _F, _A}=MFA) ->
+  case load(CodeServer, M) of
+    {ok, MDb} ->
+      [{attributes, Attrs}] = ets:lookup(MDb, attributes),
+      MaybeSpec = concolic_spec_parse:retrieve_spec(MFA, Attrs),
+      ok = return_spec(CodeServer, MFA, MaybeSpec);
+    _ ->
+      ok = return_spec(CodeServer, MFA, error)
+  end.
 
 %% ============================================================================
 %% gen_server callbacks
@@ -120,7 +144,7 @@ handle_info(Msg, State) ->
 %% ------------------------------------------------------------------
 %% gen_server callback : handle_call/3
 %% ------------------------------------------------------------------
--spec handle_call(call(), {pid(), reference()}, state()) -> {'reply', reply(), state()}.
+-spec handle_call(call(), {pid(), reference()}, state()) -> {reply, reply(), state()}.
   
 %% Handle a "Load a Module into the Db" call
 %%   Case                             Reply
@@ -147,48 +171,39 @@ handle_call({load, M}, _From, State) ->
       {reply, non_existing, State}
   end;
 
-handle_call({mfa_spec, {M, _F, _A}=MFA}, _From, State) ->
-  case ensure_mod_loaded(M, State) of
-    error -> {reply, error, State};
-    {ok, MDb} ->
-      [{attributes, Attrs}] = ets:lookup(MDb, attributes),
-      case concolic_spec_parse:retrieve_spec(MFA, Attrs) of
-        error -> {reply, error, State};
-        {ok, _PTypeSig}=OK -> {reply, OK, State}
-      end
-  end.
+handle_call({mfa_spec, MFA}, From, S=#state{waiting = Wa, workers = Ws}) ->
+  Worker = spawn(?MODULE, spec_finder, [self(), MFA]),
+  {noreply, S#state{
+    waiting = orddict:store({mfa_spec, MFA}, From, Wa),
+    workers = [Worker | Ws]
+  }}.
 
-  
 %% ------------------------------------------------------------------
 %% gen_server callback : handle_cast/2
 %% ------------------------------------------------------------------
--spec handle_cast(cast(), state()) -> {'stop', 'normal', state()}
-                                    | {'noreply', state()}.
-  
-%% Cast Request : {terminate, FromWho}
+-spec handle_cast(cast(), state()) -> {stop, normal, state()}
+                                    | {noreply, state()}.
+
 handle_cast({terminate, FromWho}, State) ->
   Super = State#state.super,
   case FromWho =:= Super of
     true  -> {stop, normal, State};
     false -> {noreply, State}
-  end.
+  end;
+
+handle_cast({return_spec, {MFA, MaybeSpec}, Worker}, S=#state{waiting = Wa, workers = Ws}) ->
+  Key = {mfa_spec, MFA},
+  Who = orddict:fetch(Key, Wa),
+  gen_server:reply(Who, MaybeSpec),
+  {noreply, S#state{
+    waiting = orddict:erase(Key, Wa),
+    workers = lists:delete(Worker, Ws)
+  }}.
+
 
 %% ============================================================================
 %% Internal functions
 %% ============================================================================
-
-%% Ensure a module is loaded and return the ETS table
-%% where its source code is stored
-ensure_mod_loaded(M, State) ->
-  case is_mod_stored(M, State) of
-    {true, MDb} -> {ok, MDb};
-    false ->
-      case load_mod(M, State) of
-        {ok, _Mdb}=OK -> OK;
-        _ -> error
-      end;
-    _ -> error
-  end.
 
 %% Load a module's code
 load_mod(M, #state{db = Db, dir = Dir}) ->
