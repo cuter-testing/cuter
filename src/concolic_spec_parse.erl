@@ -77,7 +77,7 @@
 %% 
 
 -export([retrieve_spec/2, get_params_types/1,
-         parse_specs_in_file/1, locate_spec_in_file/2]).
+         parse_specs_in_module/1, locate_spec_in_module/1]).
 
 -export_type([type_sig/0, prefixed_type_sig/0, maybe_prefixed_type_sig/0]).
 
@@ -121,27 +121,25 @@
 %% Debugging Funs
 %% =================================================
 
-generate_AST(File) ->
-  {ok, M} = compile:file(File, [to_core]),
-  Core = atom_to_list(M) ++ ".core",
-  {ok, FileContents} = file:read_file(Core),
-  Data = binary_to_list(FileContents),
-  {ok, Tokens, _} = core_scan:string(Data),
-  {ok, AST} = core_parse:parse(Tokens),
-  AST.
+-spec parse_specs_in_module(atom()) -> ok.
 
-spec_and_bind_types(File) ->
-  AST = generate_AST(File),
-  Attrs = AST#c_module.attrs,
+parse_specs_in_module(M) ->
+  Server = concolic_cserver:init_codeserver("dev", self()),
+  {Specs, BoundTypes} = spec_and_bind_types(Server, M),
+  parse_all_specs(Specs, BoundTypes),
+  error_logger:tty(false),
+  concolic_cserver:terminate(Server).
+
+spec_and_bind_types(Server, M) ->
+  [{attributes, Attrs}] = 
+    case concolic_cserver:load(Server, M) of
+      {ok, MDb} -> ets:lookup(MDb, attributes);
+      _ -> exit(module_load_error)
+    end,
   Types = lists:filtermap(fun filter_types/1, Attrs),
   Specs = lists:filtermap(fun filter_specs/1, Attrs),
   BoundTypes = declare_types(Types),
   {Specs, BoundTypes}.
-
--spec parse_specs_in_file(file:name()) -> ok.
-parse_specs_in_file(File) ->
-  {Specs, BoundTypes} = spec_and_bind_types(File),
-  parse_all_specs(Specs, BoundTypes).
 
 parse_all_specs(Specs, BoundTypes) ->
   F = fun(X) ->
@@ -172,10 +170,13 @@ parse_all_specs(Specs, BoundTypes) ->
   end,
   lists:foreach(F, Specs).
 
--spec locate_spec_in_file(mfa(), file:name()) -> {ok, type_sig()} | error.
-locate_spec_in_file(MFA, File) ->
-  {Specs, BoundTypes} = spec_and_bind_types(File),
-  locate_mfa_spec(MFA, Specs, BoundTypes).
+-spec locate_spec_in_module(mfa()) -> {ok, type_sig()} | error.
+locate_spec_in_module({M, _F, _A}=MFA) ->
+  Server = concolic_cserver:init_codeserver("dev", self()),
+  {Specs, BoundTypes} = spec_and_bind_types(Server, M),
+  S = locate_mfa_spec(MFA, Specs, BoundTypes), io:format("~p~n", [S]),
+  error_logger:tty(false),
+  concolic_cserver:terminate(Server).
 
 %% =================================================
 
