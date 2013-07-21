@@ -476,8 +476,8 @@ encode_term_structure(T, Seen) when is_tuple(T) ->
     S = encode_term(X, Seen, false),
     [$,, S | Acc]
   end,
-  [$, | Ss] = tuple_foldr(F, [], T),
-  ?ENC("Tuple", [$\[, Ss, $\]]).
+  [$, | Ss] = tuple_foldl(F, [], T),
+  ?ENC("Tuple", [$\[, lists:reverse(Ss), $\]]).
 %% XXX Comment out code to satisfy dialyzer!
 %encode_term_structure(T, _Seen) when is_reference(T) ->
 %  I = erlang:ref_to_list(T) -- "#Ref<>",
