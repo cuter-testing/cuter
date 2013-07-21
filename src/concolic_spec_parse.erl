@@ -46,6 +46,7 @@
 %%       | {type, _Ln, byte, []}
 %%       | {type, _Ln, char, []}
 %%       | {type, _Ln, float, []}
+%%       | {type, _Ln, function, []}
 %%       | {type, _Ln, integer, []}
 %%       | {type, _Ln, list, (Type)*}
 %%       | {type, _Ln, mfa, []}
@@ -102,7 +103,7 @@
                   | byte
                   | char
                   | float
-                  | {function, [type_sig()], type_sig()}
+                  | {function, [type_sig()] | any, type_sig()}
                   | {integer, any | pos | neg | non_neg}
                   | {list, empty(), type_sig()}
                   | mfa
@@ -214,6 +215,7 @@ filter_types(_Attr) -> false.
 %% (also nested unions)
 -spec simplify(type_sig()) -> type_sig().
 
+simplify({function, any, any}=Fun) -> Fun;
 simplify({function, Ps, R}) ->
   {function, [simplify(X) || X <- Ps], simplify(R)};
 simplify({list, Empty, T}) ->
@@ -328,6 +330,9 @@ parse_type(_Server, #type{name = nil, args = []}, _Bound) -> {literal, []};
 %% any(), term()
 parse_type(_Server, #type{name = X, args = []}, _Bound) when X =:= any; X =:= term->
   any;
+%% function()
+parse_type(_Server, #type{name = function, args = []}, _Bound) ->
+  {function, any, any};
 %% atom(), binary(), bitstring(), boolean(), byte(), char()
 %% float(), mfa(), module(), node(), number(), pid(), timeout()
 parse_type(_Server, #type{name = X, args = []}, _Bound)
@@ -498,6 +503,7 @@ pp_sig({tuple, [S|Sigs]}) ->
   lists:foreach(fun(X) -> io:format(" , "), pp_sig(X) end, Sigs),
   io:format("}");
 %% fun
+pp_sig({function, any, any}) -> io:format("fun()");
 pp_sig({function, [], R}) ->
   io:format("fun() -> "),
   pp_sig(R);
