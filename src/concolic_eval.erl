@@ -1457,7 +1457,15 @@ log_mfa_spec(Fd, MFA, SymbAs, CodeServer) ->
     {ok, PTypeSig} ->
       {ok, Ps} = concolic_spec_parse:get_params_types(PTypeSig),
       Zs = lists:zipwith(fun(X, Y) -> [X, Y] end, SymbAs, Ps),
-      lists:foreach(fun(P) -> concolic_encdec:log(Fd, spec, P) end, Zs)
+      Log = fun(P) ->
+        try
+          concolic_encdec:log(Fd, spec, P)
+        catch
+          %% Currently unsupported TypeSig
+          throw:{unsupported_typesig, _} -> ok
+        end
+      end,
+      lists:foreach(Log, Zs)
   end.
 
 %% --------------------------------------------------------
