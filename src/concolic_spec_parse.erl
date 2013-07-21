@@ -25,7 +25,7 @@
 %% 
 %% SpecAttrDef :: {{c_literal, _, spec}, {c_literal, _, [SpecAttr]}}
 %% │
-%% └─ SpecAttr :: {{F :: atom(), A :: byte()}, [Spec]}
+%% └─ SpecAttr :: {{F :: atom(), A :: byte()}, (Spec)+}
 %%    ├─ Spec :: Fun | BoundedFun
 %%    │
 %%    ├─ Fun :: {type, _Ln, 'fun', [Product, Type]}
@@ -145,7 +145,7 @@ spec_and_bind_types(Server, M) ->
 parse_all_specs(Server, Specs, BoundTypes) ->
   F = fun(X) ->
     io:format("~n%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%~n"),
-%    io:format("~p~n",[X]),
+    io:format("~p~n",[X]),
     try
       {{F, A}, T} = parse_spec(Server, X, BoundTypes),
       io:format("Spec for ~p/~p~n", [F, A]),
@@ -154,16 +154,19 @@ parse_all_specs(Server, Specs, BoundTypes) ->
       ST = simplify(T),
       pp_sig(ST),
       io:format("~n"),
-      {function, Ps, R} = ST,
-      FF = fun(XX) ->
-        try
-          JSON = concolic_json:typesig_to_json({'__type_sig', XX}),
-          io:format("~p~n", [JSON])
-        catch
-          throw:Msg -> io:format("ERROR! ~p~n", [Msg])
-        end
-      end,
-      lists:foreach(FF, Ps ++ [R])
+      case ST of
+        {function, Ps, R} ->
+          FF = fun(XX) ->
+            try
+              JSON = concolic_json:typesig_to_json({'__type_sig', XX}),
+              io:format("~p~n", [JSON])
+            catch
+              throw:Msg -> io:format("ERROR! ~p~n", [Msg])
+            end
+          end,
+          lists:foreach(FF, Ps ++ [R]);
+        _ -> ok
+      end
     catch
 %      error:Er -> io:format("Parse Spec Error: ~p~n", [Er]);
       exit:E -> io:format("Parse Spec Exit: ~p~n", [E])
@@ -313,7 +316,10 @@ typesig_var_to_tvar(X) -> X.
 %% -------------------------------------------------
 
 parse_spec(Server, {FA, [Type]}, Bound) ->
-  {FA, parse_type(Server, Type, Bound)}.
+  {FA, parse_type(Server, Type, Bound)};
+parse_spec(Server, {FA, Types}, Bound) ->
+  Ts = [parse_type(Server, Type, Bound) || Type <- Types],
+  {FA, {union, Ts}}.
 
 %% literals (atom, integer, [])
 parse_type(_Server, {atom, _, A}, _Bound) -> {literal, A};
