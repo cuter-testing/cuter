@@ -30,7 +30,7 @@ class ErlangZ3:
     self.atom_true = self.json_term_to_z3(json.loads("{\"t\" : \"Atom\", \"v\" : [116,114,117,101]}"))
     self.atom_false = self.json_term_to_z3(json.loads("{\"t\" : \"Atom\", \"v\" : [102,97,108,115,101]}"))
     self.atom_infinity = self.json_term_to_z3(json.loads("{\"t\" : \"Atom\", \"v\" : [105,110,102,105,110,105,116,121]}"))
-    self.max_len = 100
+    self.max_len = 10
     self.check = None
     self.model = None
   
