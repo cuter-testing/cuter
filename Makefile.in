@@ -9,6 +9,8 @@ SRC  = src
 EBIN = ebin
 SUITE_SRC = testsuite/src
 SUITE_EBIN = testsuite/ebin
+EXAMPLES_SRC = examples/src
+EXAMPLES_EBIN = examples/ebin
 ERLC = @ERLC@
 
 ###----------------------------------------------------------------------
@@ -66,6 +68,9 @@ SUITE_MODULES = \
 UTEST_MODULES = \
 	coordinator_tests
 
+EXAMPLES_MODULES = \
+	robot
+
 ###----------------------------------------------------------------------
 ### Targets
 ###----------------------------------------------------------------------
@@ -77,7 +82,8 @@ TARGETS = \
 ERL_DIRS = \
 	src \
 	utest \
-	testsuite/src
+	testsuite/src \
+	examples/src
 
 vpath %.erl $(ERL_DIRS)
 
@@ -95,6 +101,8 @@ utest_target: $(UTEST_MODULES:%=$(EBIN)/%.beam) suite
 
 suite: $(SUITE_MODULES:%=$(SUITE_EBIN)/%.beam)
 
+examples: $(EXAMPLES_MODULES:%=$(EXAMPLES_EBIN)/%.beam)
+
 $(EBIN)/bin_lib.beam: $(SRC)/bin_lib.erl
 	$(ERLC) $(ERLC_FLAGS) $(ERLC_MACROS) -o $(EBIN) $<
 
@@ -106,6 +114,9 @@ $(SUITE_EBIN)/%.beam : %.erl
 
 utest: $(TARGETS)
 	@(./runtests.rb)
+
+$(EXAMPLES_EBIN)/%.beam : %.erl
+	$(ERLC) -o $(EXAMPLES_EBIN) $<
 
 demo: concolic_target $(SUITE_EBIN)/demo.beam
 	@echo "-spec foo(integer(), integer()) -> ok."
@@ -138,5 +149,5 @@ cleandep:
 	$(RM) .depend
 
 distclean: clean cleandep
-	$(RM) $(SUITE_EBIN)/*.beam
+	$(RM) $(SUITE_EBIN)/*.beam $(EXAMPLES_EBIN)/*.beam
 
