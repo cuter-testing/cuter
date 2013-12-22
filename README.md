@@ -1,4 +1,4 @@
-[name pending]
+CutEr
 ==============
 
 This is the source tree for *[name pending]*, a concolic testing tool
@@ -50,6 +50,6 @@ Once you have a build you see the demo with:
     $ make demo
 
 
-[1]:  http://www.erlang.org/            "www.erlang.org/"
-[2]:  http://www.python.org/            "www.python.org/"
-[3]:  http://z3.codeplex.com/           "z3.codeplex.com/"
+[1]:  http://www.erlang.org/            "www.erlang.org"
+[2]:  http://www.python.org/            "www.python.org"
+[3]:  http://z3.codeplex.com/           "z3.codeplex.com"
