@@ -1,8 +1,10 @@
 CutEr
 ==============
 
-This is the source tree for *[name pending]*, a concolic testing tool
+This is the source tree for CutEr a concolic testing tool
 for the Erlang functional programming language.
+
+Caution: This tool is still under development!
 
 Dependencies
 ------------
