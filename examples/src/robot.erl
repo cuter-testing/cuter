@@ -17,7 +17,7 @@
 %%
 %%
 %% Sample Usage:
-%% robot:solve(8, {6,7}, {7,3}, [{5,5},{6,5},{7,5}]). (Result is 3)
+%% robot:solve(8, {6,7}, {7,3}, [{5,5},{6,5},{7,5}]). (Result is true)
 %% 
 %% Sample Cuter Usage
 %% erl -noinput -pa ebin -pa examples/ebin -eval "coordinator:run(robot, solve, [8, {6,7}, {7,3}, [{5,5},{6,5},{7,5}]], 50)" -s init stop
@@ -29,18 +29,17 @@
 -type point() :: {coordinate(), coordinate()}.
 -type obstacles() :: [point()].
 
--spec solve(map_size(), point(), point(), obstacles()) -> term().
+-spec solve(map_size(), point(), point(), obstacles()) -> boolean().
 %solve(N, {SX, SY}, {EX, EY}, _) when SX > N; SY > N; EX > N; EY > N -> false;
-solve(N, Start, End, Obstacles) -> dfs(N, Start, End, Obstacles, [], [], []).
+solve(N, Start, End, Obstacles) -> dfs(N, Start, End, Obstacles, [], []).
 
-dfs(_N, _End, _End, _Obstacles, _Queue, _Visited, Path) ->
-  length(Path);
-dfs(N, Curr, End, Obstacles, Queue, Visited, Path) ->
+dfs(_N, _End, _End, _Obstacles, _Queue, _Visited) -> true;
+dfs(N, Curr, End, Obstacles, Queue, Visited) ->
   case expand(N, Curr, Obstacles, Queue, Visited) of
     [] -> false;
     [M | Ms] ->
       _ = validate_move(M, N),
-      dfs(N, M, End, Obstacles, Ms, [M|Visited], [M|Path])
+      dfs(N, M, End, Obstacles, Ms, [M|Visited])
   end.
 
 validate_move({X, Y}, N) when X > 0, Y > 0, X =< N, Y =< N ->
