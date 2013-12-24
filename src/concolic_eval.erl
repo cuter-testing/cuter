@@ -475,22 +475,23 @@ eval_expr(M, CodeServer, TraceServer, {c_case, _Anno, Arg, Clauses}, Cenv, Senv,
 
 %% c_catch
 eval_expr(M, CodeServer, TraceServer, {c_catch, _Anno, Body}, Cenv, Senv, Fd) ->
-  try
-    eval_expr(M, CodeServer, TraceServer, Body, Cenv, Senv, Fd)
-  catch
-    throw:Throw ->
-      unzip_one(Throw);
-    exit:Exit ->
-      {Cv, Sv} = unzip_one(Exit),
-      {{'EXIT', Cv}, {'EXIT', Sv}};
-    error:Error ->
-      %% CAUTION! Stacktrace info is not valid
-      %% It refers to the interpreter process's stacktrace
-      %% Used for internal debugging
-      {Cv, Sv} = unzip_one(Error),
-      Stacktrace = erlang:get_stacktrace(),
-      {{'EXIT', {Cv, Stacktrace}}, {'EXIT', {Sv, Stacktrace}}}
-  end;
+%%  try
+%%    eval_expr(M, CodeServer, TraceServer, Body, Cenv, Senv, Fd)
+%%  catch
+%%    throw:Throw ->
+%%      unzip_one(Throw);
+%%    exit:Exit ->
+%%      {Cv, Sv} = unzip_one(Exit),
+%%      {{'EXIT', Cv}, {'EXIT', Sv}};
+%%    error:Error ->
+%%      %% CAUTION! Stacktrace info is not valid
+%%      %% It refers to the interpreter process's stacktrace
+%%      %% Used for internal debugging
+%%      {Cv, Sv} = unzip_one(Error),
+%%      Stacktrace = erlang:get_stacktrace(),
+%%      {{'EXIT', {Cv, Stacktrace}}, {'EXIT', {Sv, Stacktrace}}}
+%%  end;
+  eval_expr(M, CodeServer, TraceServer, Body, Cenv, Senv, Fd);
 
 %% c_cons
 eval_expr(M, CodeServer, TraceServer, {c_cons, _Anno, Hd, Tl}, Cenv, Senv, Fd) ->
@@ -586,32 +587,45 @@ eval_expr(M, CodeServer, TraceServer, {c_seq, _Anno, Arg, Body}, Cenv, Senv, Fd)
 
 %% c_try
 eval_expr(M, CodeServer, TraceServer, {c_try, _Anno, Arg, Vars, Body, Evars, Handler}, Cenv, Senv, Fd) ->
-  try
-    Degree = length(Vars),
-    {C, S} = eval_expr(M, CodeServer, TraceServer, Arg, Cenv, Senv, Fd),
-    case Degree of
-      1 ->
-        CAs = [C],
-        SAs = [S];
-      _ ->
-        {valuelist, CAs, Degree} = C,
-        {valuelist, SAs, Degree} = S
-    end,
-    NCenv = concolic_lib:bind_parameters(CAs, Vars, Cenv),
-    NSenv = concolic_lib:bind_parameters(SAs, Vars, Senv),
-    eval_expr(M, CodeServer, TraceServer, Body, NCenv, NSenv, Fd)
-  catch
-    Class:Reason ->
-      {Cv, Sv} = unzip_one(Reason),
-      {Cs, Ss} =
-        case length(Evars) of
-          3 -> {[Class, Cv, Class], [Class, Sv, Class]};
-          2 -> {[Class, Cv], [Class, Sv]}
-        end,
-      ECenv = concolic_lib:bind_parameters(Cs, Evars, Cenv),
-      ESenv = concolic_lib:bind_parameters(Ss, Evars, Senv),
-      eval_expr(M, CodeServer, TraceServer, Handler, ECenv, ESenv, Fd)
-  end;
+%%  try
+%%    Degree = length(Vars),
+%%    {C, S} = eval_expr(M, CodeServer, TraceServer, Arg, Cenv, Senv, Fd),
+%%    case Degree of
+%%      1 ->
+%%        CAs = [C],
+%%        SAs = [S];
+%%      _ ->
+%%        {valuelist, CAs, Degree} = C,
+%%        {valuelist, SAs, Degree} = S
+%%    end,
+%%    NCenv = concolic_lib:bind_parameters(CAs, Vars, Cenv),
+%%    NSenv = concolic_lib:bind_parameters(SAs, Vars, Senv),
+%%    eval_expr(M, CodeServer, TraceServer, Body, NCenv, NSenv, Fd)
+%%  catch
+%%    Class:Reason ->
+%%      {Cv, Sv} = unzip_one(Reason),
+%%      {Cs, Ss} =
+%%        case length(Evars) of
+%%          3 -> {[Class, Cv, Class], [Class, Sv, Class]};
+%%          2 -> {[Class, Cv], [Class, Sv]}
+%%        end,
+%%      ECenv = concolic_lib:bind_parameters(Cs, Evars, Cenv),
+%%      ESenv = concolic_lib:bind_parameters(Ss, Evars, Senv),
+%%      eval_expr(M, CodeServer, TraceServer, Handler, ECenv, ESenv, Fd)
+%%  end;
+  Degree = length(Vars),
+  {C, S} = eval_expr(M, CodeServer, TraceServer, Arg, Cenv, Senv, Fd),
+  case Degree of
+    1 ->
+      CAs = [C],
+      SAs = [S];
+    _ ->
+      {valuelist, CAs, Degree} = C,
+      {valuelist, SAs, Degree} = S
+  end,
+  NCenv = concolic_lib:bind_parameters(CAs, Vars, Cenv),
+  NSenv = concolic_lib:bind_parameters(SAs, Vars, Senv),
+  eval_expr(M, CodeServer, TraceServer, Body, NCenv, NSenv, Fd);
 
 %% c_tuple
 eval_expr(M, CodeServer, TraceServer, {c_tuple, _Anno, Es}, Cenv, Senv, Fd) ->
