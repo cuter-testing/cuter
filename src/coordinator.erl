@@ -8,7 +8,7 @@
 
 -define(TRACEDIR(BaseDir), BaseDir ++ "/traces").
 -define(COREDIR(BaseDir), BaseDir ++ "/core").
--define(PYTHON_CALL, ?PYTHON_PATH ++ " -u priv/erlang_port.py").
+-define(PYTHON_CALL, ?PYTHON_PATH ++ " -u " ++ ?PRIV ++ "/erlang_port.py").
 
 %% ------------------------------------------------------------------
 %% Run function

@@ -6,7 +6,8 @@
 
 TOP  = $(PWD)
 SRC  = src
-EBIN = ebin
+EBIN = $(PWD)/ebin
+PRIV = $(PWD)/priv
 SUITE_SRC = testsuite/src
 SUITE_EBIN = testsuite/ebin
 EXAMPLES_SRC = examples/src
@@ -19,7 +20,7 @@ ERLC = @ERLC@
 
 WARNS = +warn_exported_vars +warn_unused_import +warn_missing_spec #+warn_untyped_record
 ERLC_FLAGS = +debug_info $(WARNS)
-ERLC_MACROS = -DEBIN=\"$(EBIN)\" -DPYTHON_PATH=\"@PYTHON_PATH@\"
+ERLC_MACROS = -DEBIN=\"$(EBIN)\" -DPYTHON_PATH=\"@PYTHON_PATH@\" -DPRIV=\"$(PRIV)\"
 
 HRL_FILES = \
 	concolic_internal \
