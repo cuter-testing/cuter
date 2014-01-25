@@ -13,14 +13,14 @@ foo(X, Y) ->
   end.
 
 %% Naive Fibonnaci Number implementation
-%% coordinator:run(demo,fib,[4]).
+%% cuter:run(demo,fib,[4]).
 -spec fib(non_neg_integer()) -> non_neg_integer().
 fib(0) -> 0;
 fib(1) -> 1;
 fib(N) when N > 1 -> fib(N-1) + fib(N-2).
 
 %% Calculate the Minimum element of a list
-%% coordinator:run(demo,min,[[5,1,3]]).
+%% cuter:run(demo,min,[[5,1,3]]).
 -spec min(list()) -> any().
 min([H|T]) -> min(T, H).
 
@@ -32,7 +32,7 @@ min([H|T], CurrentMin) ->
   end.
   
 %% Test selective receive
-%% coordinator:run(demo,selective_receive,[100]).
+%% cuter:run(demo,selective_receive,[100]).
 selective_receive(N) ->
   Msg1 = some_important_message,
   Msg2 = less_important_message,
@@ -55,7 +55,7 @@ selective_receive(N) ->
   
 %% Start a slave node to perform a list operation
 %% and receive the result
-%% coordinator:run(demo,distributed_pp,[lists:seq(1,100)]).
+%% cuter:run(demo,distributed_pp,[lists:seq(1,100)]).
 distributed_pp(X) when is_list(X) ->
   net_kernel:start(['master', 'shortnames']),
   {'ok', Host} = inet:gethostname(),

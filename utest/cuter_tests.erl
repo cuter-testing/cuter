@@ -1,4 +1,4 @@
--module(coordinator_tests).
+-module(cuter_tests).
 
 -include_lib("eunit/include/eunit.hrl").
 
@@ -17,7 +17,7 @@ toy_test_() ->
     end,
   Test = 
     fun({Toy, Arg}) ->
-      R = coordinator:test_run(Toy, run, Arg),
+      R = cuter:test_run(Toy, run, Arg),
       ?_assertEqual({'ok', {ok, ok}}, R)
     end,
   Inst = 
@@ -36,7 +36,7 @@ toy_test_() ->
 %    end,
 %  Test = 
 %    fun(T) ->
-%      R = coordinator:test_run(T, main, [[]]),
+%      R = cuter:test_run(T, main, [[]]),
 %      ?_assertEqual({'ok', {ok, ok}}, R)
 %    end,
 %  Inst = 
@@ -49,21 +49,21 @@ toy_test_() ->
 -spec calculate_fibonacci_test() -> 'ok'.
 
 calculate_fibonacci_test() ->
-  R = coordinator:test_run(demo, fib, [10]),
+  R = cuter:test_run(demo, fib, [10]),
   ?assertMatch({ok, {55, _}}, R).
 
 %% Test selective receive
 -spec selective_receive_test() -> 'ok'.
 
 selective_receive_test() ->
-  R = coordinator:test_run(demo,selective_receive,[100]),
+  R = cuter:test_run(demo,selective_receive,[100]),
   ?assertEqual({ok, {ok, ok}}, R).
 
 %% Find the minimum element of a list
 -spec lists_minimum_element_test() -> 'ok'.
 
 lists_minimum_element_test() ->
-  R = coordinator:test_run(demo, min, [[5,1,3,2,7,6,4]]),
+  R = cuter:test_run(demo, min, [[5,1,3,2,7,6,4]]),
   ?assertMatch({ok, {1, _}}, R).
   
 %% Basic communication between nodes
@@ -72,7 +72,7 @@ lists_minimum_element_test() ->
 basic_node_communication_test() -> 
   [] = os:cmd("epmd -daemon"),
   _ = net_kernel:start(['master', 'shortnames']),
-  R = coordinator:test_run(demo, distributed_pp, [lists:seq(1,10)]),
+  R = cuter:test_run(demo, distributed_pp, [lists:seq(1,10)]),
   ?assertMatch({ok, {10, _}}, R).
   
 

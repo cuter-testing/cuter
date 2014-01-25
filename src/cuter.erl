@@ -1,6 +1,6 @@
 %% -*- erlang-indent-level: 2 -*-
 %%------------------------------------------------------------------------------
--module(coordinator).
+-module(cuter).
 
 -export([run/4, test_run/3]).
 
