@@ -1,0 +1,17 @@
+# Matches any level
+
+*.beam
+*.pyc
+
+# Matches Top Level
+
+/Makefile
+/autom4te.cache
+/configure
+/config.log
+/config.status
+/.depend
+
+# Custom rules for development
+
+dev/*

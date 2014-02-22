@@ -1,0 +1,86 @@
+.PHONY: depend clean cleandep distclean all
+
+###----------------------------------------------------------------------
+### Orientation information
+###----------------------------------------------------------------------
+
+TOP  = $(PWD)
+SRC  = $(PWD)/src
+EBIN = $(PWD)/ebin
+PRIV = $(PWD)/priv
+UTEST = $(PWD)/utest
+ERLC = @ERLC@
+
+###----------------------------------------------------------------------
+### Flags
+###----------------------------------------------------------------------
+
+WARNS = +warn_exported_vars +warn_unused_import +warn_missing_spec #+warn_untyped_record
+ERLC_FLAGS = +debug_info $(WARNS)
+ERLC_MACROS = -DEBIN=\"$(EBIN)\" -DPYTHON_PATH=\"@PYTHON_PATH@\" -DPRIV=\"$(PRIV)\"
+
+HRL_FILES = \
+	cuter_macros
+
+SRC_MODULES = \
+	cuter
+
+UTEST_MODULES = \
+	cuter_tests
+
+###----------------------------------------------------------------------
+### Targets
+###----------------------------------------------------------------------
+
+TARGETS = \
+	cuter_target \
+	utest_target
+
+ERL_DIRS = \
+	$(SRC) \
+	$(UTEST)
+
+vpath %.erl $(ERL_DIRS)
+
+vpath %.hrl $(ERL_DIRS)
+
+default: $(TARGETS) dialyzer
+
+fast: cuter_target
+
+suite: utest_target
+
+all: default utest
+
+cuter_target: $(SRC_MODULES:%=$(EBIN)/%.beam)
+
+utest_target: $(UTEST_MODULES:%=$(EBIN)/%.beam)
+
+$(EBIN)/%.beam: %.erl
+	$(ERLC) +native $(ERLC_FLAGS) $(ERLC_MACROS) -o $(EBIN) $<
+
+utest: $(TARGETS)
+	@(./runtests.py $(EBIN))
+
+dialyzer: $(TARGETS)
+	dialyzer -n -Wunmatched_returns $(EBIN)/*.beam
+
+-include .depend
+
+depend: cleandep $(SRC_MODULES:%=%.dep) $(HRL_FILES:%=%.hrl)
+	@echo ""
+	@echo "To build Concolic, execute:"
+	@echo "  make fast"
+
+%.dep: %.erl
+	$(ERLC) -M -MT $(patsubst $(SRC)/%.erl,$(EBIN)/%.beam,$<) $< >> .depend
+
+clean:
+	$(RM) $(EBIN)/*.beam
+
+cleandep:
+	$(RM) .depend
+
+distclean: clean cleandep
+	$(RM)
+
