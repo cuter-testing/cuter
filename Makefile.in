@@ -20,13 +20,17 @@ ERLC_FLAGS = +debug_info $(WARNS)
 ERLC_MACROS = -DEBIN=\"$(EBIN)\" -DPYTHON_PATH=\"@PYTHON_PATH@\" -DPRIV=\"$(PRIV)\"
 
 HRL_FILES = \
-	cuter_macros
+	cuter_macros \
+	eunit_config
 
 SRC_MODULES = \
-	cuter
+	cuter \
+	cuter_cerl
 
 UTEST_MODULES = \
-	cuter_tests
+	cuter_tests_lib \
+	cuter_tests \
+	cuter_cerl_tests
 
 ###----------------------------------------------------------------------
 ### Targets
