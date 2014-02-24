@@ -24,12 +24,15 @@ HRL_FILES = \
 	eunit_config
 
 SRC_MODULES = \
+	cuter_lib \
 	cuter \
+	cuter_codeserver \
 	cuter_cerl
 
 UTEST_MODULES = \
 	cuter_tests_lib \
 	cuter_tests \
+	cuter_codeserver_tests \
 	cuter_cerl_tests
 
 ###----------------------------------------------------------------------
