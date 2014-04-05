@@ -8,7 +8,7 @@ if len(sys.argv) < 2:
   sys.exit(0)
 
 ebin = sys.argv[1]
-tests = ["cuter", "cuter_codeserver", "cuter_cerl", "cuter_monitor"]
+tests = ["cuter", "cuter_codeserver", "cuter_cerl", "cuter_monitor", "cuter_iserver"]
 for t in tests:
   print "Testing %s..." % t
   os.system("erl -noshell -pa %s -pa ../meck/ebin -eval \"eunit:test(%s, [verbose])\" -s init stop" % (ebin, t))

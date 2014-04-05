@@ -71,22 +71,18 @@ init([Dir, Super]) when is_list(Dir) ->
   Db = ets:new(?MODULE, [ordered_set, protected]),
   U = cuter_lib:unique_string(),
   CoreDir = filename:absname(Dir ++ "/codeserver-" ++ U),
-  {ok, #state{db=Db, dir=CoreDir, super=Super}}.
+  {ok, #state{db = Db, dir = CoreDir, super = Super}}.
 
 %% gen_server callback : terminate/2
 -spec terminate(term(), state()) -> ok.
 terminate(_Reason, State) ->
   Db = State#state.db,
-  _Super = State#state.super,
-  _LoadedMods = delete_stored_modules(Db),             %% Delete all created ETS tables
+  Super = State#state.super,
+  Logs = [{loaded_mods, delete_stored_modules(Db)}],  %% Delete all created ETS tables
   ets:delete(Db),
-  delete_stored_core_files(State#state.dir),           %% Clean up .core files directory
-  %% XXX ok = concolic:send_clogs(Super, LoadedMods).         %% Send statistics to supervisor
+  delete_stored_core_files(State#state.dir),          %% Clean up .core files directory
+  ok = cuter_iserver:code_logs(Super, Logs),          %% Send logs to the supervisor
   ok.
-
-
-
-
 
 %% gen_server callback : code_change/3
 -spec code_change(any(), state(), any()) -> {ok, state()}.

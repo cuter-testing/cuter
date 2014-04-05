@@ -122,17 +122,15 @@ init([Dir, Super, Depth, Prefix]) when is_list(Dir) ->
 %% gen_server callback : terminate/2
 -spec terminate(term(), state()) -> 'ok'.
 terminate(_Reason, State) ->
-%  Super = State#state.super,
-  Procs =  State#state.procs,
+  Procs = State#state.procs,
   Ptree = State#state.ptree,
   Fds = State#state.fds,
-%  Logs = State#state.logs,
   %% TODO reconstruct Process Tree and Traces Tree
   ets:delete(Ptree),
   ets:delete(Procs),
   ets:delete(Fds),
   %% Send Logs to supervisor
-%  ok = concolic:send_tlogs(Super, Logs).
+  ok = cuter_iserver:monitor_logs(State#state.super, State#state.logs),
   ok.
 
 %% gen_server callback : code_change/3
@@ -206,8 +204,8 @@ handle_info({'DOWN', _Ref, process, Who, normal}, State) ->
     _  -> {noreply, State}
   end;
 %% Msg when a monitored process experienced an exception
-handle_info({'DOWN', _Ref, process, Who, _Reason}, State) ->
-%  Super = State#state.super,
+handle_info({'DOWN', _Ref, process, Who, Reason}, State) ->
+  Super = State#state.super,
   Procs = State#state.procs,
   Fds = State#state.fds,
   ets:delete(Procs, Who),
@@ -215,7 +213,8 @@ handle_info({'DOWN', _Ref, process, Who, _Reason}, State) ->
   %% Killing all remaining alive processes
   kill_all_processes(get_procs(Procs)),
   %% Send the Error Report to the supervisor
-%  concolic:send_error_report(Super, Who, concolic_eval:unzip_error(Reason)),
+% TODO  concolic:send_error_report(Super, Who, concolic_eval:unzip_error(Reason)),
+  cuter_iserver:send_error_report(Super, Who, Reason),
   {stop, normal, State}.
 
 %% ============================================================================
