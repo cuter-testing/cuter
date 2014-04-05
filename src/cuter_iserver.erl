@@ -111,7 +111,7 @@ init([M, F, As, CoreDir, LogDir, Depth, Super]) ->
   link(Super),
   process_flag(trap_exit, true),
   Node = node(),
-  Prefix = cuter_lib:unique_string(),
+  Prefix = cuter_lib:unique_string() ++ "_",
   CodeServer = cuter_codeserver:start(CoreDir, self()),
   MonitorServer = cuter_monitor:start(LogDir, self(), Depth, Prefix),
   Servers = #svs{code = CodeServer, monitor = MonitorServer},

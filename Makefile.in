@@ -24,6 +24,7 @@ HRL_FILES = \
 	eunit_config
 
 SRC_MODULES = \
+	cuter_binlib \
 	cuter_lib \
 	cuter \
 	cuter_codeserver \
@@ -32,7 +33,10 @@ SRC_MODULES = \
 	cuter_log \
 	cuter_iserver \
 	cuter_eval \
-	cuter_symbolic
+	cuter_symbolic \
+	cuter_mock \
+	cuter_env \
+	cuter_erlang
 
 UTEST_MODULES = \
 	cuter_tests_lib \
@@ -40,7 +44,8 @@ UTEST_MODULES = \
 	cuter_codeserver_tests \
 	cuter_cerl_tests \
 	cuter_monitor_tests \
-	cuter_iserver_tests
+	cuter_iserver_tests \
+	cuter_eval_tests
 
 ###----------------------------------------------------------------------
 ### Targets
@@ -71,7 +76,7 @@ cuter_target: $(SRC_MODULES:%=$(EBIN)/%.beam)
 utest_target: $(UTEST_MODULES:%=$(EBIN)/%.beam)
 
 $(EBIN)/%.beam: %.erl
-	$(ERLC) +native $(ERLC_FLAGS) $(ERLC_MACROS) -o $(EBIN) $<
+	$(ERLC) $(ERLC_FLAGS) $(ERLC_MACROS) -o $(EBIN) $<
 
 utest: $(TARGETS)
 	@(./runtests.py $(EBIN))

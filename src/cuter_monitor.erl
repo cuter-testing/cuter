@@ -4,7 +4,7 @@
 -behaviour(gen_server).
 
 %% external exports
--export([start/4, stop/1, subscribe/2, is_monitored/2, file_descriptor/1]).
+-export([start/4, stop/1, subscribe/2, is_monitored/2, file_descriptor/1, node_servers/2]).
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_info/2, handle_call/3, handle_cast/2]).
 
@@ -87,10 +87,10 @@ file_descriptor(MonitorServer) ->
   Fd.
 
 %% Request the monitor code servers of a specific node
-%-spec node_servers(pid(), node()) -> concolic:servers().
-%node_servers(MonitorServer, Node) ->
-%  {ok, Servers} = gen_server:call(MonitorServer, {node_servers, Node}),
-%  Servers.
+-spec node_servers(pid(), node()) -> servers().
+node_servers(MonitorServer, Node) ->
+  {ok, Servers} = gen_server:call(MonitorServer, {node_servers, Node}),
+  Servers.
 
 %% ============================================================================
 %% gen_server callbacks (Server Implementation)
@@ -141,7 +141,8 @@ code_change(_OldVsn, State, _Extra) ->
 %% gen_server callback : handle_call/3
 -spec handle_call({subscribe, pid()}, {pid(), any()}, state()) -> {reply, {ok, file:io_device(), pos_integer(), nonempty_string()}, state()}
                ; ({is_monitored, pid()}, {pid(), any()}, state()) -> {reply, boolean(), state()}
-               ; ({get_fd, pid()}, {pid(), any()}, state()) -> {reply, {ok, file:io_device()}, state()}.
+               ; ({get_fd, pid()}, {pid(), any()}, state()) -> {reply, {ok, file:io_device()}, state()}
+               ; ({node_servers, node()}, {pid(), any()}, state()) -> {reply, {ok, (servers() | error)}, state()}.
 handle_call({subscribe, Parent}, {From, _FromTag}, State) ->
   Procs = State#state.procs,
   Ptree = State#state.ptree,
@@ -170,7 +171,11 @@ handle_call({is_monitored, Who}, {_From, _FromTag}, State) ->
 handle_call({get_fd, Who}, _From, State) ->
   Fds = State#state.fds,
   [{Who, Fd}] = ets:lookup(Fds, Who),
-  {reply, {ok, Fd}, State}.
+  {reply, {ok, Fd}, State};
+handle_call({node_servers, Node}, _From, State) ->
+  Super = State#state.super,
+  Servers = cuter_iserver:node_servers(Super, Node),
+  {reply, {ok, Servers}, State}.
 
 
 %% gen_server callback : handle_cast/2
@@ -213,8 +218,7 @@ handle_info({'DOWN', _Ref, process, Who, Reason}, State) ->
   %% Killing all remaining alive processes
   kill_all_processes(get_procs(Procs)),
   %% Send the Error Report to the supervisor
-% TODO  concolic:send_error_report(Super, Who, concolic_eval:unzip_error(Reason)),
-  cuter_iserver:send_error_report(Super, Who, Reason),
+  cuter_iserver:send_error_report(Super, Who, cuter_eval:unzip_error(Reason)),
   {stop, normal, State}.
 
 %% ============================================================================

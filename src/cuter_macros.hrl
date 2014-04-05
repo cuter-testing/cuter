@@ -29,3 +29,7 @@
 -define(DEPTH_PREFIX, '__conc_depth').
 -define(EXECUTION_PREFIX, '__conc_prefix').
 -define(SYMBOLIC_PREFIX, '__s').
+-define(CONCOLIC_PREFIX_MSG, '__concm').
+-define(ZIPPED_VALUE_PREFIX, '__czip').
+-define(CONCOLIC_PREFIX_PDICT, '__concp').
+-define(FUNCTION_PREFIX, '__cfunc').
