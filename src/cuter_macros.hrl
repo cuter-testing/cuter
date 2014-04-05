@@ -15,3 +15,10 @@
 -define(TRACE_DIR(BaseDir), BaseDir ++ "/traces").
 -define(CORE_DIR(BaseDir), BaseDir ++ "/core").
 -define(TMP_DIR, "temp").
+
+%%====================================================================
+%% Prefixes
+%%====================================================================
+
+-define(DEPTH_PREFIX, '__conc_depth').
+-define(EXECUTION_PREFIX, '__conc_prefix').

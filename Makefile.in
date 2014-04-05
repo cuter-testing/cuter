@@ -27,13 +27,16 @@ SRC_MODULES = \
 	cuter_lib \
 	cuter \
 	cuter_codeserver \
-	cuter_cerl
+	cuter_cerl \
+	cuter_monitor \
+	cuter_log
 
 UTEST_MODULES = \
 	cuter_tests_lib \
 	cuter_tests \
 	cuter_codeserver_tests \
-	cuter_cerl_tests
+	cuter_cerl_tests \
+	cuter_monitor_tests
 
 ###----------------------------------------------------------------------
 ### Targets
