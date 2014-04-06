@@ -26,15 +26,6 @@ validate_subscribers_test_() ->
   Title = fun(N) -> "Validate subscribers. Number of Processes: " ++ integer_to_list(N) end,
   [{Title(N), {setup, Setup, Cleanup, Inst(N)}} || N <- [10, 100, 500, 700, 1000]].
 
-setup() ->
-  Dir = cuter_tests_lib:setup_dir(),
-  MonitorServer = cuter_monitor:start(Dir, self(), ?TRACE_DEPTH, ?EXEC_PREFIX),
-  {Dir, MonitorServer}.
-
-cleanup({Dir, MonitorServer}) ->
-  ok = cuter_monitor:stop(MonitorServer),
-  cuter_tests_lib:cleanup_dir(Dir).
-
 validate_subscribers(MonitorServer, N) ->
   process_flag(trap_exit, true),
   Me = self(),
@@ -55,3 +46,20 @@ validate_subscriber(MonitorServer, Parent) ->
   Parent ! {self(), is_monitored, M},
   receive {Parent, stop} -> ok end.
 
+setup() ->
+  Me = self(),
+  meck:new(cuter_iserver),
+  meck:expect(cuter_iserver, monitor_logs, fun(_, _) -> Me ! mock_ok, ok end),
+  Dir = cuter_tests_lib:setup_dir(),
+  MonitorServer = cuter_monitor:start(Dir, self(), ?TRACE_DEPTH, ?EXEC_PREFIX),
+  {Dir, MonitorServer}.
+
+cleanup({Dir, MonitorServer}) ->
+  ok = cuter_monitor:stop(MonitorServer),
+  receive
+    mock_ok -> ok
+  after
+    5000 -> ok
+  end,
+  meck:unload(cuter_iserver),
+  cuter_tests_lib:cleanup_dir(Dir).

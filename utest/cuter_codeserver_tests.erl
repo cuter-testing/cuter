@@ -11,8 +11,8 @@
 %% Load modules
 -spec load_modules_test_() -> term().
 load_modules_test_() ->
-  Setup = fun cuter_tests_lib:setup_dir/0,
-  Cleanup = fun cuter_tests_lib:cleanup_dir/1,
+  Setup = fun setup/0,
+  Cleanup = fun cleanup/1,
   Inst = fun(Dir) ->
     Cs = cuter_codeserver:start(Dir, self()),
     As = [load_mod(Cs, M) || M <- ?MODS_LIST],
@@ -31,8 +31,8 @@ load_mod(Cs, M) ->
 %% Load & Retrieve modules
 -spec load_and_retrieve_test_() -> term().
 load_and_retrieve_test_() ->
-  Setup = fun cuter_tests_lib:setup_dir/0,
-  Cleanup = fun cuter_tests_lib:cleanup_dir/1,
+  Setup = fun setup/0,
+  Cleanup = fun cleanup/1,
   Inst = fun(Dir) ->
     Cs = cuter_codeserver:start(Dir, self()),
     R1 = cuter_codeserver:load(Cs, lists),
@@ -50,8 +50,8 @@ load_and_retrieve_test_() ->
 %% Erroneous modules
 -spec error_load_test_() -> term().
 error_load_test_() ->
-  Setup = fun cuter_tests_lib:setup_dir/0,
-  Cleanup = fun cuter_tests_lib:cleanup_dir/1,
+  Setup = fun setup/0,
+  Cleanup = fun cleanup/1,
   Inst = fun(Dir) ->
     Cs = cuter_codeserver:start(Dir, self()),
     R1 = cuter_codeserver:load(Cs, erlang),
@@ -76,3 +76,11 @@ is_dir_empty(D) ->
     {error, enoent} -> true
   end.
 
+setup() ->
+  meck:new(cuter_iserver),
+  meck:expect(cuter_iserver, code_logs, fun(_, _) -> ok end),
+  cuter_tests_lib:setup_dir().
+
+cleanup(Dir) ->
+  meck:unload(cuter_iserver),
+  cuter_tests_lib:cleanup_dir(Dir).
