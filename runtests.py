@@ -11,4 +11,4 @@ ebin = sys.argv[1]
 tests = ["cuter"]
 for t in tests:
   print "Testing %s..." % t
-  os.system("erl -noshell -pa %s -eval \"eunit:test(%s, [verbose])\" -s init stop" % (ebin, t))
+  os.system("erl -noshell -pa %s -pa ../meck/ebin -eval \"eunit:test(%s, [verbose])\" -s init stop" % (ebin, t))
