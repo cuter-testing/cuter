@@ -33,6 +33,7 @@ i(M, F, As, Servers) ->
     fun() ->
       {SymbAs, Mapping} = cuter_symbolic:abstract(As),
       {ok, Fd} = cuter_monitor:subscribe(Servers#svs.monitor, Root),
+      cuter_log:log_symb_params(Fd, SymbAs),
       cuter_iserver:send_mapping(Root, Mapping),
       NMF = {named, M, F},
       Ret = eval(NMF, As, SymbAs, external, Servers, Fd),
@@ -88,7 +89,9 @@ eval({named, erlang, F}, CAs, SAs, _CallType, Servers, Fd) when F =:= spawn; F =
         exception(error, {undef, {erlang, spawn, Arity}})
     end,
   receive
-    {ChildP, registered} -> {ChildP, ChildP}
+    {ChildP, registered} ->
+      cuter_log:log_spawn(Fd, ChildP),
+      {ChildP, ChildP}
   end;
 
 %% spawn_monitor/{1,3}
@@ -112,7 +115,9 @@ eval({named, erlang, spawn_monitor}, CAs, SAs, _CallType, Servers, Fd) ->
   Child = subscribe_and_apply(Servers#svs.monitor, self(), EvalAs),
   {ChildP, _ChildRef} = CC = erlang:spawn_monitor(Child),
   receive
-    {ChildP, registered} -> {CC, CC}
+    {ChildP, registered} ->
+      cuter_log:log_spawn(Fd, ChildP),
+      {CC, CC}
   end;
 
 %% spawn_opt/{1,3,4,5}
@@ -158,7 +163,9 @@ eval({named, erlang, spawn_opt}, CAs, SAs, _CallType, Servers, Fd) ->
       Pid -> Pid
     end,
   receive
-    {ChildP, registered} -> {R, R}
+    {ChildP, registered} ->
+      cuter_log:log_spawn(Fd, ChildP),
+      {R, R}
   end;
 
 %% Handle message sending primitives
@@ -177,14 +184,14 @@ eval({named, erlang, send}, CAs, SAs, _CallType, Servers, Fd) ->
       [_SDest, SMsg] = SAs_e,
       %% Constraint: CDest=SDest
       CDest = adjust_message_destination(CDest_u),
-      Msg = encode_msg(Servers#svs.monitor, CDest, CMsg, SMsg),
+      Msg = encode_msg(Servers#svs.monitor, CDest, CMsg, SMsg, Fd),
       erlang:send(CDest, Msg),
       {CMsg, SMsg};
     [CDest_u, CMsg, COpts] ->
       [_SDest, SMsg, _SOpts] = SAs_e,
       %% Constraint: CDest=SDest, COpts=SOpts
       CDest = adjust_message_destination(CDest_u),
-      Msg = encode_msg(Servers#svs.monitor, CDest, CMsg, SMsg),
+      Msg = encode_msg(Servers#svs.monitor, CDest, CMsg, SMsg, Fd),
       R = erlang:send(CDest, Msg, COpts),
       {R, R};
     _ ->
@@ -200,7 +207,7 @@ eval({named, erlang, send_after}, CAs, SAs, _CallType, Servers, Fd) ->
       [_STime, _SDest, SMsg] = SAs_e,
       %% Constraint CTime=STime, CDest=SDest
       CDest = adjust_message_destination(CDest_u),
-      Msg = encode_msg(Servers#svs.monitor, CDest, CMsg, SMsg),
+      Msg = encode_msg(Servers#svs.monitor, CDest, CMsg, SMsg, Fd),
       R = erlang:send_after(CTime, CDest, Msg),
       {R, R};
     _ ->
@@ -216,14 +223,14 @@ eval({named, erlang, send_nosuspend}, CAs, SAs, _CallType, Servers, Fd) ->
       [_SDest, SMsg] = SAs_e,
       %% Constraint CDest=SDest
       CDest = adjust_message_destination(CDest_u),
-      Msg = encode_msg(Servers#svs.monitor, CDest, CMsg, SMsg),
+      Msg = encode_msg(Servers#svs.monitor, CDest, CMsg, SMsg, Fd),
       R = erlang:send_nosuspend(CDest, Msg),
       {R, R};
     [CDest_u, CMsg, COpts] ->
       [_SDest, SMsg, _SOpts] = SAs_e,
       %% Constraint CDest=SDest, COpts=SOpts
       CDest = adjust_message_destination(CDest_u),
-      Msg = encode_msg(Servers#svs.monitor, CDest, CMsg, SMsg),
+      Msg = encode_msg(Servers#svs.monitor, CDest, CMsg, SMsg, Fd),
       R = erlang:send_nosuspend(CDest, Msg, COpts),
       {R, R};
     _ ->
@@ -796,7 +803,7 @@ find_message([], _Clauses, _M, _Cenv, _Senv, _Servers, _Fd) ->
   false;
 
 find_message([Msg|Mailbox], Clauses, M, Cenv, Senv, Servers, Fd) ->
-  {Cv, Sv} = decode_msg(Msg),
+  {Cv, Sv} = decode_msg(Msg, Fd),
   case find_clause(Clauses, M, 'receive', Cv, Sv, Cenv, Senv, Servers, Fd) of
     false ->
       find_message(Mailbox, Clauses, M, Cenv, Senv, Servers, Fd);
@@ -859,10 +866,12 @@ match_clause({c_clause, _Anno, Pats, Guard, Body}, M, Mode, Cv, Sv, Cenv, Senv, 
           Se = cuter_env:add_mappings_to_environment(SMs, Senv),
           %% Make silent guards
           try eval_expr(Guard, M, Ce, Se, Servers, Fd) of
-            {true, _SGv} ->
+            {true, SGv} ->
               %% CONSTRAINT: SGv is a True guard
+              cuter_log:log_guard(Fd, true, SGv),
               {true, {Body, Ce, Se, Cnt}};
-            {false, _SGv} ->
+            {false, SGv} ->
+              cuter_log:log_guard(Fd, false, SGv),
               %% CONSTRAINT: SGv is a False guard
               false
           catch
@@ -899,13 +908,15 @@ pattern_match_all([P|Ps], BitInfo, Mode, [Cv|Cvs], [Sv|Svs], CMaps, SMaps, Serve
 %% --------------------------------------------------------
 
 %% AtomicLiteral pattern
-pattern_match({c_literal, _Anno, LitVal}, _Bitinfo, _Mode, Cv, _Sv, CMaps, SMaps, _Servers, _Fd) ->
+pattern_match({c_literal, _Anno, LitVal}, _Bitinfo, _Mode, Cv, Sv, CMaps, SMaps, _Servers, Fd) ->
   case LitVal =:= Cv of
     true ->
       %% CONSTRAINT: Sv =:= Litval
+      cuter_log:log_equal(Fd, true, LitVal, Sv),
       {true, {CMaps, SMaps}};
     false ->
       %% CONSTRAINT: Sv =/= Litval
+      cuter_log:log_equal(Fd, false, LitVal, Sv),
       false
   end;
 
@@ -922,30 +933,37 @@ pattern_match({c_tuple, _Anno, Es}, BitInfo, Mode, Cv, Sv, CMaps, SMaps, Servers
     Ne ->
       Cv_l = tuple_to_list(Cv),
       %% CONSTRAINT: Sv is a tuple of Ne elements
+      cuter_log:log_tuple(Fd, sz, Sv, Ne),
       Sv_l = cuter_symbolic:tpl_to_list(Sv, Ne, Fd),
       pattern_match_all(Es, BitInfo, Mode, Cv_l, Sv_l, CMaps, SMaps, Servers, Fd);
     _ ->
       %% CONSTRAINT: Sv is a tuple of not Ne elements
+      cuter_log:log_tuple(Fd, not_sz, Sv, Ne),
       false
   end;
-pattern_match({c_tuple, _Anno, _Es}, _BitInfo, _Mode, _Cv, _Sv, _CMaps, _SMaps, _Servers, _Fd) ->
+pattern_match({c_tuple, _Anno, Es}, _BitInfo, _Mode, _Cv, Sv, _CMaps, _SMaps, _Servers, Fd) ->
+  Ne = length(Es),
   %% CONSTRAINT: Sv is not a tuple
+  cuter_log:log_tuple(Fd, not_tpl, Sv, Ne),
   false;
 
 %% List constructor pattern
-pattern_match({c_cons, _Anno, _Hd, _Tl}, _BitInfo, _Mode, [], _Sv, _CMaps, _SMaps, _Servers, _Fd) ->
+pattern_match({c_cons, _Anno, _Hd, _Tl}, _BitInfo, _Mode, [], Sv, _CMaps, _SMaps, _Servers, Fd) ->
   %% CONSTRAINT: Sv is an empty list
+  cuter_log:log_list(Fd, empty, Sv),
   false;
 pattern_match({c_cons, _Anno, Hd, Tl}, BitInfo, Mode, [Cv|Cvs], Sv, CMaps, SMaps, Servers, Fd) ->
   %% CONSTRAINT: S is a non empty list
+  cuter_log:log_list(Fd, nonempty, Sv),
   Sv_h = cuter_symbolic:head(Sv, Fd),
   Sv_t = cuter_symbolic:tail(Sv, Fd),
   case pattern_match(Hd, BitInfo, Mode, Cv, Sv_h, CMaps, SMaps, Servers, Fd) of
     false -> false;
     {true, {CMs, SMs}} -> pattern_match(Tl, BitInfo, Mode, Cvs, Sv_t, CMs, SMs, Servers, Fd)
   end;
-pattern_match({c_cons, _Anno, _Hd, _Tl}, _BitInfo, _Mode, _Cv, _Sv, _CMaps, _SMaps, _Servers, _Fd) ->
+pattern_match({c_cons, _Anno, _Hd, _Tl}, _BitInfo, _Mode, _Cv, Sv, _CMaps, _SMaps, _Servers, Fd) ->
   %% CONSTRAINT: Sv is not a list
+  cuter_log:log_list(Fd, not_lst, Sv),
   false;
 
 %% Alias pattern
@@ -969,11 +987,13 @@ pattern_match({c_binary, _Anno, Segments}, BitInfo, Mode, Cv, Sv, CMaps, SMaps, 
 %% 
 %% --------------------------------------------------------
 
-bit_pattern_match([], _BitInfo, _Mode, <<>>, _Sv, CMaps, SMaps, _Servers, _Fd) ->
+bit_pattern_match([], _BitInfo, _Mode, <<>>, Sv, CMaps, SMaps, _Servers, Fd) ->
   %% CONSTRAINT: Sv =:= <<>>
+  cuter_log:log_equal(Fd, true, <<>>, Sv),
   {true, {CMaps, SMaps}};
-bit_pattern_match([], _BitInfo, _Mode, _Cv, _Sv, _CMaps, _SMaps, _Servers, _Fd) ->
+bit_pattern_match([], _BitInfo, _Mode, _Cv, Sv, _CMaps, _SMaps, _Servers, Fd) ->
   %% CONSTRAINT: Sv =/= <<>>
+  cuter_log:log_equal(Fd, false, <<>>, Sv),
   false;
 
 bit_pattern_match([{c_bitstr, _, {c_literal, _, LVal}, Sz, Unit, Tp, Fgs}|Bs], {M, Cenv, Senv} = Bnfo, Mode, Cv, Sv, CMaps, SMaps, Svs, Fd) -> 
@@ -1360,15 +1380,20 @@ find_call_type(_M1, _M2) -> external.
 %% --------------------------------------------------------
 
 %% Encode a Message
-encode_msg(MonitorServer, Dest, CMsg, SMsg) ->
-  case cuter_monitor:is_monitored(MonitorServer, Dest) of
-    true  -> {?CONCOLIC_PREFIX_MSG, zip_one(CMsg, SMsg)};
+encode_msg(MonitorServer, Dest, CMsg, SMsg, Fd) ->
+  Ref = erlang:make_ref(),
+  P = cuter_lib:ensure_port_or_pid(Dest),
+  cuter_log:log_message_sent(Fd, P, Ref),
+  case cuter_monitor:is_monitored(MonitorServer, P) of
+    true  -> {?CONCOLIC_PREFIX_MSG, Ref, zip_one(CMsg, SMsg)};
     false -> CMsg
   end.
 
 %% Decode a Message
-decode_msg({?CONCOLIC_PREFIX_MSG, Msg}) -> unzip_msg(Msg);
-decode_msg(Msg) -> unzip_msg(Msg).
+decode_msg({?CONCOLIC_PREFIX_MSG, Ref, Msg}, Fd) when is_reference(Ref) ->
+  cuter_log:log_message_received(Fd, Ref),
+  unzip_msg(Msg);
+decode_msg(Msg, _Fd) -> unzip_msg(Msg).
 
 %% --------------------------------------------------------
 %% Zip and Unzip concrete-semantic values

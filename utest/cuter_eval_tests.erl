@@ -8,10 +8,33 @@
   lambdaEval/1, doBitMatch/0, doRegister/0
 ]).
 
+-export([run/2, run/3]).
+
 -include_lib("eunit/include/eunit.hrl").
 -include("eunit_config.hrl").
 
 -spec test() -> ok | {error | term()}. %% Silence dialyzer warning
+
+-spec run(atom(), [any()]) -> any().
+run(F, As) -> run(?MODULE, F, As).
+
+-spec run(atom(), atom(), [any()]) -> any().
+run(M, F, As) ->
+  process_flag(trap_exit, true),
+  Dir = cuter_tests_lib:setup_dir(),
+  Server = cuter_iserver:start(M, F, As, Dir, Dir, ?TRACE_DEPTH),
+  R = 
+    receive
+      {Server, ExStatus, Result} -> {Server, ExStatus, Result}
+    end,
+  receive
+    {'EXIT', Server, normal} -> ok
+  after
+    5000 -> ok
+  end,
+  cuter_tests_lib:cleanup_dir(Dir),
+  io:format("~p~n", [R]),
+  R.
 
 -spec eval_cerl_test_() -> term().
 eval_cerl_test_() ->

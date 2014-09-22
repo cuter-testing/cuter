@@ -3,7 +3,7 @@
 -module(cuter_symbolic).
 
 -export([
-  abstract/1, evaluate_mfa/4,
+  abstract/1, evaluate_mfa/4, is_symbolic/1,
   ensure_list/3, tpl_to_list/3, head/2, tail/2,
   append_segments/3, make_bitstring/4, match_bitstring_const/5, match_bitstring_var/5
 ]).
@@ -52,12 +52,17 @@ is_supported_mfa(_) -> false.
 evaluate_mfa(MFA, SAs, Cv, Fd) ->
   case is_supported_mfa(MFA) of
     false -> Cv;
-    true -> evaluate_supported_mfa(MFA, SAs, Fd)
+    true  ->
+      case lists:any(fun cuter_symbolic:is_symbolic/1, SAs) of
+        false -> Cv;
+        true  -> evaluate_supported_mfa(MFA, SAs, Fd)
+      end
   end.
 
--spec evaluate_supported_mfa(mfa(), [maybe_s(any())], file:io_device()) -> symbolic().
-evaluate_supported_mfa(_MFA, _SAs, _Fd) ->
+-spec evaluate_supported_mfa(mfa(), [maybe_s(any())], file:io_device()) -> maybe_s(any()).
+evaluate_supported_mfa(MFA, SAs, Fd) ->
   X = fresh_symbolic_var(),
+  cuter_log:log_mfa(Fd, MFA, SAs, X),
   X.
 
 %% =============================================================
@@ -97,8 +102,9 @@ tail(Sv, Fd) -> evaluate_supported_mfa({erlang, tl, 1}, [Sv], Fd).
 %% Create a list of N elements from a symbolic variable
 %% that represents a list or a tuple with size N
 -spec break_term(break_tuple | break_list, symbolic(), pos_integer(), file:io_device()) -> [symbolic()].
-break_term(M, _Sv, N, _Fd) when M =:= break_tuple; M =:= break_list ->
+break_term(M, Sv, N, Fd) when M =:= break_tuple; M =:= break_list ->
   Vs = [fresh_symbolic_var() || _ <- lists:seq(1, N)],
+  cuter_log:log_unfold_symbolic(Fd, M, Sv, Vs),
   Vs.
 
 %% =============================================================
