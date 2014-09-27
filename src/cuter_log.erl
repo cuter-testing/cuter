@@ -43,7 +43,7 @@ log_symb_params(Fd, Ps)  -> log(Fd, params, Ps).
 
 -spec log_spawn(file:io_device(), pid()) -> ok.
 log_spawn(Fd, Child) ->
-  log(Fd, spawn, [Child]).
+  log(Fd, spawn, [pid_to_list(Child)]).
 
 %% ------------------------------------------------------------------
 %% Log message passing
@@ -51,11 +51,11 @@ log_spawn(Fd, Child) ->
 
 -spec log_message_sent(file:io_device(), pid(), reference()) -> ok.
 log_message_sent(Fd, Dest, Ref) ->
-  log(Fd, send_msg, [Dest, Ref]).
+  log(Fd, send_msg, [pid_to_list(Dest), erlang:ref_to_list(Ref)]).
 
 -spec log_message_received(file:io_device(), reference()) -> ok.
 log_message_received(Fd, Ref) ->
-  log(Fd, receive_msg, [Ref]).
+  log(Fd, receive_msg, [erlang:ref_to_list(Ref)]).
 
 %% ------------------------------------------------------------------
 %% Log the unfolding of a symbolic variable that represents 
@@ -112,9 +112,13 @@ log(Fd, Cmd, Data) ->
     N when is_integer(N), N > 0 ->
       Op = cmd2op(Cmd),
       CmdType = cmd_type(Cmd),
-      Json_data = term_to_binary([Op, Data]), %% TODO
-      write_data(Fd, CmdType, Json_data),
-      update_constraint_counter(CmdType, N)
+      try cuter_json:command_to_json(Op, Data) of
+        Json_data ->
+          write_data(Fd, CmdType, Json_data),
+          update_constraint_counter(CmdType, N)
+      catch
+        throw:{unsupported_term, _} -> ok
+      end
   end.
 -else.
 log(_, _, _) -> ok.

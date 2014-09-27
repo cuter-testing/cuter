@@ -44,6 +44,12 @@
 %% Various OpCodes
 %%====================================================================
 
+-define(JSON_TYPE_INT, 1).
+-define(JSON_TYPE_FLOAT, 2).
+-define(JSON_TYPE_ATOM, 3).
+-define(JSON_TYPE_LIST, 4).
+-define(JSON_TYPE_TUPLE, 5).
+
 -define(CONSTRAINT_TRUE, 1).
 -define(CONSTRAINT_FALSE, 2).
 -define(NOT_CONSTRAINT, 3).

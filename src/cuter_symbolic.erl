@@ -3,7 +3,8 @@
 -module(cuter_symbolic).
 
 -export([
-  abstract/1, evaluate_mfa/4, is_symbolic/1,
+  fresh_symbolic_var/0, abstract/1, evaluate_mfa/4, 
+  is_symbolic/1, serialize/1, deserialize/1,
   ensure_list/3, tpl_to_list/3, head/2, tail/2,
   append_segments/3, make_bitstring/4, match_bitstring_const/5, match_bitstring_var/5
 ]).
@@ -38,6 +39,13 @@ abstract(Vs) ->
   Maps = lists:zip(Symbs, Vs),
   {Symbs, Maps}.
 
+%% Serialize the representation of a symbolic value
+-spec serialize(symbolic()) -> list().
+serialize({?SYMBOLIC_PREFIX, SymbVar}) when is_list(SymbVar) -> SymbVar.
+
+%% Create a symbolic value from a List representation
+-spec deserialize(list()) -> symbolic().
+deserialize(L) when is_list(L) -> {?SYMBOLIC_PREFIX, L}.
 
 %% =============================================================
 %% Symbolic evaluation of MFAs

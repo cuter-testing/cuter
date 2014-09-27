@@ -36,7 +36,8 @@ SRC_MODULES = \
 	cuter_symbolic \
 	cuter_mock \
 	cuter_env \
-	cuter_erlang
+	cuter_erlang \
+	cuter_json
 
 UTEST_MODULES = \
 	cuter_tests_lib \
@@ -45,7 +46,8 @@ UTEST_MODULES = \
 	cuter_cerl_tests \
 	cuter_monitor_tests \
 	cuter_iserver_tests \
-	cuter_eval_tests
+	cuter_eval_tests \
+	cuter_json_tests
 
 ###----------------------------------------------------------------------
 ### Targets
