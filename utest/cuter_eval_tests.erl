@@ -5,7 +5,8 @@
 -export([
   doDouble/1, doDouble2/1, doCons/1, doTuple/1, doLet/1,
   doLetRec/1, doBinary/0, doDoubleFun/1, doEcho/0, doReceive/1,
-  lambdaEval/1, doBitMatch/0, doRegister/0
+  lambdaEval/1, doBitMatch/0, doRegister/0, doDistributed/1,
+  selective_receive/1
 ]).
 
 -export([run/2, run/3]).
@@ -50,7 +51,9 @@ eval_cerl_test_() ->
     {"Send / Receive messages", {doReceive, [ping], ok}},
     {"Pattern Mathing", {lambdaEval, [{{{$\\,x,{$\\,y,{$+,x,y}}},5},4}], 9}},
     {"Bit Pattern Matching", {doBitMatch, [], {42, <<"ok">>}}},
-    {"Naming Processes", {doRegister, [], true}}
+    {"Naming Processes", {doRegister, [], true}},
+    {"Start a Slave Node", {doDistributed, [lists:seq(1,100)], 100}},
+    {"Selective Receive", {selective_receive, [100], ok}}
   ],
   Setup = fun(I) -> fun() -> setup(I) end end,
   Cleanup = fun cleanup/1,
@@ -172,4 +175,42 @@ doRegister() ->
   after
     1000 -> ok
   end.
-  
+
+%% Start a slave node
+
+-spec doDistributed([any()]) -> integer().
+doDistributed(X) when is_list(X) ->
+  _ = net_kernel:start([master, shortnames]),
+  {ok, Host} = inet:gethostname(),
+  {ok, Node} = slave:start(list_to_atom(Host), slave),
+  F = fun() ->
+    Rv = length(X),
+    receive {From, ping} -> From ! {self(), Rv} end
+  end,
+  Fpid = spawn(Node, F),
+  Fpid ! {self(), ping},
+  receive {Fpid, Msg} -> Msg end.
+
+%% Selective receive
+
+-spec selective_receive(integer()) -> ok.
+selective_receive(N) ->
+  Msg1 = some_important_message,
+  Msg2 = less_important_message,
+  Msg3 = spam,
+  Fun = 
+    fun() ->
+      receive go -> ok end,
+      receive
+        {From, Msg1} -> From ! {self(), high};
+        {From, Msg2} -> From ! {self(), low}
+      end
+    end,
+  [PH, PL] = [spawn(Fun) || _ <- [1,2]],
+  [Pid ! {self(), Msg3} || _ <- lists:seq(1, N), Pid <- [PH, PL]],
+  PH ! {self(), Msg1},
+  PL ! {self(), Msg2},
+  [Pid ! go || Pid <- [PH, PL]],
+  receive {PH, high} -> ok end,
+  receive {PL, low} -> ok end.
+

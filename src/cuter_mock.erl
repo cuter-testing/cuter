@@ -113,5 +113,10 @@ simulate_behaviour(os, getenv, 1) -> bif;
 simulate_behaviour(os, getpid, 0) -> bif;
 simulate_behaviour(os, putenv, 2) -> bif;
 simulate_behaviour(os, timestamp, 0) -> bif;
+%% Module slave
+%% It is treated as BIF because it includes a registered name in the command
+%% that creates a new node and thus cannot work by just overriding
+%% the register/1 and unregister/1 commands
+simulate_behaviour(slave, start, _A) -> bif;
 %% Rest MFAs are not BIFs
 simulate_behaviour(M, F, A) -> {ok, {M, F, A}}.

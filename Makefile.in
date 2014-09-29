@@ -37,7 +37,8 @@ SRC_MODULES = \
 	cuter_mock \
 	cuter_env \
 	cuter_erlang \
-	cuter_json
+	cuter_json \
+	cuter_pp
 
 UTEST_MODULES = \
 	cuter_tests_lib \

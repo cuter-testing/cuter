@@ -10,11 +10,13 @@
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_info/2, handle_call/3, handle_cast/2]).
 
+-export_type([execution_status/0]).
+
 %% Internal type declarations
 -type ann_pid() :: {node(), pid()}.
--type execution_status() :: {success, any()} 
+-type execution_status() :: {success, cuter_eval:result()} 
                           | {internal_error, (codeserver | monitorserver | iserver), node(), any()}
-                          | {runtime_error, node(), pid(), any()}.
+                          | {runtime_error, node(), pid(), cuter_eval:result()}.
 
 %% Server's state
 %% ---------------

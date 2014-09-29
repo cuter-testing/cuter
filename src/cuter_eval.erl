@@ -359,13 +359,13 @@ eval({named, M, F}, CAs_b, SAs_b, CallType, Servers, Fd) ->
   MFA = {M, F, Arity},
   case access_mfa_code(MFA, Servers) of
     error -> evaluate_bif(MFA, CAs, SAs_e, Fd);
-    {Def, Exported} ->
+    {NM, {Def, Exported}} ->
       check_exported(Exported, CallType, MFA),
       NCenv = cuter_env:new_environment(),
       NSenv = cuter_env:new_environment(),
       Cenv = cuter_env:bind_parameters(CAs, Def#c_fun.vars, NCenv),
       Senv = cuter_env:bind_parameters(SAs_e, Def#c_fun.vars, NSenv),
-      eval_expr(Def#c_fun.body, M, Cenv, Senv, Servers, Fd)
+      eval_expr(Def#c_fun.body, NM, Cenv, Senv, Servers, Fd)
   end;
 
 %% Handle a Closure
@@ -693,7 +693,7 @@ access_mfa_code({Mod, Fun, Arity}, Servers) ->
     {ok, {M, _F, Arity} = MFA} ->
       case get_module_db(M, Servers#svs.code) of
         {error, _} -> error;
-        {ok, MDb} -> retrieve_function_code(MFA, MDb)
+        {ok, MDb} -> {M, retrieve_function_code(MFA, MDb)}
       end
   end.
 
@@ -1050,10 +1050,10 @@ bit_pattern_match([{c_bitstr, _, {c_var, _, VarName}, Sz, Unit, Tp, Fgs}|Bs], {M
 %% Create a Closure of a local function
 create_closure(M, F, Arity, local, Servers, Fd) ->
   %% Module is already loaded since create_closure is called by eval_expr
-  {Def, _Exported} = access_mfa_code({M, F, Arity}, Servers),
+  {NM, {Def, _Exported}} = access_mfa_code({M, F, Arity}, Servers),
   Cenv = cuter_env:new_environment(),
   Senv = cuter_env:new_environment(),
-  make_fun(Def#c_fun.vars, Def#c_fun.body, M, Arity, Cenv, Senv, Servers, Fd);
+  make_fun(Def#c_fun.vars, Def#c_fun.body, NM, Arity, Cenv, Senv, Servers, Fd);
 
 %% Create a Closure when the MFA is a function bound in a letrec
 create_closure(M, _F, Arity, {letrec_func, {Def, Cenv, Senv}}, Servers, Fd) ->
@@ -1160,7 +1160,7 @@ make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, FileDescr) ->
   {Ce, Se} = register_new_environments(Args, Vars, Cenv, Senv),
   NSvs = validate_servers(Servers),
   Fd = validate_file_descriptor(NSvs#svs.monitor, Creator, FileDescr),
-  eval_expr(Body, Mod, Ce, Se, Servers, Fd).
+  eval_expr(Body, Mod, Ce, Se, NSvs, Fd).
 
 register_new_environments([], _Vars, Cenv, Senv) ->
   {Cenv, Senv};
@@ -1286,8 +1286,7 @@ adjust_arguments(slave, F, CAs, SAs, Fd) when F =:= start; F =:= start_link ->
     [Host, Name, Args] ->
       %% Also add the path to the symbolic Args ???
       {[Host, Name, Args ++ Ebin], SAs_e};
-    _ ->
-      exception(error, {undef, {slave, F, Arity}})
+    _ -> {CAs, SAs_e} %% Do not the arguments of the other calls
   end;
 
 %% erlang:register/1
@@ -1383,10 +1382,11 @@ find_call_type(_M1, _M2) -> external.
 encode_msg(MonitorServer, Dest, CMsg, SMsg, Fd) ->
   Ref = erlang:make_ref(),
   P = cuter_lib:ensure_port_or_pid(Dest),
-  cuter_log:log_message_sent(Fd, P, Ref),
   case cuter_monitor:is_monitored(MonitorServer, P) of
-    true  -> {?CONCOLIC_PREFIX_MSG, Ref, zip_one(CMsg, SMsg)};
-    false -> CMsg
+    false -> CMsg;
+    true  ->
+      cuter_log:log_message_sent(Fd, P, Ref),
+      {?CONCOLIC_PREFIX_MSG, Ref, zip_one(CMsg, SMsg)}
   end.
 
 %% Decode a Message
@@ -1419,7 +1419,7 @@ unzip_args(As) when is_list(As) ->
    lists:unzip([unzip_one(A) || A <- As]).
 
 %% unzip_error // for exception reasons
--spec unzip_error(term()) -> {term(), term()}.
+-spec unzip_error(term()) -> result().
 unzip_error({nocatch, {?ZIPPED_VALUE_PREFIX, Cv, Sv}}) ->
   {Cv, Sv};
 unzip_error({{?ZIPPED_VALUE_PREFIX, Cv, Sv}, Stack}) when is_list(Stack) ->

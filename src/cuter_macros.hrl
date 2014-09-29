@@ -18,6 +18,7 @@
 %% Directories
 %%====================================================================
 
+-define(DATA_DIR(BaseDir, No), BaseDir ++ "/exec" ++ integer_to_list(No)).
 -define(TRACE_DIR(BaseDir), BaseDir ++ "/traces").
 -define(CORE_DIR(BaseDir), BaseDir ++ "/core").
 -define(TMP_DIR, "temp").
@@ -39,6 +40,7 @@
 %%====================================================================
 
 -define(LOGGING_FLAG, ok).
+-define(DELETE_TRACE, ok).
 
 %%====================================================================
 %% Various OpCodes
