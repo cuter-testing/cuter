@@ -5,7 +5,7 @@
 -include("cuter_macros.hrl").
 
 %% external exports
--export([unique_string/0, ensure_port_or_pid/1, clear_and_delete_dir/1]).
+-export([unique_string/0, ensure_port_or_pid/1, clear_and_delete_dir/1, list_dir/1]).
 
 %% Generate a unique string
 -spec unique_string() -> nonempty_string().
@@ -46,3 +46,9 @@ delete_file(F) -> file:delete(F).
 -else.
 delete_file(_) -> ok.
 -endif.
+
+%% List the absolute names of the files in a directory in ascending order
+-spec list_dir(string()) -> [file:filename()].
+list_dir(Dir) ->
+  {ok, Fs} = file:list_dir(Dir),
+  [Dir ++ "/" ++ F || F <- lists:sort(fun erlang:'<'/2, Fs)].

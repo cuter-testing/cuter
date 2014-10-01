@@ -22,6 +22,7 @@
 -define(TRACE_DIR(BaseDir), BaseDir ++ "/traces").
 -define(CORE_DIR(BaseDir), BaseDir ++ "/core").
 -define(TMP_DIR, "temp").
+-define(PYTHON_CALL, ?PYTHON_PATH ++ " -u " ++ ?PRIV ++ "/erlang_port.py").
 
 %%====================================================================
 %% Prefixes
@@ -55,6 +56,9 @@
 -define(CONSTRAINT_TRUE, 1).
 -define(CONSTRAINT_FALSE, 2).
 -define(NOT_CONSTRAINT, 3).
+
+-define(CONSTRAINT_TRUE_REPR, 84).   %% $T
+-define(CONSTRAINT_FALSE_REPR, 70).  %% $F
 
 -define(OP_PARAMS, 1).
 -define(OP_SPEC, 2).

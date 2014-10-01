@@ -38,7 +38,10 @@ SRC_MODULES = \
 	cuter_env \
 	cuter_erlang \
 	cuter_json \
-	cuter_pp
+	cuter_pp \
+	cuter_scheduler \
+	cuter_analyzer \
+	python
 
 UTEST_MODULES = \
 	cuter_tests_lib \

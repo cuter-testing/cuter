@@ -6,7 +6,8 @@
 
 -export([open_file/2, close_file/1, log_spawn/2, log_message_sent/3,
          log_message_received/2, log_symb_params/2, log_guard/3, log_equal/4,
-         log_tuple/4, log_list/3, log_unfold_symbolic/4, log_mfa/4]).
+         log_tuple/4, log_list/3, log_unfold_symbolic/4, log_mfa/4,
+         path_vertex/1]).
 
 -type mode() :: read | write.
 
@@ -179,4 +180,37 @@ i32_to_list(Int) when is_integer(Int) ->
    (Int bsr  8) band 255,
     Int band 255].
 
+%% Decode a 4-byte binary to the corresponding 32-bit number
+-spec bin_to_i32(binary()) -> non_neg_integer().
+bin_to_i32(B) when is_binary(B) ->
+  [X1, X2, X3, X4] = erlang:binary_to_list(B, 1, 4),
+  (X1 bsl 24) bor (X2 bsl 16) bor (X3 bsl 8) bor X4.
 
+%% Generate the path vertex from a trace file
+-spec path_vertex(file:name()) -> cuter_analyzer:path_vertex().
+path_vertex(File) ->
+  {ok, Fd} = open_file(File, read),
+  generate_vertex(Fd, []).
+
+generate_vertex(Fd, Acc) ->
+  case safe_read(Fd, 1, true) of
+    eof ->
+      close_file(Fd),
+      lists:reverse(Acc);
+    <<N>> ->
+      Sz = bin_to_i32(safe_read(Fd, 4, false)),
+      {ok, _} = file:position(Fd, {cur, Sz}),
+      case N of
+        ?CONSTRAINT_TRUE  -> generate_vertex(Fd, [?CONSTRAINT_TRUE_REPR|Acc]);
+        ?CONSTRAINT_FALSE -> generate_vertex(Fd, [?CONSTRAINT_FALSE_REPR|Acc]);
+        ?NOT_CONSTRAINT   -> generate_vertex(Fd, Acc)
+      end
+  end.
+
+safe_read(Fd, Sz, AllowEOF) ->
+  case file:read(Fd, Sz) of
+    {ok, Bin} -> Bin;
+    eof when AllowEOF -> eof;
+    eof -> throw(unexpected_eof);
+    {error, Reason} -> throw({file_read_failed, Reason})
+  end.

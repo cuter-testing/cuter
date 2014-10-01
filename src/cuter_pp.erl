@@ -54,5 +54,6 @@ exec_info_data({monitor_logs, Logs}) ->
 exec_info_data({code_logs, Logs}) ->
   io:format("    CODE LOGS~n"),
   io:format("      ~p~n", [Logs]);
+%exec_info_data(Data) -> io:format("    ~p~n", [Data]).
 exec_info_data(_) -> ok.
 

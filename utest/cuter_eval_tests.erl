@@ -207,7 +207,7 @@ selective_receive(N) ->
       end
     end,
   [PH, PL] = [spawn(Fun) || _ <- [1,2]],
-  [Pid ! {self(), Msg3} || _ <- lists:seq(1, N), Pid <- [PH, PL]],
+  _ = [Pid ! {self(), Msg3} || _ <- lists:seq(1, N), Pid <- [PH, PL]],
   PH ! {self(), Msg1},
   PL ! {self(), Msg2},
   [Pid ! go || Pid <- [PH, PL]],
