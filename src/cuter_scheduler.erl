@@ -131,7 +131,7 @@ handle_call({store_execution, Ref, Info}, _From, S=#state{queue = Q, info = I, w
   N = maps:get(next_constraint, PartialInfo),
   case N > Ln of
     true ->
-      cuter_lib:clear_and_delete_dir(maps:get(dataDir, Info)),
+      cuter_lib:clear_and_delete_dir(maps:get(dir, Info)),
       ets:delete(I, Ref),
       {reply, ok, S};
     false ->
@@ -176,12 +176,12 @@ expand_state(Q, Ref, I, Python, Depth) ->
   [{Ref, Info}] = ets:lookup(I, Ref),
   ets:delete(I, Ref),
   N = maps:get(next_constraint, Info),
-  Fs = cuter_analyzer:file_constraints(maps:get(traces, Info), N),
-  case python:solve(Fs, maps:get(mappings, Info), Python) of
+  {F, NC} = cuter_analyzer:file_constraints(maps:get(traces, Info), N),
+  case cuter_solver:run(Python, maps:get(mappings, Info), F, NC) of
     error ->
       Q1 = requeue_state(Q, Ref, I, Info, Depth),
       {error, Q1};
-    {ok, Inp} ->
+    Inp ->
       R = make_ref(),
       ets:insert(I, {R, #{next_constraint => N+1}}),
       Q1 = requeue_state(Q, Ref, I, Info, Depth),

@@ -60,11 +60,11 @@ node_path_length({_Node, Ps}) ->
   lists:foldl(fun(X, Acc) -> X + Acc end, 0, [length(P) || P <- Ps]).
 
 
--spec file_constraints([node_trace()], integer()) -> [{file:filename(), integer(), integer(), boolean()}].
+-spec file_constraints([node_trace()], integer()) -> {file:filename(), integer()}.
 file_constraints([{_Node, Dir}|_], N) ->
   [F|_] = cuter_lib:list_dir(Dir),
   V = cuter_log:path_vertex(F),
   case N < length(V) of
-    true  -> [{F, 1, N, true}];
-    false -> [{F, 1, length(V), true}]
+    true  -> {F, N};
+    false -> {F, length(V)}
   end.

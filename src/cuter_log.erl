@@ -115,7 +115,7 @@ log(Fd, Cmd, Data) ->
       CmdType = cmd_type(Cmd),
       try cuter_json:command_to_json(Op, Data) of
         Json_data ->
-          write_data(Fd, CmdType, Json_data),
+          write_data(Fd, CmdType, Op, Json_data),
           update_constraint_counter(CmdType, N)
       catch
         throw:{unsupported_term, _} -> ok
@@ -168,9 +168,9 @@ update_constraint_counter(_Cmd, _ok) -> ok.
 %% Read / Write Data
 %% ------------------------------------------------------------------
 
-write_data(Fd, Id, Data) when is_integer(Id), is_binary(Data) ->
+write_data(Fd, Id, Op, Data) when is_integer(Id), is_integer(Op), is_binary(Data) ->
   Sz = erlang:byte_size(Data),
-  ok = file:write(Fd, [Id, i32_to_list(Sz), Data]).
+  ok = file:write(Fd, [Id, Op, i32_to_list(Sz), Data]).
 
 %% Encode a 32-bit integer to its corresponding sequence of four bytes
 -spec i32_to_list(non_neg_integer()) -> [byte(), ...].
@@ -198,6 +198,7 @@ generate_vertex(Fd, Acc) ->
       close_file(Fd),
       lists:reverse(Acc);
     <<N>> ->
+      _ = safe_read(Fd, 1, false),
       Sz = bin_to_i32(safe_read(Fd, 4, false)),
       {ok, _} = file:position(Fd, {cur, Sz}),
       case N of

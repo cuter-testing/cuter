@@ -4,7 +4,7 @@
 
 -include("cuter_macros.hrl").
 
--export([command_to_json/2, term_to_json/1, json_to_term/1]).
+-export([command_to_json/2, term_to_json/1, json_to_term/1, encode_port_command/2]).
 
 -define(Q, $\").
 
@@ -14,6 +14,10 @@
 -define(ENCODE_DICT_ENTRY(K, V), [?Q, K, ?Q, $:, V]).    %% "K":V
 -define(ENCODE_DICT(D), [?Q, $d, ?Q, $:, $\{, D, $\}]).  %% "d":{D}
 -define(ENCODE_CMD(C, As), [$\{, ?Q, $c, ?Q, $:, C, $,, ?Q, $a, ?Q, $:, $\[, As, $\], $\}]). %% {"c":C, "a":[As]}
+
+-define(ENCODE_KV_INT(K, V), [?Q, K, ?Q, $:, integer_to_list(V)]).  %% "K":V
+-define(ENCODE_KV_TERM(K, V), [?Q, K, ?Q, $:, json_encode(V)]).     %% "K":V
+-define(ENCODE_KV_STR(K, V), [?Q, K, ?Q, $:, ?Q, V, ?Q]).           %% "K":"V"
 
 -define(IS_SIGN(C), (C =:= $-)).
 -define(IS_DECIMAL_POINT(C), (C =:= $.)).
@@ -57,6 +61,59 @@ json_to_term(JSON) ->
   Obj.
 
 %% ==============================================================================
+%% Exported JSON Encoding / Decoding functions for Port Communication
+%% ==============================================================================
+
+-spec encode_port_command(load_trace_file, {file:name(), integer()}) -> binary()
+                       ; (solve, any()) -> binary()
+                       ; (get_model, any()) -> binary()
+                       ; (add_axioms, any()) -> binary()
+                       ; (fix_variable, {cuter_symbolic:symbolic(), any()}) -> binary()
+                       ; (reset_solver, any()) -> binary()
+                       ; (stop, any()) -> binary().
+
+encode_port_command(load_trace_file, {File, To}) ->
+  T = ?ENCODE_KV_INT($t, ?JSON_CMD_LOAD_TRACE_FILE),
+  A1 = ?ENCODE_KV_STR($f, File),
+  A2 = ?ENCODE_KV_INT($e, To),
+  CMD = [$\{, T, $,, A1, $,, A2, $\}],
+  list_to_binary(CMD);
+
+encode_port_command(solve, _) ->
+  T = ?ENCODE_KV_INT($t, ?JSON_CMD_SOLVE),
+  CMD = [$\{, T, $\}],
+  list_to_binary(CMD);
+
+encode_port_command(get_model, _) ->
+  T = ?ENCODE_KV_INT($t, ?JSON_CMD_GET_MODEL),
+  CMD = [$\{, T, $\}],
+  list_to_binary(CMD);
+
+encode_port_command(add_axioms, _) ->
+  T = ?ENCODE_KV_INT($t, ?JSON_CMD_ADD_AXIOMS),
+  CMD = [$\{, T, $\}],
+  list_to_binary(CMD);
+
+encode_port_command(fix_variable, {SymbVar, Val}) ->
+  T = ?ENCODE_KV_INT($t, ?JSON_CMD_FIX_VARIABLE),
+  A1 = ?ENCODE_KV_TERM($s, SymbVar),
+  A2 = ?ENCODE_KV_TERM($v, Val),
+  CMD = [$\{, T, $,, A1, $,, A2, $\}],
+  list_to_binary(CMD);
+
+encode_port_command(reset_solver, _) ->
+  T = ?ENCODE_KV_INT($t, ?JSON_CMD_RESET_SOLVER),
+  CMD = [$\{, T, $\}],
+  list_to_binary(CMD);
+
+encode_port_command(stop, _) ->
+  T = ?ENCODE_KV_INT($t, ?JSON_CMD_STOP),
+  CMD = [$\{, T, $\}],
+  list_to_binary(CMD).
+
+
+
+%% ==============================================================================
 %% Decode JSON Terms
 %% ==============================================================================
 
@@ -94,9 +151,14 @@ decode_object(JSON, Dec=#decoder{state = special_or_obj}) ->
       decode_object(R2, #decoder{state = endpoint, acc = [Obj]});
     _ ->
       {Type, R1} = decode_type(JSON, Dec#decoder{state = start}),
-      R2 = trim_separator(R1, $,, Dec),
-      {Obj, R3} = decode_value(Type, R2, Dec#decoder{state = start}),
-      decode_object(R3, #decoder{state = endpoint, acc = [Obj]})
+      case Type of 
+        ?JSON_TYPE_ANY ->
+          decode_object(R1, #decoder{state = endpoint, acc = [?UNBOUND_VAR_PREFIX]});
+        _ ->
+          R2 = trim_separator(R1, $,, Dec),
+          {Obj, R3} = decode_value(Type, R2, Dec#decoder{state = start}),
+          decode_object(R3, #decoder{state = endpoint, acc = [Obj]})
+      end
   end;
 decode_object(JSON, Dec=#decoder{state = endpoint, acc=[Obj]}) ->
   case trim_whitespace(JSON) of

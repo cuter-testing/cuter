@@ -3,7 +3,7 @@
 -module(cuter_symbolic).
 
 -export([
-  fresh_symbolic_var/0, abstract/1, evaluate_mfa/4, 
+  fresh_symbolic_var/0, abstract/1, evaluate_mfa/4, generate_new_input/2,
   is_symbolic/1, serialize/1, deserialize/1,
   ensure_list/3, tpl_to_list/3, head/2, tail/2,
   append_segments/3, make_bitstring/4, match_bitstring_const/5, match_bitstring_var/5
@@ -38,6 +38,17 @@ abstract(Vs) ->
   Symbs = [fresh_symbolic_var() || _ <- lists:seq(1, erlang:length(Vs))],
   Maps = lists:zip(Symbs, Vs),
   {Symbs, Maps}.
+
+%% Extract new concrete input from the symbolic mapping and the solver's result
+-spec generate_new_input([mapping()], [{symbolic(), cuter_solver:model()}]) -> [any()].
+generate_new_input(Maps, Model) ->
+  F = fun({X, V}) ->
+    case cuter_solver:lookup_in_model(X, Model) of  %% Do not expect an exception to be raised
+      ?UNBOUND_VAR_PREFIX -> V;
+      NV -> NV
+    end
+  end,
+  [F(M) || M <- Maps].
 
 %% Serialize the representation of a symbolic value
 -spec serialize(symbolic()) -> list().

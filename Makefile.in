@@ -41,7 +41,7 @@ SRC_MODULES = \
 	cuter_pp \
 	cuter_scheduler \
 	cuter_analyzer \
-	python
+	cuter_solver
 
 UTEST_MODULES = \
 	cuter_tests_lib \
