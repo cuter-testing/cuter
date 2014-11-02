@@ -126,7 +126,7 @@ init([M, F, As, CoreDir, LogDir, Depth, Super]) ->
     prefix = Prefix,
     cpids = [{Node, CodeServer}],
     mpids = [{Node, MonitorServer}],
-    info = orddict:store(Node, [], orddict:new()),
+    info = orddict:store(Node, [{int, {node(Ipid), Ipid}}], orddict:new()),
     int = {Ipid, running}
   },
   {ok, InitState}.

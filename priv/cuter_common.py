@@ -9,6 +9,8 @@ JSON_TYPE_FLOAT = 2
 JSON_TYPE_ATOM = 3
 JSON_TYPE_LIST = 4
 JSON_TYPE_TUPLE = 5
+JSON_TYPE_PID = 6
+JSON_TYPE_REF = 7
 
 CMD_LOAD_TRACE_FILE = 1
 CMD_SOLVE = 2
@@ -37,10 +39,11 @@ OP_LIST_NON_EMPTY = 10
 OP_LIST_EMPTY = 11
 OP_LIST_NOT_LST = 12
 OP_SPAWN = 13
-OP_MSG_SEND = 14
-OP_MSG_RECEIVE = 15
-OP_UNFOLD_TUPLE = 16
-OP_UNFOLD_LIST = 17
+OP_SPAWNED = 14
+OP_MSG_SEND = 15
+OP_MSG_RECEIVE = 16
+OP_UNFOLD_TUPLE = 17
+OP_UNFOLD_LIST = 18
 
 OP_ERLANG_HD_1 = 25
 OP_ERLANG_TL_1 = 26
@@ -49,7 +52,7 @@ def is_constraint_kind(tp):
   return tp == CONSTRAINT_TRUE or tp == CONSTRAINT_FALSE
 
 def is_interpretable(tp):
-  return tp != OP_SPAWN and tp != OP_MSG_SEND and tp != OP_MSG_RECEIVE
+  return tp != OP_SPAWN and tp != OP_SPAWNED and tp != OP_MSG_SEND and tp != OP_MSG_RECEIVE
 
 def is_reversible_bif(tp):
   x = {

@@ -34,6 +34,13 @@ encdec_test_() ->
       {"Simple", {1,2,3}},
       {"With shared subterms", {1,2,{1,2},{3,1,2},{1,2}}}
     ]},
+    {"PIDs", [
+      {"Self", self()},
+      {"Group leader", erlang:group_leader()}
+    ]},
+    {"References", [
+      {"Make reference", erlang:make_ref()}
+    ]},
     {"Symbolic Variables", [
       {"Simple", cuter_symbolic:fresh_symbolic_var()}
     ]},
@@ -51,15 +58,16 @@ encdec_test_() ->
 encode_decode(Terms) ->
   Enc = fun cuter_json:term_to_json/1,
   Dec = fun cuter_json:json_to_term/1,
-  [{Descr, ?_assertEqual(T, Dec(Enc(T)))} || {Descr, T} <- Terms].
+  [{Descr, ?_assertEqual(maybe(T), Dec(Enc(T)))} || {Descr, T} <- Terms].
 
+%% Special case for reference()
+maybe(Rf) when is_reference(Rf) -> erlang:ref_to_list(Rf);
+maybe(T) -> T.
 
 -spec enc_fail_test_() -> term().
 enc_fail_test_() ->
   Enc = fun cuter_json:term_to_json/1,
   Ts = [
-    {"Pid", self()},
-    {"Reference", make_ref()},
     {"Binary", <<42>>},
     {"Map", #{ok=>42}},
     {"Fun", fun() -> ok end}

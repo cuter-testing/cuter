@@ -5,7 +5,7 @@
 -include("cuter_macros.hrl").
 
 -export([get_result/1, get_mapping/1, get_traces/1, get_path_vertices/1,
-         path_length/1, file_constraints/2]).
+         path_length/1, file_constraints/2, get_int/1]).
 
 -export_type([execution_result/0, node_trace/0, path_vertex/0]).
 
@@ -36,7 +36,12 @@ get_trace_dir({Node, Data}) ->
   Dir = proplists:get_value(dir, Logs),
   {Node, Dir}.
 
-
+-spec get_int(orddict:orddict()) -> {node(), pid()}.
+get_int([{_Node, Data}|Info]) ->
+  case proplists:get_value(int, Data, not_found) of
+    not_found -> get_mapping(Info);
+    Pid -> Pid
+  end.
 
 
 -spec get_path_vertices([node_trace()]) -> [{atom(), path_vertex()}].
@@ -68,3 +73,4 @@ file_constraints([{_Node, Dir}|_], N) ->
     true  -> {F, N};
     false -> {F, length(V)}
   end.
+

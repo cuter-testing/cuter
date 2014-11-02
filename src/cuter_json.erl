@@ -300,7 +300,9 @@ decode_value(?JSON_TYPE_INT, JSON, Dec=#decoder{state = value_start})   -> decod
 decode_value(?JSON_TYPE_FLOAT, JSON, Dec=#decoder{state = value_start}) -> decode_float(JSON, Dec);
 decode_value(?JSON_TYPE_ATOM, JSON, Dec=#decoder{state = value_start})  -> decode_atom(JSON, Dec);
 decode_value(?JSON_TYPE_LIST, JSON, Dec=#decoder{state = value_start})  -> decode_list(JSON, Dec);
-decode_value(?JSON_TYPE_TUPLE, JSON, Dec=#decoder{state = value_start}) -> decode_tuple(JSON, Dec).
+decode_value(?JSON_TYPE_TUPLE, JSON, Dec=#decoder{state = value_start}) -> decode_tuple(JSON, Dec);
+decode_value(?JSON_TYPE_PID, JSON, Dec=#decoder{state = value_start})   -> decode_pid(JSON, Dec);
+decode_value(?JSON_TYPE_REF, JSON, Dec=#decoder{state = value_start})   -> decode_reference(JSON, Dec).
 
 %% Decode an integer
 decode_int(JSON, Dec=#decoder{state = value_start}) ->
@@ -369,6 +371,41 @@ decode_atom(JSON, Dec=#decoder{state = value_next_or_end}) ->
       parse_error(parse_error, Dec)
   end.
 
+%% Decode a pid
+decode_pid(JSON, Dec=#decoder{state = value_start}) ->
+  case trim_whitespace(JSON) of
+    <<?Q, Rest/binary>> ->
+      decode_pid(Rest, Dec#decoder{state = value_next_or_end});
+    _ ->
+      parse_error(parse_error, Dec)
+  end;
+decode_pid(JSON, Dec=#decoder{state = value_next_or_end}) ->
+  case trim_whitespace(JSON) of
+    <<?Q, Rest/binary>> ->
+      {erlang:list_to_pid(lists:reverse(Dec#decoder.acc)), Rest};
+    <<C, Rest/binary>> ->
+      decode_pid(Rest, ?PUSH(C, Dec));
+    _ ->
+      parse_error(parse_error, Dec)
+  end.
+
+%% Decode a reference (Will return the string representation of the reference)
+decode_reference(JSON, Dec=#decoder{state = value_start}) ->
+  case trim_whitespace(JSON) of
+    <<?Q, Rest/binary>> ->
+      decode_reference(Rest, Dec#decoder{state = value_next_or_end});
+    _ ->
+      parse_error(parse_error, Dec)
+  end;
+decode_reference(JSON, Dec=#decoder{state = value_next_or_end}) ->
+  case trim_whitespace(JSON) of
+    <<?Q, Rest/binary>> ->
+      {lists:reverse(Dec#decoder.acc), Rest};
+    <<C, Rest/binary>> ->
+      decode_reference(Rest, ?PUSH(C, Dec));
+    _ ->
+      parse_error(parse_error, Dec)
+  end.
 
 %% Helpful functions for trimming the JSON binary string
 trim_whitespace(JSON) ->
@@ -417,6 +454,7 @@ json_encode_concrete(Term) ->
   scan_term(Term, Seen, Shared),
   T = encode_term(Term, Seen),
   Dict = encode_shared(Shared, Seen),
+  lists:foreach(fun ets:delete/1, [Seen, Shared]),
   merge_dict_term(Dict, T).
 
 merge_dict_term([], T) -> T;
@@ -488,10 +526,17 @@ encode_term(T, Seen) when is_tuple(T) ->
   L = tuple_to_list(T),
   [$, | Es] = lists:foldl(F, [], lists:reverse(L)),
   ?ENCODE(integer_to_list(?JSON_TYPE_TUPLE), [$\[, Es, $\]]);
+%% pid
+encode_term(Pid, _Seen) when is_pid(Pid) ->
+  ?ENCODE(integer_to_list(?JSON_TYPE_PID), [?Q, erlang:pid_to_list(Pid), ?Q]);
+%% reference
+encode_term(Ref, _Seen) when is_reference(Ref) ->
+  ?ENCODE(integer_to_list(?JSON_TYPE_REF), [?Q, erlang:ref_to_list(Ref), ?Q]);
 encode_term(Term, _Seen) ->
   throw({unsupported_term, Term}).
 
-encode_maybe_shared_term(T, Seen) when is_integer(T); is_float(T); is_atom(T); is_list(T); is_tuple(T) ->
+encode_maybe_shared_term(T, Seen) when is_integer(T); is_float(T); is_atom(T); 
+                                       is_list(T); is_tuple(T); is_pid(T); is_reference(T) ->
   case is_shared(T, Seen) of
     false -> encode_term(T, Seen);
     {true, R} -> encode_term_alias(R)

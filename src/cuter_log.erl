@@ -4,8 +4,8 @@
 
 -include("cuter_macros.hrl").
 
--export([open_file/2, close_file/1, log_spawn/2, log_message_sent/3,
-         log_message_received/2, log_symb_params/2, log_guard/3, log_equal/4,
+-export([open_file/2, close_file/1, log_spawn/3, log_spawned/3, log_message_sent/3,
+         log_message_received/3, log_symb_params/2, log_guard/3, log_equal/4,
          log_tuple/4, log_list/3, log_unfold_symbolic/4, log_mfa/4,
          path_vertex/1]).
 
@@ -42,9 +42,13 @@ log_symb_params(Fd, Ps)  -> log(Fd, params, Ps).
 %% Log process spawns
 %% ------------------------------------------------------------------
 
--spec log_spawn(file:io_device(), pid()) -> ok.
-log_spawn(Fd, Child) ->
-  log(Fd, spawn, [pid_to_list(Child)]).
+-spec log_spawn(file:io_device(), pid(), reference()) -> ok.
+log_spawn(Fd, Child, Ref) ->
+  log(Fd, spawn, [node(Child), Child, Ref]).
+
+-spec log_spawned(file:io_device(), pid(), reference()) -> ok.
+log_spawned(Fd, Parent, Ref) ->
+  log(Fd, spawned, [node(Parent), Parent, Ref]).
 
 %% ------------------------------------------------------------------
 %% Log message passing
@@ -52,11 +56,11 @@ log_spawn(Fd, Child) ->
 
 -spec log_message_sent(file:io_device(), pid(), reference()) -> ok.
 log_message_sent(Fd, Dest, Ref) ->
-  log(Fd, send_msg, [pid_to_list(Dest), erlang:ref_to_list(Ref)]).
+  log(Fd, send_msg, [node(Dest), Dest, Ref]).
 
--spec log_message_received(file:io_device(), reference()) -> ok.
-log_message_received(Fd, Ref) ->
-  log(Fd, receive_msg, [erlang:ref_to_list(Ref)]).
+-spec log_message_received(file:io_device(), pid(), reference()) -> ok.
+log_message_received(Fd, From, Ref) ->
+  log(Fd, receive_msg, [node(From), From, Ref]).
 
 %% ------------------------------------------------------------------
 %% Log the unfolding of a symbolic variable that represents 
@@ -139,6 +143,7 @@ cmd2op({list, nonempty}) -> ?OP_LIST_NON_EMPTY;
 cmd2op({list, empty})    -> ?OP_LIST_EMPTY;
 cmd2op({list, not_lst})  -> ?OP_LIST_NOT_LST;
 cmd2op(spawn)       -> ?OP_SPAWN;
+cmd2op(spawned)     -> ?OP_SPAWNED;
 cmd2op(send_msg)    -> ?OP_MSG_SEND;
 cmd2op(receive_msg) -> ?OP_MSG_RECEIVE;
 cmd2op({unfold, tuple}) -> ?OP_UNFOLD_TUPLE;

@@ -5,7 +5,8 @@
 -include("cuter_macros.hrl").
 
 %% external exports
--export([unique_string/0, ensure_port_or_pid/1, clear_and_delete_dir/1, list_dir/1]).
+-export([unique_string/0, ensure_port_or_pid/1, clear_and_delete_dir/1, list_dir/1,
+         logfile_name/2]).
 
 %% Generate a unique string
 -spec unique_string() -> nonempty_string().
@@ -19,6 +20,11 @@ ensure_port_or_pid(What) when is_atom(What) ->
   whereis(What);
 ensure_port_or_pid({RegName, Node}) when is_atom(RegName), is_atom(Node) ->
   rpc:call(Node, erlang, whereis, [RegName]).
+
+-spec logfile_name(string(), pid()) -> file:filename_all().
+logfile_name(Dir, Pid) ->
+  F = erlang:pid_to_list(Pid) -- "<>",
+  filename:absname(Dir ++ "/proc-" ++ F).
 
 %% Delete the trace files / folders of an execution
 -spec clear_and_delete_dir(string()) -> ok.

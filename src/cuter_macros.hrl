@@ -61,6 +61,8 @@
 -define(JSON_TYPE_ATOM, 3).
 -define(JSON_TYPE_LIST, 4).
 -define(JSON_TYPE_TUPLE, 5).
+-define(JSON_TYPE_PID, 6).
+-define(JSON_TYPE_REF, 7).
 
 -define(JSON_CMD_LOAD_TRACE_FILE, 1).
 -define(JSON_CMD_SOLVE, 2).
@@ -90,10 +92,11 @@
 -define(OP_LIST_EMPTY, 11).
 -define(OP_LIST_NOT_LST, 12).
 -define(OP_SPAWN, 13).
--define(OP_MSG_SEND, 14).
--define(OP_MSG_RECEIVE, 15).
--define(OP_UNFOLD_TUPLE, 16).
--define(OP_UNFOLD_LIST, 17).
+-define(OP_SPAWNED, 14).
+-define(OP_MSG_SEND, 15).
+-define(OP_MSG_RECEIVE, 16).
+-define(OP_UNFOLD_TUPLE, 17).
+-define(OP_UNFOLD_LIST, 18).
 -define(OP_ERLANG_HD_1, 25).
 -define(OP_ERLANG_TL_1, 26).
 

@@ -2,9 +2,16 @@
 %%------------------------------------------------------------------------------
 -module(cuter).
 
--export([run/4]).
+-export([run/4, run_once/4]).
 
 -include("cuter_macros.hrl").
+
+-spec run_once(module(), atom(), [any()], pos_integer()) -> ok.
+run_once(M, F, As, Depth) -> 
+  Conf = initialize_app(M, F, As, Depth),
+  Info = concolic_execute(Conf, As),
+  ok = cuter_scheduler:seed_execution(maps:get(scheduler, Conf), Info),
+  stop(Conf).
 
 -spec run(module(), atom(), [any()], pos_integer()) -> ok.
 run(M, F, As, Depth) ->
@@ -12,7 +19,6 @@ run(M, F, As, Depth) ->
   Info = concolic_execute(Conf, As),
   ok = cuter_scheduler:seed_execution(maps:get(scheduler, Conf), Info),
   loop(Conf).
-
 
 loop(Conf) ->
   case cuter_scheduler:request_input(maps:get(scheduler, Conf)) of
@@ -64,7 +70,8 @@ retrieve_result(IServer) ->
         _ ->
           Ms = cuter_analyzer:get_mapping(Info),
           Ts = cuter_analyzer:get_traces(Info),
-          #{mappings => Ms, traces => Ts}
+          Int = cuter_analyzer:get_int(Info),
+          #{mappings => Ms, traces => Ts, int => Int}
       end;
     {error, Why} ->
       R = {internal_error, iserver, node(), Why},

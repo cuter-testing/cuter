@@ -55,27 +55,28 @@ i(M, F, As, Servers) ->
 eval({named, erlang, F}, CAs, SAs, _CallType, Servers, Fd) when F =:= spawn; F =:= spawn_link ->
   Arity = length(CAs),
   SAs_e = cuter_symbolic:ensure_list(SAs, Arity, Fd),
+  Rf = erlang:make_ref(),
   ChildP =
     case CAs of
       [Fun] ->
         [_SFun] = SAs_e,
         %% Constraint: SFun=Fun
         EvalAs = [{lambda, Fun}, [], [], local, Servers],
-        Child = subscribe_and_apply(Servers#svs.monitor, self(), EvalAs),
+        Child = subscribe_and_apply(Servers#svs.monitor, self(), EvalAs, Rf),
         erlang:F(Child);
       [Node, Fun] ->
         [_SNode, _SFun] = SAs_e,
         %% Constraints: SNode=Node, SFun=Fun
         NSvs = cuter_monitor:node_servers(Servers#svs.monitor, Node),
         EvalAs = [{lambda, Fun}, [], [], local, NSvs],
-        Child = subscribe_and_apply(NSvs#svs.monitor, self(), EvalAs),
+        Child = subscribe_and_apply(NSvs#svs.monitor, self(), EvalAs, Rf),
         erlang:F(Node, Child);
       [Mod, Fun, Args] ->
         [_SMod, _SFun, SArgs] = SAs_e,
         %% Constraints: SMod = Mod, SFun=Fun
         Call = find_call_type(erlang, Mod),
         EvalAs = [{named, Mod, Fun}, Args, SArgs, Call, Servers],
-        Child = subscribe_and_apply(Servers#svs.monitor, self(), EvalAs),
+        Child = subscribe_and_apply(Servers#svs.monitor, self(), EvalAs, Rf),
         erlang:F(Child);
       [Node, Mod, Fun, Args] ->
         [_SNode, _SMod, _SFun, SArgs] = SAs_e,
@@ -83,14 +84,14 @@ eval({named, erlang, F}, CAs, SAs, _CallType, Servers, Fd) when F =:= spawn; F =
         NSvs = cuter_monitor:node_servers(Servers#svs.monitor, Node),
         Call = find_call_type(erlang, Mod),
         EvalAs = [{named, Mod, Fun}, Args, SArgs, Call, NSvs],
-        Child = subscribe_and_apply(NSvs#svs.monitor, self(), EvalAs),
+        Child = subscribe_and_apply(NSvs#svs.monitor, self(), EvalAs, Rf),
         erlang:F(Node, Child);
       _ ->
         exception(error, {undef, {erlang, spawn, Arity}})
     end,
   receive
     {ChildP, registered} ->
-      cuter_log:log_spawn(Fd, ChildP),
+      cuter_log:log_spawn(Fd, ChildP, Rf),
       {ChildP, ChildP}
   end;
 
@@ -98,6 +99,7 @@ eval({named, erlang, F}, CAs, SAs, _CallType, Servers, Fd) when F =:= spawn; F =
 eval({named, erlang, spawn_monitor}, CAs, SAs, _CallType, Servers, Fd) ->
   Arity = length(CAs),
   SAs_e = cuter_symbolic:ensure_list(SAs, Arity, Fd),
+  Rf = erlang:make_ref(),
   EvalAs =
     case CAs of
       [Fun] ->
@@ -112,11 +114,11 @@ eval({named, erlang, spawn_monitor}, CAs, SAs, _CallType, Servers, Fd) ->
       _ ->
         exception(error, {undef, {erlang, spawn_monitor, Arity}})
     end,
-  Child = subscribe_and_apply(Servers#svs.monitor, self(), EvalAs),
+  Child = subscribe_and_apply(Servers#svs.monitor, self(), EvalAs, Rf),
   {ChildP, _ChildRef} = CC = erlang:spawn_monitor(Child),
   receive
     {ChildP, registered} ->
-      cuter_log:log_spawn(Fd, ChildP),
+      cuter_log:log_spawn(Fd, ChildP, Rf),
       {CC, CC}
   end;
 
@@ -124,27 +126,28 @@ eval({named, erlang, spawn_monitor}, CAs, SAs, _CallType, Servers, Fd) ->
 eval({named, erlang, spawn_opt}, CAs, SAs, _CallType, Servers, Fd) ->
   Arity = length(CAs),
   SAs_e = cuter_symbolic:ensure_list(SAs, Arity, Fd),
+  Rf = erlang:make_ref(),
   R =
     case CAs of
       [Fun, Opts] ->
         [_SFun, _SOpts] = SAs_e,
         %% Constraints: SFun=Fun, SOpts=Opts
         EvalAs = [{lambda, Fun}, [], [], local, Servers],
-        Child = subscribe_and_apply(Servers#svs.monitor, self(), EvalAs),
+        Child = subscribe_and_apply(Servers#svs.monitor, self(), EvalAs, Rf),
         erlang:spawn_opt(Child, Opts);
       [Node, Fun, Opts] ->
         [_SNode, _SFun, _SOpts] = SAs_e,
         %% Constraints: SNode=Node, SFun=Fun, SOpts=Opts
         NSVs = cuter_monitor:node_servers(Servers#svs.monitor, Node),
         EvalAs = [{lambda, Fun}, [], [], local, NSVs],
-        Child = subscribe_and_apply(NSVs#svs.monitor, self(), EvalAs),
+        Child = subscribe_and_apply(NSVs#svs.monitor, self(), EvalAs, Rf),
         erlang:spawn_opt(Node, Child, Opts);
       [Mod, Fun, Args, Opts] ->
         [_SMod, _SFun, SArgs, _SOpts] = SAs_e,
         %% Constraints: SMod=Mode, SFun=Fun, SOpts=Opts
         Call = find_call_type(erlang, Mod),
         EvalAs = [{named, Mod, Fun}, Args, SArgs, Call, Servers],
-        Child = subscribe_and_apply(Servers#svs.monitor, self(), EvalAs),
+        Child = subscribe_and_apply(Servers#svs.monitor, self(), EvalAs, Rf),
         erlang:spawn_opt(Child, Opts);
       [Node, Mod, Fun, Args, Opts] ->
         [_SNode, _SMod, _SFun, SArgs, _SOpts] = SAs_e,
@@ -152,7 +155,7 @@ eval({named, erlang, spawn_opt}, CAs, SAs, _CallType, Servers, Fd) ->
         Call = find_call_type(erlang, Mod),
         NSvs = cuter_monitor:node_servers(Servers#svs.monitor, Node),
         EvalAs = [{named, Mod, Fun}, Args, SArgs, Call, NSvs],
-        Child = subscribe_and_apply(NSvs#svs.monitor, self(), EvalAs),
+        Child = subscribe_and_apply(NSvs#svs.monitor, self(), EvalAs, Rf),
         erlang:spawn_opt(Node, Child, Opts);
       _ ->
         exception(error, {undef, {erlang, spawn_opt, Arity}})
@@ -164,7 +167,7 @@ eval({named, erlang, spawn_opt}, CAs, SAs, _CallType, Servers, Fd) ->
     end,
   receive
     {ChildP, registered} ->
-      cuter_log:log_spawn(Fd, ChildP),
+      cuter_log:log_spawn(Fd, ChildP, Rf),
       {R, R}
   end;
 
@@ -1361,9 +1364,10 @@ validate_file_descriptor(MonitorServer, Pid, Fd) ->
 %% *  Open a new file to store the process's log data
 %% *  Then proceed with interpreting the MFA call
 %% -------------------------------------------------------------------
-subscribe_and_apply(MonitorServer, Parent, Args) ->
+subscribe_and_apply(MonitorServer, Parent, Args, Ref) ->
   fun() ->
     {ok, Fd} = cuter_monitor:subscribe(MonitorServer, Parent),
+    cuter_log:log_spawned(Fd, Parent, Ref),
     Parent ! {self(), registered},
     erlang:apply(?MODULE, eval, Args ++ [Fd])
   end.
@@ -1386,12 +1390,12 @@ encode_msg(MonitorServer, Dest, CMsg, SMsg, Fd) ->
     false -> CMsg;
     true  ->
       cuter_log:log_message_sent(Fd, P, Ref),
-      {?CONCOLIC_PREFIX_MSG, Ref, zip_one(CMsg, SMsg)}
+      {?CONCOLIC_PREFIX_MSG, self(), Ref, zip_one(CMsg, SMsg)}
   end.
 
 %% Decode a Message
-decode_msg({?CONCOLIC_PREFIX_MSG, Ref, Msg}, Fd) when is_reference(Ref) ->
-  cuter_log:log_message_received(Fd, Ref),
+decode_msg({?CONCOLIC_PREFIX_MSG, From, Ref, Msg}, Fd) when is_pid(From), is_reference(Ref) ->
+  cuter_log:log_message_received(Fd, From, Ref),
   unzip_msg(Msg);
 decode_msg(Msg, _Fd) -> unzip_msg(Msg).
 

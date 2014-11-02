@@ -33,7 +33,9 @@
 %%   Used to prefix named processes & ets tables.
 %% logs :: logs()
 %%   Store information logs
-%%   Currently the only elements are {procs, NumOfMonitoredProcs} & {dir, TraceDir}
+%%   Currently the elements are:
+%%     {procs, NumOfMonitoredProcs}
+%%     {dir, TraceDir}
 
 -record(state, {
   super  :: pid(),
@@ -157,8 +159,7 @@ handle_call({subscribe, Parent}, {From, _FromTag}, State) ->
   P = proplists:get_value(procs, Logs),
   NewLogs = [{procs, P+1}|(Logs -- [{procs, P}])],
   %% Create the filename of the log file
-  F = erlang:pid_to_list(From) -- "<>",
-  Filename = filename:absname(Dir ++ "/proc-" ++ F),
+  Filename = cuter_lib:logfile_name(Dir, From),
   {reply, {ok, Filename, Depth, Prefix}, State#state{logs=NewLogs}};
 handle_call({is_monitored, Who}, {_From, _FromTag}, State) ->
   Procs = State#state.procs,
@@ -181,8 +182,7 @@ handle_call({node_servers, Node}, _From, State) ->
 %% gen_server callback : handle_cast/2
 -spec handle_cast({store_fd, pid(), file:io_device()}, state()) -> {noreply, state()}
                ; ({stop, pid()}, state()) -> {stop, normal, state()} | {noreply, state()}.
-handle_cast({store_fd, From, Fd}, State) ->
-  Fds = State#state.fds,
+handle_cast({store_fd, From, Fd}, State=#state{fds = Fds}) ->
   ets:insert(Fds, {From, Fd}),
   {noreply, State};
 handle_cast({stop, FromWho}, State) ->

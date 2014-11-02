@@ -10,5 +10,5 @@
 %% Ensure it runs properly
 -spec run_test() -> ok.
 run_test() ->
-  R = cuter:run('lists', 'reverse', [[1]], 10),
+  R = cuter:run_once('lists', 'reverse', [[1]], 10),
   ?assertEqual(ok, R).

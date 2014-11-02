@@ -53,13 +53,14 @@ Encoding of important events
 
 * Entry Point MFA's symbolic parameters  =>  {"c" : 1, "a" : [Symbolic-Params*]}
 
-* Spawn a process    =>  {"c" : 13, "a" : [Child-Pid]}
+* Spawn a process       =>  {"c" : 13, "a" : [Child-Node, Child-Pid, Spawn-Ref]}
+* Spawned by a process  =>  {"c" : 14, "a" : [Parent-Node, Parent-Pid, Spawn-Ref]}
 
-* Send a message     =>  {"c" : 14, "a" : [Dest-Pid, Msg-Ref]}
-* Receive a message  =>  {"c" : 15, "a" : [Msg-Ref]}
+* Send a message     =>  {"c" : 15, "a" : [Dest-Node, Dest-Pid, Msg-Ref]}
+* Receive a message  =>  {"c" : 16, "a" : [From-Node, From-Pid, Msg-Ref]}
 
-* Unfold a symbolic tuple  =>  {"c" : 16, "a" : [Term, Terms+]}  i.e. Term = {Term1, Term2, ..., TermN}
-* Unfold a symbolic list   =>  {"c" : 17, "a" : [Term, Terms+]}  i.e. Term = [Term1, Term2, ..., TermN]
+* Unfold a symbolic tuple  =>  {"c" : 17, "a" : [Term, Terms+]}  i.e. Term = {Term1, Term2, ..., TermN}
+* Unfold a symbolic list   =>  {"c" : 18, "a" : [Term, Terms+]}  i.e. Term = [Term1, Term2, ..., TermN]
 
 
 Encoding of Erlang BIFs
