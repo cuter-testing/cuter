@@ -54,7 +54,6 @@ encdec_test_() ->
   Inst = fun encode_decode/1,
   [{"JSON Encoding / Decoding: " ++ C, {setup, Setup(T), Inst}} || {C, T} <- Ts].
 
-%% Encoding unsupported terms tests
 encode_decode(Terms) ->
   Enc = fun cuter_json:term_to_json/1,
   Dec = fun cuter_json:json_to_term/1,
@@ -64,6 +63,7 @@ encode_decode(Terms) ->
 maybe(Rf) when is_reference(Rf) -> erlang:ref_to_list(Rf);
 maybe(T) -> T.
 
+%% Encoding unsupported terms tests
 -spec enc_fail_test_() -> term().
 enc_fail_test_() ->
   Enc = fun cuter_json:term_to_json/1,
@@ -74,6 +74,22 @@ enc_fail_test_() ->
   ],
   {"JSON Encoding Fail", [{Dsr, ?_assertThrow({unsupported_term, _}, Enc(T))} || {Dsr, T} <- Ts]}.
 
+%% Encoding / Decoding Commands
+-spec encdec_cmd_test_() -> term().
+encdec_cmd_test_() ->
+  Cs = [
+    {"I", {1, [self(), erlang:make_ref()]}},
+    {"II", {1, [cuter_symbolic:fresh_symbolic_var(), 42]}}
+  ],
+  Setup = fun(T) -> fun() -> T end end,
+  Inst = fun encode_decode_cmd/1,
+  [{"JSON Encoding / Decoding Command: " ++ C, {setup, Setup(T), Inst}} || {C, T} <- Cs].
+
+encode_decode_cmd({OpCode, Args}) ->
+  MaybeArgs = [maybe(A) || A <- Args],
+  Enc = cuter_json:command_to_json(OpCode, Args),
+  Dec = cuter_json:json_to_command(Enc),
+  [?_assertEqual( {OpCode, MaybeArgs}, Dec )].
 
 
 

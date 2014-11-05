@@ -4,7 +4,7 @@
 
 -include("cuter_macros.hrl").
 
--export([command_to_json/2, term_to_json/1, json_to_term/1, encode_port_command/2]).
+-export([command_to_json/2, json_to_command/1, term_to_json/1, json_to_term/1, encode_port_command/2]).
 
 -define(Q, $\").
 
@@ -33,7 +33,8 @@
   type = null,
   dict,
   replace_aliases,
-  acc = []
+  acc = [],
+  with_remainder
 }).
 
 
@@ -48,14 +49,24 @@ command_to_json(Cmd, Args) when is_list(Args) ->
   C = ?ENCODE_CMD(integer_to_list(Cmd), Es),
   list_to_binary(C).
 
+-spec json_to_command(binary()) -> {integer(), [any()]}.
+json_to_command(JSON) ->
+  {Op, Rest} = decode_opcode(JSON, #decoder{}),
+  As = decode_arguments(Rest, #decoder{}),
+  {Op, As}.
+
 -spec term_to_json(any()) -> binary().
 term_to_json(Term) ->
   list_to_binary(json_encode(Term)).
 
 -spec json_to_term(binary()) -> any().
-json_to_term(JSON) ->
+json_to_term(JSON) -> json_to_term(JSON, false).
+
+-spec json_to_term(binary(), false) -> {any(), binary()}
+                ; (binary(), true) -> any().
+json_to_term(JSON, WithRem) ->
   Tbl = ets:new(?MODULE, [set, protected]),
-  Decoder = #decoder{dict = Tbl, replace_aliases = false},
+  Decoder = #decoder{dict = Tbl, replace_aliases = false, with_remainder = WithRem},
   Obj = decode_object_with_sharing(JSON, Decoder),
   ets:delete(Tbl),
   Obj.
@@ -117,19 +128,85 @@ encode_port_command(stop, _) ->
 %% Decode JSON Terms
 %% ==============================================================================
 
-%% Decode an object that may have a dictionary of shared subterms
-decode_object_with_sharing(JSON, Dec=#decoder{state = start}) ->
+%% Decode the opcode of a command
+decode_opcode(JSON, Dec=#decoder{state = start}) ->
   case trim_whitespace(JSON) of
     <<$\{, Rest/binary>> ->
-      R1 = decode_shared(Rest, Dec#decoder{state = start}),
-      Bin = <<$\{, R1/binary>>,
-      case decode_object(Bin, Dec#decoder{state = start, replace_aliases = true}) of
-        {Obj, <<>>} -> Obj;
+      decode_opcode(Rest, Dec#decoder{state = before_opcode});
+    _ ->
+      parse_error(parse_error, Dec)
+  end;
+decode_opcode(JSON, Dec=#decoder{state = before_opcode}) ->
+  case trim_whitespace(JSON) of
+    <<?Q, $c, ?Q, Rest/binary>> ->
+      R1 = trim_whitespace(trim_separator(Rest, $:, Dec)),  %% Ensure we pass a trimmed JSON string
+      decode_opcode(R1, Dec#decoder{state = opcode, acc = []});
+    _ ->
+      parse_error(parse_error, Dec)
+  end;
+decode_opcode(JSON, Dec=#decoder{state = opcode}) ->
+  case JSON of
+    <<I, Rest/binary>> when ?IS_DIGIT(I) ->
+      decode_opcode(Rest, ?PUSH(I, Dec));
+    _ ->
+      I = list_to_integer(lists:reverse(Dec#decoder.acc)),
+      {I, trim_separator(JSON, $,, Dec)}
+  end.
+
+%% Decode the arguments of a command
+decode_arguments(JSON, Dec=#decoder{state = start}) ->
+  case trim_whitespace(JSON) of
+    <<?Q, $a, ?Q, Rest/binary>> ->
+      R1 = trim_separator(Rest, $:, Dec),
+      decode_arguments(R1, Dec#decoder{state = start_of_list});
+    _ ->
+      parse_error(parse_error, Dec)
+  end;
+decode_arguments(JSON, Dec=#decoder{state = start_of_list}) ->
+  case trim_whitespace(JSON) of
+    <<$\[, Rest/binary>> ->
+      {T, R1} = json_to_term(Rest, true),
+      decode_arguments(R1, Dec#decoder{state = next_obj_or_end, acc = [T]});
+    _ ->
+      parse_error(parse_error, Dec)
+  end;
+decode_arguments(JSON, Dec=#decoder{state = next_obj_or_end}) ->
+  case trim_whitespace(JSON) of
+    <<$\], Rest/binary>> ->
+      decode_arguments(Rest, Dec#decoder{state = endpoint});
+    <<$,, Rest/binary>> ->
+      {T, R1} = json_to_term(Rest, true),
+      decode_arguments(R1, ?PUSH(T, Dec));
+    _ ->
+      parse_error(parse_error, Dec)
+  end;
+decode_arguments(JSON, Dec=#decoder{state = endpoint, acc = As}) ->
+  case trim_whitespace(JSON) of
+    <<$\}, Rest/binary>> ->
+      case trim_whitespace(Rest) of
+        <<>> -> lists:reverse(As);
         _ -> parse_error(parse_error, Dec)
       end;
     _ ->
       parse_error(parse_error, Dec)
   end.
+
+%% Decode an object that may have a dictionary of shared subterms
+decode_object_with_sharing(JSON, Dec=#decoder{state = start, with_remainder = WithRem}) ->
+  case trim_whitespace(JSON) of
+    <<$\{, Rest/binary>> ->
+      R1 = decode_shared(Rest, Dec#decoder{state = start}),
+      Bin = <<$\{, R1/binary>>,
+      {Obj, Rem} = decode_object(Bin, Dec#decoder{state = start, replace_aliases = true}),
+      check_for_remainder(WithRem, Rem, Obj, Dec);
+    _ ->
+      parse_error(parse_error, Dec)
+  end.
+
+%% Allow remainder or not after the decoding
+check_for_remainder(false, <<>>, Obj, _Dec) -> Obj;
+check_for_remainder(false, _Rem, _Obj, Dec) -> parse_error(parse_error, Dec);
+check_for_remainder(true, Rem, Obj, _Dec) -> {Obj, Rem}.
 
 %% Decode an object without a dictionary of shared subterms
 decode_object(JSON, Dec=#decoder{state = start}) ->
