@@ -806,14 +806,19 @@ find_message([], _Clauses, _M, _Cenv, _Senv, _Servers, _Fd) ->
   false;
 
 find_message([Msg|Mailbox], Clauses, M, Cenv, Senv, Servers, Fd) ->
-  {Cv, Sv} = decode_msg(Msg, Fd),
+  {LoggerFun, {Cv, Sv}} = decode_msg(Msg, Fd),
   case find_clause(Clauses, M, 'receive', Cv, Sv, Cenv, Senv, Servers, Fd) of
     false ->
       find_message(Mailbox, Clauses, M, Cenv, Senv, Servers, Fd);
     {Body, NCenv, NSenv, Cnt} ->
+      log_successful_msg_match(LoggerFun),
       %% I can log the received Msg here
       {Msg, Body, NCenv, NSenv, Cnt}
   end.
+
+%% Log the successful matching of a message
+log_successful_msg_match(withoutLogger) -> ok;
+log_successful_msg_match({withLogger, Fun}) -> Fun().
 
 %% --------------------------------------------------------
 %% find_clause
@@ -1396,8 +1401,10 @@ encode_msg(MonitorServer, Dest, CMsg, SMsg, Fd) ->
 %% Decode a Message
 decode_msg({?CONCOLIC_PREFIX_MSG, From, Ref, Msg}, Fd) when is_pid(From), is_reference(Ref) ->
   cuter_log:log_message_received(Fd, From, Ref),
-  unzip_msg(Msg);
-decode_msg(Msg, _Fd) -> unzip_msg(Msg).
+  Fun = fun() -> cuter_log:log_message_consumed(Fd, From, Ref) end,
+  {{withLogger, Fun}, unzip_msg(Msg)};
+decode_msg(Msg, _Fd) ->
+  {withoutLogger, unzip_msg(Msg)}.
 
 %% --------------------------------------------------------
 %% Zip and Unzip concrete-semantic values

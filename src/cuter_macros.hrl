@@ -95,8 +95,9 @@
 -define(OP_SPAWNED, 14).
 -define(OP_MSG_SEND, 15).
 -define(OP_MSG_RECEIVE, 16).
--define(OP_UNFOLD_TUPLE, 17).
--define(OP_UNFOLD_LIST, 18).
+-define(OP_MSG_CONSUME, 17).
+-define(OP_UNFOLD_TUPLE, 18).
+-define(OP_UNFOLD_LIST, 19).
 -define(OP_ERLANG_HD_1, 25).
 -define(OP_ERLANG_TL_1, 26).
 

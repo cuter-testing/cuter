@@ -58,9 +58,10 @@ Encoding of important events
 
 * Send a message     =>  {"c" : 15, "a" : [Dest-Node, Dest-Pid, Msg-Ref]}
 * Receive a message  =>  {"c" : 16, "a" : [From-Node, From-Pid, Msg-Ref]}
+* Consume a message  =>  {"c" : 17, "a" : [From-Node, From-Pid, Msg-Ref]}
 
-* Unfold a symbolic tuple  =>  {"c" : 17, "a" : [Term, Terms+]}  i.e. Term = {Term1, Term2, ..., TermN}
-* Unfold a symbolic list   =>  {"c" : 18, "a" : [Term, Terms+]}  i.e. Term = [Term1, Term2, ..., TermN]
+* Unfold a symbolic tuple  =>  {"c" : 18, "a" : [Term, Terms+]}  i.e. Term = {Term1, Term2, ..., TermN}
+* Unfold a symbolic list   =>  {"c" : 19, "a" : [Term, Terms+]}  i.e. Term = [Term1, Term2, ..., TermN]
 
 
 Encoding of Erlang BIFs

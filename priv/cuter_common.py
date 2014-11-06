@@ -42,8 +42,9 @@ OP_SPAWN = 13
 OP_SPAWNED = 14
 OP_MSG_SEND = 15
 OP_MSG_RECEIVE = 16
-OP_UNFOLD_TUPLE = 17
-OP_UNFOLD_LIST = 18
+OP_MSG_CONSUME = 17
+OP_UNFOLD_TUPLE = 18
+OP_UNFOLD_LIST = 19
 
 OP_ERLANG_HD_1 = 25
 OP_ERLANG_TL_1 = 26
@@ -52,7 +53,8 @@ def is_constraint_kind(tp):
   return tp == CONSTRAINT_TRUE or tp == CONSTRAINT_FALSE
 
 def is_interpretable(tp):
-  return tp != OP_SPAWN and tp != OP_SPAWNED and tp != OP_MSG_SEND and tp != OP_MSG_RECEIVE
+  xs = set([OP_SPAWN, OP_SPAWNED, OP_MSG_SEND, OP_MSG_RECEIVE, OP_MSG_CONSUME])
+  return tp not in xs
 
 def is_reversible_bif(tp):
   x = {

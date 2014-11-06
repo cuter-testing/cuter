@@ -7,7 +7,7 @@
 -export([open_file/2, close_file/1, log_spawn/3, log_spawned/3, log_message_sent/3,
          log_message_received/3, log_symb_params/2, log_guard/3, log_equal/4,
          log_tuple/4, log_list/3, log_unfold_symbolic/4, log_mfa/4,
-         path_vertex/1, next_entry/2]).
+         path_vertex/1, next_entry/2, write_data/4, log_message_consumed/3]).
 
 -type mode() :: read | write.
 
@@ -61,6 +61,10 @@ log_message_sent(Fd, Dest, Ref) ->
 -spec log_message_received(file:io_device(), pid(), reference()) -> ok.
 log_message_received(Fd, From, Ref) ->
   log(Fd, receive_msg, [node(From), From, Ref]).
+
+-spec log_message_consumed(file:io_device(), pid(), reference()) -> ok.
+log_message_consumed(Fd, From, Ref) ->
+  log(Fd, consume_msg, [node(From), From, Ref]).
 
 %% ------------------------------------------------------------------
 %% Log the unfolding of a symbolic variable that represents 
@@ -146,6 +150,7 @@ cmd2op(spawn)       -> ?OP_SPAWN;
 cmd2op(spawned)     -> ?OP_SPAWNED;
 cmd2op(send_msg)    -> ?OP_MSG_SEND;
 cmd2op(receive_msg) -> ?OP_MSG_RECEIVE;
+cmd2op(consume_msg) -> ?OP_MSG_CONSUME;
 cmd2op({unfold, tuple}) -> ?OP_UNFOLD_TUPLE;
 cmd2op({unfold, list})  -> ?OP_UNFOLD_LIST;
 cmd2op({erlang, hd, 1}) -> ?OP_ERLANG_HD_1;
@@ -173,6 +178,7 @@ update_constraint_counter(_Cmd, _ok) -> ok.
 %% Read / Write Data
 %% ------------------------------------------------------------------
 
+-spec write_data(file:io_device(), integer(), integer(), binary()) -> ok.
 write_data(Fd, Id, Op, Data) when is_integer(Id), is_integer(Op), is_binary(Data) ->
   Sz = erlang:byte_size(Data),
   ok = file:write(Fd, [Id, Op, i32_to_list(Sz), Data]).
@@ -214,7 +220,7 @@ next_entry(Fd, WithData) ->
       close_file(Fd),
       eof;
     <<N>> ->
-      Tp = safe_read(Fd, 1, false),
+      <<Tp>> = safe_read(Fd, 1, false),
       Sz = bin_to_i32(safe_read(Fd, 4, false)),
       next_entry_data(Fd, WithData, N, Tp, Sz)
   end.
@@ -228,7 +234,7 @@ next_entry_data(Fd, false, N, Tp, Sz) ->
   {ok, _} = file:position(Fd, {cur, Sz}),
   {N, Tp}.
 
--spec safe_read(file:io_device(), integer(), boolean()) -> binary().
+-spec safe_read(file:io_device(), integer(), boolean()) -> binary() | eof.
 safe_read(Fd, Sz, AllowEOF) ->
   case file:read(Fd, Sz) of
     {ok, Bin} -> Bin;
