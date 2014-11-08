@@ -6,10 +6,13 @@
 
 -export([open_file/2, close_file/1, log_spawn/3, log_spawned/3, log_message_sent/3,
          log_message_received/3, log_symb_params/2, log_guard/3, log_equal/4,
-         log_tuple/4, log_list/3, log_unfold_symbolic/4, log_mfa/4,
+         log_tuple/4, log_list/3, log_unfold_symbolic/4, log_mfa/4, count_reversible/1,
          path_vertex/1, next_entry/2, write_data/4, log_message_consumed/3]).
 
--type mode() :: read | write.
+-export_type([opcode/0]).
+
+-type mode()   :: read | write.
+-type opcode() :: integer().
 
 %% Opens a file for logging or reading terms
 -spec open_file(file:name(), mode()) -> {ok, file:io_device()}.
@@ -113,6 +116,7 @@ log_list(Fd, Tp, Sv) when Tp =:= nonempty orelse Tp =:= empty orelse Tp =:= not_
 %% Logging Function
 %% ------------------------------------------------------------------
 
+-spec log(file:io_device(), any(), [any()]) -> ok.
 -ifdef(LOGGING_FLAG).
 log(Fd, Cmd, Data) ->
   case get(?DEPTH_PREFIX) of
@@ -178,7 +182,7 @@ update_constraint_counter(_Cmd, _ok) -> ok.
 %% Read / Write Data
 %% ------------------------------------------------------------------
 
--spec write_data(file:io_device(), integer(), integer(), binary()) -> ok.
+-spec write_data(file:io_device(), integer(), opcode(), binary()) -> ok.
 write_data(Fd, Id, Op, Data) when is_integer(Id), is_integer(Op), is_binary(Data) ->
   Sz = erlang:byte_size(Data),
   ok = file:write(Fd, [Id, Op, i32_to_list(Sz), Data]).
@@ -212,8 +216,32 @@ generate_vertex(Fd, Acc) ->
     {?NOT_CONSTRAINT, _Tp}   -> generate_vertex(Fd, Acc)
   end.
 
--spec next_entry(file:io_device(), true) -> {integer(), integer(), binary()} | eof
-              ; (file:io_device(), false) -> {integer(), integer()} | eof.
+%% Count the reversible commands in a trace file
+-spec count_reversible(file:filename_all()) -> integer().
+count_reversible(File) ->
+  {ok, Fd} = open_file(File, read),
+  count_reversible(Fd, 0).
+
+-spec count_reversible(file:io_device(), integer()) -> integer().
+count_reversible(Fd, Acc) ->
+  case next_entry(Fd, false) of
+    eof -> Acc;
+    {?CONSTRAINT_TRUE, _Tp}  -> count_reversible(Fd, Acc + 1);
+    {?CONSTRAINT_FALSE, _Tp} -> count_reversible(Fd, Acc + 1);
+    {?NOT_CONSTRAINT, Op} ->
+      case is_reversible_operation(Op) of
+        true  -> count_reversible(Fd, Acc + 1);
+        false -> count_reversible(Fd, Acc)
+      end
+  end.
+
+-spec is_reversible_operation(opcode()) -> boolean().
+is_reversible_operation(?OP_ERLANG_HD_1) -> true;
+is_reversible_operation(?OP_ERLANG_TL_1) -> true;
+is_reversible_operation(_) -> false.
+
+-spec next_entry(file:io_device(), true) -> {integer(), opcode(), binary()} | eof
+              ; (file:io_device(), false) -> {integer(), opcode()} | eof.
 next_entry(Fd, WithData) ->
   case safe_read(Fd, 1, true) of
     eof ->
@@ -225,8 +253,8 @@ next_entry(Fd, WithData) ->
       next_entry_data(Fd, WithData, N, Tp, Sz)
   end.
 
--spec next_entry_data(file:io_device(), true, integer(), integer(), integer()) -> {integer(), integer(), binary()}
-                   ; (file:io_device(), false, integer(), integer(), integer()) -> {integer(), integer()}.
+-spec next_entry_data(file:io_device(), true, integer(), opcode(), integer()) -> {integer(), opcode(), binary()}
+                   ; (file:io_device(), false, integer(), opcode(), integer()) -> {integer(), opcode()}.
 next_entry_data(Fd, true, N, Tp, Sz) ->
   Data = safe_read(Fd, Sz, false),
   {N, Tp, Data};

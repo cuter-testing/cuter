@@ -4,14 +4,27 @@
 
 -include("cuter_macros.hrl").
 
--export([get_result/1, get_mapping/1, get_traces/1, get_path_vertices/1,
-         path_length/1, file_constraints/2, get_int/1]).
+-export([get_result/1, get_mapping/1, get_traces/1,
+         get_int_process/1, process_raw_execution_info/1]).
 
--export_type([execution_result/0, node_trace/0, path_vertex/0]).
+-export_type([execution_result/0, node_trace/0, path_vertex/0, int_process/0,
+              raw_info/0, info/0]).
 
 -type execution_result() :: {success, any()} | {runtime_error, any()} | internal_error.
--type node_trace() :: {atom(), string()}.
--type path_vertex() :: [?CONSTRAINT_TRUE_REPR | ?CONSTRAINT_FALSE_REPR]. %% [$T | $F]
+-type node_trace()  :: {atom(), string()}.
+-type int_process() :: {node(), pid()}.
+-type path_vertex() :: [?CONSTRAINT_TRUE_REPR | ?CONSTRAINT_FALSE_REPR].  % [$T | $F]
+
+-type raw_info() :: #{mappings => [cuter_symbolic:mapping()],
+                      traces => [cuter_analyzer:node_trace()],
+                      int => cuter_analyzer:int_process(),
+                      dir => file:filename_all()}.
+
+-type info() :: #{mappings => [cuter_symbolic:mapping()],
+                  traceFile => file:filename_all(),
+                  pathLength => integer(),
+                  dir => file:filename_all()}.
+
 
 -spec get_result(cuter_iserver:execution_status()) -> execution_result().
 get_result({success, {Cv, _Sv}}) ->
@@ -36,41 +49,28 @@ get_trace_dir({Node, Data}) ->
   Dir = proplists:get_value(dir, Logs),
   {Node, Dir}.
 
--spec get_int(orddict:orddict()) -> {node(), pid()}.
-get_int([{_Node, Data}|Info]) ->
+-spec get_int_process(orddict:orddict()) -> int_process().
+get_int_process([{_Node, Data}|Info]) ->
   case proplists:get_value(int, Data, not_found) of
     not_found -> get_mapping(Info);
     Pid -> Pid
   end.
 
 
--spec get_path_vertices([node_trace()]) -> [{atom(), path_vertex()}].
-get_path_vertices(Info) -> [node_path_vertices(I) || I <- Info].
+-spec process_raw_execution_info(raw_info()) -> info().
+process_raw_execution_info(Info) ->
+  io:format("[RAW INFO] ~p~n", [Info]),
+  DataDir = maps:get(dir, Info),
+  MergedTraceFile = cuter_lib:get_merged_tracefile(DataDir),
+  cuter_merger:merge_traces(Info, MergedTraceFile),
+  cuter_lib:clear_and_delete_dir(maps:get(dir, Info), MergedTraceFile),
+  PathVertex = cuter_log:path_vertex(MergedTraceFile),
+  io:format("[PATH VERTEX] ~p~n", [PathVertex]),
+  RvsCnt = cuter_log:count_reversible(MergedTraceFile),
+  io:format("[RVS COUNT] ~p~n", [RvsCnt]),
+  #{dir => DataDir,
+    mappings => maps:get(mappings, Info),
+    traceFile => MergedTraceFile,
+    pathLength => RvsCnt}.
 
-node_path_vertices({Node, Dir}) ->
-  Vs = proc_path_vertices(Dir),
-  {Node, Vs}.
-
-proc_path_vertices(Dir) ->
-  Fs = cuter_lib:list_dir(Dir),
-  [cuter_log:path_vertex(F) || F <- Fs].
-
-
--spec path_length([{atom(), path_vertex()}]) -> integer().
-path_length(Vs) ->
-  Xs = [node_path_length(V) || V <- Vs],
-  lists:foldl(fun(X, Acc) -> X + Acc end, 0, Xs).
-
-node_path_length({_Node, Ps}) ->
-  lists:foldl(fun(X, Acc) -> X + Acc end, 0, [length(P) || P <- Ps]).
-
-
--spec file_constraints([node_trace()], integer()) -> {file:filename(), integer()}.
-file_constraints([{_Node, Dir}|_], N) ->
-  [F|_] = cuter_lib:list_dir(Dir),
-  V = cuter_log:path_vertex(F),
-  case N < length(V) of
-    true  -> {F, N};
-    false -> {F, length(V)}
-  end.
 

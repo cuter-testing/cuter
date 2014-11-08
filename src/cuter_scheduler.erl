@@ -108,12 +108,8 @@ handle_info(Msg, State) ->
 handle_call({seed_execution, Info}, _From, S=#state{queue = Q, info = I}) ->
   R = make_ref(),
   Q1 = queue:in(R, Q),
-  Vs = cuter_analyzer:get_path_vertices(maps:get(traces, Info)),
-  io:format("[$$$]: ~p~n", [Vs]),
-  Ln = cuter_analyzer:path_length(Vs),
-  io:format("[$$$]: ~p~n", [Ln]),
-  ExecInfo = Info#{path_length => Ln, next_constraint => 1},
-  io:format("[$$$]: ~p~n", [ExecInfo]),
+  ExecInfo = Info#{next_constraint => 1},
+  io:format("[SCHED]: ~p~n", [ExecInfo]),
   ets:insert(I, {R, ExecInfo}),
   {reply, ok, S#state{queue = Q1}};
 
@@ -126,8 +122,7 @@ handle_call(request_input, From, S=#state{queue = Q, info = I, python = P, depth
 
 handle_call({store_execution, Ref, Info}, _From, S=#state{queue = Q, info = I, waiting = W}) ->
   [{Ref, PartialInfo}] = ets:lookup(I, Ref),
-  Vs = cuter_analyzer:get_path_vertices(maps:get(traces, Info)),
-  Ln = cuter_analyzer:path_length(Vs),
+  Ln = maps:get(pathLength, Info),
   N = maps:get(next_constraint, PartialInfo),
   case N > Ln of
     true ->
@@ -135,7 +130,7 @@ handle_call({store_execution, Ref, Info}, _From, S=#state{queue = Q, info = I, w
       ets:delete(I, Ref),
       {reply, ok, S};
     false ->
-      ExecInfo = Info#{path_length => Ln, next_constraint => N},
+      ExecInfo = Info#{next_constraint => N},
       ets:insert(I, {Ref, ExecInfo}),
       Q1 = queue:in(Ref, Q),
       %% Do sth for the waiting
@@ -175,9 +170,9 @@ generate_testcase(Q, Info, Python, Depth) ->
 expand_state(Q, Ref, I, Python, Depth) ->
   [{Ref, Info}] = ets:lookup(I, Ref),
   ets:delete(I, Ref),
+  F = maps:get(traceFile, Info),
   N = maps:get(next_constraint, Info),
-  {F, NC} = cuter_analyzer:file_constraints(maps:get(traces, Info), N),
-  case cuter_solver:run(Python, maps:get(mappings, Info), F, NC) of
+  case cuter_solver:run(Python, maps:get(mappings, Info), F, N) of
     error ->
       Q1 = requeue_state(Q, Ref, I, Info, Depth),
       {error, Q1};
