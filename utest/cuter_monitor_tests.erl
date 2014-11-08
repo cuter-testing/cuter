@@ -62,4 +62,4 @@ cleanup({Dir, MonitorServer}) ->
     5000 -> ok
   end,
   meck:unload(cuter_iserver),
-  cuter_tests_lib:cleanup_dir(Dir).
+  cuter_lib:clear_and_delete_dir(Dir).

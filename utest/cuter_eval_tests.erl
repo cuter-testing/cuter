@@ -33,7 +33,7 @@ run(M, F, As) ->
   after
     5000 -> ok
   end,
-  cuter_tests_lib:cleanup_dir(Dir),
+  cuter_lib:clear_and_delete_dir(Dir),
   io:format("~p~n", [R]),
   R.
 
@@ -83,7 +83,8 @@ setup({F, As, Result}) ->
   Dir = cuter_tests_lib:setup_dir(),
   {F, As, Result, Dir}.
 
-cleanup({_F, _As, _Result, Dir}) -> cuter_tests_lib:cleanup_dir(Dir).
+cleanup({_F, _As, _Result, Dir}) ->
+  cuter_lib:clear_and_delete_dir(Dir).
 
 %% --------------------------------------------------------
 %% Tests

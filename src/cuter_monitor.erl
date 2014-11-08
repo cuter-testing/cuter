@@ -106,9 +106,7 @@ init([Dir, Super, Depth, Prefix]) when is_list(Dir) ->
   Ptree = ets:new(?MODULE, [bag, protected]),
   Fds = ets:new(?MODULE, [ordered_set, protected]),
   Procs = ets:new(?MODULE, [ordered_set, protected]),
-  U = cuter_lib:unique_string(),
-  LogDir = filename:absname(Dir ++ "/trace-" ++ U),
-  ok = filelib:ensure_dir(LogDir ++ "/"),  %% Create the directory
+  LogDir = cuter_lib:get_monitor_dir(Dir),
   InitState = #state{
     super = Super,
     depth = Depth,
@@ -160,6 +158,7 @@ handle_call({subscribe, Parent}, {From, _FromTag}, State) ->
   NewLogs = [{procs, P+1}|(Logs -- [{procs, P}])],
   %% Create the filename of the log file
   Filename = cuter_lib:logfile_name(Dir, From),
+  ok = filelib:ensure_dir(Filename),  % Ensure that the directory exists
   {reply, {ok, Filename, Depth, Prefix}, State#state{logs=NewLogs}};
 handle_call({is_monitored, Who}, {_From, _FromTag}, State) ->
   Procs = State#state.procs,

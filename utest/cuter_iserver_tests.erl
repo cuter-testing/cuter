@@ -32,5 +32,5 @@ cleanup({Dir, Server}) ->
   after
     5000 -> ok
   end,
-  cuter_tests_lib:cleanup_dir(Dir).
+  cuter_lib:clear_and_delete_dir(Dir).
 

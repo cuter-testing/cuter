@@ -2,20 +2,32 @@
 %%------------------------------------------------------------------------------
 -module(cuter).
 
--export([run/4, run_once/4]).
+-export([run/4, run/5, run_once/4, run_once/5]).
 
 -include("cuter_macros.hrl").
 
 -spec run_once(module(), atom(), [any()], pos_integer()) -> ok.
-run_once(M, F, As, Depth) -> 
-  Conf = initialize_app(M, F, As, Depth),
+run_once(M, F, As, Depth) ->
+  {ok, CWD} = file:get_cwd(),
+  run_once(M, F, As, Depth, CWD).
+
+-spec run_once(module(), atom(), [any()], pos_integer(), file:filename_all()) -> ok.
+run_once(M, F, As, Depth, BaseDir) ->
+  Conf = initialize_app(M, F, As, Depth, BaseDir),
   Info = concolic_execute(Conf, As),
   ok = cuter_scheduler:seed_execution(maps:get(scheduler, Conf), Info),
-  stop(Conf).
+  stop(Conf),
+  cuter_lib:clear_and_delete_dir(maps:get(dataDir, Conf)),
+  ok.
 
 -spec run(module(), atom(), [any()], pos_integer()) -> ok.
 run(M, F, As, Depth) ->
-  Conf = initialize_app(M, F, As, Depth),
+  {ok, CWD} = file:get_cwd(),
+  run(M, F, As, Depth, CWD).
+
+-spec run(module(), atom(), [any()], pos_integer(), file:filename_all()) -> ok.
+run(M, F, As, Depth, BaseDir) ->
+  Conf = initialize_app(M, F, As, Depth, BaseDir),
   Info = concolic_execute(Conf, As),
   ok = cuter_scheduler:seed_execution(maps:get(scheduler, Conf), Info),
   loop(Conf).
@@ -31,13 +43,13 @@ loop(Conf) ->
       loop(Conf_n)
   end.
 
--spec initialize_app(atom(), atom(), [any()], integer()) -> map().
-initialize_app(M, F, As, Depth) ->
+-spec initialize_app(atom(), atom(), [any()], integer(), file:filename_all()) -> map().
+initialize_app(M, F, As, Depth, BaseDir) ->
   process_flag(trap_exit, true),
   error_logger:tty(false),  %% Disable error_logger
   cuter_pp:mfa(M, F, length(As)),
   Sched = cuter_scheduler:start(?PYTHON_CALL, Depth),
-  #{mod => M, func => F, dataDir => ?TMP_DIR, depth => Depth, no => 1, scheduler => Sched}.
+  #{mod => M, func => F, dataDir => cuter_lib:get_tmp_dir(BaseDir), depth => Depth, no => 1, scheduler => Sched}.
 
 stop(Conf) ->
   _ = file:del_dir(filename:absname(maps:get(dataDir, Conf))),
@@ -50,9 +62,9 @@ stop(Conf) ->
 
 concolic_execute(Conf, Input) ->
   cuter_pp:input(Input),
-  DataDir = ?DATA_DIR(maps:get(dataDir, Conf), maps:get(no, Conf)),
-  CoreDir = ?CORE_DIR(DataDir),    %% Directory to store .core files
-  TraceDir = ?TRACE_DIR(DataDir),  %% Directory to store traces
+  DataDir = cuter_lib:get_data_dir(maps:get(dataDir, Conf), maps:get(no, Conf)),
+  CoreDir = cuter_lib:get_core_dir(DataDir),    % Directory to store .core files
+  TraceDir = cuter_lib:get_trace_dir(DataDir),  % Directory to store traces
   IServer = cuter_iserver:start(maps:get(mod, Conf), maps:get(func, Conf), Input, CoreDir, TraceDir, maps:get(depth, Conf)),
   case retrieve_result(IServer) of
     cuter_error -> stop(Conf);

@@ -69,8 +69,7 @@ load(CodeServer, M) ->
 init([Dir, Super]) when is_list(Dir) ->
   link(Super),
   Db = ets:new(?MODULE, [ordered_set, protected]),
-  U = cuter_lib:unique_string(),
-  CoreDir = filename:absname(Dir ++ "/codeserver-" ++ U),
+  CoreDir = cuter_lib:get_codeserver_dir(Dir),
   {ok, #state{db = Db, dir = CoreDir, super = Super}}.
 
 %% gen_server callback : terminate/2
@@ -78,10 +77,10 @@ init([Dir, Super]) when is_list(Dir) ->
 terminate(_Reason, State) ->
   Db = State#state.db,
   Super = State#state.super,
-  Logs = [{loaded_mods, delete_stored_modules(Db)}],  %% Delete all created ETS tables
+  Logs = [{loaded_mods, delete_stored_modules(Db)}],  % Delete all created ETS tables
   ets:delete(Db),
-  delete_stored_core_files(State#state.dir),          %% Clean up .core files directory
-  ok = cuter_iserver:code_logs(Super, Logs),          %% Send logs to the supervisor
+  cuter_lib:clear_and_delete_dir(State#state.dir),    % Clean up .core files directory
+  ok = cuter_iserver:code_logs(Super, Logs),          % Send logs to the supervisor
   ok.
 
 %% gen_server callback : code_change/3
@@ -150,12 +149,3 @@ is_mod_stored(M, State) ->
 delete_stored_modules(Db) ->
   ets:foldl(fun({M, MDb}, Ms) -> ets:delete(MDb), [M|Ms] end, [], Db).
 
-%% Delete all the created .core files during the execution
--spec delete_stored_core_files(file:name()) -> ok.
-delete_stored_core_files(Dir) ->
-  case file:list_dir(Dir) of
-    {ok, Files} ->
-      lists:foreach(fun(X) -> file:delete(Dir ++ "/" ++ X) end, Files),
-      ok = file:del_dir(Dir);
-    {error, enoent} -> ok
-  end.

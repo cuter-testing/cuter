@@ -17,7 +17,7 @@ load_modules_test_() ->
     Cs = cuter_codeserver:start(Dir, self()),
     As = [load_mod(Cs, M) || M <- ?MODS_LIST],
     Stop = cuter_codeserver:stop(Cs),
-    Chk = is_dir_empty(Dir),
+    Chk = is_dir_empty(Cs, Dir),
     [{"codeserver termination", ?_assertEqual(ok, Stop)},
      {"clean up .core directory", ?_assertEqual(true, Chk)},
      {"load modules", As}]
@@ -40,7 +40,7 @@ load_and_retrieve_test_() ->
     R3 = cuter_codeserver:load(Cs, lists),
     R4 = cuter_codeserver:load(Cs, os),
     Stop = cuter_codeserver:stop(Cs),
-    Chk = is_dir_empty(Dir),
+    Chk = is_dir_empty(Cs, Dir),
     [{"codeserver termination", ?_assertEqual(ok, Stop)},
      {"clean up .core directory", ?_assertEqual(true, Chk)},
      {"query modules", ?_assertMatch({{ok,X}, {ok,Y}, {ok,X}, {ok,Y}}, {R1, R2, R3, R4})}]
@@ -57,7 +57,7 @@ error_load_test_() ->
     R1 = cuter_codeserver:load(Cs, erlang),
     R2 = cuter_codeserver:load(Cs, foobar),
     Stop = cuter_codeserver:stop(Cs),
-    Chk = is_dir_empty(Dir),
+    Chk = is_dir_empty(Cs, Dir),
     [{"codeserver termination", ?_assertEqual(ok, Stop)},
      {"clean up .core directory", ?_assertEqual(true, Chk)},
      {"query invalid modules", ?_assertEqual({{error,preloaded}, {error, non_existing}}, {R1, R2})}]
@@ -69,9 +69,11 @@ error_load_test_() ->
 %% Helper functions
 %%====================================================================
 
-is_dir_empty(D) ->
-  timer:sleep(500),
-  case file:list_dir(D) of
+is_dir_empty(CodeServer, Dir) ->
+  receive {'EXIT', CodeServer, normal} -> ok
+  after 100 -> ok
+  end,
+  case file:list_dir(Dir) of
     {ok, Fs} -> length(Fs) =:= 0;
     {error, enoent} -> true
   end.
@@ -83,4 +85,4 @@ setup() ->
 
 cleanup(Dir) ->
   meck:unload(cuter_iserver),
-  cuter_tests_lib:cleanup_dir(Dir).
+  cuter_lib:clear_and_delete_dir(Dir).

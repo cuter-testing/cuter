@@ -65,7 +65,8 @@ scan_file(File) ->
 %% Compile the module source to Core Erlang
 -spec compile_core(module(), nonempty_string()) -> file:filename().
 compile_core(M, Dir) ->
-  ok = filelib:ensure_dir(Dir ++ "/"),
+  FileName = filename:absname(atom_to_list(M) ++ ".core", Dir),
+  ok = filelib:ensure_dir(FileName),
   {ok, BeamPath} = ensure_mod_loaded(M),
   {ok, {_, [{compile_info, Info}]}} = beam_lib:chunks(BeamPath, [compile_info]),
   Source = proplists:get_value(source, Info),
@@ -74,7 +75,7 @@ compile_core(M, Dir) ->
   CompInfo = [to_core, return_errors, {outdir, Dir}] ++ Includes ++ Macros,
   CompRet = compile:file(Source, CompInfo),
   case CompRet of
-    {ok, M} -> Dir ++ "/" ++ atom_to_list(M) ++ ".core";
+    {ok, M} -> FileName;
     Errors  -> erlang:throw({compile, Errors})
   end.
   

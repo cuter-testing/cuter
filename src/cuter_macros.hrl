@@ -18,10 +18,7 @@
 %% Directories
 %%====================================================================
 
--define(DATA_DIR(BaseDir, No), BaseDir ++ "/exec" ++ integer_to_list(No)).
--define(TRACE_DIR(BaseDir), BaseDir ++ "/traces").
--define(CORE_DIR(BaseDir), BaseDir ++ "/core").
--define(TMP_DIR, "temp").
+-define(RELATIVE_TMP_DIR, "temp").
 -define(PYTHON_CALL, ?PYTHON_PATH ++ " -u " ++ ?PRIV ++ "/cuter_interface.py").
 
 %%====================================================================

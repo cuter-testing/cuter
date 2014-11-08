@@ -4,27 +4,14 @@
 
 -include("eunit_config.hrl").
 
--export([setup_dir/0, cleanup_dir/1]).
+-export([setup_dir/0]).
 
 %% Create a directory for temporary use
--spec setup_dir() -> nonempty_string().
+-spec setup_dir() -> file:filename_all().
 setup_dir() ->
-  ok = filelib:ensure_dir(?TMP_DIR),
-  ?TMP_DIR.
+  {ok, CWD} = file:get_cwd(),
+  TmpDir = cuter_lib:get_tmp_dir(CWD),
+  CoreDir = cuter_lib:get_core_dir(TmpDir),
+  ok = filelib:ensure_dir(CoreDir),
+  TmpDir.
 
-%% Delete a directory and its contents
--spec cleanup_dir(file:name_all()) -> ok.
-cleanup_dir(D) ->
-  case filelib:is_regular(D) of
-    true  -> file:delete(D);
-    false ->
-      case file:del_dir(D) of
-        ok -> ok;
-        {error, eexist} ->
-          {ok, Fs} = file:list_dir(D),
-          AFs = lists:map(fun(X) -> D ++ "/" ++ X end, Fs),
-          lists:foreach(fun cleanup_dir/1, AFs),
-          file:del_dir(D);
-        _ -> ok
-      end
-  end.

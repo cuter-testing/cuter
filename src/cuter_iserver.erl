@@ -138,7 +138,7 @@ terminate(_Reason, State) ->
   Info = State#state.info,
   CoreDir = State#state.coredir,
   Exstatus = State#state.exstatus,
-  _ = file:del_dir(filename:absname(CoreDir)),  %% Directory will only be deleted if it's empty
+  cuter_lib:clear_and_delete_dir(CoreDir),
   Super ! {self(), Exstatus, Info},
   ok.
 
