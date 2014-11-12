@@ -4,22 +4,39 @@
 
 -include("cuter_macros.hrl").
 
--export([open_file/2, close_file/1, log_spawn/3, log_spawned/3, log_message_sent/3,
-         log_message_received/3, log_symb_params/2, log_guard/3, log_equal/4,
-         log_tuple/4, log_list/3, log_unfold_symbolic/4, log_mfa/4, count_reversible/1,
-         path_vertex/1, next_entry/2, write_data/4, log_message_consumed/3]).
+-export([
+    close_file/1
+  , count_reversible/1
+  , log_equal/4
+  , log_guard/3
+  , log_list/3
+  , log_mfa/4
+  , log_message_consumed/3
+  , log_message_received/3
+  , log_message_sent/3
+  , log_spawn/3
+  , log_spawned/3
+  , log_symb_params/2
+  , log_tuple/4
+  , log_unfold_symbolic/4
+  , next_entry/2
+  , open_file/2
+  , path_vertex/1
+  , write_data/4
+]).
 
 -export_type([opcode/0]).
 
 -type mode()   :: read | write.
 -type opcode() :: integer().
+-type entry_type() :: ?CONSTRAINT_TRUE | ?CONSTRAINT_FALSE | ?NOT_CONSTRAINT.
 
 %% Opens a file for logging or reading terms
 -spec open_file(file:name(), mode()) -> {ok, file:io_device()}.
 open_file(F, M) when M =:= read; M =:= write ->
   file:open(F, [M, raw, binary, compressed, {delayed_write, 262144, 2000}]).
 
-%% Wrapper for closing a file
+%% Closes a file
 -spec close_file(file:io_device()) -> ok.
 close_file(F) -> ok = file:close(F).
 
@@ -31,7 +48,7 @@ close_file(F) -> ok = file:close(F).
 log_mfa(Fd, MFA, SAs, X) ->
   %% SAs has at least one symbolic argument 
   %% as ensured by cuter_sumbolic:evaluate_mfa/4
-  log(Fd, MFA, [X | SAs]).
+  log(Fd, mfa2op(MFA), [X | SAs]).
 
 %% ------------------------------------------------------------------
 %% Log Entry Point MFA's parameters & spec
@@ -39,7 +56,7 @@ log_mfa(Fd, MFA, SAs, X) ->
 
 -spec log_symb_params(file:io_device(), [cuter_symbolic:symbolic()]) -> ok.
 log_symb_params(_Fd, []) -> ok;
-log_symb_params(Fd, Ps)  -> log(Fd, params, Ps).
+log_symb_params(Fd, Ps)  -> log(Fd, ?OP_PARAMS, Ps).
 
 %% ------------------------------------------------------------------
 %% Log process spawns
@@ -47,11 +64,11 @@ log_symb_params(Fd, Ps)  -> log(Fd, params, Ps).
 
 -spec log_spawn(file:io_device(), pid(), reference()) -> ok.
 log_spawn(Fd, Child, Ref) ->
-  log(Fd, spawn, [node(Child), Child, Ref]).
+  log(Fd, ?OP_SPAWN, [node(Child), Child, Ref]).
 
 -spec log_spawned(file:io_device(), pid(), reference()) -> ok.
 log_spawned(Fd, Parent, Ref) ->
-  log(Fd, spawned, [node(Parent), Parent, Ref]).
+  log(Fd, ?OP_SPAWNED, [node(Parent), Parent, Ref]).
 
 %% ------------------------------------------------------------------
 %% Log message passing
@@ -59,15 +76,15 @@ log_spawned(Fd, Parent, Ref) ->
 
 -spec log_message_sent(file:io_device(), pid(), reference()) -> ok.
 log_message_sent(Fd, Dest, Ref) ->
-  log(Fd, send_msg, [node(Dest), Dest, Ref]).
+  log(Fd, ?OP_MSG_SEND, [node(Dest), Dest, Ref]).
 
 -spec log_message_received(file:io_device(), pid(), reference()) -> ok.
 log_message_received(Fd, From, Ref) ->
-  log(Fd, receive_msg, [node(From), From, Ref]).
+  log(Fd, ?OP_MSG_RECEIVE, [node(From), From, Ref]).
 
 -spec log_message_consumed(file:io_device(), pid(), reference()) -> ok.
 log_message_consumed(Fd, From, Ref) ->
-  log(Fd, consume_msg, [node(From), From, Ref]).
+  log(Fd, ?OP_MSG_CONSUME, [node(From), From, Ref]).
 
 %% ------------------------------------------------------------------
 %% Log the unfolding of a symbolic variable that represents 
@@ -76,59 +93,99 @@ log_message_consumed(Fd, From, Ref) ->
 
 -spec log_unfold_symbolic(file:io_device(), (break_tuple | break_list), cuter_symbolic:symbolic(), [cuter_symbolic:symbolic()]) -> ok.
 log_unfold_symbolic(Fd, break_tuple, Sv, Vs) ->
-  log(Fd, {unfold, tuple}, [Sv | Vs]);
+  log(Fd, ?OP_UNFOLD_TUPLE, [Sv | Vs]);
 log_unfold_symbolic(Fd, break_list, Sv, Vs) ->
-  log(Fd, {unfold, list}, [Sv | Vs]).
+  log(Fd, ?OP_UNFOLD_LIST, [Sv | Vs]).
 
 %% ------------------------------------------------------------------
 %% Log Constraints
 %% ------------------------------------------------------------------
 
 -spec log_guard(file:io_device(), boolean(), any()) -> ok.
-log_guard(Fd, Tp, Sv) ->
+%% True guard
+log_guard(Fd, true, Sv) ->
   case cuter_symbolic:is_symbolic(Sv) of
     false -> ok;
-    true  -> log(Fd, {guard, Tp}, [Sv])
+    true  -> log(Fd, ?OP_GUARD_TRUE, [Sv])
+  end;
+%% False guard
+log_guard(Fd, false, Sv) ->
+  case cuter_symbolic:is_symbolic(Sv) of
+    false -> ok;
+    true  -> log(Fd, ?OP_GUARD_FALSE, [Sv])
   end.
 
 -spec log_equal(file:io_device(), boolean(), any(), any()) -> ok.
-log_equal(Fd, Tp, Sv1, Sv2) ->
+%% Match equal
+log_equal(Fd, true, Sv1, Sv2) ->
   case cuter_symbolic:is_symbolic(Sv1) orelse cuter_symbolic:is_symbolic(Sv2) of
     false -> ok;
-    true  -> log(Fd, {equal, Tp}, [Sv1, Sv2])
+    true  -> log(Fd, ?OP_MATCH_EQUAL_TRUE, [Sv1, Sv2])
+  end;
+%% Match not equal
+log_equal(Fd, false, Sv1, Sv2) ->
+  case cuter_symbolic:is_symbolic(Sv1) orelse cuter_symbolic:is_symbolic(Sv2) of
+    false -> ok;
+    true  -> log(Fd, ?OP_MATCH_EQUAL_FALSE, [Sv1, Sv2])
   end.
 
 -spec log_tuple(file:io_device(), (sz | not_sz | not_tpl), any(), integer()) -> ok.
-log_tuple(Fd, Tp, Sv, N) when (Tp =:= sz orelse Tp =:= not_sz orelse Tp =:= not_tpl) andalso is_integer(N) ->
+%% Tuple of size N
+log_tuple(Fd, sz, Sv, N) when is_integer(N) ->
   case cuter_symbolic:is_symbolic(Sv) of
     false -> ok;
-    true  -> log(Fd, {tuple, Tp}, [Sv, N])
+    true  -> log(Fd, ?OP_TUPLE_SZ, [Sv, N])
+  end;
+%% Tuple of not size N
+log_tuple(Fd, not_sz, Sv, N) when is_integer(N) ->
+  case cuter_symbolic:is_symbolic(Sv) of
+    false -> ok;
+    true  -> log(Fd, ?OP_TUPLE_NOT_SZ, [Sv, N])
+  end;
+%% Not a tuple
+log_tuple(Fd, not_tpl, Sv, N) when is_integer(N) ->
+  case cuter_symbolic:is_symbolic(Sv) of
+    false -> ok;
+    true  -> log(Fd, ?OP_TUPLE_NOT_TPL, [Sv, N])
   end.
 
 -spec log_list(file:io_device(), (nonempty | empty | not_lst), any()) -> ok.
-log_list(Fd, Tp, Sv) when Tp =:= nonempty orelse Tp =:= empty orelse Tp =:= not_lst ->
+%% Non-empty list
+log_list(Fd, nonempty, Sv) ->
   case cuter_symbolic:is_symbolic(Sv) of
     false -> ok;
-    true  -> log(Fd, {list, Tp}, [Sv])
+    true  -> log(Fd, ?OP_LIST_NON_EMPTY, [Sv])
+  end;
+%% Empty list
+log_list(Fd, empty, Sv) ->
+  case cuter_symbolic:is_symbolic(Sv) of
+    false -> ok;
+    true  -> log(Fd, ?OP_LIST_EMPTY, [Sv])
+  end;
+%% Not a list
+log_list(Fd, not_lst, Sv) ->
+  case cuter_symbolic:is_symbolic(Sv) of
+    false -> ok;
+    true  -> log(Fd, ?OP_LIST_NOT_LST, [Sv])
   end.
 
 %% ------------------------------------------------------------------
 %% Logging Function
 %% ------------------------------------------------------------------
 
--spec log(file:io_device(), any(), [any()]) -> ok.
+%% Log data to a file
+-spec log(file:io_device(), opcode(), [any()]) -> ok.
 -ifdef(LOGGING_FLAG).
-log(Fd, Cmd, Data) ->
+log(Fd, OpCode, Data) ->
   case get(?DEPTH_PREFIX) of
     undefined -> throw(depth_undefined_in_pdict);
     0 -> ok;
     N when is_integer(N), N > 0 ->
-      Op = cmd2op(Cmd),
-      CmdType = cmd_type(Cmd),
-      try cuter_json:command_to_json(Op, Data) of
-        Json_data ->
-          write_data(Fd, CmdType, Op, Json_data),
-          update_constraint_counter(CmdType, N)
+      Type = entry_type(OpCode),
+      try cuter_json:command_to_json(OpCode, Data) of
+        Jdata ->
+          write_data(Fd, Type, OpCode, Jdata),
+          update_constraint_counter(Type, N)
       catch
         throw:{unsupported_term, _} -> ok
       end
@@ -137,55 +194,40 @@ log(Fd, Cmd, Data) ->
 log(_, _, _) -> ok.
 -endif.
 
-%% Maps commands to their JSON Opcodes
-cmd2op(params) -> ?OP_PARAMS;
-cmd2op(spec)   -> ?OP_SPEC;
-cmd2op({guard, true})  -> ?OP_GUARD_TRUE;
-cmd2op({guard, false}) -> ?OP_GUARD_FALSE;
-cmd2op({equal, true})  -> ?OP_MATCH_EQUAL_TRUE;
-cmd2op({equal, false}) -> ?OP_MATCH_EQUAL_FALSE;
-cmd2op({tuple, sz})    -> ?OP_TUPLE_SZ;
-cmd2op({tuple, not_sz})  -> ?OP_TUPLE_NOT_SZ;
-cmd2op({tuple, not_tpl}) -> ?OP_TUPLE_NOT_TPL;
-cmd2op({list, nonempty}) -> ?OP_LIST_NON_EMPTY;
-cmd2op({list, empty})    -> ?OP_LIST_EMPTY;
-cmd2op({list, not_lst})  -> ?OP_LIST_NOT_LST;
-cmd2op(spawn)       -> ?OP_SPAWN;
-cmd2op(spawned)     -> ?OP_SPAWNED;
-cmd2op(send_msg)    -> ?OP_MSG_SEND;
-cmd2op(receive_msg) -> ?OP_MSG_RECEIVE;
-cmd2op(consume_msg) -> ?OP_MSG_CONSUME;
-cmd2op({unfold, tuple}) -> ?OP_UNFOLD_TUPLE;
-cmd2op({unfold, list})  -> ?OP_UNFOLD_LIST;
-cmd2op({erlang, hd, 1}) -> ?OP_ERLANG_HD_1;
-cmd2op({erlang, tl, 1}) -> ?OP_ERLANG_TL_1.
+%% Maps MFAs to their JSON Opcodes
+mfa2op({erlang, hd, 1}) -> ?OP_ERLANG_HD_1;
+mfa2op({erlang, tl, 1}) -> ?OP_ERLANG_TL_1.
 
 %% Maps commands to their type
 %% (True constraint | False constraint | Everything else)
-cmd_type({guard, true})  -> ?CONSTRAINT_TRUE;
-cmd_type({guard, false}) -> ?CONSTRAINT_FALSE;
-cmd_type({equal, true})  -> ?CONSTRAINT_TRUE;
-cmd_type({equal, false}) -> ?CONSTRAINT_FALSE;
-cmd_type({tuple, sz})    -> ?CONSTRAINT_TRUE;
-cmd_type({tuple, not_sz})  -> ?CONSTRAINT_FALSE;
-cmd_type({tuple, not_tpl}) -> ?CONSTRAINT_FALSE;
-cmd_type({list, nonempty}) -> ?CONSTRAINT_TRUE;
-cmd_type({list, empty})    -> ?CONSTRAINT_FALSE;
-cmd_type({list, not_lst})  -> ?CONSTRAINT_FALSE;
-cmd_type(_) -> ?NOT_CONSTRAINT.
+-spec entry_type(opcode()) -> entry_type().
+entry_type(?OP_GUARD_TRUE)  -> ?CONSTRAINT_TRUE;
+entry_type(?OP_GUARD_FALSE) -> ?CONSTRAINT_FALSE;
+entry_type(?OP_MATCH_EQUAL_TRUE)  -> ?CONSTRAINT_TRUE;
+entry_type(?OP_MATCH_EQUAL_FALSE) -> ?CONSTRAINT_FALSE;
+entry_type(?OP_TUPLE_SZ)       -> ?CONSTRAINT_TRUE;
+entry_type(?OP_TUPLE_NOT_SZ)   -> ?CONSTRAINT_FALSE;
+entry_type(?OP_TUPLE_NOT_TPL)  -> ?CONSTRAINT_FALSE;
+entry_type(?OP_LIST_NON_EMPTY) -> ?CONSTRAINT_TRUE;
+entry_type(?OP_LIST_EMPTY)     -> ?CONSTRAINT_FALSE;
+entry_type(?OP_LIST_NOT_LST)   -> ?CONSTRAINT_FALSE;
+entry_type(_) -> ?NOT_CONSTRAINT.
 
-update_constraint_counter(Cmd, N) when Cmd =:= ?CONSTRAINT_TRUE; Cmd =:= ?CONSTRAINT_FALSE ->
+%% Reduce the contraint counter by one every time
+%% a constraint is logged.
+-spec update_constraint_counter(entry_type(), integer()) -> ok.
+update_constraint_counter(Type, N) when Type =:= ?CONSTRAINT_TRUE; Type =:= ?CONSTRAINT_FALSE ->
   _ = put(?DEPTH_PREFIX, N-1), ok;
-update_constraint_counter(_Cmd, _ok) -> ok.
+update_constraint_counter(_Type, _ok) -> ok.
 
 %% ------------------------------------------------------------------
 %% Read / Write Data
 %% ------------------------------------------------------------------
 
--spec write_data(file:io_device(), integer(), opcode(), binary()) -> ok.
-write_data(Fd, Id, Op, Data) when is_integer(Id), is_integer(Op), is_binary(Data) ->
+-spec write_data(file:io_device(), entry_type(), opcode(), binary()) -> ok.
+write_data(Fd, Tp, Op, Data) when is_integer(Tp), is_integer(Op), is_binary(Data) ->
   Sz = erlang:byte_size(Data),
-  ok = file:write(Fd, [Id, Op, i32_to_list(Sz), Data]).
+  ok = file:write(Fd, [Tp, Op, i32_to_list(Sz), Data]).
 
 %% Encode a 32-bit integer to its corresponding sequence of four bytes
 -spec i32_to_list(non_neg_integer()) -> [byte(), ...].
@@ -217,7 +259,7 @@ generate_vertex(Fd, Acc) ->
   end.
 
 %% Count the reversible commands in a trace file
--spec count_reversible(file:filename_all()) -> integer().
+-spec count_reversible(file:name()) -> integer().
 count_reversible(File) ->
   {ok, Fd} = open_file(File, read),
   count_reversible(Fd, 0).
@@ -240,8 +282,8 @@ is_reversible_operation(?OP_ERLANG_HD_1) -> true;
 is_reversible_operation(?OP_ERLANG_TL_1) -> true;
 is_reversible_operation(_) -> false.
 
--spec next_entry(file:io_device(), true) -> {integer(), opcode(), binary()} | eof
-              ; (file:io_device(), false) -> {integer(), opcode()} | eof.
+-spec next_entry(file:io_device(), true) -> {entry_type(), opcode(), binary()} | eof
+              ; (file:io_device(), false) -> {entry_type(), opcode()} | eof.
 next_entry(Fd, WithData) ->
   case safe_read(Fd, 1, true) of
     eof ->
@@ -253,14 +295,14 @@ next_entry(Fd, WithData) ->
       next_entry_data(Fd, WithData, N, Tp, Sz)
   end.
 
--spec next_entry_data(file:io_device(), true, integer(), opcode(), integer()) -> {integer(), opcode(), binary()}
-                   ; (file:io_device(), false, integer(), opcode(), integer()) -> {integer(), opcode()}.
-next_entry_data(Fd, true, N, Tp, Sz) ->
+-spec next_entry_data(file:io_device(), true, entry_type(), opcode(), integer()) -> {entry_type(), opcode(), binary()}
+                   ; (file:io_device(), false, entry_type(), opcode(), integer()) -> {entry_type(), opcode()}.
+next_entry_data(Fd, true, Type, OpCode, Sz) ->
   Data = safe_read(Fd, Sz, false),
-  {N, Tp, Data};
-next_entry_data(Fd, false, N, Tp, Sz) ->
+  {Type, OpCode, Data};
+next_entry_data(Fd, false, Type, OpCode, Sz) ->
   {ok, _} = file:position(Fd, {cur, Sz}),
-  {N, Tp}.
+  {Type, OpCode}.
 
 -spec safe_read(file:io_device(), integer(), boolean()) -> binary() | eof.
 safe_read(Fd, Sz, AllowEOF) ->
