@@ -172,7 +172,7 @@ expand_state(Q, Ref, I, Python, Depth) ->
   ets:delete(I, Ref),
   F = maps:get(traceFile, Info),
   N = maps:get(next_constraint, Info),
-  case cuter_solver:run(Python, maps:get(mappings, Info), F, N) of
+  case cuter_solver:solve(Python, maps:get(mappings, Info), F, N) of
     error ->
       Q1 = requeue_state(Q, Ref, I, Info, Depth),
       {error, Q1};
