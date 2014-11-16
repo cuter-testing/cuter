@@ -10,21 +10,19 @@
 %% Returns bif if an MFA is an Erlang BIF
 -spec simulate_behaviour(module(), atom(), non_neg_integer()) -> bif | {ok, mfa()}.
 
-%% Module erlang
-simulate_behaviour(erlang, abs, 1)->
-  {ok, {cuter_erlang, abs, 1}};
-simulate_behaviour(erlang, element, 2)->
-  {ok, {cuter_erlang, element, 2}};
-simulate_behaviour(erlang, length, 1)->
-  {ok, {cuter_erlang, length, 1}};
-simulate_behaviour(erlang, make_tuple, 2)->
-  {ok, {cuter_erlang, make_tuple, 2}};
-simulate_behaviour(erlang, max, 2)->
-  {ok, {cuter_erlang, max, 2}};
-simulate_behaviour(erlang, min, 2)->
-  {ok, {cuter_erlang, min, 2}};
+%% erlang module
+%% All overrides will be in cuter_erlang module.
+simulate_behaviour(erlang, abs, 1)        -> {ok, {cuter_erlang, abs, 1}};
+simulate_behaviour(erlang, element, 2)    -> {ok, {cuter_erlang, element, 2}};
+simulate_behaviour(erlang, length, 1)     -> {ok, {cuter_erlang, length, 1}};
+simulate_behaviour(erlang, make_tuple, 2) -> {ok, {cuter_erlang, make_tuple, 2}};
+simulate_behaviour(erlang, max, 2)        -> {ok, {cuter_erlang, max, 2}};
+simulate_behaviour(erlang, min, 2)        -> {ok, {cuter_erlang, min, 2}};
+simulate_behaviour(erlang, _F, _A)        -> bif;
 
-simulate_behaviour(erlang, _F, _A) -> bif;
+%% cuter_erlang module
+simulate_behaviour(cuter_erlang, gteq, 2) -> bif;
+
 %% Module beam_asm 
 %% XXX Not BIF but with unsupported primops
 simulate_behaviour(beam_asm, _F, _A) -> bif;

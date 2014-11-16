@@ -455,7 +455,7 @@ class ErlangZ3:
   # BIFs
   # ----------------------------------------------------------------------
   
-  ### hd/1 ###
+  ### erlang:hd/1 ###
   
   def cmd_erlang_hd_1_toZ3(self, term1, term2):
     s = term1["s"]
@@ -474,7 +474,7 @@ class ErlangZ3:
       And(self.Term.is_lst(t2), self.List.is_nil(self.Term.lval(t2)))
     ))
   
-  ### tl/1 ###
+  ### erlang:tl/1 ###
   
   def cmd_erlang_tl_1_toZ3(self, term1, term2):
     s = term1["s"]
