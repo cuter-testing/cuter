@@ -196,7 +196,8 @@ log(_, _, _) -> ok.
 
 %% Maps MFAs to their JSON Opcodes
 mfa2op({erlang, hd, 1}) -> ?OP_ERLANG_HD_1;
-mfa2op({erlang, tl, 1}) -> ?OP_ERLANG_TL_1.
+mfa2op({erlang, tl, 1}) -> ?OP_ERLANG_TL_1;
+mfa2op({erlang, is_integer, 1}) -> ?OP_ERLANG_IS_INTEGER_1.
 
 %% Maps commands to their type
 %% (True constraint | False constraint | Everything else)

@@ -62,7 +62,9 @@ deserialize(L) when is_list(L) -> {?SYMBOLIC_PREFIX, L}.
 %% Symbolic evaluation of MFAs
 %% =============================================================
 
+%% The MFAs the are supported for symbolic evaluation
 -spec is_supported_mfa(mfa()) -> boolean().
+is_supported_mfa({erlang, is_integer, 1}) -> true;
 is_supported_mfa({erlang, hd, 1}) -> true;
 is_supported_mfa({erlang, tl, 1}) -> true;
 is_supported_mfa(_) -> false.

@@ -101,4 +101,6 @@
 -define(OP_UNFOLD_LIST, 19).
 -define(OP_ERLANG_HD_1, 25).
 -define(OP_ERLANG_TL_1, 26).
+-define(OP_ERLANG_IS_INTEGER_1, 27).
+
 
