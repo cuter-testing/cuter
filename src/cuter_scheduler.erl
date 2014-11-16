@@ -4,28 +4,35 @@
 -behaviour(gen_server).
 
 %% External exports
--export([start/2, stop/1, seed_execution/2, request_input/1,
-         store_execution/3]).
-
-%% gen_server callbacks
--export([init/1, terminate/2, code_change/3, handle_info/2,
-         handle_call/3, handle_cast/2]).
-
-
+-export([ %% external API
+          start/2
+        , stop/1
+        , seed_execution/2
+        , request_input/1
+        , store_execution/3
+        %% gen_server callbacks
+        , init/1
+        , terminate/2
+        , code_change/3
+        , handle_info/2
+        , handle_call/3
+        , handle_cast/2
+       ]).
 
 %% gen_server state datatype
--record(state, {
-  queue,
-  info,
-  python,
-  depth,
-  waiting = none
+-record(sts, {
+    queue           :: queue:queue()
+  , info            :: ets:tid()
+  , python          :: string()
+  , depth           :: integer()
+  , waiting = none  :: from() | none
 }).
--type state() :: #state{}.
+-type state() :: #sts{}.
+-type from()  :: {pid(), reference()}.
 
-%% ============================================================================
-%% External exports
-%% ============================================================================
+%% ----------------------------------------------------------------------------
+%% External API
+%% ----------------------------------------------------------------------------
 
 %% Start the Scheduler
 -spec start(string(), integer()) -> pid().
@@ -35,7 +42,6 @@ start(Python, Depth) ->
     {error, R} -> exit({scheduler_start, R})
   end.
 
-
 %% Stop the Scheduler
 -spec stop(pid()) -> ok.
 stop(Scheduler) ->
@@ -43,150 +49,138 @@ stop(Scheduler) ->
 
 %% Store the information of the 1st concolic execution
 %% (that will be used as a guide)
--spec seed_execution(pid(), map()) -> ok.
+-spec seed_execution(pid(), cuter_analyzer:info()) -> ok.
 seed_execution(Scheduler, Info) ->
   gen_server:call(Scheduler, {seed_execution, Info}).
 
 %% Request a new Input vertex for concolic execution
 -spec request_input(pid()) -> {reference(), [any()]} | empty.
 request_input(Scheduler) ->
-  gen_server:call(Scheduler, request_input, 200000).
+  gen_server:call(Scheduler, request_input, 500000).
 
 %% Store the information of a concolic execution
--spec store_execution(pid(), reference(), map()) -> ok.
+-spec store_execution(pid(), reference(), cuter_analyzer:info()) -> ok.
 store_execution(Scheduler, Ref, Info) ->
   gen_server:call(Scheduler, {store_execution, Ref, Info}).
 
-%% ============================================================================
+%% ----------------------------------------------------------------------------
 %% gen_server callbacks
-%% ============================================================================
+%% ----------------------------------------------------------------------------
 
-%% ------------------------------------------------------------------
-%% gen_server callback : init/1
-%% ------------------------------------------------------------------
+%% init/1
 -spec init([string() | integer(), ...]) -> {ok, state()}.
-
 init([Python, Depth]) ->
   Q = queue:new(),
   I = ets:new(?MODULE, [ordered_set, protected]),
-  {ok, #state{queue = Q, info = I, python = Python, depth = Depth}}.
+  {ok, #sts{queue = Q, info = I, python = Python, depth = Depth}}.
 
-%% ------------------------------------------------------------------
-%% gen_server callback : terminate/2
-%% ------------------------------------------------------------------
--spec terminate(term(), state()) -> ok.
-
-terminate(_Reason, #state{info = I}) ->
+%% terminate/2
+-spec terminate(any(), state()) -> ok.
+terminate(_Reason, #sts{info = I}) ->
   ets:delete(I),
   ok.
 
-%% ------------------------------------------------------------------
-%% gen_server callback : code_change/3
-%% ------------------------------------------------------------------
--spec code_change(term(), state(), term()) -> {ok, state()}.
-  
+%% code_change/3
+-spec code_change(any(), state(), any()) -> {ok, state()}.
 code_change(_OldVsn, State, _Extra) ->
-  {ok, State}.  %% No change planned.
+  {ok, State}.  % No change planned.
 
-%% ------------------------------------------------------------------
-%% gen_server callback : handle_info/2
-%% ------------------------------------------------------------------
--spec handle_info(term(), state()) -> {noreply, state()}.
-
+%% handle_info/2
+-spec handle_info(any(), state()) -> {noreply, state()}.
 handle_info(Msg, State) ->
   %% Just outputting unexpected messages for now
   io:format("[~s]: Unexpected message ~p~n", [?MODULE, Msg]),
   {noreply, State}.
 
-%% ------------------------------------------------------------------
-%% gen_server callback : handle_call/3
-%% ------------------------------------------------------------------
--spec handle_call({seed_execution, map()}, {pid(), reference()}, state()) -> {reply, ok, state()}
-               ; (request_input, {pid(), reference()}, state()) -> {reply, (ok | {reference(), [any()]}), state()} | {noreply, state()}
-               ; ({store_execution, reference(), map()}, {pid(), reference()}, state()) -> {reply, ok, state}.
-
-handle_call({seed_execution, Info}, _From, S=#state{queue = Q, info = I}) ->
-  R = make_ref(),
-  Q1 = queue:in(R, Q),
-  ExecInfo = Info#{next_constraint => 1},
-  io:format("[SCHED]: ~p~n", [ExecInfo]),
-  ets:insert(I, {R, ExecInfo}),
-  {reply, ok, S#state{queue = Q1}};
-
-handle_call(request_input, From, S=#state{queue = Q, info = I, python = P, depth = D}) ->
-  case generate_testcase(Q, I, P, D) of
-    empty -> {reply, empty, S};
-    none_currently_available -> {noreply, S#state{waiting = From}};
-    {ok, Ref, Inp, Q1} -> {reply, {Ref, Inp}, S#state{queue = Q1}}
+%% handle_call/3
+-spec handle_call({seed_execution, cuter_analyzer:info()}, from(), state()) -> {reply, ok, state()}
+               ; (request_input, from(), state()) -> {reply, (empty | {reference(), [any()]}), state()}
+               ; ({store_execution, reference(), cuter_analyzer:info()}, from(), state()) -> {reply, ok, state}.
+%% Store the information of the first concolic execution
+handle_call({seed_execution, Info}, _From, S=#sts{queue = Q, info = I}) ->
+  Rf = make_ref(),
+  Q1 = queue:in(Rf, Q),
+  ExecInfo = Info#{nextRvs => 1},  % Add the next command to be reversed
+  ets:insert(I, {Rf, ExecInfo}),   % Store the extended info
+  cuter_pp:seed_execution(Rf, ExecInfo),
+  {reply, ok, S#sts{queue = Q1}};
+%% Ask for a new input to execute
+handle_call(request_input, _From, S=#sts{queue = Q, info = I, python = P, depth = D}) ->
+  cuter_pp:request_input(Q, I),
+  case generate_new_testcase(Q, I, P, D) of
+    empty ->
+      cuter_pp:request_input_empty(I),
+      {reply, empty, S};
+    {ok, Rf, Inp, Q1} ->
+      cuter_pp:request_input_success(Rf, Inp, Q1, I),
+      {reply, {Rf, Inp}, S#sts{queue = Q1}}
   end;
-
-handle_call({store_execution, Ref, Info}, _From, S=#state{queue = Q, info = I, waiting = W}) ->
-  [{Ref, PartialInfo}] = ets:lookup(I, Ref),
+%% Store the information of a concolic execution
+handle_call({store_execution, Rf, Info}, _From, S=#sts{queue = Q, info = I, waiting = W}) ->
+  cuter_pp:store_execution(Rf, Info, Q, I),
+  [{Rf, PartialInfo}] = ets:lookup(I, Rf),
   Ln = maps:get(pathLength, Info),
-  N = maps:get(next_constraint, PartialInfo),
-  case N > Ln of
+  N = maps:get(nextRvs, PartialInfo),
+  case N > Ln of  % Store the execution if there is a command to be reversed later
     true ->
       cuter_lib:clear_and_delete_dir(maps:get(dir, Info)),
-      ets:delete(I, Ref),
+      ets:delete(I, Rf),
+      cuter_pp:store_execution_fail(N, Ln, I),
       {reply, ok, S};
     false ->
-      ExecInfo = Info#{next_constraint => N},
-      ets:insert(I, {Ref, ExecInfo}),
-      Q1 = queue:in(Ref, Q),
-      %% Do sth for the waiting
-      {reply, ok, S#state{queue = Q1}}
+      ExecInfo = Info#{nextRvs => N},
+      ets:insert(I, {Rf, ExecInfo}),  % Replaces the old information
+      Q1 = queue:in(Rf, Q),
+      cuter_pp:store_execution_success(N, Ln, Q, I),
+      {reply, ok, S#sts{queue = Q1}}
   end.
 
-%% ------------------------------------------------------------------
-%% gen_server callback : handle_cast/2
-%% ------------------------------------------------------------------
+%% handle_cast/2
 -spec handle_cast(stop, state()) -> {stop, normal, state()}.
-
 handle_cast(stop, State) ->
   {stop, normal, State}.
 
+%% ----------------------------------------------------------------------------
+%% Attempt to generate a new testcase
+%% ----------------------------------------------------------------------------
 
-
-is_info_empty(Info) ->
-  case ets:first(Info) of
-    '$end_of_table' -> true;
-    _ -> false
-  end.
-
-generate_testcase(Q, Info, Python, Depth) ->
+%% Generate a new testcase from reversing a command in the trace
+%% of the execution that is in the head of the queue
+-spec generate_new_testcase(queue:queue(), ets:tid(), string(), integer()) -> {ok, reference(), [any()], queue:queue()} | empty.
+generate_new_testcase(Q, Info, Python, Depth) ->
   case queue:out(Q) of
     {empty, Q} ->
-      case is_info_empty(Info) of
-        true  -> empty;
-        false -> none_currently_available
-      end;
-    {{value, R}, Q1} ->
-      case expand_state(Q1, R, Info, Python, Depth) of
-        {error, Q2} -> generate_testcase(Q2, Info, Python, Depth);
-        {ok, Ref, Inp, Q2} -> {ok, Ref, Inp, Q2}
-      end
+      empty;
+    {{value, Rf}, Q1} ->
+      expand_state(Q1, Rf, Info, Python, Depth)
   end.
 
-expand_state(Q, Ref, I, Python, Depth) ->
-  [{Ref, Info}] = ets:lookup(I, Ref),
-  ets:delete(I, Ref),
-  F = maps:get(traceFile, Info),
-  N = maps:get(next_constraint, Info),
-  case cuter_solver:solve(Python, maps:get(mappings, Info), F, N) of
+%% Attempt to reverse the Nth command in a stored trace
+-spec expand_state(queue:queue(), reference(), ets:tid(), string(), integer()) -> {ok, reference(), [any()], queue:queue()} | empty.
+expand_state(Q, Rf, I, Python, Depth) ->
+  [{Rf, Info}] = ets:lookup(I, Rf),
+  ets:delete(I, Rf),
+  Fname = maps:get(traceFile, Info),
+  Mapping = maps:get(mappings, Info),
+  N = maps:get(nextRvs, Info),
+  case cuter_solver:solve(Python, Mapping, Fname, N) of
     error ->
-      Q1 = requeue_state(Q, Ref, I, Info, Depth),
-      {error, Q1};
-    Inp ->
+      Q1 = requeue_state(Q, Rf, Info, I, Depth),
+      generate_new_testcase(Q1, I, Python, Depth);
+    {ok, Inp} ->
       R = make_ref(),
-      ets:insert(I, {R, #{next_constraint => N+1}}),
-      Q1 = requeue_state(Q, Ref, I, Info, Depth),
+      PartialInfo = #{nextRvs => N+1},
+      ets:insert(I, {R, PartialInfo}),
+      Q1 = requeue_state(Q, Rf, Info, I, Depth),
       {ok, R, Inp, Q1}
   end.
 
-
-requeue_state(Q, Ref, I, Info, Depth) ->
-  N = maps:get(next_constraint, Info),
-  L = maps:get(path_length, Info),
+%% Try to requeue an execution if there is another
+%% reversible command in its trace
+-spec requeue_state(queue:queue(), reference(), map(), ets:tid(), integer()) -> queue:queue().
+requeue_state(Q, Rf, Info, I, Depth) ->
+  N = maps:get(nextRvs, Info),
+  L = maps:get(pathLength, Info),
   X = N + 1,
   case X > L orelse X > Depth of
     true ->
@@ -194,7 +188,7 @@ requeue_state(Q, Ref, I, Info, Depth) ->
       cuter_lib:clear_and_delete_dir(DataDir),
       Q;
     false ->
-      ets:insert(I, {Ref, Info#{next_constraint := X}}),
-      queue:in(Ref, Q)
+      ets:insert(I, {Rf, Info#{nextRvs := X}}),  % Replace the old information
+      queue:in(Rf, Q)
   end.
-  
+

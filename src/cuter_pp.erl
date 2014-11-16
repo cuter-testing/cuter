@@ -8,6 +8,17 @@
         , input/1
         , exec_status/1
         , exec_info/1
+        , path_vertex/1
+        %% Verbose Scheduling
+        , seed_execution/2
+        , request_input/2
+        , request_input_empty/1
+        , request_input_success/4
+        , store_execution/4
+        , store_execution_fail/3
+        , store_execution_success/4
+        %% Verbose File/Folder Deletion
+        , delete_file/2
         %% Verbose solving
         , sat/0
         , not_sat/0
@@ -77,10 +88,135 @@ exec_info_data({int, Pid}) ->
 %exec_info_data(Data) -> io:format("    ~p~n", [Data]).
 exec_info_data(_) -> ok.
 
+-spec path_vertex(cuter_analyzer:path_vertex()) -> ok.
+path_vertex(Vertex) ->
+  io:format("PATH VERTEX~n"),
+  io:format("  ~p (~w)~n", [Vertex, length(Vertex)]).
 
 divider(Divider) ->
   lists:foreach(fun(_) -> io:format(Divider) end, lists:seq(1,50)),
   io:format("~n").
+
+%%
+%% Verbose Scheduling
+%%
+
+-spec seed_execution(reference(), map()) -> ok.
+-ifdef(VERBOSE_SCHEDULER).
+seed_execution(Rf, Info) ->
+  io:format("SEED EXECUTION~n"),
+  io:format("  HANDLE~n"),
+  io:format("    ~p~n", [Rf]),
+  io:format("  STORED INFO~n"),
+  io:format("    ~p~n", [Info]).
+-else.
+seed_execution(_Rf, _Info) -> ok.
+-endif.
+
+
+-spec request_input(queue:queue(), ets:tid()) -> ok.
+-ifdef(VERBOSE_SCHEDULER).
+request_input(Q, I) ->
+  io:format("REQUEST INPUT~n"),
+  io:format("  CURRENT QUEUE~n"),
+  io:format("    ~p~n", [queue:to_list(Q)]),
+  io:format("  ALL HANDLES~n"),
+  {Handles, _} = lists:unzip(ets:tab2list(I)),
+  io:format("    ~p~n", [Handles]).
+-else.
+request_input(_Q, _I) -> ok.
+-endif.
+
+-spec request_input_empty(ets:tid()) -> ok.
+-ifdef(VERBOSE_SCHEDULER).
+request_input_empty(I) ->
+  io:format("UNABLE TO GENERATE A TESTCASE~n"),
+  {Handles, _} = lists:unzip(ets:tab2list(I)),
+  case Handles of
+    [] -> ok;
+    _ ->
+      io:format("  [!!] HANDLES LEFT~n"),
+      io:format("    ~p~n", [Handles])
+  end.
+-else.
+request_input_empty(_I) -> ok.
+-endif.
+
+-spec request_input_success(reference(), [any()], queue:queue(), ets:tid()) -> ok.
+-ifdef(VERBOSE_SCHEDULER).
+request_input_success(Rf, Inp, Q, I) ->
+  io:format("NEW INPUT SENT~n"),
+  io:format("  HANDLE~n"),
+  io:format("    ~p~n", [Rf]),
+  io:format("  ARGS~n"),
+  io:format("    ~p~n", [Inp]),
+  io:format("  NEW QUEUE~n"),
+  io:format("    ~p~n", [queue:to_list(Q)]),
+  io:format("  ALL HANDLES~n"),
+  {Handles, _} = lists:unzip(ets:tab2list(I)),
+  io:format("    ~p~n", [Handles]).
+-else.
+request_input_success(_Rf, _Inp, _Q, _I) -> ok.
+-endif.
+
+-spec store_execution(reference(), map(), queue:queue(), ets:tid()) -> ok.
+-ifdef(VERBOSE_SCHEDULER).
+store_execution(Rf, Info, Q, I) ->
+  io:format("STORE EXECUTION~n"),
+  io:format("  HANDLE~n"),
+  io:format("    ~p~n", [Rf]),
+  io:format("  EXEC INFO~n"),
+  io:format("    ~p~n", [Info]),
+  io:format("  CURRENT QUEUE~n"),
+  io:format("    ~p~n", [queue:to_list(Q)]),
+  io:format("  ALL HANDLES~n"),
+  {Handles, _} = lists:unzip(ets:tab2list(I)),
+  io:format("    ~p~n", [Handles]).
+-else.
+store_execution(_Rf, _Info, _Q, _I) -> ok.
+-endif.
+
+-spec store_execution_fail(integer(), integer(), ets:tid()) -> ok.
+-ifdef(VERBOSE_SCHEDULER).
+store_execution_fail(N, Depth, I) ->
+  io:format("WILL NOT STORE EXECUTION~n"),
+  io:format("  NEXT REVERSIBLE COMMAND > DEPTH~n"),
+  io:format("    ~p > ~p~n", [N, Depth]),
+  io:format("  HANDLES LEFT~n"),
+  {Handles, _} = lists:unzip(ets:tab2list(I)),
+  io:format("    ~p~n", [Handles]).
+-else.
+store_execution_fail(_N, _D, _I) -> ok.
+-endif.
+
+-spec store_execution_success(integer(), integer(), queue:queue(), ets:tid()) -> ok.
+-ifdef(VERBOSE_SCHEDULER).
+store_execution_success(N, Depth, Q, I) ->
+  io:format("EXECUTION STORED~n"),
+  io:format("  NEXT REVERSIBLE COMMAND =< DEPTH~n"),
+  io:format("    ~p >= ~p~n", [N, Depth]),
+  io:format("  NEW QUEUE~n"),
+  io:format("    ~p~n", [queue:to_list(Q)]),
+  io:format("  ALL HANDLES~n"),
+  {Handles, _} = lists:unzip(ets:tab2list(I)),
+  io:format("    ~p~n", [Handles]).
+-else.
+store_execution_success(_N, _D, _Q, _I) -> ok.
+-endif.
+
+%%
+%% Verbose File/Folder Deletion
+%%
+
+-spec delete_file(file:name(), boolean()) -> ok.
+-ifdef(VERBOSE_FILE_DELETION).
+delete_file(F, true) ->
+  io:format("[DELETE] ~p (OK)~n", [F]);
+delete_file(F, false) ->
+  io:format("[DELETE] ~p (LEAVE INTACT)~n", [F]).
+-else.
+delete_file(_F, _Intact) -> ok.
+-endif.
 
 %%
 %% Verbose solving

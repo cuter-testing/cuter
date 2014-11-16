@@ -79,10 +79,10 @@ clear_and_delete_dir(D) ->
 
 -spec clear_and_delete_dir(file:filename_all(), file:filename_all() | none) -> ok.
 clear_and_delete_dir(F, F) ->
-  io:format("[##] ~p (INTACT)~n", [F]),
+  cuter_pp:delete_file(F, false),
   ok;
 clear_and_delete_dir(D, EF) ->
-  io:format("[##] ~p~n", [D]),
+  cuter_pp:delete_file(D, true),
   case filelib:is_regular(D) of
     true -> delete_file(D);
     false ->

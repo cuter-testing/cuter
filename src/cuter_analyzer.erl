@@ -65,7 +65,7 @@ process_raw_execution_info(Info) ->
   cuter_merger:merge_traces(Info, MergedTraceFile),
   cuter_lib:clear_and_delete_dir(maps:get(dir, Info), MergedTraceFile),
   PathVertex = cuter_log:path_vertex(MergedTraceFile),
-  io:format("[PATH VERTEX] ~p~n", [PathVertex]),
+  cuter_pp:path_vertex(PathVertex),
   RvsCnt = cuter_log:count_reversible(MergedTraceFile),
   io:format("[RVS COUNT] ~p~n", [RvsCnt]),
   #{dir => DataDir,
