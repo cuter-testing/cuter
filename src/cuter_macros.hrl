@@ -43,6 +43,7 @@
 %%-define(VERBOSE_SCHEDULER, ok).
 %%-define(VERBOSE_FILE_DELETION, ok).
 %%-define(VERBOSE_SOLVING, ok).
+%%-define(VERBOSE_MERGING, ok).
 
 %%====================================================================
 %% Solver Responses

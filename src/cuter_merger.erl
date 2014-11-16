@@ -6,6 +6,8 @@
 
 -export([merge_traces/2, validate_file/1]).
 
+-export_type([goal/0]).
+
 -record(sts, {
   currFd       :: file:io_device(),
   openFds      :: ets:tab(),
@@ -13,7 +15,7 @@
   waitingFds   :: queue:queue(),
   logFd        :: file:io_device(),
   seenRefs     :: ets:tab(),
-  goalRef      :: {integer(), string()} | none,
+  goalRef      :: goal() | none,
   dirs         :: [cuter_analyzer:node_trace()]
 }).
 -type state() :: #sts{}.
@@ -70,7 +72,7 @@ merge(State=#sts{currFd = Fd, logFd = LogFd, openFds = Open, seenRefs = Seen}) -
     %% Reached the end of the file
     eof ->
       [{Fd, File}] = ets:lookup(Open, Fd),
-      io:format("Finished with file ~p~n", [File]),
+      cuter_pp:file_finished(File),
       ets:delete(Open, Fd),
       ets:delete(Open, File),
       merge_next_file(State#sts{currFd = undefined});
@@ -84,7 +86,7 @@ merge(State=#sts{currFd = Fd, logFd = LogFd, openFds = Open, seenRefs = Seen}) -
     {?NOT_CONSTRAINT, ?OP_SPAWNED, Data} ->
       {?OP_SPAWNED, [ParentNode, ParentPid, Rf]} = cuter_json:json_to_command(Data),
       Goal = {?OP_SPAWN, Rf},
-      io:format("[SPAWNED] Goal: ~p~n", [Goal]),
+      cuter_pp:set_goal(Goal, "SPAWNED"),
       achieve_goal(Goal, ParentNode, ParentPid, State);
     %% MSG SEND
     {?NOT_CONSTRAINT, ?OP_MSG_SEND, Data} ->
@@ -96,12 +98,12 @@ merge(State=#sts{currFd = Fd, logFd = LogFd, openFds = Open, seenRefs = Seen}) -
     {?NOT_CONSTRAINT, ?OP_MSG_RECEIVE, Data} ->
       {?OP_MSG_RECEIVE, [FromNode, FromPid, Rf]} = cuter_json:json_to_command(Data),
       Goal = {?OP_MSG_SEND, Rf},
-      io:format("[MSG RCV] Goal: ~p~n", [Goal]),
+      cuter_pp:set_goal(Goal, "MSG RCV"),
       achieve_goal(Goal, FromNode, FromPid, State);
     %% MSG CONSUME
     {?NOT_CONSTRAINT, ?OP_MSG_CONSUME, Data} ->
       {?OP_MSG_CONSUME, [_FromNode, _FromPid, Rf]} = cuter_json:json_to_command(Data),
-      io:format("[MSG CONSUME] Ref: ~p~n", [Rf]),
+      cuter_pp:consume_msg(Rf),
       ets:delete(Seen, Rf),
       merge(State);
     %% Any Command
@@ -115,11 +117,11 @@ merge(State=#sts{currFd = Fd, logFd = LogFd, openFds = Open, seenRefs = Seen}) -
 %%
 
 -spec achieve_goal(goal(), node(), pid(), state()) -> ok.
-achieve_goal(NextGoal={OpCode, Rf}, Node, Pid, State=#sts{seenRefs = Seen, dirs = Dirs}) ->
+achieve_goal(Goal={OpCode, Rf}, Node, Pid, State=#sts{seenRefs = Seen, dirs = Dirs}) ->
   case ets:lookup(Seen, Rf) of
     %% The goal has already been achieved
     [{Rf, OpCode}] ->
-      io:format("[ACHIEVE] Already Achieved (~p)~n", [NextGoal]),
+      cuter_pp:goal_already_achieved(Goal),
       case OpCode of
         ?OP_SPAWN -> ets:delete(Seen, Rf);
         ?OP_MSG_SEND -> ok
@@ -128,25 +130,24 @@ achieve_goal(NextGoal={OpCode, Rf}, Node, Pid, State=#sts{seenRefs = Seen, dirs 
     %% Must achieve the new goal
     [] ->
       F = logfile_from_pid(Node, Pid, Dirs),
-      io:format("[ACHIEVE] Looking in file ~p~n", [F]),
-      achieve_goal_from_file(NextGoal, F, State)
+      cuter_pp:search_goal_in_file(F),
+      achieve_goal_from_file(Goal, F, State)
   end.
 
 -spec achieve_goal_from_file(goal(), file:filename_all(), state()) -> ok.
-achieve_goal_from_file(NextGoal, F, State=#sts{currFd = Fd, openFds = Open, waitingFds = Waiting, pendingFiles = Pending, goalRef = Goal}) ->
+achieve_goal_from_file(NewGoal, F, State=#sts{currFd = Fd, openFds = Open, waitingFds = Waiting, pendingFiles = Pending, goalRef = Goal}) ->
   Q = queue:in_r({Goal, Fd}, Waiting),
   case ets:lookup(Open, F) of
     [{F, NextFd}] ->
-      io:format("Changing to file ~p~n", [F]),
-      merge(State#sts{currFd = NextFd, waitingFds = Q, goalRef = NextGoal});
+      cuter_pp:change_to_file(F),
+      merge(State#sts{currFd = NextFd, waitingFds = Q, goalRef = NewGoal});
     [] ->
-      io:format("Opening file ~p~n", [F]),
       {ok, NewFd} = cuter_log:open_file(F, read),
       Fs = Pending -- [F],
-      io:format("Now pending ~p~n", [Fs]),
+      cuter_pp:open_file(F, Fs),
       ets:insert(Open, {F, NewFd}),
       ets:insert(Open, {NewFd, F}),
-      merge(State#sts{currFd = NewFd, waitingFds = Q, pendingFiles = Fs, goalRef = NextGoal})
+      merge(State#sts{currFd = NewFd, waitingFds = Q, pendingFiles = Fs, goalRef = NewGoal})
   end.
 
 
@@ -160,13 +161,12 @@ check_for_goal(_Goal, State=#sts{goalRef = none}) ->
   merge(State);
 %% Achieved goal
 check_for_goal(Goal, State=#sts{currFd = Fd, waitingFds = Waiting, goalRef = Goal}) ->
-  io:format("Goal Achieved ~p~n", [Goal]),
   %% Get the file that set the goal
   {{value, {NextGoal, NextFd}}, Q1} = queue:out(Waiting),
   %% Add the current file to the waiting queue without a goal
   Q2 = queue:in({none, Fd}, Q1),
   %% start merging the next file
-  io:format("Changing to ~p~n", [NextGoal]),
+  cuter_pp:achieve_goal(Goal, NextGoal),
   merge(State#sts{currFd = NextFd, waitingFds = Q2, goalRef = NextGoal});
 %% Did not achieve goal
 check_for_goal(_Goal, State) ->
@@ -191,12 +191,11 @@ merge_next_file_from_pending(#sts{openFds = Open, pendingFiles = [], seenRefs = 
   cuter_log:close_file(LogFd);
 %% There are pending files to be merged
 merge_next_file_from_pending(State=#sts{openFds = Open, pendingFiles = [F|Rest]}) ->
-  io:format("Opening file from pending ~p~n", [F]),
+  cuter_pp:open_pending_file(F),
   {ok, Fd} = cuter_log:open_file(F, read),
   ets:insert(Open, {F, Fd}),
   ets:insert(Open, {Fd, F}),
   merge(State#sts{currFd = Fd, pendingFiles = Rest}).
-
 
 -spec merge_next_file_from_waiting(state()) -> ok.
 merge_next_file_from_waiting(State=#sts{openFds = Open, waitingFds = Waiting}) ->

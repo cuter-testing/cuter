@@ -30,6 +30,16 @@
         , undecoded_msg/2
         , fsm_started/1
         , send_cmd/3
+        %% Verbose merging
+        , file_finished/1
+        , set_goal/2
+        , consume_msg/1
+        , goal_already_achieved/1
+        , search_goal_in_file/1
+        , change_to_file/1
+        , open_file/2
+        , achieve_goal/2
+        , open_pending_file/1
        ]).
 
 -spec mfa(atom(), atom(), integer()) -> ok.
@@ -290,4 +300,76 @@ fsm_started(_Port) -> ok.
 send_cmd(State, Cmd, Descr) -> io:format("[FSM] (~p) ~p~n  ~p~n", [State, Descr, Cmd]).
 -else.
 send_cmd(_State, _Cmd, _Descr) -> ok.
+-endif.
+
+%%
+%% Verbose Merging
+%%
+
+-spec file_finished(file:name()) -> ok.
+-ifdef(VERBOSE_MERGING).
+file_finished(File) -> io:format("[MERGE] Fully parsed ~p~n", [File]).
+-else.
+file_finished(_File) -> ok.
+-endif.
+
+-spec set_goal(cuter_merger:goal(), string()) -> ok.
+-ifdef(VERBOSE_MERGING).
+set_goal(Goal, Tp) -> io:format("[MERGE] (~p) Set Goal ~p~n", [Tp, Goal]).
+-else.
+set_goal(_Goal, _Tp) -> ok.
+-endif.
+
+-spec consume_msg(reference()) -> ok.
+-ifdef(VERBOSE_MERGING).
+consume_msg(Rf) -> io:format("[MERGE] (MSG CONSUME) ~p~n", [Rf]).
+-else.
+consume_msg(_Rf) -> ok.
+-endif.
+
+-spec goal_already_achieved(cuter_merger:goal()) -> ok.
+-ifdef(VERBOSE_MERGING).
+goal_already_achieved(Goal) -> io:format("[MERGE] Already achieved ~p~n", [Goal]).
+-else.
+goal_already_achieved(_Goal) -> ok.
+-endif.
+
+-spec search_goal_in_file(file:name()) -> ok.
+-ifdef(VERBOSE_MERGING).
+search_goal_in_file(File) -> io:format("[MERGE] Will look in ~p~n", [File]).
+-else.
+search_goal_in_file(_File) -> ok.
+-endif.
+
+-spec change_to_file(file:name()) -> ok.
+-ifdef(VERBOSE_MERGING).
+change_to_file(File) -> io:format("[MERGE] Changing to ~p~n", [File]).
+-else.
+change_to_file(_File) -> ok.
+-endif.
+
+-spec open_file(file:name(), [file:name()]) -> ok.
+-ifdef(VERBOSE_MERGING).
+open_file(File, Pending) ->
+  io:format("[MERGE] Opening ~p~n", [File]),
+  io:format("  Pending files~n"),
+  io:format("    ~p~n", [Pending]).
+-else.
+open_file(_File, _Pending) -> ok.
+-endif.
+
+-spec achieve_goal(cuter_merger:goal(), cuter_merger:goal()) -> ok.
+-ifdef(VERBOSE_MERGING).
+achieve_goal(Goal, NextGoal) ->
+  io:format("[MERGE] Achieved ~p~n", [Goal]),
+  io:format("  Changing to ~p~n", [NextGoal]).
+-else.
+achieve_goal(_Goal, _NextGoal) -> ok.
+-endif.
+
+-spec open_pending_file(file:name()) -> ok.
+-ifdef(VERBOSE_MERGING).
+open_pending_file(File) -> io:format("[MERGE] Opening from pending ~p~n", [File]).
+-else.
+open_pending_file(_File) -> ok.
 -endif.
