@@ -59,7 +59,7 @@ just_params({_Dir, Fname, Python}) ->
   %% Create a random number of random integers to serve as the arguments
   As = [random:uniform(42) || _ <- lists:seq(1, random:uniform(42))],
   Mapping = create_logfile(Fname, As, fun just_params_logs/2),
-  Sol = cuter_solver:solve(Python, Mapping, Fname, 42),
+  {ok, Sol} = cuter_solver:solve(Python, Mapping, Fname, 42),
   [{"The solution equals the input", ?_assertEqual(As, Sol)}].
 
 just_params_logs(Fd, SAs) ->
@@ -72,8 +72,8 @@ just_params_logs(Fd, SAs) ->
 guard_true({_Dir, Fname, Python}) ->
   As = [p1],  % One argument (the type is irrelevant)
   Mapping = create_logfile(Fname, As, fun guard_true_logs/2),
-  [SolNormal] = cuter_solver:solve(Python, Mapping, Fname, 42),
-  [SolRev] = cuter_solver:solve(Python, Mapping, Fname, 1),
+  {ok, [SolNormal]} = cuter_solver:solve(Python, Mapping, Fname, 42),
+  {ok, [SolRev]} = cuter_solver:solve(Python, Mapping, Fname, 1),
   [ {"Result for Guard True", ?_assertEqual(true, SolNormal)}
   , {"Result for Guard True Reversed", ?_assertEqual(false, SolRev)}
   ].
@@ -85,8 +85,8 @@ guard_true_logs(Fd, SAs=[P1]) ->
 guard_false({_Dir, Fname, Python}) ->
   As = [p1],  % One argument (the type is irrelevant)
   Mapping = create_logfile(Fname, As, fun guard_false_logs/2),
-  [SolNormal] = cuter_solver:solve(Python, Mapping, Fname, 42),
-  [SolRev] = cuter_solver:solve(Python, Mapping, Fname, 1),
+  {ok, [SolNormal]} = cuter_solver:solve(Python, Mapping, Fname, 42),
+  {ok, [SolRev]} = cuter_solver:solve(Python, Mapping, Fname, 1),
   [ {"Result for Guard False", ?_assertEqual(false, SolNormal)}
   , {"Result for Guard False Reversed", ?_assertEqual(true, SolRev)}
   ].
@@ -102,8 +102,8 @@ guard_false_logs(Fd, SAs=[P1]) ->
 match_equal({_Dir, Fname, Python}) ->
   As = [p1],  % One argument (the type is irrelevant)
   Mapping = create_logfile(Fname, As, fun match_equal_logs/2),
-  [SolNormal] = cuter_solver:solve(Python, Mapping, Fname, 42),
-  [SolRev] = cuter_solver:solve(Python, Mapping, Fname, 1),
+  {ok, [SolNormal]} = cuter_solver:solve(Python, Mapping, Fname, 42),
+  {ok, [SolRev]} = cuter_solver:solve(Python, Mapping, Fname, 1),
   [ {"Result for Match Equal", ?_assertEqual(ok, SolNormal)}
   , {"Result for Match Equal Reversed", ?_assertNotEqual(ok, SolRev)}
   ].
@@ -115,8 +115,8 @@ match_equal_logs(Fd, SAs=[P1]) ->
 match_not_equal({_Dir, Fname, Python}) ->
   As = [p1],  % One argument (the type is irrelevant)
   Mapping = create_logfile(Fname, As, fun match_not_equal_logs/2),
-  [SolNormal] = cuter_solver:solve(Python, Mapping, Fname, 42),
-  [SolRev] = cuter_solver:solve(Python, Mapping, Fname, 1),
+  {ok, [SolNormal]} = cuter_solver:solve(Python, Mapping, Fname, 42),
+  {ok, [SolRev]} = cuter_solver:solve(Python, Mapping, Fname, 1),
   [ {"Result for Match Not Equal", ?_assertNotEqual(ok, SolNormal)}
   , {"Result for Match Not Equal Reversed", ?_assertEqual(ok, SolRev)}
   ].
@@ -132,8 +132,8 @@ match_not_equal_logs(Fd, SAs=[P1]) ->
 nonempty_list({_Dir, Fname, Python}) ->
   As = [p1],  % One argument (the type is irrelevant)
   Mapping = create_logfile(Fname, As, fun nonempty_list_logs/2),
-  [SolNormal] = cuter_solver:solve(Python, Mapping, Fname, 42),
-  [SolRev] = cuter_solver:solve(Python, Mapping, Fname, 1),
+  {ok, [SolNormal]} = cuter_solver:solve(Python, Mapping, Fname, 42),
+  {ok, [SolRev]} = cuter_solver:solve(Python, Mapping, Fname, 1),
   [ {"Result for NonEmpty List", ?_assertMatch([_|_], SolNormal)}
   , {"Result for NonEmpty List Reversed", ?_assertNotMatch([_|_], SolRev)}
   ].
@@ -145,8 +145,8 @@ nonempty_list_logs(Fd, SAs=[P1]) ->
 empty_list({_Dir, Fname, Python}) ->
   As = [p1],  % One argument (the type is irrelevant)
   Mapping = create_logfile(Fname, As, fun empty_list_logs/2),
-  [SolNormal] = cuter_solver:solve(Python, Mapping, Fname, 42),
-  [SolRev] = cuter_solver:solve(Python, Mapping, Fname, 1),
+  {ok, [SolNormal]} = cuter_solver:solve(Python, Mapping, Fname, 42),
+  {ok, [SolRev]} = cuter_solver:solve(Python, Mapping, Fname, 1),
   [ {"Result for Empty List", ?_assertMatch([], SolNormal)}
   , {"Result for Empty List Reversed", ?_assertNotMatch([], SolRev)}
   ].
@@ -158,8 +158,8 @@ empty_list_logs(Fd, SAs=[P1]) ->
 not_a_list({_Dir, Fname, Python}) ->
   As = [p1],  % One argument (the type is irrelevant)
   Mapping = create_logfile(Fname, As, fun not_a_list_logs/2),
-  [SolNormal] = cuter_solver:solve(Python, Mapping, Fname, 42),
-  [SolRev] = cuter_solver:solve(Python, Mapping, Fname, 1),
+  {ok, [SolNormal]} = cuter_solver:solve(Python, Mapping, Fname, 42),
+  {ok, [SolRev]} = cuter_solver:solve(Python, Mapping, Fname, 1),
   [ {"Result for Not a List", ?_assertNotMatch(X when is_list(X), SolNormal)}
   , {"Result for Not a List Reversed", ?_assertMatch(X when is_list(X), SolRev)}
   ].
@@ -175,8 +175,8 @@ not_a_list_logs(Fd, SAs=[P1]) ->
 tuple_sz({_Dir, Fname, Python}) ->
   As = [p1],  % One argument (the type is irrelevant)
   Mapping = create_logfile(Fname, As, fun tuple_sz_logs/2),
-  [SolNormal] = cuter_solver:solve(Python, Mapping, Fname, 42),
-  [SolRev] = cuter_solver:solve(Python, Mapping, Fname, 1),
+  {ok, [SolNormal]} = cuter_solver:solve(Python, Mapping, Fname, 42),
+  {ok, [SolRev]} = cuter_solver:solve(Python, Mapping, Fname, 1),
   [ {"Result for Tuple of Size N", ?_assertMatch({_,_}, SolNormal)}
   , {"Result for Tuple of Size N Reversed", ?_assertNotMatch({_,_}, SolRev)}
   ].
@@ -188,8 +188,8 @@ tuple_sz_logs(Fd, SAs=[P1]) ->
 tuple_not_sz({_Dir, Fname, Python}) ->
   As = [p1],  % One argument (the type is irrelevant)
   Mapping = create_logfile(Fname, As, fun tuple_not_sz_logs/2),
-  [SolNormal] = cuter_solver:solve(Python, Mapping, Fname, 42),
-  [SolRev] = cuter_solver:solve(Python, Mapping, Fname, 1),
+  {ok, [SolNormal]} = cuter_solver:solve(Python, Mapping, Fname, 42),
+  {ok, [SolRev]} = cuter_solver:solve(Python, Mapping, Fname, 1),
   [ {"Result for Tuple of Not Size N", ?_assertMatch(X when is_tuple(X) andalso tuple_size(X) =/= 2, SolNormal)}
   , {"Result for Tuple of Not Size N Reversed", ?_assertNotMatch({_,_}, SolRev)}
   ].
@@ -201,8 +201,8 @@ tuple_not_sz_logs(Fd, SAs=[P1]) ->
 not_a_tuple({_Dir, Fname, Python}) ->
   As = [p1],  % One argument (the type is irrelevant)
   Mapping = create_logfile(Fname, As, fun not_a_tuple_logs/2),
-  [SolNormal] = cuter_solver:solve(Python, Mapping, Fname, 42),
-  [SolRev] = cuter_solver:solve(Python, Mapping, Fname, 1),
+  {ok, [SolNormal]} = cuter_solver:solve(Python, Mapping, Fname, 42),
+  {ok, [SolRev]} = cuter_solver:solve(Python, Mapping, Fname, 1),
   [ {"Result for Not a Tuple", ?_assertNotMatch(X when is_tuple(X), SolNormal)}
   , {"Result for Not a Tuple Reversed", ?_assertMatch(X when is_tuple(X), SolRev)}
   ].
@@ -218,7 +218,7 @@ not_a_tuple_logs(Fd, SAs=[P1]) ->
 unfold_tuple({_Dir, Fname, Python}) ->
   As = [p1],  % One argument (the type is irrelevant)
   Mapping = create_logfile(Fname, As, fun unfold_tuple_logs/2),
-  [Sol] = cuter_solver:solve(Python, Mapping, Fname, 42),
+  {ok, [Sol]} = cuter_solver:solve(Python, Mapping, Fname, 42),
   [{"Just ensure it's a tuple", ?_assertMatch({_,_,_}, Sol)}].
 
 unfold_tuple_logs(Fd, SAs=[P1]) ->
@@ -229,7 +229,7 @@ unfold_tuple_logs(Fd, SAs=[P1]) ->
 unfold_list({_Dir, Fname, Python}) ->
   As = [p1],  % One argument (the type is irrelevant)
   Mapping = create_logfile(Fname, As, fun unfold_list_logs/2),
-  [Sol] = cuter_solver:solve(Python, Mapping, Fname, 42),
+  {ok, [Sol]} = cuter_solver:solve(Python, Mapping, Fname, 42),
   [{"Just ensure it's a list", ?_assertMatch([_,_,_], Sol)}].
 
 unfold_list_logs(Fd, SAs=[P1]) ->
@@ -248,8 +248,8 @@ unfold_list_logs(Fd, SAs=[P1]) ->
 erlang_hd({_Dir, Fname, Python}) ->
   As = [p1],  % One argument (the type is irrelevant)
   Mapping = create_logfile(Fname, As, fun erlang_hd_logs/2),
-  [SolNormal] = cuter_solver:solve(Python, Mapping, Fname, 42),
-  [SolRev] = cuter_solver:solve(Python, Mapping, Fname, 1),
+  {ok, [SolNormal]} = cuter_solver:solve(Python, Mapping, Fname, 42),
+  {ok, [SolRev]} = cuter_solver:solve(Python, Mapping, Fname, 1),
   [ {"It's a list with the proper head", ?_assertEqual([ok], SolNormal)}
   , {"Make it throw an exception", ?_assertError(badarg, erlang:hd(SolRev))}
   ].
@@ -267,8 +267,8 @@ erlang_hd_logs(Fd, SAs) ->
 erlang_tl({_Dir, Fname, Python}) ->
   As = [p1],  % One argument (the type is irrelevant)
   Mapping = create_logfile(Fname, As, fun erlang_tl_logs/2),
-  [SolNormal] = cuter_solver:solve(Python, Mapping, Fname, 42),
-  [SolRev] = cuter_solver:solve(Python, Mapping, Fname, 1),
+  {ok, [SolNormal]} = cuter_solver:solve(Python, Mapping, Fname, 42),
+  {ok, [SolRev]} = cuter_solver:solve(Python, Mapping, Fname, 1),
   [ {"It's a list with the proper tail", ?_assertMatch([_], SolNormal)}
   , {"Make it throw an exception", ?_assertError(badarg, erlang:tl(SolRev))}
   ].

@@ -42,7 +42,7 @@
   , failed/3
 ]).
 
--export_type([model/0]).
+-export_type([model/0, state/0]).
 
 -type state()     :: idle
                    | python_started
@@ -60,7 +60,7 @@
 -type err_async() :: {stop, {unexpected_event, any()}, fsm_state()}.
 -type err_sync()  :: {stop, {unexpected_event, any()}, ok, fsm_state()}.
 -type model()     :: #{cuter_symbolic:symbolic() => any()}.
--type solver_result() :: [any()] | error.
+-type solver_result() :: {ok, [any()]} | error.
 -type simplifier_conf() :: bitstring().
 
 %% fsm state datatype
@@ -103,7 +103,7 @@ get_solution(FSM, Mappings) ->
   M = get_model(FSM),
   ok = stop_exec(FSM),
   Inp = cuter_symbolic:generate_new_input(Mappings, M),
-  wait_for_fsm(FSM, Inp).
+  wait_for_fsm(FSM, {ok, Inp}).
 
 -spec wait_for_fsm(pid(), solver_result()) -> solver_result().
 wait_for_fsm(FSM, Ret) ->
@@ -281,24 +281,24 @@ handle_sync_event(Event, _From, _StateName, Data) ->
 %% The model is satisfiable and the solver has generated a solution
 %% solving --> solved
 handle_info({Port, {data, <<"True">>}}, solving, Data=#fsm_state{from = From, port = Port}) ->
-  io:format("[PORT $] @solving SAT~n"),
+  cuter_pp:sat(),
   gen_fsm:reply(From, true),
   {next_state, solved, Data#fsm_state{from = null}};
 %% The solver did not manage to satisfy the model
 %% solving --> failed
 handle_info({Port, {data, <<"False">>}}, solving, Data=#fsm_state{from = From, port = Port}) ->
-  io:format("[PORT $] @solving NOT SAT~n"),
+  cuter_pp:not_sat(),
   gen_fsm:reply(From, false),
   {next_state, failed, Data#fsm_state{from = null}};
 %% Delimit the start of the solution
 %% generating_model --> expecting_var
 handle_info({Port, {data, ?RSP_MODEL_DELIMITER_START}}, generating_model, Data=#fsm_state{port = Port}) ->
-  io:format("[PORT $] @generating_model model_start~n"),
+  cuter_pp:model_start(),
   {next_state, expecting_var, Data};
 %% Delimit the end of the solution
 %% expecting_var --> model_received
 handle_info({Port, {data, ?RSP_MODEL_DELIMITER_END}}, expecting_var, Data=#fsm_state{from = From, port = Port, sol = S}) ->
-  io:format("[PORT $] @expecting_var model_end~n"),
+  cuter_pp:model_end(),
   gen_fsm:reply(From, S),
   {next_state, model_received, Data#fsm_state{from = null, sol = []}};
 %% A symbolic variable of the solution
@@ -306,10 +306,10 @@ handle_info({Port, {data, ?RSP_MODEL_DELIMITER_END}}, expecting_var, Data=#fsm_s
 handle_info({Port, {data, Bin}}, expecting_var, Data=#fsm_state{port = Port}) ->
   try cuter_json:json_to_term(Bin) of
     Var ->
-      io:format("[PORT $] @expecting_var VAR: ~p~n", [Var]),
+      cuter_pp:received_var(Var),
       {next_state, expecting_value, Data#fsm_state{var = Var}}
   catch _:_ ->
-    io:format("[PORT] @expecting_var ~p~n", [Bin]),
+    cuter_pp:undecoded_msg(Bin, expecting_var),
     {next_state, expecting_var, Data}
   end;
 %% The value of a symbolic variable of the solution
@@ -317,21 +317,21 @@ handle_info({Port, {data, Bin}}, expecting_var, Data=#fsm_state{port = Port}) ->
 handle_info({Port, {data, Bin}}, expecting_value, Data=#fsm_state{port = Port, var = Var, sol = S}) ->
   try cuter_json:json_to_term(Bin) of
     Val ->
-      io:format("[PORT $] @expecting_value VAL: ~p~n", [Val]),
+      cuter_pp:received_val(Val),
       Sol_n = maps:put(Var, Val, S),
       {next_state, expecting_var, Data#fsm_state{var = null, sol = Sol_n}}
   catch _:_ ->
-    io:format("[PORT] @expecting_value ~p~n", [Bin]),
+    cuter_pp:undecoded_msg(Bin, expecting_value),
     {next_state, expecting_value, Data}
   end;
 %% The port has closed normally
 %% Stop the FSM
 handle_info({'EXIT', Port, normal}, finished, Data=#fsm_state{port = Port}) ->
-  io:format("[PORT] @finished exited~n"),
+  cuter_pp:port_closed(),
   {stop, normal, Data#fsm_state{port = null}};
 %% Unknown message from the port
 handle_info({Port, {data, Bin}}, State, Data=#fsm_state{port = Port}) ->
-  io:format("[PORT] @~p ~p~n", [State, Bin]),
+  cuter_pp:undecoded_msg(Bin, State),
   {next_state, State, Data};
 %% Unknown message
 handle_info(Info, _StateName, Data) ->
@@ -354,7 +354,7 @@ idle(Event, Data) ->
 %% Open a port by executing an external program
 idle({exec, Command}, _From, Data) ->
   Port = open_port({spawn, Command}, [{packet, 2}, binary, hide]),
-  io:format("[FSM] Started FSM ~p~n", [Port]),
+  cuter_pp:fsm_started(Port),
   {reply, ok, python_started, Data#fsm_state{port = Port}};
 idle(Event, _From, Data) ->
   {stop, {unexpected_event, Event}, ok, Data}.
@@ -371,7 +371,7 @@ python_started(Event, Data) ->
 %% Send a trace file to the solver and load the generated axioms to a list
 python_started({load_trace_file, FileInfo}, _From, Data=#fsm_state{port = Port}) ->
   Cmd = cuter_json:encode_port_command(load_trace_file, FileInfo),
-  io:format("[FSM] load_trace_file~n~p~n", [Cmd]),
+  cuter_pp:send_cmd(python_started, Cmd, "Load Trace File"),
   Port ! {self(), {command, Cmd}},
   {reply, ok, trace_loaded, Data};
 python_started(Event, _From, Data) ->
@@ -389,7 +389,7 @@ trace_loaded(Event, Data) ->
 %% Add the loaded axioms from the trace file to the solver
 trace_loaded(add_axioms, _From, Data=#fsm_state{port = Port}) ->
   Cmd = cuter_json:encode_port_command(add_axioms, nil),
-  io:format("[FSM] add_axioms~n~p~n", [Cmd]),
+  cuter_pp:send_cmd(trace_loaded, Cmd, "Load axioms"),
   Port ! {self(), {command, Cmd}},
   {reply, ok, axioms_added, Data};
 trace_loaded(Event, _From, Data) ->
@@ -407,13 +407,13 @@ axioms_added(Event, Data) ->
 %% Query the solver for the satisfiability of the model
 axioms_added(check_model, From, Data=#fsm_state{port = Port}) ->
   Cmd = cuter_json:encode_port_command(solve, nil),
-  io:format("[FSM] check_model~n~p~n", [Cmd]),
+  cuter_pp:send_cmd(axioms_added, Cmd, "Check the model"),
   Port ! {self(), {command, Cmd}},
   {next_state, solving, Data#fsm_state{from = From}};
 %% Fix a symbolic variable to a specific value
 axioms_added({fix_variable, Mapping}, _From, Data=#fsm_state{port = Port}) ->
   Cmd = cuter_json:encode_port_command(fix_variable, Mapping),
-  io:format("[FSM] fix_variable~n~p~n", [Cmd]),
+  cuter_pp:send_cmd(axioms_added, Cmd, "Fix a variable"),
   Port ! {self(), {command, Cmd}},
   {reply, ok, axioms_added, Data};
 axioms_added(Event, _From, Data) ->
@@ -431,13 +431,13 @@ failed(Event, Data) ->
 %% Reset the solver by unloading all the axioms
 failed(reset_solver, _From, Data=#fsm_state{port = Port}) ->
   Cmd = cuter_json:encode_port_command(reset_solver, nil),
-  io:format("[FSM] reset_solver~n~p~n", [Cmd]),
+  cuter_pp:send_cmd(failed, Cmd, "Reset the solver"),
   Port ! {self(), {command, Cmd}},
   {reply, ok, trace_loaded, Data};
 %% Terminate the solver
 failed(stop_exec, _From, Data=#fsm_state{port = Port}) ->
   Cmd = cuter_json:encode_port_command(stop, nil),
-  io:format("[FSM] stop_exec~n~p~n", [Cmd]),
+  cuter_pp:send_cmd(failed, Cmd, "Stop the execution"),
   Port ! {self(), {command, Cmd}},
   {reply, ok, finished, Data};
 failed(Event, _From, Data) ->
@@ -455,7 +455,7 @@ solved(Event, Data) ->
 %% Request the solution from the solver
 solved(get_model, From, Data=#fsm_state{port = Port}) ->
   Cmd = cuter_json:encode_port_command(get_model, nil),
-  io:format("[FSM] get_model~n~p~n", [Cmd]),
+  cuter_pp:send_cmd(solved, Cmd, "Get the model"),
   Port ! {self(), {command, Cmd}},
   {next_state, generating_model, Data#fsm_state{from = From}};
 solved(Event, _From, Data) ->
@@ -508,7 +508,7 @@ model_received(Event, Data) ->
 %% Stop the solver
 model_received(stop_exec, _From, Data=#fsm_state{port = Port}) ->
   Cmd = cuter_json:encode_port_command(stop, nil),
-  io:format("[FSM] stop_exec~n~p~n", [Cmd]),
+  cuter_pp:send_cmd(model_received, Cmd, "Stop the execution"),
   Port ! {self(), {command, Cmd}},
   {reply, ok, finished, Data};
 model_received(Event, _From, Data) ->

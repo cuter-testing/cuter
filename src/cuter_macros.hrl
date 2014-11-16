@@ -40,6 +40,7 @@
 
 -define(LOGGING_FLAG, ok).
 -define(DELETE_TRACE, ok).
+%%-define(VERBOSE_SOLVING, ok).
 
 %%====================================================================
 %% Solver Responses
