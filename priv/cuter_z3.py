@@ -192,7 +192,7 @@ class ErlangZ3:
   def add_axioms(self):
     self.slv.add(self.axs)
   
-  ## Solve a Constraint Set
+  # Solve a Constraint Set
   def solve(self):
     self.check = self.slv.check()
     if (self.check == sat):
@@ -201,6 +201,7 @@ class ErlangZ3:
     else:
       return False
   
+  # Fix a symbolic variable to a specific value
   def fix_parameter(self, p, v):
     x = self.term_toZ3(p)
     t = self.term_toZ3(v)
@@ -228,12 +229,13 @@ class ErlangZ3:
     dct = jdata["d"] if ("d" in jdata) else {}
     return td.toZ3(jdata, dct)
   
+  
+  # ######################################################################
+  # Load the recorded traces to Z3
+  # ######################################################################
+  
   def command_toZ3(self, tp, json_data, rev):
     opts_normal = {
-      # Useful commands
-      cc.OP_PARAMS: self.cmd_params_toZ3,
-      cc.OP_UNFOLD_TUPLE: self.cmd_unfold_tuple_toZ3,
-      cc.OP_UNFOLD_LIST: self.cmd_unfold_list_toZ3,
       # Constraints
       cc.OP_GUARD_TRUE: self.cmd_guard_true_toZ3,
       cc.OP_GUARD_FALSE: self.cmd_guard_false_toZ3,
@@ -245,6 +247,10 @@ class ErlangZ3:
       cc.OP_LIST_NON_EMPTY: self.cmd_list_nonempty_toZ3,
       cc.OP_LIST_EMPTY: self.cmd_list_empty_toZ3,
       cc.OP_LIST_NOT_LST: self.cmd_list_notlst_toZ3,
+      # Other important commands
+      cc.OP_PARAMS: self.cmd_params_toZ3,
+      cc.OP_UNFOLD_TUPLE: self.cmd_unfold_tuple_toZ3,
+      cc.OP_UNFOLD_LIST: self.cmd_unfold_list_toZ3,
       # Erlang BIFs
       cc.OP_ERLANG_HD_1: self.cmd_erlang_hd_1_toZ3,
       cc.OP_ERLANG_TL_1: self.cmd_erlang_tl_1_toZ3,
@@ -270,45 +276,9 @@ class ErlangZ3:
     opts = opts_rev if rev else opts_normal
     opts[tp](*json_data["a"])
   
-  ##################################
-  # Important Events
-  ##################################
-  
-  # Entry Point MFA's symbolic parameters
-  def cmd_params_toZ3(self, *args):
-    e = self.env
-    for x in args:
-      s = x["s"]
-      p = e.fresh_var(s, self.Term)
-      e.add_param(s)
-  
-  # Unfold a symbolic tuple
-  def cmd_unfold_tuple_toZ3(self, *terms):
-    t, ts = self.term_toZ3(terms[0]), terms[1:]
-    self.axs.append(self.Term.is_tpl(t))
-    t = self.Term.tval(t)
-    for x in ts:
-      s = x["s"]
-      self.axs.append(self.List.is_cons(t))
-      self.env.bind(s, self.List.hd(t))
-      t = self.List.tl(t)
-    self.axs.append(t == self.List.nil)
-  
-  # Unfold a symbolic list
-  def cmd_unfold_list_toZ3(self, *terms):
-    t, ts = self.term_toZ3(terms[0]), terms[1:]
-    self.axs.append(self.Term.is_lst(t))
-    t = self.Term.lval(t)
-    for x in ts:
-      s = x["s"]
-      self.axs.append(self.List.is_cons(t))
-      self.env.bind(s, self.List.hd(t))
-      t = self.List.tl(t)
-    self.axs.append(t == self.List.nil)
-  
-  ##################################
+  # ----------------------------------------------------------------------
   # Constraints
-  ##################################
+  # ----------------------------------------------------------------------
   
   # Guard True
   def cmd_guard_true_toZ3(self, term):
@@ -444,11 +414,48 @@ class ErlangZ3:
     t = self.term_toZ3(term)
     self.axs.append(self.Term.is_tpl(t))
   
-  ##################################
-  # Erlang BIFs
-  ##################################
+  # ----------------------------------------------------------------------
+  # Other Important Commands
+  # ----------------------------------------------------------------------
   
-  # erlang:hd/1
+  # Entry Point MFA's symbolic parameters
+  def cmd_params_toZ3(self, *args):
+    e = self.env
+    for x in args:
+      s = x["s"]
+      p = e.fresh_var(s, self.Term)
+      e.add_param(s)
+  
+  # Unfold a symbolic tuple
+  def cmd_unfold_tuple_toZ3(self, *terms):
+    t, ts = self.term_toZ3(terms[0]), terms[1:]
+    self.axs.append(self.Term.is_tpl(t))
+    t = self.Term.tval(t)
+    for x in ts:
+      s = x["s"]
+      self.axs.append(self.List.is_cons(t))
+      self.env.bind(s, self.List.hd(t))
+      t = self.List.tl(t)
+    self.axs.append(t == self.List.nil)
+  
+  # Unfold a symbolic list
+  def cmd_unfold_list_toZ3(self, *terms):
+    t, ts = self.term_toZ3(terms[0]), terms[1:]
+    self.axs.append(self.Term.is_lst(t))
+    t = self.Term.lval(t)
+    for x in ts:
+      s = x["s"]
+      self.axs.append(self.List.is_cons(t))
+      self.env.bind(s, self.List.hd(t))
+      t = self.List.tl(t)
+    self.axs.append(t == self.List.nil)
+  
+  # ----------------------------------------------------------------------
+  # BIFs
+  # ----------------------------------------------------------------------
+  
+  ### hd/1 ###
+  
   def cmd_erlang_hd_1_toZ3(self, term1, term2):
     s = term1["s"]
     t2 = self.term_toZ3(term2)
@@ -458,7 +465,7 @@ class ErlangZ3:
     ])
     self.env.bind(s, self.List.hd(self.Term.lval(t2)))
   
-  # erlang:hd/1 (Reversed)
+  # (Reversed)
   def cmd_erlang_hd_1_toZ3_RV(self, term1, term2):
     t2 = self.term_toZ3(term2)
     self.axs.append(Or(
@@ -466,7 +473,8 @@ class ErlangZ3:
       And(self.Term.is_lst(t2), self.List.is_nil(self.Term.lval(t2)))
     ))
   
-  # erlang:tl/1
+  ### tl/1 ###
+  
   def cmd_erlang_tl_1_toZ3(self, term1, term2):
     s = term1["s"]
     t2 = self.term_toZ3(term2)
@@ -476,7 +484,7 @@ class ErlangZ3:
     ])
     self.env.bind(s, self.Term.lst(self.List.tl(self.Term.lval(t2))))
   
-  # erlang:tl/1 (Reversed)
+  # (Reversed)
   def cmd_erlang_tl_1_toZ3_RV(self, term1, term2):
     t2 = self.term_toZ3(term2)
     self.axs.append(Or(

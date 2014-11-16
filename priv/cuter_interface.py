@@ -14,8 +14,8 @@ import cuter_common as cc
 try:
   cglb.init()
   
-  erlport = cp.ErlangPort()
-  erlz3 = cz3.ErlangZ3()
+  erlport = cp.ErlangPort() # Initialize the communication with Erlang
+  erlz3 = cz3.ErlangZ3()    # Initialize the Z3 interface
 
   while cglb.__RUN__:
     data = erlport.receive()

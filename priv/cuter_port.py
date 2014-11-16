@@ -11,12 +11,14 @@ class ErlangPort:
     self.chan_in = sys.stdin
     self.chan_out = sys.stdout
   
+  # Receive a command from Erlang
   def receive(self):
     x = self.chan_in.read(2)
     if (len(x) == 2):
       sz = struct.unpack('!h', x)[0]
       return self.chan_in.read(sz)
   
+  # Send data to Erlang
   def send(self, data):
     if cglb.__TTY__:
       print data
@@ -25,7 +27,6 @@ class ErlangPort:
       x = struct.pack('!h', sz)
       self.chan_out.write(x)
       return self.chan_out.write(data)
-
 
 def decode_command(erlport, erlz3, data):
   cmd = json.loads(data)

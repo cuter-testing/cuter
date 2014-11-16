@@ -4,7 +4,7 @@
 
 -include("eunit_config.hrl").
 
--export([setup_dir/0]).
+-export([setup_dir/0, get_python_command/0]).
 
 %% Create a directory for temporary use
 -spec setup_dir() -> file:filename_all().
@@ -15,3 +15,7 @@ setup_dir() ->
   ok = filelib:ensure_dir(CoreDir),
   TmpDir.
 
+-spec get_python_command() -> string().
+get_python_command() ->
+  PyFile = filename:absname("cuter_interface.py", ?PRIV),
+  ?PYTHON_PATH ++ " -u " ++ PyFile.

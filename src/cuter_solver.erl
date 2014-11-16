@@ -108,7 +108,7 @@ get_solution(FSM, Mappings) ->
 -spec wait_for_fsm(pid(), solver_result()) -> solver_result().
 wait_for_fsm(FSM, Ret) ->
   receive {'EXIT', FSM, normal} -> Ret
-  after 2000 -> io:format("TIMEOUT~n"), Ret
+  after 500 -> io:format("TIMEOUT~n"), Ret
   end.
 
 -spec query_with_new_setting(error, pid(), [cuter_symbolic:mapping()]) -> error
