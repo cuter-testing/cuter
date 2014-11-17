@@ -104,5 +104,6 @@
 -define(OP_ERLANG_IS_INTEGER_1, 27).
 -define(OP_ERLANG_IS_ATOM_1, 28).
 -define(OP_ERLANG_IS_FLOAT_1, 29).
+-define(OP_ERLANG_IS_LIST_1, 30).
 
 

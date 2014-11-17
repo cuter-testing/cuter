@@ -257,6 +257,7 @@ class ErlangZ3:
       cc.OP_ERLANG_IS_INTEGER_1: self.cmd_erlang_isint_1_toZ3,
       cc.OP_ERLANG_IS_ATOM_1: self.cmd_erlang_isatom_1_toZ3,
       cc.OP_ERLANG_IS_FLOAT_1: self.cmd_erlang_isfloat_1_toZ3,
+      cc.OP_ERLANG_IS_LIST_1: self.cmd_erlang_islist_1_toZ3,
     }
     
     opts_rev = {
@@ -524,6 +525,17 @@ class ErlangZ3:
     t2 = self.term_toZ3(term2)
     self.env.bind(s, If(
       self.Term.is_real(t2),
+      self.atmTrue,
+      self.atmFalse
+    ))
+  
+  ### erlang:is_list/1 ###
+  
+  def cmd_erlang_islist_1_toZ3(self, term1, term2):
+    s = term1["s"]
+    t2 = self.term_toZ3(term2)
+    self.env.bind(s, If(
+      self.Term.is_lst(t2),
       self.atmTrue,
       self.atmFalse
     ))
