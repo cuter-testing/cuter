@@ -49,6 +49,7 @@ OP_UNFOLD_LIST = 19
 OP_ERLANG_HD_1 = 25
 OP_ERLANG_TL_1 = 26
 OP_ERLANG_IS_INTEGER_1 = 27
+OP_ERLANG_IS_ATOM_1 = 28
 
 def is_constraint_kind(tp):
   return tp == CONSTRAINT_TRUE or tp == CONSTRAINT_FALSE
@@ -62,6 +63,7 @@ def is_reversible_bif(tp):
     OP_ERLANG_HD_1: True,
     OP_ERLANG_TL_1: True,
     OP_ERLANG_IS_INTEGER_1: False,
+    OP_ERLANG_IS_ATOM_1: False,
   }
   return x[tp] if tp in x else False
 
