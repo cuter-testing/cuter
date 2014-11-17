@@ -52,6 +52,7 @@ OP_ERLANG_IS_INTEGER_1 = 27
 OP_ERLANG_IS_ATOM_1 = 28
 OP_ERLANG_IS_FLOAT_1 = 29
 OP_ERLANG_IS_LIST_1 = 30
+OP_ERLANG_IS_TUPLE_1 = 31
 
 def is_constraint_kind(tp):
   return tp == CONSTRAINT_TRUE or tp == CONSTRAINT_FALSE
@@ -68,6 +69,7 @@ def is_reversible_bif(tp):
     OP_ERLANG_IS_ATOM_1: False,
     OP_ERLANG_IS_FLOAT_1: False,
     OP_ERLANG_IS_LIST_1: False,
+    OP_ERLANG_IS_TUPLE_1: False,
   }
   return x[tp] if tp in x else False
 

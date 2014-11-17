@@ -70,6 +70,7 @@ is_supported_mfa({erlang, is_integer, 1}) -> true;
 is_supported_mfa({erlang, is_atom,    1}) -> true;
 is_supported_mfa({erlang, is_float,   1}) -> true;
 is_supported_mfa({erlang, is_list,    1}) -> true;
+is_supported_mfa({erlang, is_tuple,   1}) -> true;
 is_supported_mfa(_) -> false.
 
 -spec evaluate_mfa(mfa(), [maybe_s(any())], any(), file:io_device()) -> maybe_s(any()).

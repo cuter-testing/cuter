@@ -73,5 +73,6 @@ Encoding of Erlang BIFs
 * erlang:is_atom/1  => {"c" : 28, "a" : [Term1, Term2]}  i.e. Term1 = erlang:is_atom(Term2)
 * erlang:is_float/1  => {"c" : 29, "a" : [Term1, Term2]}  i.e. Term1 = erlang:is_float(Term2)
 * erlang:is_list/1  => {"c" : 30, "a" : [Term1, Term2]}  i.e. Term1 = erlang:is_list(Term2)
+* erlang:is_tuple/1  => {"c" : 31, "a" : [Term1, Term2]}  i.e. Term1 = erlang:is_tuple(Term2)
 
 

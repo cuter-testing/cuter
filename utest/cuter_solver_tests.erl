@@ -31,6 +31,7 @@ solve_simple_test_() ->
        , {"BIFs - erlang:is_atom/1", fun erlang_is_atom/1}
        , {"BIFs - erlang:is_float/1", fun erlang_is_float/1}
        , {"BIFs - erlang:is_list/1", fun erlang_is_list/1}
+       , {"BIFs - erlang:is_tuple/1", fun erlang_is_tuple/1}
        ],
   [{"Simple Queries: " ++ Desc, {setup, Setup, Cleanup, Inst}} || {Desc, Inst} <- Ts].
 
@@ -345,4 +346,20 @@ erlang_is_list_logs(Fd, SAs) ->
   cuter_log:log_symb_params(Fd, SAs),
   X = cuter_symbolic:fresh_symbolic_var(),
   cuter_log:log_mfa(Fd, {erlang, is_list, 1}, SAs, X),
+  cuter_log:log_equal(Fd, true, X, true).
+
+%%
+%% erlang:is_tuple/1
+%%
+
+erlang_is_tuple({_Dir, Fname, Python}) ->
+  As = [p1],  % One argument (the type is irrelevant)
+  Mapping = create_logfile(Fname, As, fun erlang_is_tuple_logs/2),
+  {ok, [Sol]} = cuter_solver:solve(Python, Mapping, Fname, 42),
+  [{"It's a tuple", ?_assertMatch(X when is_tuple(X), Sol)}].
+
+erlang_is_tuple_logs(Fd, SAs) ->
+  cuter_log:log_symb_params(Fd, SAs),
+  X = cuter_symbolic:fresh_symbolic_var(),
+  cuter_log:log_mfa(Fd, {erlang, is_tuple, 1}, SAs, X),
   cuter_log:log_equal(Fd, true, X, true).
