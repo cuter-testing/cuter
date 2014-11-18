@@ -261,6 +261,7 @@ class ErlangZ3:
       cc.OP_ERLANG_IS_TUPLE_1: self.cmd_erlang_istuple_1_toZ3,
       cc.OP_ERLANG_IS_BOOLEAN_1: self.cmd_erlang_isboolean_1_toZ3,
       cc.OP_ERLANG_IS_NUMBER_1: self.cmd_erlang_isnumber_1_toZ3,
+      cc.OP_ERLANG_PLUS_2: self.cmd_erlang_plus_2_to_Z3,
     }
     
     opts_rev = {
@@ -278,6 +279,7 @@ class ErlangZ3:
       # Erlang BIFs
       cc.OP_ERLANG_HD_1: self.cmd_erlang_hd_1_toZ3_RV,
       cc.OP_ERLANG_TL_1: self.cmd_erlang_tl_1_toZ3_RV,
+      cc.OP_ERLANG_PLUS_2: self.cmd_erlang_plus_2_to_Z3_RV,
     }
     
     opts = opts_rev if rev else opts_normal
@@ -575,4 +577,42 @@ class ErlangZ3:
       self.atmTrue,
       self.atmFalse
     ))
+  
+  
+  ## erlang:'+'/2 ###
+  
+  def cmd_erlang_plus_2_to_Z3(self, term, term1, term2):
+    T = self.Term
+    s = term["s"]
+    t1 = self.term_toZ3(term1)
+    t2 = self.term_toZ3(term2)
+    self.axs.extend([
+      Or(T.is_int(t1), T.is_real(t1)),
+      Or(T.is_int(t2), T.is_real(t2))
+    ])
+    self.env.bind(s, If(
+      And(T.is_int(t1), T.is_int(t2)),        # t1, t2: Int
+      T.int(T.ival(t1) + T.ival(t2)),         # t = int(t1+t2)
+      If(
+        And(T.is_real(t1), T.is_real(t2)),    # t1, t2: Real
+        T.real(T.rval(t1) + T.rval(t2)),      # t = real(t1+t2)
+        If(
+          And(T.is_int(t1), T.is_real(t2)),   # t1: Int, t2: Real
+          T.real(T.ival(t1) + T.rval(t2)),    # t = real(t1+t2)
+          T.real(T.rval(t1) + T.ival(t2))     # t1: Real, t2: Int, t = real(t1+t2)
+        )
+      )
+    ))
+  
+  # (Reversed)
+  def cmd_erlang_plus_2_to_Z3_RV(self, term, term1, term2):
+    T = self.Term
+    t1 = self.term_toZ3(term1)
+    t2 = self.term_toZ3(term2)
+    self.axs.append(
+      Not(And(
+        Or(T.is_int(t1), T.is_real(t1)),
+        Or(T.is_int(t2), T.is_real(t2))
+      ))
+    )
   

@@ -34,6 +34,7 @@ solve_simple_test_() ->
        , {"BIFs - erlang:is_tuple/1", fun erlang_is_tuple/1}
        , {"BIFs - erlang:is_boolean/1", fun erlang_is_boolean/1}
        , {"BIFs - erlang:is_number/1", fun erlang_is_number/1}
+       , {"BIFs - erlang:'+'/2", fun erlang_plus/1}
        ],
   [{"Simple Queries: " ++ Desc, {setup, Setup, Cleanup, Inst}} || {Desc, Inst} <- Ts].
 
@@ -397,3 +398,27 @@ erlang_is_number_logs(Fd, SAs) ->
   X = cuter_symbolic:fresh_symbolic_var(),
   cuter_log:log_mfa(Fd, {erlang, is_number, 1}, SAs, X),
   cuter_log:log_equal(Fd, true, X, true).
+
+%%
+%% erlang:'+'/2
+%%
+
+erlang_plus({_Dir, Fname, Python}) ->
+  As = [0, 0.0],  % Two arguments (int and float)
+  Mapping = create_logfile(Fname, As, fun erlang_plus_logs/2),
+  {ok, [P1, P2]} = cuter_solver:solve(Python, Mapping, Fname, 42),
+  {ok, [P1_RV, P2_RV]} = cuter_solver:solve(Python, Mapping, Fname, 1),
+  [ {"Adding integers", ?_assertEqual(3, P1)}
+  , {"Adding integers and floats", ?_assertEqual(0.14, P2)}
+  , {"Make it throw an exception", ?_assertError(badarith, P1_RV + P2_RV)}
+  ].
+
+erlang_plus_logs(Fd, SAs=[P1, P2]) ->
+  cuter_log:log_symb_params(Fd, SAs),
+  X = cuter_symbolic:fresh_symbolic_var(),
+  cuter_log:log_mfa(Fd, {erlang, '+', 2}, [P1, 42], X),
+  cuter_log:log_equal(Fd, true, X, 45),
+  cuter_log:log_mfa(Fd, {erlang, '+', 2}, [P1, P2], X),
+  cuter_log:log_equal(Fd, true, X, 3.14).
+  
+  
