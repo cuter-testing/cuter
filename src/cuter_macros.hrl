@@ -109,4 +109,5 @@
 -define(OP_ERLANG_IS_BOOLEAN_1, 32).
 -define(OP_ERLANG_IS_NUMBER_1, 33).
 -define(OP_ERLANG_PLUS_2, 34).
+-define(OP_ERLANG_MINUS_2, 35).
 

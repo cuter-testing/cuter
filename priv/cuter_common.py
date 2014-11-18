@@ -56,6 +56,7 @@ OP_ERLANG_IS_TUPLE_1 = 31
 OP_ERLANG_IS_BOOLEAN_1 = 32
 OP_ERLANG_IS_NUMBER_1 = 33
 OP_ERLANG_PLUS_2 = 34
+OP_ERLANG_MINUS_2 = 35
 
 def is_constraint_kind(tp):
   return tp == CONSTRAINT_TRUE or tp == CONSTRAINT_FALSE
@@ -76,6 +77,7 @@ def is_reversible_bif(tp):
     OP_ERLANG_IS_BOOLEAN_1: False,
     OP_ERLANG_IS_NUMBER_1: False,
     OP_ERLANG_PLUS_2: True,
+    OP_ERLANG_MINUS_2: True,
   }
   return x[tp] if tp in x else False
 

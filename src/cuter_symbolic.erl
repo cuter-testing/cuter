@@ -74,6 +74,7 @@ is_supported_mfa({erlang, is_tuple,   1}) -> true;
 is_supported_mfa({erlang, is_boolean, 1}) -> true;
 is_supported_mfa({erlang, is_number,  1}) -> true;
 is_supported_mfa({erlang, '+',        2}) -> true;
+is_supported_mfa({erlang, '-',        2}) -> true;
 is_supported_mfa(_) -> false.
 
 -spec evaluate_mfa(mfa(), [maybe_s(any())], any(), file:io_device()) -> maybe_s(any()).
