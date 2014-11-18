@@ -106,5 +106,6 @@
 -define(OP_ERLANG_IS_FLOAT_1, 29).
 -define(OP_ERLANG_IS_LIST_1, 30).
 -define(OP_ERLANG_IS_TUPLE_1, 31).
+-define(OP_ERLANG_IS_BOOLEAN_1, 32).
 
 

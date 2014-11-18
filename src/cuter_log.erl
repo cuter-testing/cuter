@@ -201,7 +201,8 @@ mfa2op({erlang, is_integer, 1}) -> ?OP_ERLANG_IS_INTEGER_1;
 mfa2op({erlang, is_atom,    1}) -> ?OP_ERLANG_IS_ATOM_1;
 mfa2op({erlang, is_float,   1}) -> ?OP_ERLANG_IS_FLOAT_1;
 mfa2op({erlang, is_list,    1}) -> ?OP_ERLANG_IS_LIST_1;
-mfa2op({erlang, is_tuple,   1}) -> ?OP_ERLANG_IS_TUPLE_1.
+mfa2op({erlang, is_tuple,   1}) -> ?OP_ERLANG_IS_TUPLE_1;
+mfa2op({erlang, is_boolean, 1}) -> ?OP_ERLANG_IS_BOOLEAN_1.
 
 %% Maps commands to their type
 %% (True constraint | False constraint | Everything else)
