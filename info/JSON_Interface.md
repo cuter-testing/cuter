@@ -75,4 +75,5 @@ Encoding of Erlang BIFs
 * erlang:is_list/1  => {"c" : 30, "a" : [Term1, Term2]}  i.e. Term1 = erlang:is_list(Term2)
 * erlang:is_tuple/1  => {"c" : 31, "a" : [Term1, Term2]}  i.e. Term1 = erlang:is_tuple(Term2)
 * erlang:is_boolean/1  => {"c" : 32, "a" : [Term1, Term2]}  i.e. Term1 = erlang:is_boolean(Term2)
+* erlang:is_number/1  => {"c" : 33, "a" : [Term1, Term2]}  i.e. Term1 = erlang:is_number(Term2)
 
