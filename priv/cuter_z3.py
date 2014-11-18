@@ -117,7 +117,7 @@ class TermDecoder:
     return self.eZ3.Term.int(v)
   
   def float_toZ3(self, v, dct):
-    return self.eZ3.Term.real(val)
+    return self.eZ3.Term.real(v)
   
   def list_toZ3(self, v, dct):
     v.reverse()
