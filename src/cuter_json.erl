@@ -62,8 +62,8 @@ term_to_json(Term) ->
 -spec json_to_term(binary()) -> any().
 json_to_term(JSON) -> json_to_term(JSON, false).
 
--spec json_to_term(binary(), false) -> {any(), binary()}
-                ; (binary(), true) -> any().
+-spec json_to_term(binary(), true) -> {any(), binary()}
+                ; (binary(), false) -> any().
 json_to_term(JSON, WithRem) ->
   Tbl = ets:new(?MODULE, [set, protected]),
   Decoder = #decoder{dict = Tbl, replace_aliases = false, with_remainder = WithRem},
