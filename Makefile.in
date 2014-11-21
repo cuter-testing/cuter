@@ -96,7 +96,7 @@ dialyzer: $(TARGETS)
 
 depend: cleandep $(SRC_MODULES:%=%.dep) $(HRL_FILES:%=%.hrl)
 	@echo ""
-	@echo "To build Concolic, execute:"
+	@echo "To build CutEr, execute:"
 	@echo "  make fast"
 
 %.dep: %.erl

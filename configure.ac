@@ -105,17 +105,17 @@ AC_OUTPUT(Makefile)
 
 ###############################################
 #
-# Show Information on how to build Concolic
+# Show Information on how to build CutEr
 #
 ###############################################
 cat <<EOF
 
-Concolic was configured with success.
+CutEr was configured with success.
 Erlang Compiler:    $ERLC
 Python:             $PYTHON_PATH
 Z3Py:               $HAS_Z3_MSG
 
-To build Concolic, execute:
+To build CutEr, execute:
   make depend
   make fast
 EOF
