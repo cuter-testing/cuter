@@ -80,6 +80,7 @@
 -define(CONSTRAINT_TRUE_REPR, 84).   %% $T
 -define(CONSTRAINT_FALSE_REPR, 70).  %% $F
 
+%% Operation & Constraints
 -define(OP_PARAMS, 1).
 -define(OP_SPEC, 2).
 -define(OP_GUARD_TRUE, 3).
@@ -99,18 +100,19 @@
 -define(OP_MSG_CONSUME, 17).
 -define(OP_UNFOLD_TUPLE, 18).
 -define(OP_UNFOLD_LIST, 19).
--define(OP_ERLANG_HD_1, 25).
--define(OP_ERLANG_TL_1, 26).
--define(OP_ERLANG_IS_INTEGER_1, 27).
--define(OP_ERLANG_IS_ATOM_1, 28).
--define(OP_ERLANG_IS_FLOAT_1, 29).
--define(OP_ERLANG_IS_LIST_1, 30).
--define(OP_ERLANG_IS_TUPLE_1, 31).
--define(OP_ERLANG_IS_BOOLEAN_1, 32).
--define(OP_ERLANG_IS_NUMBER_1, 33).
--define(OP_ERLANG_PLUS_2, 34).
--define(OP_ERLANG_MINUS_2, 35).
--define(OP_ERLANG_TIMES_2, 36).
--define(OP_ERLANG_RDIV_2, 37).
--define(OP_ERLANG_POS_IDIV_2, 38).
--define(OP_ERLANG_POS_REM_2, 39).
+%% BIF Operations
+-define(OP_HD, 25).
+-define(OP_TL, 26).
+-define(OP_IS_INTEGER, 27).
+-define(OP_IS_ATOM, 28).
+-define(OP_IS_FLOAT, 29).
+-define(OP_IS_LIST, 30).
+-define(OP_IS_TUPLE, 31).
+-define(OP_IS_BOOLEAN, 32).
+-define(OP_IS_NUMBER, 33).
+-define(OP_PLUS, 34).
+-define(OP_MINUS, 35).
+-define(OP_TIMES, 36).
+-define(OP_RDIV, 37).
+-define(OP_IDIV_NAT, 38).
+-define(OP_REM_NAT, 39).

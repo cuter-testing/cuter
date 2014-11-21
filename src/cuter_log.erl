@@ -195,21 +195,21 @@ log(_, _, _) -> ok.
 -endif.
 
 %% Maps MFAs to their JSON Opcodes
-mfa2op({erlang,       hd,         1}) -> ?OP_ERLANG_HD_1;
-mfa2op({erlang,       tl,         1}) -> ?OP_ERLANG_TL_1;
-mfa2op({erlang,       is_integer, 1}) -> ?OP_ERLANG_IS_INTEGER_1;
-mfa2op({erlang,       is_atom,    1}) -> ?OP_ERLANG_IS_ATOM_1;
-mfa2op({erlang,       is_float,   1}) -> ?OP_ERLANG_IS_FLOAT_1;
-mfa2op({erlang,       is_list,    1}) -> ?OP_ERLANG_IS_LIST_1;
-mfa2op({erlang,       is_tuple,   1}) -> ?OP_ERLANG_IS_TUPLE_1;
-mfa2op({erlang,       is_boolean, 1}) -> ?OP_ERLANG_IS_BOOLEAN_1;
-mfa2op({erlang,       is_number,  1}) -> ?OP_ERLANG_IS_NUMBER_1;
-mfa2op({erlang,       '+',        2}) -> ?OP_ERLANG_PLUS_2;
-mfa2op({erlang,       '-',        2}) -> ?OP_ERLANG_MINUS_2;
-mfa2op({erlang,       '*',        2}) -> ?OP_ERLANG_TIMES_2;
-mfa2op({erlang,       '/',        2}) -> ?OP_ERLANG_RDIV_2;
-mfa2op({cuter_erlang, pos_div,    2}) -> ?OP_ERLANG_POS_IDIV_2;
-mfa2op({cuter_erlang, pos_rem,    2}) -> ?OP_ERLANG_POS_REM_2.
+mfa2op({erlang,       hd,         1}) -> ?OP_HD;
+mfa2op({erlang,       tl,         1}) -> ?OP_TL;
+mfa2op({erlang,       is_integer, 1}) -> ?OP_IS_INTEGER;
+mfa2op({erlang,       is_atom,    1}) -> ?OP_IS_ATOM;
+mfa2op({erlang,       is_float,   1}) -> ?OP_IS_FLOAT;
+mfa2op({erlang,       is_list,    1}) -> ?OP_IS_LIST;
+mfa2op({erlang,       is_tuple,   1}) -> ?OP_IS_TUPLE;
+mfa2op({erlang,       is_boolean, 1}) -> ?OP_IS_BOOLEAN;
+mfa2op({erlang,       is_number,  1}) -> ?OP_IS_NUMBER;
+mfa2op({erlang,       '+',        2}) -> ?OP_PLUS;
+mfa2op({erlang,       '-',        2}) -> ?OP_MINUS;
+mfa2op({erlang,       '*',        2}) -> ?OP_TIMES;
+mfa2op({erlang,       '/',        2}) -> ?OP_RDIV;
+mfa2op({cuter_erlang, pos_div,    2}) -> ?OP_IDIV_NAT;
+mfa2op({cuter_erlang, pos_rem,    2}) -> ?OP_REM_NAT.
 
 %% Maps commands to their type
 %% (True constraint | False constraint | Everything else)
@@ -291,8 +291,14 @@ count_reversible(Fd, Acc) ->
   end.
 
 -spec is_reversible_operation(opcode()) -> boolean().
-is_reversible_operation(?OP_ERLANG_HD_1) -> true;
-is_reversible_operation(?OP_ERLANG_TL_1) -> true;
+is_reversible_operation(?OP_HD)       -> true;
+is_reversible_operation(?OP_TL)       -> true;
+is_reversible_operation(?OP_PLUS)     -> true;
+is_reversible_operation(?OP_MINUS)    -> true;
+is_reversible_operation(?OP_TIMES)    -> true;
+is_reversible_operation(?OP_RDIV)     -> true;
+is_reversible_operation(?OP_IDIV_NAT) -> true;
+is_reversible_operation(?OP_REM_NAT)  -> true;
 is_reversible_operation(_) -> false.
 
 -spec next_entry(file:io_device(), true) -> {entry_type(), opcode(), binary()} | eof

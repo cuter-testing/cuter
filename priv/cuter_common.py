@@ -46,21 +46,21 @@ OP_MSG_CONSUME = 17
 OP_UNFOLD_TUPLE = 18
 OP_UNFOLD_LIST = 19
 
-OP_ERLANG_HD_1 = 25
-OP_ERLANG_TL_1 = 26
-OP_ERLANG_IS_INTEGER_1 = 27
-OP_ERLANG_IS_ATOM_1 = 28
-OP_ERLANG_IS_FLOAT_1 = 29
-OP_ERLANG_IS_LIST_1 = 30
-OP_ERLANG_IS_TUPLE_1 = 31
-OP_ERLANG_IS_BOOLEAN_1 = 32
-OP_ERLANG_IS_NUMBER_1 = 33
-OP_ERLANG_PLUS_2 = 34
-OP_ERLANG_MINUS_2 = 35
-OP_ERLANG_TIMES_2 = 36
-OP_ERLANG_RDIV_2 = 37
-OP_ERLANG_POS_IDIV_2 = 38
-OP_ERLANG_POS_REM_2 = 39
+OP_HD = 25
+OP_TL = 26
+OP_IS_INTEGER = 27
+OP_IS_ATOM = 28
+OP_IS_FLOAT = 29
+OP_IS_LIST = 30
+OP_IS_TUPLE = 31
+OP_IS_BOOLEAN = 32
+OP_IS_NUMBER = 33
+OP_PLUS = 34
+OP_MINUS = 35
+OP_TIMES = 36
+OP_RDIV = 37
+OP_IDIV_NAT = 38
+OP_REM_NAT = 39
 
 def is_constraint_kind(tp):
   return tp == CONSTRAINT_TRUE or tp == CONSTRAINT_FALSE
@@ -71,21 +71,21 @@ def is_interpretable(tp):
 
 def is_reversible_bif(tp):
   x = {
-    OP_ERLANG_HD_1: True,
-    OP_ERLANG_TL_1: True,
-    OP_ERLANG_IS_INTEGER_1: False,
-    OP_ERLANG_IS_ATOM_1: False,
-    OP_ERLANG_IS_FLOAT_1: False,
-    OP_ERLANG_IS_LIST_1: False,
-    OP_ERLANG_IS_TUPLE_1: False,
-    OP_ERLANG_IS_BOOLEAN_1: False,
-    OP_ERLANG_IS_NUMBER_1: False,
-    OP_ERLANG_PLUS_2: True,
-    OP_ERLANG_MINUS_2: True,
-    OP_ERLANG_TIMES_2: True,
-    OP_ERLANG_RDIV_2: True,
-    OP_ERLANG_POS_IDIV_2: True,
-    OP_ERLANG_POS_REM_2: True,
+    OP_HD: True,
+    OP_TL: True,
+    OP_IS_INTEGER: False,
+    OP_IS_ATOM: False,
+    OP_IS_FLOAT: False,
+    OP_IS_LIST: False,
+    OP_IS_TUPLE: False,
+    OP_IS_BOOLEAN: False,
+    OP_IS_NUMBER: False,
+    OP_PLUS: True,
+    OP_MINUS: True,
+    OP_TIMES: True,
+    OP_RDIV: True,
+    OP_IDIV_NAT: True,
+    OP_REM_NAT: True,
   }
   return x[tp] if tp in x else False
 
