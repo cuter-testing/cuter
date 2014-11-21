@@ -508,7 +508,7 @@ erlang_posdiv({_Dir, Fname, Python}) ->
   {ok, [P1_RV, P2_RV]} = cuter_solver:solve(Python, Mapping, Fname, 1),
   [ {"Integer division with natural numbers I", ?_assertMatch(X when is_integer(X) andalso X >= 8 andalso X < 12, P1)}
   , {"Integer division with natural numbers II", ?_assertMatch(X when is_integer(X) andalso X div P1 =:= 3, P2)}
-  , {"Make it throw an exception", ?_assertError(badarith, P1_RV / P2_RV)}
+  , {"Make it throw an exception", ?_assertError(badarith, P1_RV div P2_RV)}
   ].
 
 erlang_posdiv_logs(Fd, SAs=[P1, P2]) ->
@@ -531,7 +531,7 @@ erlang_posrem({_Dir, Fname, Python}) ->
   {ok, [P1_RV, P2_RV]} = cuter_solver:solve(Python, Mapping, Fname, 1),
   [ {"Remainder of integer division with natural numbers I", ?_assertMatch(X when is_integer(X) andalso X rem 4 =:= 2, P1)}
   , {"Remainder of integer division with natural numbers II", ?_assertMatch(X when is_integer(X) andalso X rem P1 =:= 3, P2)}
-  , {"Make it throw an exception", ?_assertError(badarith, P1_RV / P2_RV)}
+  , {"Make it throw an exception", ?_assertError(badarith, P1_RV rem P2_RV)}
   ].
 
 erlang_posrem_logs(Fd, SAs=[P1, P2]) ->
