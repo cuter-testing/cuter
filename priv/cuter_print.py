@@ -183,6 +183,11 @@ for tp, json_data, rev in cio.JsonReader(fname, 100000000):
     print "REMAINDER OF INTEGER DIVISION OF NAT"
     xs = json_data["a"]
     print "%s = %s rem %s" % (xs[0], xs[1], xs[2])
+  # Unary operation
+  elif tp == cc.OP_UNARY:
+    print "UNARY"
+    xs = json_data["a"]
+    print "%s = - %s" % (xs[0], xs[1])
 
 print "Total Commands:", n
 

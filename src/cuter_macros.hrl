@@ -116,3 +116,4 @@
 -define(OP_RDIV, 37).
 -define(OP_IDIV_NAT, 38).
 -define(OP_REM_NAT, 39).
+-define(OP_UNARY, 40).

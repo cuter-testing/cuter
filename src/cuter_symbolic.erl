@@ -79,6 +79,7 @@ is_supported_mfa({erlang,       '*',        2}) -> true;
 is_supported_mfa({erlang,       '/',        2}) -> true;
 is_supported_mfa({cuter_erlang, pos_div,    2}) -> true;
 is_supported_mfa({cuter_erlang, pos_rem,    2}) -> true;
+is_supported_mfa({erlang,       '-',        1}) -> true;
 is_supported_mfa(_) -> false.
 
 -spec evaluate_mfa(mfa(), [maybe_s(any())], any(), file:io_device()) -> maybe_s(any()).

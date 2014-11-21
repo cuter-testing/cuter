@@ -209,7 +209,8 @@ mfa2op({erlang,       '-',        2}) -> ?OP_MINUS;
 mfa2op({erlang,       '*',        2}) -> ?OP_TIMES;
 mfa2op({erlang,       '/',        2}) -> ?OP_RDIV;
 mfa2op({cuter_erlang, pos_div,    2}) -> ?OP_IDIV_NAT;
-mfa2op({cuter_erlang, pos_rem,    2}) -> ?OP_REM_NAT.
+mfa2op({cuter_erlang, pos_rem,    2}) -> ?OP_REM_NAT;
+mfa2op({erlang,       '-',        1}) -> ?OP_UNARY.
 
 %% Maps commands to their type
 %% (True constraint | False constraint | Everything else)

@@ -267,6 +267,7 @@ class ErlangZ3:
       cc.OP_RDIV: self.rdiv_toZ3,
       cc.OP_IDIV_NAT: self.idiv_nat_toZ3,
       cc.OP_REM_NAT: self.rem_nat_toZ3,
+      cc.OP_UNARY: self.unary_toZ3,
     }
     
     opts_rev = {
@@ -797,3 +798,18 @@ class ErlangZ3:
         And( T.is_int(t1), T.is_int(t2), T.ival(t2) == 0 )
       )
     )
+  
+  ### Unary operation
+  
+  def unary_toZ3(self, term, term1):
+    T = self.Term
+    s = term["s"]
+    t1 = self.term_toZ3(term1)
+    self.axs.append(Or(
+      T.is_int(t1), T.is_real(t1)
+    ))
+    self.env.bind(s, If(
+      T.is_int(t1),
+      T.int( - T.ival(t1) ),
+      T.real( - T.rval(t1) )
+    ))

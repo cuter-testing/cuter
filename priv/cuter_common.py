@@ -61,6 +61,7 @@ OP_TIMES = 36
 OP_RDIV = 37
 OP_IDIV_NAT = 38
 OP_REM_NAT = 39
+OP_UNARY = 40
 
 def is_constraint_kind(tp):
   return tp == CONSTRAINT_TRUE or tp == CONSTRAINT_FALSE
@@ -86,6 +87,7 @@ def is_reversible_bif(tp):
     OP_RDIV: True,
     OP_IDIV_NAT: True,
     OP_REM_NAT: True,
+    OP_UNARY: False,
   }
   return x[tp] if tp in x else False
 

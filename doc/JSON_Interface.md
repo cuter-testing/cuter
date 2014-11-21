@@ -448,3 +448,14 @@ is encoded as:
     ```erlang
     T = T1 rem T2.  % when T2 >= 0 andalso T3 > 0
     ```
+
+* Unary operation  
+    
+    ```javascript
+    {"c" : 40, "a" : [T, T1]}
+    ```
+    
+    i.e.  
+    ```erlang
+    T = - T1.
+    ```
