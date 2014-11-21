@@ -65,7 +65,7 @@ OP_UNARY = 40
 OP_EQUAL = 41
 OP_UNEQUAL = 42
 
-OP_FLOAT = 49
+OP_FLOAT = 47
 
 def is_constraint_kind(tp):
   return tp == CONSTRAINT_TRUE or tp == CONSTRAINT_FALSE

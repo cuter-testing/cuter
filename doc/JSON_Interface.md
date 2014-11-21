@@ -485,7 +485,7 @@ is encoded as:
 * Convert a number to float  
     
     ```javascript
-    {"c" : 48, "a" : [T, T1]}
+    {"c" : 47, "a" : [T, T1]}
     ```
     
     i.e.  

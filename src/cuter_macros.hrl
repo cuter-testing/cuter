@@ -120,4 +120,4 @@
 -define(OP_EQUAL, 41).
 -define(OP_UNEQUAL, 42).
 
--define(OP_FLOAT, 49).
+-define(OP_FLOAT, 47).
