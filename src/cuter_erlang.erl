@@ -6,6 +6,7 @@
   %% BIFs
     gteq/2
   , pos_div/2
+  , pos_rem/2
   %% Other functions
   , abs/1
   , 'div'/2
@@ -14,6 +15,7 @@
   , make_tuple/2
   , max/2
   , min/2
+  , 'rem'/2
 ]).
 
 %% ----------------------------------------------------------------------------
@@ -29,6 +31,10 @@ gteq(X, Y) -> X >= Y.
 %% Integer division with natural numbers.
 -spec pos_div(non_neg_integer(), non_neg_integer()) -> non_neg_integer().
 pos_div(X, Y) -> X div Y.
+
+%% Remainder of integer division with natural numbers.
+-spec pos_rem(non_neg_integer(), non_neg_integer()) -> non_neg_integer().
+pos_rem(X, Y) -> X rem Y.
 
 %% ----------------------------------------------------------------------------
 %% Other functions
@@ -123,3 +129,16 @@ min(X, Y) ->
     false -> Y
   end.
 
+%%
+%% erlang:'rem'/2
+%%
+
+-spec 'rem'(integer(), integer()) -> integer().
+'rem'(X, Y) when is_integer(X), is_integer(Y), X >= 0, Y >= 0 ->
+  pos_rem(X, Y);
+'rem'(X, Y) when is_integer(X), is_integer(Y), X < 0, Y < 0 ->
+  - pos_rem(-X, -Y);
+'rem'(X, Y) when is_integer(X), is_integer(Y), X >= 0, Y < 0 ->
+  pos_rem(X, -Y);
+'rem'(X, Y) when is_integer(X), is_integer(Y), X < 0, Y >= 0 ->
+  - pos_rem(-X, Y).

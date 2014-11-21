@@ -113,3 +113,4 @@
 -define(OP_ERLANG_TIMES_2, 36).
 -define(OP_ERLANG_RDIV_2, 37).
 -define(OP_ERLANG_POS_IDIV_2, 38).
+-define(OP_ERLANG_POS_REM_2, 39).

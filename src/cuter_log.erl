@@ -208,7 +208,8 @@ mfa2op({erlang,       '+',        2}) -> ?OP_ERLANG_PLUS_2;
 mfa2op({erlang,       '-',        2}) -> ?OP_ERLANG_MINUS_2;
 mfa2op({erlang,       '*',        2}) -> ?OP_ERLANG_TIMES_2;
 mfa2op({erlang,       '/',        2}) -> ?OP_ERLANG_RDIV_2;
-mfa2op({cuter_erlang, pos_div,    2}) -> ?OP_ERLANG_POS_IDIV_2.
+mfa2op({cuter_erlang, pos_div,    2}) -> ?OP_ERLANG_POS_IDIV_2;
+mfa2op({cuter_erlang, pos_rem,    2}) -> ?OP_ERLANG_POS_REM_2.
 
 %% Maps commands to their type
 %% (True constraint | False constraint | Everything else)

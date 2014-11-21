@@ -19,11 +19,13 @@ simulate_behaviour(erlang, length,     1) -> {ok, {cuter_erlang, length,     1}}
 simulate_behaviour(erlang, make_tuple, 2) -> {ok, {cuter_erlang, make_tuple, 2}};
 simulate_behaviour(erlang, max,        2) -> {ok, {cuter_erlang, max,        2}};
 simulate_behaviour(erlang, min,        2) -> {ok, {cuter_erlang, min,        2}};
+simulate_behaviour(erlang, 'rem',      2) -> {ok, {cuter_erlang, 'rem',      2}};
 simulate_behaviour(erlang, _F, _A)        -> bif;
 
 %% cuter_erlang module
 simulate_behaviour(cuter_erlang, gteq,    2) -> bif;
 simulate_behaviour(cuter_erlang, pos_div, 2) -> bif;
+simulate_behaviour(cuter_erlang, pos_rem, 2) -> bif;
 
 %% Module beam_asm 
 %% XXX Not BIF but with unsupported primops
