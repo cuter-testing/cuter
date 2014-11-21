@@ -206,7 +206,8 @@ mfa2op({erlang, is_boolean, 1}) -> ?OP_ERLANG_IS_BOOLEAN_1;
 mfa2op({erlang, is_number,  1}) -> ?OP_ERLANG_IS_NUMBER_1;
 mfa2op({erlang, '+',        2}) -> ?OP_ERLANG_PLUS_2;
 mfa2op({erlang, '-',        2}) -> ?OP_ERLANG_MINUS_2;
-mfa2op({erlang, '*',        2}) -> ?OP_ERLANG_TIMES_2.
+mfa2op({erlang, '*',        2}) -> ?OP_ERLANG_TIMES_2;
+mfa2op({erlang, '/',        2}) -> ?OP_ERLANG_RDIV_2.
 
 %% Maps commands to their type
 %% (True constraint | False constraint | Everything else)

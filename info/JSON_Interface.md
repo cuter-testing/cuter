@@ -79,3 +79,4 @@ Encoding of Erlang BIFs
 * erlang:'+'/2  => {"c" : 34, "a" : [Term, Term2, Term3]}  i.e. Term = Term2 + Term3
 * erlang:'-'/2  => {"c" : 35, "a" : [Term, Term2, Term3]}  i.e. Term = Term2 - Term3
 * erlang:'*'/2  => {"c" : 36, "a" : [Term, Term2, Term3]}  i.e. Term = Term2 * Term3
+* erlang:'/'/2  => {"c" : 37, "a" : [Term, Term2, Term3]}  i.e. Term = Term2 / Term3
