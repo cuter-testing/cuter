@@ -22,6 +22,8 @@
   , 'orelse'/2
   , 'rem'/2
   , 'xor'/2
+  , '=='/2
+  , '/='/2
 ]).
 
 %% ----------------------------------------------------------------------------
@@ -261,3 +263,28 @@ min(X, Y) ->
       end;
     _ -> error(badarg)
   end.
+
+%%
+%% erlang:'=='/2
+%%
+
+-spec '=='(any(), any()) -> boolean().
+'=='(X, Y) when is_integer(X), is_float(Y) ->
+  float(X) =:= Y;
+'=='(X, Y) when is_float(X), is_integer(Y) ->
+  X =:= float(Y);
+'=='(X, Y) ->
+  X =:= Y.
+
+
+%%
+%% erlang:'/='/2
+%%
+
+-spec '/='(any(), any()) -> boolean().
+'/='(X, Y) when is_integer(X), is_float(Y) ->
+  float(X) =/= Y;
+'/='(X, Y) when is_float(X), is_integer(Y) ->
+  X =/= float(Y);
+'/='(X, Y) ->
+  X =/= Y.

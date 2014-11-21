@@ -26,6 +26,8 @@ simulate_behaviour(erlang, 'rem',      2) -> {ok, {cuter_erlang, 'rem',      2}}
 simulate_behaviour(erlang, 'or',       2) -> {ok, {cuter_erlang, 'or',       2}};
 simulate_behaviour(erlang, 'orelse',   2) -> {ok, {cuter_erlang, 'orelse',   2}};
 simulate_behaviour(erlang, 'xor',      2) -> {ok, {cuter_erlang, 'xor',      2}};
+simulate_behaviour(erlang, '==',       2) -> {ok, {cuter_erlang, '==',       2}};
+simulate_behaviour(erlang, '/=',       2) -> {ok, {cuter_erlang, '/=',       2}};
 simulate_behaviour(erlang, _F, _A)        -> bif;
 
 %% cuter_erlang module
