@@ -5,8 +5,10 @@
 -export([
   %% BIFs
     gteq/2
+  , pos_div/2
   %% Other functions
   , abs/1
+  , 'div'/2
   , element/2
   , length/1
   , make_tuple/2
@@ -20,6 +22,12 @@
 
 -spec gteq(number(), number()) -> boolean().
 gteq(X, Y) -> X >= Y.
+
+%% Integer division with positive integers.
+%% NOTE: There is no need to validate X and Y as
+%% this function in only internally called.
+-spec pos_div(non_neg_integer(), non_neg_integer()) -> non_neg_integer().
+pos_div(X, Y) -> X div Y.
 
 %% ----------------------------------------------------------------------------
 %% Other functions
@@ -35,6 +43,20 @@ abs(X) when is_integer(X); is_float(X) ->
     true  -> X;
     false -> -X
   end.
+
+%%
+%% erlang:'div'/2
+%%
+
+-spec 'div'(integer(), integer()) -> integer().
+'div'(X, Y) when is_integer(X), is_integer(Y), X >= 0, Y >= 0 ->
+  pos_div(X, Y);
+'div'(X, Y) when is_integer(X), is_integer(Y), X < 0, Y < 0 ->
+  pos_div(-X, -Y);
+'div'(X, Y) when is_integer(X), is_integer(Y), X >= 0, Y < 0 ->
+  -1 * pos_div(X, -Y);
+'div'(X, Y) when is_integer(X), is_integer(Y), X < 0, Y >= 0 ->
+  -1 * pos_div(-X, Y).
 
 %%
 %% erlang:element/2
