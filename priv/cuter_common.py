@@ -63,6 +63,7 @@ OP_IDIV_NAT = 38
 OP_REM_NAT = 39
 OP_UNARY = 40
 OP_EQUAL = 41
+OP_UNEQUAL = 42
 
 OP_FLOAT = 49
 
@@ -92,6 +93,7 @@ def is_reversible_bif(tp):
     OP_REM_NAT: True,
     OP_UNARY: False,
     OP_EQUAL: False,
+    OP_UNEQUAL: False,
     
     OP_FLOAT: True,
   }

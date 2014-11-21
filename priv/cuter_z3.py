@@ -269,6 +269,7 @@ class ErlangZ3:
       cc.OP_REM_NAT: self.rem_nat_toZ3,
       cc.OP_UNARY: self.unary_toZ3,
       cc.OP_EQUAL: self.equal_toZ3,
+      cc.OP_UNEQUAL: self.unequal_toZ3,
       
       cc.OP_FLOAT: self.float_toZ3,
     }
@@ -829,6 +830,18 @@ class ErlangZ3:
       t1 == t2,
       self.atmTrue,
       self.atmFalse
+    ))
+  
+  ### Inequality of two terms
+  
+  def unequal_toZ3(self, term, term1, term2):
+    s = term["s"]
+    t1 = self.term_toZ3(term1)
+    t2 = self.term_toZ3(term2)
+    self.env.bind(s, If(
+      t1 == t2,
+      self.atmFalse,
+      self.atmTrue
     ))
   
   ### Convert a number to float

@@ -212,6 +212,7 @@ mfa2op({cuter_erlang, pos_div,    2}) -> ?OP_IDIV_NAT;
 mfa2op({cuter_erlang, pos_rem,    2}) -> ?OP_REM_NAT;
 mfa2op({erlang,       '-',        1}) -> ?OP_UNARY;
 mfa2op({erlang,       '=:=',      2}) -> ?OP_EQUAL;
+mfa2op({erlang,       '=/=',      2}) -> ?OP_UNEQUAL;
 mfa2op({erlang,       float,      1}) -> ?OP_FLOAT.
 
 %% Maps commands to their type

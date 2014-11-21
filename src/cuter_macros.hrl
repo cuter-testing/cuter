@@ -118,5 +118,6 @@
 -define(OP_REM_NAT, 39).
 -define(OP_UNARY, 40).
 -define(OP_EQUAL, 41).
+-define(OP_UNEQUAL, 42).
 
 -define(OP_FLOAT, 49).

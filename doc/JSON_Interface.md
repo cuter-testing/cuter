@@ -459,3 +459,36 @@ is encoded as:
     ```erlang
     T = - T1.
     ```
+
+* Equality of terms  
+    
+    ```javascript
+    {"c" : 41, "a" : [T, T1, T2]}
+    ```
+    
+    i.e.  
+    ```erlang
+    T = T1 =:= T2.
+    ```
+
+* Inequality of terms  
+    
+    ```javascript
+    {"c" : 42, "a" : [T, T1, T2]}
+    ```
+    
+    i.e.  
+    ```erlang
+    T = T1 =/= T2.
+    ```
+
+* Convert a number to float  
+    
+    ```javascript
+    {"c" : 48, "a" : [T, T1]}
+    ```
+    
+    i.e.  
+    ```erlang
+    T = float(T1).
+    ```

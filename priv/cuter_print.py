@@ -188,6 +188,21 @@ for tp, json_data, rev in cio.JsonReader(fname, 100000000):
     print "UNARY"
     xs = json_data["a"]
     print "%s = - %s" % (xs[0], xs[1])
+  # Equality of terms
+  elif tp == cc.OP_EQUAL:
+    print "EQUAL"
+    xs = json_data["a"]
+    print "%s = %s =:= %s" % (xs[0], xs[1], xs[2])
+  # Inequality of terms
+  elif tp == cc.OP_UNEQUAL:
+    print "UNEQUAL"
+    xs = json_data["a"]
+    print "%s = %s =/= %s" % (xs[0], xs[1], xs[2])
+  # Convert a number to float
+  elif tp == cc.OP_FLOAT:
+    print "TO FLOAT"
+    xs = json_data["a"]
+    print "%s = float( %s )" % (xs[0], xs[1])
 
 print "Total Commands:", n
 

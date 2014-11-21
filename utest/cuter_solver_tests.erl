@@ -42,6 +42,7 @@ solve_simple_test_() ->
        , {"Simulating BIFs - cuter_erlang:pos_rem/2", fun erlang_posrem/1}
        , {"BIFs - erlang:'-'/1", fun erlang_unary/1}
        , {"BIFs - erlang:'=:='/2", fun erlang_equal/1}
+       , {"BIFs - erlang:'=/='/2", fun erlang_unequal/1}
        , {"BIFs - erlang:float/1", fun erlang_float/1}
        ],
   [{"Simple Queries: " ++ Desc, {setup, Setup, Cleanup, Inst}} || {Desc, Inst} <- Ts].
@@ -592,6 +593,33 @@ erlang_equal_logs(Fd, SAs=[P1, P2, P3]) ->
   cuter_log:log_mfa(Fd, {erlang, float, 1}, [P3], Z),
   cuter_log:log_mfa(Fd, {erlang, '=:=', 2}, [P3, Z], Q),
   cuter_log:log_equal(Fd, true, Q, false).
+
+%%
+%% erlang:'=/='/2
+%%
+
+erlang_unequal({_Dir, Fname, Python}) ->
+  As = [0, 0.0, 0],  % Two arguments
+  Mapping = create_logfile(Fname, As, fun erlang_unequal_logs/2),
+  {ok, [P1, P2, P3]} = cuter_solver:solve(Python, Mapping, Fname, 42),
+  [ {"Inequality of terms I", ?_assertEqual(42, P1)}
+  , {"Inequality of terms II", ?_assertEqual(ok, P2)}
+  , {"Inequality of integers and floats", ?_assertMatch(X when is_integer(X), P3)}
+  ].
+
+erlang_unequal_logs(Fd, SAs=[P1, P2, P3]) ->
+  cuter_log:log_symb_params(Fd, SAs),
+  X = cuter_symbolic:fresh_symbolic_var(),
+  Y = cuter_symbolic:fresh_symbolic_var(),
+  Z = cuter_symbolic:fresh_symbolic_var(),
+  Q = cuter_symbolic:fresh_symbolic_var(),
+  cuter_log:log_mfa(Fd, {erlang, '=/=', 2}, [P1, 42], X),
+  cuter_log:log_equal(Fd, true, X, false),
+  cuter_log:log_mfa(Fd, {erlang, '=/=', 2}, [P2, ok], Y),
+  cuter_log:log_equal(Fd, true, Y, false),
+  cuter_log:log_mfa(Fd, {erlang, float, 1}, [P3], Z),
+  cuter_log:log_mfa(Fd, {erlang, '=/=', 2}, [P3, Z], Q),
+  cuter_log:log_equal(Fd, true, Q, true).
 
 %%
 %% erlang:float/1
