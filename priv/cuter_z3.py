@@ -470,10 +470,10 @@ class ErlangZ3:
     self.axs.append(t == self.List.nil)
   
   # ----------------------------------------------------------------------
-  # BIFs
+  # BIF Operations
   # ----------------------------------------------------------------------
   
-  ### erlang:hd/1 ###
+  ### Get the head of a list ###
   
   def hd_toZ3(self, term1, term2):
     s = term1["s"]
@@ -492,7 +492,7 @@ class ErlangZ3:
       And(self.Term.is_lst(t2), self.List.is_nil(self.Term.lval(t2)))
     ))
   
-  ### erlang:tl/1 ###
+  ### Get the tail of a list ###
   
   def tl_toZ3(self, term1, term2):
     s = term1["s"]
@@ -511,7 +511,7 @@ class ErlangZ3:
       And(self.Term.is_lst(t2), self.List.is_nil(self.Term.lval(t2)))
     ))
   
-  ### erlang:is_integer/1 ###
+  ### Is a term an integer ###
   
   def is_integer_toZ3(self, term1, term2):
     s = term1["s"]
@@ -522,7 +522,7 @@ class ErlangZ3:
       self.atmFalse
     ))
   
-  ### erlang:is_atom/1 ###
+  ### Is a term an atom ###
   
   def is_atom_toZ3(self, term1, term2):
     s = term1["s"]
@@ -533,7 +533,7 @@ class ErlangZ3:
       self.atmFalse
     ))
   
-  ### erlang:is_float/1 ###
+  ### Is a term a float ###
   
   def is_float_toZ3(self, term1, term2):
     s = term1["s"]
@@ -544,7 +544,7 @@ class ErlangZ3:
       self.atmFalse
     ))
   
-  ### erlang:is_list/1 ###
+  ### Is a term a list ###
   
   def is_list_toZ3(self, term1, term2):
     s = term1["s"]
@@ -555,7 +555,7 @@ class ErlangZ3:
       self.atmFalse
     ))
   
-  ### erlang:is_tuple/1 ###
+  ### Is a term a tuple ###
   
   def is_tuple_toZ3(self, term1, term2):
     s = term1["s"]
@@ -566,7 +566,7 @@ class ErlangZ3:
       self.atmFalse
     ))
   
-  ### erlang:is_boolean/1 ###
+  ### Is a term a boolean ###
   
   def is_boolean_toZ3(self, term1, term2):
     s = term1["s"]
@@ -577,7 +577,7 @@ class ErlangZ3:
       self.atmFalse
     ))
   
-  ### erlang:is_number/1 ###
+  ### Is a term a number ###
   
   def is_number_toZ3(self, term1, term2):
     s = term1["s"]
@@ -588,7 +588,7 @@ class ErlangZ3:
       self.atmFalse
     ))
   
-  ## erlang:'+'/2 ###
+  ## Add two numbers ###
   
   def plus_toZ3(self, term, term1, term2):
     T = self.Term
@@ -625,7 +625,7 @@ class ErlangZ3:
       ))
     )
   
-  ## erlang:'-'/2 ###
+  ## Subtract two numbers ###
   
   def minus_toZ3(self, term, term1, term2):
     T = self.Term
@@ -662,7 +662,7 @@ class ErlangZ3:
       ))
     )
   
-  ## erlang:'*'/2 ###
+  ## Multiply two numbers ###
   
   def times_toZ3(self, term, term1, term2):
     T = self.Term
@@ -699,7 +699,7 @@ class ErlangZ3:
       ))
     )
   
-  ## erlang:'/'/2 ###
+  ## Divide two numbers ###
   
   def rdiv_toZ3(self, term, term1, term2):
     T = self.Term
@@ -742,7 +742,7 @@ class ErlangZ3:
       ))
     )
   
-  ### Integer division with natural integers
+  ### Integer division with natural numbers
   
   def idiv_nat_toZ3(self, term, term1, term2):
     T = self.Term
@@ -770,7 +770,7 @@ class ErlangZ3:
       )
     )
   
-  ### Remainder of integer division with natural integers
+  ### Remainder of integer division with natural numbers
   
   def rem_nat_toZ3(self, term, term1, term2):
     T = self.Term
