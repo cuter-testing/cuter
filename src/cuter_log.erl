@@ -195,19 +195,20 @@ log(_, _, _) -> ok.
 -endif.
 
 %% Maps MFAs to their JSON Opcodes
-mfa2op({erlang, hd,         1}) -> ?OP_ERLANG_HD_1;
-mfa2op({erlang, tl,         1}) -> ?OP_ERLANG_TL_1;
-mfa2op({erlang, is_integer, 1}) -> ?OP_ERLANG_IS_INTEGER_1;
-mfa2op({erlang, is_atom,    1}) -> ?OP_ERLANG_IS_ATOM_1;
-mfa2op({erlang, is_float,   1}) -> ?OP_ERLANG_IS_FLOAT_1;
-mfa2op({erlang, is_list,    1}) -> ?OP_ERLANG_IS_LIST_1;
-mfa2op({erlang, is_tuple,   1}) -> ?OP_ERLANG_IS_TUPLE_1;
-mfa2op({erlang, is_boolean, 1}) -> ?OP_ERLANG_IS_BOOLEAN_1;
-mfa2op({erlang, is_number,  1}) -> ?OP_ERLANG_IS_NUMBER_1;
-mfa2op({erlang, '+',        2}) -> ?OP_ERLANG_PLUS_2;
-mfa2op({erlang, '-',        2}) -> ?OP_ERLANG_MINUS_2;
-mfa2op({erlang, '*',        2}) -> ?OP_ERLANG_TIMES_2;
-mfa2op({erlang, '/',        2}) -> ?OP_ERLANG_RDIV_2.
+mfa2op({erlang,       hd,         1}) -> ?OP_ERLANG_HD_1;
+mfa2op({erlang,       tl,         1}) -> ?OP_ERLANG_TL_1;
+mfa2op({erlang,       is_integer, 1}) -> ?OP_ERLANG_IS_INTEGER_1;
+mfa2op({erlang,       is_atom,    1}) -> ?OP_ERLANG_IS_ATOM_1;
+mfa2op({erlang,       is_float,   1}) -> ?OP_ERLANG_IS_FLOAT_1;
+mfa2op({erlang,       is_list,    1}) -> ?OP_ERLANG_IS_LIST_1;
+mfa2op({erlang,       is_tuple,   1}) -> ?OP_ERLANG_IS_TUPLE_1;
+mfa2op({erlang,       is_boolean, 1}) -> ?OP_ERLANG_IS_BOOLEAN_1;
+mfa2op({erlang,       is_number,  1}) -> ?OP_ERLANG_IS_NUMBER_1;
+mfa2op({erlang,       '+',        2}) -> ?OP_ERLANG_PLUS_2;
+mfa2op({erlang,       '-',        2}) -> ?OP_ERLANG_MINUS_2;
+mfa2op({erlang,       '*',        2}) -> ?OP_ERLANG_TIMES_2;
+mfa2op({erlang,       '/',        2}) -> ?OP_ERLANG_RDIV_2;
+mfa2op({cuter_erlang, pos_div,    2}) -> ?OP_ERLANG_POS_IDIV_2.
 
 %% Maps commands to their type
 %% (True constraint | False constraint | Everything else)

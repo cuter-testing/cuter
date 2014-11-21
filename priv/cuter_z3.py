@@ -265,6 +265,7 @@ class ErlangZ3:
       cc.OP_ERLANG_MINUS_2: self.cmd_erlang_minus_2_toZ3,
       cc.OP_ERLANG_TIMES_2: self.cmd_erlang_times_2_toZ3,
       cc.OP_ERLANG_RDIV_2: self.cmd_erlang_rdiv_2_toZ3,
+      cc.OP_ERLANG_POS_IDIV_2: self.cmd_erlang_pos_idiv_2_toZ3,
     }
     
     opts_rev = {
@@ -286,6 +287,7 @@ class ErlangZ3:
       cc.OP_ERLANG_MINUS_2: self.cmd_erlang_minus_2_toZ3_RV,
       cc.OP_ERLANG_TIMES_2: self.cmd_erlang_times_2_toZ3_RV,
       cc.OP_ERLANG_RDIV_2: self.cmd_erlang_rdiv_2_toZ3_RV,
+      cc.OP_ERLANG_POS_IDIV_2: self.cmd_erlang_pos_idiv_2_toZ3_RV,
     }
     
     opts = opts_rev if rev else opts_normal
@@ -736,4 +738,32 @@ class ErlangZ3:
           And(T.is_real(t2), T.rval(t2) != 0.0)
         ),
       ))
+    )
+  
+  ### Integer division with natural integers
+  
+  def cmd_erlang_pos_idiv_2_toZ3(self, term, term1, term2):
+    T = self.Term
+    s = term["s"]
+    t1 = self.term_toZ3(term1)
+    t2 = self.term_toZ3(term2)
+    self.axs.extend([
+      T.is_int(t1),
+      T.is_int(t2),
+      T.ival(t1) >= 0,
+      T.ival(t2) > 0
+    ])
+    self.env.bind(s, T.int(T.ival(t1) / T.ival(t2)))
+  
+  # (Reversed)
+  def cmd_erlang_pos_idiv_2_toZ3_RV(self, term, term1, term2):
+    T = self.Term
+    t1 = self.term_toZ3(term1)
+    t2 = self.term_toZ3(term2)
+    self.axs.append(
+      Or(
+        Not(T.is_int(t1)),
+        Not(T.is_int(t2)),
+        And( T.is_int(t1), T.is_int(t2), T.ival(t2) == 0 )
+      )
     )

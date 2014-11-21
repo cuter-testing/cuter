@@ -80,3 +80,4 @@ Encoding of Erlang BIFs
 * erlang:'-'/2  => {"c" : 35, "a" : [Term, Term2, Term3]}  i.e. Term = Term2 - Term3
 * erlang:'*'/2  => {"c" : 36, "a" : [Term, Term2, Term3]}  i.e. Term = Term2 * Term3
 * erlang:'/'/2  => {"c" : 37, "a" : [Term, Term2, Term3]}  i.e. Term = Term2 / Term3
+* Integer division with natural numbers => {"c" : 38, "a" : [Term, Term2, Term3]}  i.e. Term = Term2 div Term3, where Term2 >= 0, Term3 > 0

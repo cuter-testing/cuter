@@ -18,14 +18,15 @@
 
 %% ----------------------------------------------------------------------------
 %% BIFs
+%%
+%% NOTE: There is no need to validate the arguments of each function as it
+%% is only called internally .
 %% ----------------------------------------------------------------------------
 
 -spec gteq(number(), number()) -> boolean().
 gteq(X, Y) -> X >= Y.
 
-%% Integer division with positive integers.
-%% NOTE: There is no need to validate X and Y as
-%% this function in only internally called.
+%% Integer division with natural numbers.
 -spec pos_div(non_neg_integer(), non_neg_integer()) -> non_neg_integer().
 pos_div(X, Y) -> X div Y.
 
@@ -54,9 +55,9 @@ abs(X) when is_integer(X); is_float(X) ->
 'div'(X, Y) when is_integer(X), is_integer(Y), X < 0, Y < 0 ->
   pos_div(-X, -Y);
 'div'(X, Y) when is_integer(X), is_integer(Y), X >= 0, Y < 0 ->
-  -1 * pos_div(X, -Y);
+  - pos_div(X, -Y);
 'div'(X, Y) when is_integer(X), is_integer(Y), X < 0, Y >= 0 ->
-  -1 * pos_div(-X, Y).
+  - pos_div(-X, Y).
 
 %%
 %% erlang:element/2
