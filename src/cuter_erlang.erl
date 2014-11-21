@@ -9,12 +9,16 @@
   , pos_rem/2
   %% Other functions
   , abs/1
+  , 'and'/2
+  , 'andalso'/2
   , 'div'/2
   , element/2
   , length/1
   , make_tuple/2
   , max/2
   , min/2
+  , 'or'/2
+  , 'orelse'/2
   , 'rem'/2
 ]).
 
@@ -49,6 +53,45 @@ abs(X) when is_integer(X); is_float(X) ->
   case gteq(X, 0) of
     true  -> X;
     false -> -X
+  end.
+
+%%
+%% erlang:'and'/2
+%%
+
+-spec 'and'(boolean(), boolean()) -> boolean().
+'and'(X, Y) ->
+  case X of
+    true ->
+      case Y of
+        true  -> true;
+        false -> false;
+        _ -> error(badarg)
+      end;
+    false ->
+      case Y of
+        true  -> false;
+        false -> false;
+        _ -> error(badarg)
+      end;
+    _ -> error(badarg)
+  end.
+
+%%
+%% erlang:'andalso'/2
+%%
+
+-spec 'andalso'(boolean(), boolean()) -> boolean().
+'andalso'(X, Y) ->
+  case X of
+    false -> false;
+    true ->
+      case Y of
+        true  -> true;
+        false -> false;
+        _ -> error(badarg)
+      end;
+    _ -> error(badarg)
   end.
 
 %%
@@ -127,6 +170,45 @@ min(X, Y) ->
   case X =< Y of
     true -> X;
     false -> Y
+  end.
+
+%%
+%% erlang'or'/2
+%%
+
+-spec 'or'(boolean(), boolean()) -> boolean().
+'or'(X, Y) ->
+  case X of
+    true ->
+      case Y of
+        true  -> true;
+        false -> true;
+        _ -> error(badarg)
+      end;
+    false ->
+      case Y of
+        true  -> true;
+        false -> false;
+        _ -> error(badarg)
+      end;
+    _ -> error(badarg)
+  end.
+
+%%
+%% erlang:'orelse'/2
+%%
+
+-spec 'orelse'(boolean(), boolean()) -> boolean().
+'orelse'(X, Y) ->
+  case X of
+    true -> true;
+    false ->
+      case Y of
+        true  -> true;
+        false -> false;
+        _ -> error(badarg)
+      end;
+    _ -> error(badarg)
   end.
 
 %%

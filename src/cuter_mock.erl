@@ -20,6 +20,10 @@ simulate_behaviour(erlang, make_tuple, 2) -> {ok, {cuter_erlang, make_tuple, 2}}
 simulate_behaviour(erlang, max,        2) -> {ok, {cuter_erlang, max,        2}};
 simulate_behaviour(erlang, min,        2) -> {ok, {cuter_erlang, min,        2}};
 simulate_behaviour(erlang, 'rem',      2) -> {ok, {cuter_erlang, 'rem',      2}};
+simulate_behaviour(erlang, 'or',       2) -> {ok, {cuter_erlang, 'or',       2}};
+simulate_behaviour(erlang, 'orelse',   2) -> {ok, {cuter_erlang, 'orelse',   2}};
+simulate_behaviour(erlang, 'and',      2) -> {ok, {cuter_erlang, 'and',      2}};
+simulate_behaviour(erlang, 'andalso',  2) -> {ok, {cuter_erlang, 'andalso',  2}};
 simulate_behaviour(erlang, _F, _A)        -> bif;
 
 %% cuter_erlang module
