@@ -17,9 +17,11 @@
   , make_tuple/2
   , max/2
   , min/2
+  , 'not'/1
   , 'or'/2
   , 'orelse'/2
   , 'rem'/2
+  , 'xor'/2
 ]).
 
 %% ----------------------------------------------------------------------------
@@ -173,6 +175,19 @@ min(X, Y) ->
   end.
 
 %%
+%% erlang:'not'/1
+%%
+
+-spec 'not'(boolean()) -> boolean().
+'not'(X) ->
+  case X of
+    true  -> false;
+    false -> true;
+    _ -> error(badarg)
+  end.
+
+
+%%
 %% erlang'or'/2
 %%
 
@@ -224,3 +239,25 @@ min(X, Y) ->
   pos_rem(X, -Y);
 'rem'(X, Y) when is_integer(X), is_integer(Y), X < 0, Y >= 0 ->
   - pos_rem(-X, Y).
+
+%%
+%% erlang:'xor'/2
+%%
+
+-spec 'xor'(boolean(), boolean()) -> boolean().
+'xor'(X, Y) ->
+  case X of
+    true ->
+      case Y of
+        true  -> false;
+        false -> true;
+        _ -> error(badarg)
+      end;
+    false ->
+      case Y of
+        true  -> true;
+        false -> false;
+        _ -> error(badarg)
+      end;
+    _ -> error(badarg)
+  end.
