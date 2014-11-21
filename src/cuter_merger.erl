@@ -246,10 +246,11 @@ validate_entry(?NOT_CONSTRAINT, Tp, [A|Args], Known) when Tp =:= ?OP_UNFOLD_TUPL
     error -> error;
     {ok, Known} -> add_symbolic_vars(Args, Known)
   end;
-validate_entry(?NOT_CONSTRAINT, Tp, [T1, T2], Known) when Tp =:= ?OP_ERLANG_HD_1; Tp =:= ?OP_ERLANG_TL_1 ->
-  case lookup_symbolic_vars([T2], Known) of
+% BIF operations
+validate_entry(?NOT_CONSTRAINT, _Tp, [T|Ts], Known) ->
+  case lookup_symbolic_vars(Ts, Known) of
     error -> error;
-    {ok, Known} -> add_symbolic_vars([T1], Known)
+    {ok, Known} -> add_symbolic_vars([T], Known)
   end.
 
 -spec add_symbolic_vars([any()], known_set()) -> {ok, known_set()}.
