@@ -237,59 +237,59 @@ class ErlangZ3:
   def command_toZ3(self, tp, json_data, rev):
     opts_normal = {
       # Constraints
-      cc.OP_GUARD_TRUE: self.cmd_guard_true_toZ3,
-      cc.OP_GUARD_FALSE: self.cmd_guard_false_toZ3,
-      cc.OP_MATCH_EQUAL_TRUE: self.cmd_match_equal_true_toZ3,
-      cc.OP_MATCH_EQUAL_FALSE: self.cmd_match_equal_false_toZ3,
-      cc.OP_TUPLE_SZ: self.cmd_tuple_sz_toZ3,
-      cc.OP_TUPLE_NOT_SZ: self.cmd_tuple_notsz_toZ3,
-      cc.OP_TUPLE_NOT_TPL: self.cmd_tuple_nottpl_toZ3,
-      cc.OP_LIST_NON_EMPTY: self.cmd_list_nonempty_toZ3,
-      cc.OP_LIST_EMPTY: self.cmd_list_empty_toZ3,
-      cc.OP_LIST_NOT_LST: self.cmd_list_notlst_toZ3,
+      cc.OP_GUARD_TRUE: self.guard_true_toZ3,
+      cc.OP_GUARD_FALSE: self.guard_false_toZ3,
+      cc.OP_MATCH_EQUAL_TRUE: self.match_equal_toZ3,
+      cc.OP_MATCH_EQUAL_FALSE: self.match_not_equal_toZ3,
+      cc.OP_TUPLE_SZ: self.tuple_sz_toZ3,
+      cc.OP_TUPLE_NOT_SZ: self.tuple_not_sz_toZ3,
+      cc.OP_TUPLE_NOT_TPL: self.tuple_not_tpl_toZ3,
+      cc.OP_LIST_NON_EMPTY: self.list_nonempty_toZ3,
+      cc.OP_LIST_EMPTY: self.list_empty_toZ3,
+      cc.OP_LIST_NOT_LST: self.list_not_lst_toZ3,
       # Other important commands
-      cc.OP_PARAMS: self.cmd_params_toZ3,
-      cc.OP_UNFOLD_TUPLE: self.cmd_unfold_tuple_toZ3,
-      cc.OP_UNFOLD_LIST: self.cmd_unfold_list_toZ3,
+      cc.OP_PARAMS: self.params_toZ3,
+      cc.OP_UNFOLD_TUPLE: self.unfold_tuple_toZ3,
+      cc.OP_UNFOLD_LIST: self.unfold_list_toZ3,
       # Erlang BIFs
-      cc.OP_HD: self.cmd_erlang_hd_1_toZ3,
-      cc.OP_TL: self.cmd_erlang_tl_1_toZ3,
-      cc.OP_IS_INTEGER: self.cmd_erlang_isint_1_toZ3,
-      cc.OP_IS_ATOM: self.cmd_erlang_isatom_1_toZ3,
-      cc.OP_IS_FLOAT: self.cmd_erlang_isfloat_1_toZ3,
-      cc.OP_IS_LIST: self.cmd_erlang_islist_1_toZ3,
-      cc.OP_IS_TUPLE: self.cmd_erlang_istuple_1_toZ3,
-      cc.OP_IS_BOOLEAN: self.cmd_erlang_isboolean_1_toZ3,
-      cc.OP_IS_NUMBER: self.cmd_erlang_isnumber_1_toZ3,
-      cc.OP_PLUS: self.cmd_erlang_plus_2_toZ3,
-      cc.OP_MINUS: self.cmd_erlang_minus_2_toZ3,
-      cc.OP_TIMES: self.cmd_erlang_times_2_toZ3,
-      cc.OP_RDIV: self.cmd_erlang_rdiv_2_toZ3,
-      cc.OP_IDIV_NAT: self.cmd_erlang_pos_idiv_2_toZ3,
-      cc.OP_REM_NAT: self.cmd_erlang_pos_rem_2_toZ3,
+      cc.OP_HD: self.hd_toZ3,
+      cc.OP_TL: self.tl_toZ3,
+      cc.OP_IS_INTEGER: self.is_integer_toZ3,
+      cc.OP_IS_ATOM: self.is_atom_toZ3,
+      cc.OP_IS_FLOAT: self.is_float_toZ3,
+      cc.OP_IS_LIST: self.is_list_toZ3,
+      cc.OP_IS_TUPLE: self.is_tuple_toZ3,
+      cc.OP_IS_BOOLEAN: self.is_boolean_toZ3,
+      cc.OP_IS_NUMBER: self.is_number_toZ3,
+      cc.OP_PLUS: self.plus_toZ3,
+      cc.OP_MINUS: self.minus_toZ3,
+      cc.OP_TIMES: self.times_toZ3,
+      cc.OP_RDIV: self.rdiv_toZ3,
+      cc.OP_IDIV_NAT: self.idiv_nat_toZ3,
+      cc.OP_REM_NAT: self.rem_nat_toZ3,
     }
     
     opts_rev = {
       # Constraints
-      cc.OP_GUARD_TRUE: self.cmd_guard_false_toZ3,
-      cc.OP_GUARD_FALSE: self.cmd_guard_true_toZ3,
-      cc.OP_MATCH_EQUAL_TRUE: self.cmd_match_equal_false_toZ3,
-      cc.OP_MATCH_EQUAL_FALSE: self.cmd_match_equal_true_toZ3,
-      cc.OP_TUPLE_SZ: self.cmd_tuple_sz_toZ3_RV,
-      cc.OP_TUPLE_NOT_SZ: self.cmd_tuple_notsz_toZ3_RV,
-      cc.OP_TUPLE_NOT_TPL: self.cmd_tuple_nottpl_toZ3_RV,
-      cc.OP_LIST_NON_EMPTY: self.cmd_list_nonempty_toZ3_RV,
-      cc.OP_LIST_EMPTY: self.cmd_list_empty_toZ3_RV,
-      cc.OP_LIST_NOT_LST: self.cmd_list_notlst_toZ3_RV,
+      cc.OP_GUARD_TRUE: self.guard_false_toZ3,
+      cc.OP_GUARD_FALSE: self.guard_true_toZ3,
+      cc.OP_MATCH_EQUAL_TRUE: self.match_not_equal_toZ3,
+      cc.OP_MATCH_EQUAL_FALSE: self.match_equal_toZ3,
+      cc.OP_TUPLE_SZ: self.tuple_sz_toZ3_RV,
+      cc.OP_TUPLE_NOT_SZ: self.tuple_not_sz_toZ3_RV,
+      cc.OP_TUPLE_NOT_TPL: self.tuple_not_tpl_toZ3_RV,
+      cc.OP_LIST_NON_EMPTY: self.list_nonempty_toZ3_RV,
+      cc.OP_LIST_EMPTY: self.list_empty_toZ3_RV,
+      cc.OP_LIST_NOT_LST: self.list_not_lst_toZ3_RV,
       # Erlang BIFs
-      cc.OP_HD: self.cmd_erlang_hd_1_toZ3_RV,
-      cc.OP_TL: self.cmd_erlang_tl_1_toZ3_RV,
-      cc.OP_PLUS: self.cmd_erlang_plus_2_toZ3_RV,
-      cc.OP_MINUS: self.cmd_erlang_minus_2_toZ3_RV,
-      cc.OP_TIMES: self.cmd_erlang_times_2_toZ3_RV,
-      cc.OP_RDIV: self.cmd_erlang_rdiv_2_toZ3_RV,
-      cc.OP_IDIV_NAT: self.cmd_erlang_pos_idiv_2_toZ3_RV,
-      cc.OP_REM_NAT: self.cmd_erlang_pos_rem_2_toZ3_RV,
+      cc.OP_HD: self.hd_toZ3_RV,
+      cc.OP_TL: self.tl_toZ3_RV,
+      cc.OP_PLUS: self.plus_toZ3_RV,
+      cc.OP_MINUS: self.minus_toZ3_RV,
+      cc.OP_TIMES: self.times_toZ3_RV,
+      cc.OP_RDIV: self.rdiv_toZ3_RV,
+      cc.OP_IDIV_NAT: self.idiv_nat_toZ3_RV,
+      cc.OP_REM_NAT: self.rem_nat_toZ3_RV,
     }
     
     opts = opts_rev if rev else opts_normal
@@ -300,17 +300,17 @@ class ErlangZ3:
   # ----------------------------------------------------------------------
   
   # Guard True
-  def cmd_guard_true_toZ3(self, term):
+  def guard_true_toZ3(self, term):
     t = self.term_toZ3(term)
     self.axs.append(t == self.atmTrue)
   
   # Guard False
-  def cmd_guard_false_toZ3(self, term):
+  def guard_false_toZ3(self, term):
     t = self.term_toZ3(term)
     self.axs.append(t == self.atmFalse)
   
   # NonEmpty List
-  def cmd_list_nonempty_toZ3(self, term):
+  def list_nonempty_toZ3(self, term):
     t = self.term_toZ3(term)
     self.axs.extend([
       self.Term.is_lst(t),
@@ -318,7 +318,7 @@ class ErlangZ3:
     ])
   
   # Empty List
-  def cmd_list_empty_toZ3(self, term):
+  def list_empty_toZ3(self, term):
     t = self.term_toZ3(term)
     self.axs.extend([
       self.Term.is_lst(t),
@@ -326,24 +326,24 @@ class ErlangZ3:
     ])
   
   # Not a List
-  def cmd_list_notlst_toZ3(self, term):
+  def list_not_lst_toZ3(self, term):
     t = self.term_toZ3(term)
     self.axs.append(self.Term.is_lst(t) == False)
   
   # Match Equal
-  def cmd_match_equal_true_toZ3(self, term1, term2):
+  def match_equal_toZ3(self, term1, term2):
     t1 = self.term_toZ3(term1)
     t2 = self.term_toZ3(term2)
     self.axs.append(t1 == t2)
   
   # Match Not Equal
-  def cmd_match_equal_false_toZ3(self, term1, term2):
+  def match_not_equal_toZ3(self, term1, term2):
     t1 = self.term_toZ3(term1)
     t2 = self.term_toZ3(term2)
     self.axs.append(t1 != t2)
   
   # Tuple of Size N
-  def cmd_tuple_sz_toZ3(self, term, num):
+  def tuple_sz_toZ3(self, term, num):
     t = self.term_toZ3(term)
     nTerm = self.term_toZ3(num)
     n = int(str(simplify(self.Term.ival(nTerm)))) # Expect num to represent an Integer
@@ -355,7 +355,7 @@ class ErlangZ3:
     self.axs.append(t == self.List.nil)
   
   # Tuple of Not Size N
-  def cmd_tuple_notsz_toZ3(self, term, num):
+  def tuple_not_sz_toZ3(self, term, num):
     t = self.term_toZ3(term)
     nTerm = self.term_toZ3(num)
     n = int(str(simplify(self.Term.ival(nTerm)))) # Expect num to represent an Integer
@@ -369,14 +369,14 @@ class ErlangZ3:
     self.axs.append(Not(And(*xs)))
   
   # Not a Tuple
-  def cmd_tuple_nottpl_toZ3(self, term, num):
+  def tuple_not_tpl_toZ3(self, term, num):
     t = self.term_toZ3(term)
     self.axs.append(self.Term.is_tpl(t) == False)
   
   ### Reversed ###
   
   # NonEmpty List (Reversed)
-  def cmd_list_nonempty_toZ3_RV(self, term):
+  def list_nonempty_toZ3_RV(self, term):
     t = self.term_toZ3(term)
     xs = [
       self.Term.is_lst(t),
@@ -385,7 +385,7 @@ class ErlangZ3:
     self.axs.append(Not(And(*xs)))
   
   # Empty List (Reversed)
-  def cmd_list_empty_toZ3_RV(self, term):
+  def list_empty_toZ3_RV(self, term):
     t = self.term_toZ3(term)
     xs = [
       self.Term.is_lst(t),
@@ -394,12 +394,12 @@ class ErlangZ3:
     self.axs.append(Not(And(*xs)))
   
   # Not a List
-  def cmd_list_notlst_toZ3_RV(self, term):
+  def list_not_lst_toZ3_RV(self, term):
     t = self.term_toZ3(term)
     self.axs.append(self.Term.is_lst(t))
   
   # Tuple of Size N (Reversed)
-  def cmd_tuple_sz_toZ3_RV(self, term, num):
+  def tuple_sz_toZ3_RV(self, term, num):
     t = self.term_toZ3(term)
     nTerm = self.term_toZ3(num)
     n = int(str(simplify(self.Term.ival(nTerm)))) # Expect num to represent an Integer
@@ -412,7 +412,7 @@ class ErlangZ3:
     self.axs.append(Not(And(*xs)))
   
   # Tuple of Not Size N (Reversed)
-  def cmd_tuple_notsz_toZ3_RV(self, term, num):
+  def tuple_not_sz_toZ3_RV(self, term, num):
     t = self.term_toZ3(term)
     nTerm = self.term_toZ3(num)
     n = int(str(simplify(self.Term.ival(nTerm)))) # Expect num to represent an Integer
@@ -429,7 +429,7 @@ class ErlangZ3:
     )))
   
   # Not a Tuple (Reversed)
-  def cmd_tuple_nottpl_toZ3_RV(self, term, num):
+  def tuple_not_tpl_toZ3_RV(self, term, num):
     t = self.term_toZ3(term)
     self.axs.append(self.Term.is_tpl(t))
   
@@ -438,7 +438,7 @@ class ErlangZ3:
   # ----------------------------------------------------------------------
   
   # Entry Point MFA's symbolic parameters
-  def cmd_params_toZ3(self, *args):
+  def params_toZ3(self, *args):
     e = self.env
     for x in args:
       s = x["s"]
@@ -446,7 +446,7 @@ class ErlangZ3:
       e.add_param(s)
   
   # Unfold a symbolic tuple
-  def cmd_unfold_tuple_toZ3(self, *terms):
+  def unfold_tuple_toZ3(self, *terms):
     t, ts = self.term_toZ3(terms[0]), terms[1:]
     self.axs.append(self.Term.is_tpl(t))
     t = self.Term.tval(t)
@@ -458,7 +458,7 @@ class ErlangZ3:
     self.axs.append(t == self.List.nil)
   
   # Unfold a symbolic list
-  def cmd_unfold_list_toZ3(self, *terms):
+  def unfold_list_toZ3(self, *terms):
     t, ts = self.term_toZ3(terms[0]), terms[1:]
     self.axs.append(self.Term.is_lst(t))
     t = self.Term.lval(t)
@@ -475,7 +475,7 @@ class ErlangZ3:
   
   ### erlang:hd/1 ###
   
-  def cmd_erlang_hd_1_toZ3(self, term1, term2):
+  def hd_toZ3(self, term1, term2):
     s = term1["s"]
     t2 = self.term_toZ3(term2)
     self.axs.extend([
@@ -485,7 +485,7 @@ class ErlangZ3:
     self.env.bind(s, self.List.hd(self.Term.lval(t2)))
   
   # (Reversed)
-  def cmd_erlang_hd_1_toZ3_RV(self, term1, term2):
+  def hd_toZ3_RV(self, term1, term2):
     t2 = self.term_toZ3(term2)
     self.axs.append(Or(
       self.Term.is_lst(t2) == False,
@@ -494,7 +494,7 @@ class ErlangZ3:
   
   ### erlang:tl/1 ###
   
-  def cmd_erlang_tl_1_toZ3(self, term1, term2):
+  def tl_toZ3(self, term1, term2):
     s = term1["s"]
     t2 = self.term_toZ3(term2)
     self.axs.extend([
@@ -504,7 +504,7 @@ class ErlangZ3:
     self.env.bind(s, self.Term.lst(self.List.tl(self.Term.lval(t2))))
   
   # (Reversed)
-  def cmd_erlang_tl_1_toZ3_RV(self, term1, term2):
+  def tl_toZ3_RV(self, term1, term2):
     t2 = self.term_toZ3(term2)
     self.axs.append(Or(
       self.Term.is_lst(t2) == False,
@@ -513,7 +513,7 @@ class ErlangZ3:
   
   ### erlang:is_integer/1 ###
   
-  def cmd_erlang_isint_1_toZ3(self, term1, term2):
+  def is_integer_toZ3(self, term1, term2):
     s = term1["s"]
     t2 = self.term_toZ3(term2)
     self.env.bind(s, If(
@@ -524,7 +524,7 @@ class ErlangZ3:
   
   ### erlang:is_atom/1 ###
   
-  def cmd_erlang_isatom_1_toZ3(self, term1, term2):
+  def is_atom_toZ3(self, term1, term2):
     s = term1["s"]
     t2 = self.term_toZ3(term2)
     self.env.bind(s, If(
@@ -535,7 +535,7 @@ class ErlangZ3:
   
   ### erlang:is_float/1 ###
   
-  def cmd_erlang_isfloat_1_toZ3(self, term1, term2):
+  def is_float_toZ3(self, term1, term2):
     s = term1["s"]
     t2 = self.term_toZ3(term2)
     self.env.bind(s, If(
@@ -546,7 +546,7 @@ class ErlangZ3:
   
   ### erlang:is_list/1 ###
   
-  def cmd_erlang_islist_1_toZ3(self, term1, term2):
+  def is_list_toZ3(self, term1, term2):
     s = term1["s"]
     t2 = self.term_toZ3(term2)
     self.env.bind(s, If(
@@ -557,7 +557,7 @@ class ErlangZ3:
   
   ### erlang:is_tuple/1 ###
   
-  def cmd_erlang_istuple_1_toZ3(self, term1, term2):
+  def is_tuple_toZ3(self, term1, term2):
     s = term1["s"]
     t2 = self.term_toZ3(term2)
     self.env.bind(s, If(
@@ -568,7 +568,7 @@ class ErlangZ3:
   
   ### erlang:is_boolean/1 ###
   
-  def cmd_erlang_isboolean_1_toZ3(self, term1, term2):
+  def is_boolean_toZ3(self, term1, term2):
     s = term1["s"]
     t2 = self.term_toZ3(term2)
     self.env.bind(s, If(
@@ -579,7 +579,7 @@ class ErlangZ3:
   
   ### erlang:is_number/1 ###
   
-  def cmd_erlang_isnumber_1_toZ3(self, term1, term2):
+  def is_number_toZ3(self, term1, term2):
     s = term1["s"]
     t2 = self.term_toZ3(term2)
     self.env.bind(s, If(
@@ -590,7 +590,7 @@ class ErlangZ3:
   
   ## erlang:'+'/2 ###
   
-  def cmd_erlang_plus_2_toZ3(self, term, term1, term2):
+  def plus_toZ3(self, term, term1, term2):
     T = self.Term
     s = term["s"]
     t1 = self.term_toZ3(term1)
@@ -614,7 +614,7 @@ class ErlangZ3:
     ))
   
   # (Reversed)
-  def cmd_erlang_plus_2_toZ3_RV(self, term, term1, term2):
+  def plus_toZ3_RV(self, term, term1, term2):
     T = self.Term
     t1 = self.term_toZ3(term1)
     t2 = self.term_toZ3(term2)
@@ -627,7 +627,7 @@ class ErlangZ3:
   
   ## erlang:'-'/2 ###
   
-  def cmd_erlang_minus_2_toZ3(self, term, term1, term2):
+  def minus_toZ3(self, term, term1, term2):
     T = self.Term
     s = term["s"]
     t1 = self.term_toZ3(term1)
@@ -651,7 +651,7 @@ class ErlangZ3:
     ))
   
   # (Reversed)
-  def cmd_erlang_minus_2_toZ3_RV(self, term, term1, term2):
+  def minus_toZ3_RV(self, term, term1, term2):
     T = self.Term
     t1 = self.term_toZ3(term1)
     t2 = self.term_toZ3(term2)
@@ -664,7 +664,7 @@ class ErlangZ3:
   
   ## erlang:'*'/2 ###
   
-  def cmd_erlang_times_2_toZ3(self, term, term1, term2):
+  def times_toZ3(self, term, term1, term2):
     T = self.Term
     s = term["s"]
     t1 = self.term_toZ3(term1)
@@ -688,7 +688,7 @@ class ErlangZ3:
     ))
   
   # (Reversed)
-  def cmd_erlang_times_2_toZ3_RV(self, term, term1, term2):
+  def times_toZ3_RV(self, term, term1, term2):
     T = self.Term
     t1 = self.term_toZ3(term1)
     t2 = self.term_toZ3(term2)
@@ -701,7 +701,7 @@ class ErlangZ3:
   
   ## erlang:'/'/2 ###
   
-  def cmd_erlang_rdiv_2_toZ3(self, term, term1, term2):
+  def rdiv_toZ3(self, term, term1, term2):
     T = self.Term
     s = term["s"]
     t1 = self.term_toZ3(term1)
@@ -728,7 +728,7 @@ class ErlangZ3:
     ))
   
   # (Reversed)
-  def cmd_erlang_rdiv_2_toZ3_RV(self, term, term1, term2):
+  def rdiv_toZ3_RV(self, term, term1, term2):
     T = self.Term
     t1 = self.term_toZ3(term1)
     t2 = self.term_toZ3(term2)
@@ -744,7 +744,7 @@ class ErlangZ3:
   
   ### Integer division with natural integers
   
-  def cmd_erlang_pos_idiv_2_toZ3(self, term, term1, term2):
+  def idiv_nat_toZ3(self, term, term1, term2):
     T = self.Term
     s = term["s"]
     t1 = self.term_toZ3(term1)
@@ -758,7 +758,7 @@ class ErlangZ3:
     self.env.bind(s, T.int(T.ival(t1) / T.ival(t2)))
   
   # (Reversed)
-  def cmd_erlang_pos_idiv_2_toZ3_RV(self, term, term1, term2):
+  def idiv_nat_toZ3_RV(self, term, term1, term2):
     T = self.Term
     t1 = self.term_toZ3(term1)
     t2 = self.term_toZ3(term2)
@@ -772,7 +772,7 @@ class ErlangZ3:
   
   ### Remainder of integer division with natural integers
   
-  def cmd_erlang_pos_rem_2_toZ3(self, term, term1, term2):
+  def rem_nat_toZ3(self, term, term1, term2):
     T = self.Term
     s = term["s"]
     t1 = self.term_toZ3(term1)
@@ -786,7 +786,7 @@ class ErlangZ3:
     self.env.bind(s, T.int(T.ival(t1) % T.ival(t2)))
   
   # (Reversed)
-  def cmd_erlang_pos_rem_2_toZ3_RV(self, term, term1, term2):
+  def rem_nat_toZ3_RV(self, term, term1, term2):
     T = self.Term
     t1 = self.term_toZ3(term1)
     t2 = self.term_toZ3(term2)
