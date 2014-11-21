@@ -62,6 +62,9 @@ OP_RDIV = 37
 OP_IDIV_NAT = 38
 OP_REM_NAT = 39
 OP_UNARY = 40
+OP_EQUAL = 41
+
+OP_FLOAT = 49
 
 def is_constraint_kind(tp):
   return tp == CONSTRAINT_TRUE or tp == CONSTRAINT_FALSE
@@ -88,6 +91,9 @@ def is_reversible_bif(tp):
     OP_IDIV_NAT: True,
     OP_REM_NAT: True,
     OP_UNARY: False,
+    OP_EQUAL: False,
+    
+    OP_FLOAT: True,
   }
   return x[tp] if tp in x else False
 

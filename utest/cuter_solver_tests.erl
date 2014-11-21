@@ -41,6 +41,8 @@ solve_simple_test_() ->
        , {"Simulating BIFs - cuter_erlang:pos_div/2", fun erlang_posdiv/1}
        , {"Simulating BIFs - cuter_erlang:pos_rem/2", fun erlang_posrem/1}
        , {"BIFs - erlang:'-'/1", fun erlang_unary/1}
+       , {"BIFs - erlang:'=:='/2", fun erlang_equal/1}
+       , {"BIFs - erlang:float/1", fun erlang_float/1}
        ],
   [{"Simple Queries: " ++ Desc, {setup, Setup, Cleanup, Inst}} || {Desc, Inst} <- Ts].
 
@@ -563,3 +565,56 @@ erlang_unary_logs(Fd, SAs=[P1, P2]) ->
   cuter_log:log_equal(Fd, true, X, 2),
   cuter_log:log_mfa(Fd, {erlang, '-', 1}, [P2], Y),
   cuter_log:log_equal(Fd, true, Y, -3.14).
+
+%%
+%% erlang:'=:='/2
+%%
+
+erlang_equal({_Dir, Fname, Python}) ->
+  As = [0, 0.0, 0],  % Two arguments
+  Mapping = create_logfile(Fname, As, fun erlang_equal_logs/2),
+  {ok, [P1, P2, P3]} = cuter_solver:solve(Python, Mapping, Fname, 42),
+  [ {"Equality of terms I", ?_assertEqual(42, P1)}
+  , {"Equality of terms II", ?_assertEqual(ok, P2)}
+  , {"Inequality of integers and floats", ?_assertMatch(X when is_integer(X), P3)}
+  ].
+
+erlang_equal_logs(Fd, SAs=[P1, P2, P3]) ->
+  cuter_log:log_symb_params(Fd, SAs),
+  X = cuter_symbolic:fresh_symbolic_var(),
+  Y = cuter_symbolic:fresh_symbolic_var(),
+  Z = cuter_symbolic:fresh_symbolic_var(),
+  Q = cuter_symbolic:fresh_symbolic_var(),
+  cuter_log:log_mfa(Fd, {erlang, '=:=', 2}, [P1, 42], X),
+  cuter_log:log_equal(Fd, true, X, true),
+  cuter_log:log_mfa(Fd, {erlang, '=:=', 2}, [P2, ok], Y),
+  cuter_log:log_equal(Fd, true, Y, true),
+  cuter_log:log_mfa(Fd, {erlang, float, 1}, [P3], Z),
+  cuter_log:log_mfa(Fd, {erlang, '=:=', 2}, [P3, Z], Q),
+  cuter_log:log_equal(Fd, true, Q, false).
+
+%%
+%% erlang:float/1
+%%
+
+erlang_float({_Dir, Fname, Python}) ->
+  As = [0, 0.0],  % Two arguments
+  Mapping = create_logfile(Fname, As, fun erlang_float_logs/2),
+  {ok, [P1, P2]} = cuter_solver:solve(Python, Mapping, Fname, 42),
+  {ok, [P1_RV, _P2_RV]} = cuter_solver:solve(Python, Mapping, Fname, 1),
+  [ {"Convert integer to float", ?_assertEqual(42, P1)}
+  , {"Convert float to float", ?_assertEqual(3.14, P2)}
+  , {"Make it throw an exception", ?_assertError(badarg, float(P1_RV))}
+  ].
+
+erlang_float_logs(Fd, SAs=[P1, P2]) ->
+  cuter_log:log_symb_params(Fd, SAs),
+  X = cuter_symbolic:fresh_symbolic_var(),
+  Y = cuter_symbolic:fresh_symbolic_var(),
+  Z = cuter_symbolic:fresh_symbolic_var(),
+  cuter_log:log_mfa(Fd, {erlang, float, 1}, [P1], X),
+  cuter_log:log_equal(Fd, true, X, 42.0),
+  cuter_log:log_mfa(Fd, {erlang, float, 1}, [P2], Y),
+  cuter_log:log_equal(Fd, true, Y, 3.14),
+  cuter_log:log_mfa(Fd, {erlang, is_integer, 1}, [P1], Z),
+  cuter_log:log_equal(Fd, true, Z, true).

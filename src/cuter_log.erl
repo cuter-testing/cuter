@@ -210,7 +210,9 @@ mfa2op({erlang,       '*',        2}) -> ?OP_TIMES;
 mfa2op({erlang,       '/',        2}) -> ?OP_RDIV;
 mfa2op({cuter_erlang, pos_div,    2}) -> ?OP_IDIV_NAT;
 mfa2op({cuter_erlang, pos_rem,    2}) -> ?OP_REM_NAT;
-mfa2op({erlang,       '-',        1}) -> ?OP_UNARY.
+mfa2op({erlang,       '-',        1}) -> ?OP_UNARY;
+mfa2op({erlang,       '=:=',      2}) -> ?OP_EQUAL;
+mfa2op({erlang,       float,      1}) -> ?OP_FLOAT.
 
 %% Maps commands to their type
 %% (True constraint | False constraint | Everything else)
@@ -300,6 +302,7 @@ is_reversible_operation(?OP_TIMES)    -> true;
 is_reversible_operation(?OP_RDIV)     -> true;
 is_reversible_operation(?OP_IDIV_NAT) -> true;
 is_reversible_operation(?OP_REM_NAT)  -> true;
+is_reversible_operation(?OP_FLOAT)    -> true;
 is_reversible_operation(_) -> false.
 
 -spec next_entry(file:io_device(), true) -> {entry_type(), opcode(), binary()} | eof

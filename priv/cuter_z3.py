@@ -268,6 +268,9 @@ class ErlangZ3:
       cc.OP_IDIV_NAT: self.idiv_nat_toZ3,
       cc.OP_REM_NAT: self.rem_nat_toZ3,
       cc.OP_UNARY: self.unary_toZ3,
+      cc.OP_EQUAL: self.equal_toZ3,
+      
+      cc.OP_FLOAT: self.float_toZ3,
     }
     
     opts_rev = {
@@ -291,6 +294,8 @@ class ErlangZ3:
       cc.OP_RDIV: self.rdiv_toZ3_RV,
       cc.OP_IDIV_NAT: self.idiv_nat_toZ3_RV,
       cc.OP_REM_NAT: self.rem_nat_toZ3_RV,
+      
+      cc.OP_FLOAT: self.float_toZ3_RV,
     }
     
     opts = opts_rev if rev else opts_normal
@@ -813,3 +818,40 @@ class ErlangZ3:
       T.int( - T.ival(t1) ),
       T.real( - T.rval(t1) )
     ))
+  
+  ### Equality of two terms
+  
+  def equal_toZ3(self, term, term1, term2):
+    s = term["s"]
+    t1 = self.term_toZ3(term1)
+    t2 = self.term_toZ3(term2)
+    self.env.bind(s, If(
+      t1 == t2,
+      self.atmTrue,
+      self.atmFalse
+    ))
+  
+  ### Convert a number to float
+  
+  def float_toZ3(self, term, term1):
+    T = self.Term
+    s = term["s"]
+    t1 = self.term_toZ3(term1)
+    self.axs.append(Or(
+      T.is_int(t1),
+      T.is_real(t1)
+    ))
+    self.env.bind(s, If(
+      T.is_real(t1),
+      t1,
+      T.real( ToReal(T.ival(t1)) )
+    ))
+  
+  # (Reversed)
+  def float_toZ3_RV(self, term, term1):
+    T = self.Term
+    t1 = self.term_toZ3(term1)
+    self.axs.append(Not(Or(
+      T.is_int(t1),
+      T.is_real(t1)
+    )))
