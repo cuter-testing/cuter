@@ -39,6 +39,7 @@ solve_simple_test_() ->
        , { "Type conversions"
          , [ {"Number to float", fun erlang_float/1}
            , {"List to tuple", fun lst_to_tpl/1}
+           , {"Tuple to list", fun tpl_to_lst/1}
            ]
          }
        , { "Query types"
@@ -726,3 +727,20 @@ lst_to_tpl_logs(Fd, SAs=[P1]) ->
   X = cuter_symbolic:fresh_symbolic_var(),
   cuter_log:log_mfa(Fd, {erlang, list_to_tuple, 1}, [P1], X),
   cuter_log:log_equal(Fd, true, X, {ok, 42}).
+
+%% Tuple to list
+
+tpl_to_lst({_Dir, Fname, Python}) ->
+  As = [0],
+  Mapping = create_logfile(Fname, As, fun tpl_to_lst_logs/2),
+  {ok, [P1]} = cuter_solver:solve(Python, Mapping, Fname, 42),
+  {ok, [P1_RV]} = cuter_solver:solve(Python, Mapping, Fname, 1),
+  [ {"Convert a tuple to list", ?_assertEqual({ok, 42}, P1)}
+  , {"Make it throw an exception", ?_assertError(badarg, tuple_to_list(P1_RV))}
+  ].
+
+tpl_to_lst_logs(Fd, SAs=[P1]) ->
+  cuter_log:log_symb_params(Fd, SAs),
+  X = cuter_symbolic:fresh_symbolic_var(),
+  cuter_log:log_mfa(Fd, {erlang, tuple_to_list, 1}, [P1], X),
+  cuter_log:log_equal(Fd, true, X, [ok, 42]).

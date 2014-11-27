@@ -120,6 +120,7 @@
 %% Type conversions.
 -define(OP_FLOAT, 47).
 -define(OP_LIST_TO_TUPLE, 52).
+-define(OP_TUPLE_TO_LIST, 53).
 %% Query types.
 -define(OP_IS_INTEGER, 27).
 -define(OP_IS_ATOM, 28).
@@ -175,6 +176,7 @@
                  , { {erlang, '=/=',         2}, ?OP_UNEQUAL       }
                  , { {erlang, float,         1}, ?OP_FLOAT         }
                  , { {erlang, list_to_tuple, 1}, ?OP_LIST_TO_TUPLE }
+                 , { {erlang, tuple_to_list, 1}, ?OP_TUPLE_TO_LIST }
                  ])).
 
 %% All the MFAs that are supported for symbolic evaluation.
@@ -185,5 +187,5 @@
   gb_sets:from_list([ ?OP_ATOM_HEAD, ?OP_ATOM_TAIL
                     , ?OP_HD, ?OP_TL
                     , ?OP_PLUS, ?OP_MINUS, ?OP_TIMES, ?OP_RDIV, ?OP_IDIV_NAT, ?OP_REM_NAT
-                    , ?OP_FLOAT, ?OP_LIST_TO_TUPLE
+                    , ?OP_FLOAT, ?OP_LIST_TO_TUPLE, ?OP_TUPLE_TO_LIST
                     ])).

@@ -276,6 +276,7 @@ class ErlangZ3:
       cc.OP_ATOM_HEAD: self.atom_head_toZ3,
       cc.OP_ATOM_TAIL: self.atom_tail_toZ3,
       cc.OP_LIST_TO_TUPLE: self.list_to_tuple_toZ3,
+      cc.OP_TUPLE_TO_LIST: self.tuple_to_list_toZ3,
     }
     
     opts_rev = {
@@ -303,6 +304,7 @@ class ErlangZ3:
       cc.OP_ATOM_HEAD: self.atom_head_toZ3_RV,
       cc.OP_ATOM_TAIL: self.atom_tail_toZ3_RV,
       cc.OP_LIST_TO_TUPLE: self.list_to_tuple_toZ3_RV,
+      cc.OP_TUPLE_TO_LIST: self.tuple_to_list_toZ3_RV,
     }
     
     opts = opts_rev if rev else opts_normal
@@ -906,6 +908,22 @@ class ErlangZ3:
     s = term["s"]
     t1 = self.term_toZ3(term1)
     self.axs.append(Not(T.is_lst(t1)))
+  
+  ## Convert a tuple to a list
+  
+  def tuple_to_list_toZ3(self, term, term1):
+    T = self.Term
+    s = term["s"]
+    t1 = self.term_toZ3(term1)
+    self.axs.append(T.is_tpl(t1))
+    self.env.bind(s, T.lst(T.tval(t1)))
+  
+  # (Reversed)
+  def tuple_to_list_toZ3_RV(self, term, term1):
+    T = self.Term
+    s = term["s"]
+    t1 = self.term_toZ3(term1)
+    self.axs.append(Not(T.is_tpl(t1)))
   
   # ----------------------------------------------------------------------
   # Bogus operations
