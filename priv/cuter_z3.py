@@ -270,8 +270,11 @@ class ErlangZ3:
       cc.OP_UNARY: self.unary_toZ3,
       cc.OP_EQUAL: self.equal_toZ3,
       cc.OP_UNEQUAL: self.unequal_toZ3,
-      
       cc.OP_FLOAT: self.float_toZ3,
+      cc.OP_BOGUS: self.bogus_toZ3,
+      cc.OP_ATOM_NIL: self.atom_nil_toZ3,
+      cc.OP_ATOM_HEAD: self.atom_head_toZ3,
+      cc.OP_ATOM_TAIL: self.atom_tail_toZ3,
     }
     
     opts_rev = {
@@ -295,8 +298,9 @@ class ErlangZ3:
       cc.OP_RDIV: self.rdiv_toZ3_RV,
       cc.OP_IDIV_NAT: self.idiv_nat_toZ3_RV,
       cc.OP_REM_NAT: self.rem_nat_toZ3_RV,
-      
       cc.OP_FLOAT: self.float_toZ3_RV,
+      cc.OP_ATOM_HEAD: self.atom_head_toZ3_RV,
+      cc.OP_ATOM_TAIL: self.atom_tail_toZ3_RV,
     }
     
     opts = opts_rev if rev else opts_normal
@@ -477,7 +481,7 @@ class ErlangZ3:
     self.axs.append(t == self.List.nil)
   
   # ----------------------------------------------------------------------
-  # BIF Operations
+  # Operations on lists
   # ----------------------------------------------------------------------
   
   ### Get the head of a list ###
@@ -517,6 +521,10 @@ class ErlangZ3:
       self.Term.is_lst(t2) == False,
       And(self.Term.is_lst(t2), self.List.is_nil(self.Term.lval(t2)))
     ))
+  
+  # ----------------------------------------------------------------------
+  # Query types
+  # ----------------------------------------------------------------------
   
   ### Is a term an integer ###
   
@@ -594,6 +602,10 @@ class ErlangZ3:
       self.atmTrue,
       self.atmFalse
     ))
+  
+  # ----------------------------------------------------------------------
+  # Arithmetic operations
+  # ----------------------------------------------------------------------
   
   ## Add two numbers ###
   
@@ -820,6 +832,10 @@ class ErlangZ3:
       T.real( - T.rval(t1) )
     ))
   
+  # ----------------------------------------------------------------------
+  # Comparisons
+  # ----------------------------------------------------------------------
+  
   ### Equality of two terms
   
   def equal_toZ3(self, term, term1, term2):
@@ -844,6 +860,10 @@ class ErlangZ3:
       self.atmTrue
     ))
   
+  # ----------------------------------------------------------------------
+  # Type conversions
+  # ----------------------------------------------------------------------
+  
   ### Convert a number to float
   
   def float_toZ3(self, term, term1):
@@ -867,4 +887,86 @@ class ErlangZ3:
     self.axs.append(Not(Or(
       T.is_int(t1),
       T.is_real(t1)
+    )))
+  
+  # ----------------------------------------------------------------------
+  # Bogus operations
+  # 
+  # They are used for their side-effects in Erlang and are transparent
+  # to Z3.
+  # ----------------------------------------------------------------------
+  
+  ### Identity function ###
+  
+  def bogus_toZ3(self, term, term1):
+    s = term["s"]
+    t1 = self.term_toZ3(term1)
+    self.env.bind(s, t1)
+  
+  # ----------------------------------------------------------------------
+  # Operations on atoms
+  # ----------------------------------------------------------------------
+  
+  ### Is an empty atom
+  
+  def atom_nil_toZ3(self, term, term1):
+    s = term["s"]
+    t1 = self.term_toZ3(term1)
+    self.env.bind(s, If(
+      t1 == self.Term.atm(self.Atom.anil),
+      self.atmTrue,
+      self.atmFalse
+    ))
+  
+  ### The first character in an atom
+  
+  def atom_head_toZ3(self, term, term1):
+    T = self.Term
+    A = self.Atom
+    s = term["s"]
+    t1 = self.term_toZ3(term1)
+    self.axs.extend([
+      T.is_atm(t1),
+      A.is_acons(T.aval(t1))
+    ])
+    self.env.bind(s,
+      T.int(A.ahd(T.aval(t1)))
+    )
+  
+  # Reversed
+  def atom_head_toZ3_RV(self, term, term1):
+    T = self.Term
+    A = self.Atom
+    s = term["s"]
+    t1 = self.term_toZ3(term1)
+    self.axs.append(Not(And(
+      T.is_atm(t1),
+      A.is_acons(T.aval(t1))
+    )))
+  
+  
+  ### The atom except its first character
+  
+  def atom_tail_toZ3(self, term, term1):
+    T = self.Term
+    A = self.Atom
+    s = term["s"]
+    t1 = self.term_toZ3(term1)
+    self.axs.extend([
+      T.is_atm(t1),
+      A.is_acons(T.aval(t1))
+    ])
+    self.env.bind(s,
+      T.atm(A.atl(T.aval(t1)))
+    )
+  
+  # Reversed
+  def atom_tail_toZ3_RV(self, term, term1):
+    T = self.Term
+    A = self.Atom
+    s = term["s"]
+    t1 = self.term_toZ3(term1)
+    self.axs.append(Not(And(
+      T.is_atm(t1),
+      A.is_acons(T.aval(t1))
     )))

@@ -12,40 +12,72 @@
 solve_simple_test_() ->
   Setup = fun setup/0,
   Cleanup = fun cleanup/1,
-  Ts = [ {"No constraints", fun just_params/1}
-       , {"Constraints - Guard True", fun guard_true/1}
-       , {"Constraints - Guard False", fun guard_false/1}
-       , {"Constraints - Match Equal", fun match_equal/1}
-       , {"Constraints - Match Not Equal", fun match_not_equal/1}
-       , {"Constraints - Nonempty List", fun nonempty_list/1}
-       , {"Constraints - Empty List", fun empty_list/1}
-       , {"Constraints - Not a List", fun not_a_list/1}
-       , {"Constraints - Tuple of Size N", fun tuple_sz/1}
-       , {"Constraints - Tuple of Not Size N", fun tuple_not_sz/1}
-       , {"Constraints - Not a Tuple", fun not_a_tuple/1}
-       , {"Constraints - Unfold a Symbolic Tuple", fun unfold_tuple/1}
-       , {"Constraints - Unfold a Symbolic List", fun unfold_list/1}
-       , {"BIFs - erlang:hd/1", fun erlang_hd/1}
-       , {"BIFs - erlang:tl/1", fun erlang_tl/1}
-       , {"BIFs - erlang:is_integer/1", fun erlang_is_integer/1}
-       , {"BIFs - erlang:is_atom/1", fun erlang_is_atom/1}
-       , {"BIFs - erlang:is_float/1", fun erlang_is_float/1}
-       , {"BIFs - erlang:is_list/1", fun erlang_is_list/1}
-       , {"BIFs - erlang:is_tuple/1", fun erlang_is_tuple/1}
-       , {"BIFs - erlang:is_boolean/1", fun erlang_is_boolean/1}
-       , {"BIFs - erlang:is_number/1", fun erlang_is_number/1}
-       , {"BIFs - erlang:'+'/2", fun erlang_plus/1}
-       , {"BIFs - erlang:'-'/2", fun erlang_minus/1}
-       , {"BIFs - erlang:'*'/2", fun erlang_times/1}
-       , {"BIFs - erlang:'/'/2", fun erlang_rdiv/1}
-       , {"Simulating BIFs - cuter_erlang:pos_div/2", fun erlang_posdiv/1}
-       , {"Simulating BIFs - cuter_erlang:pos_rem/2", fun erlang_posrem/1}
-       , {"BIFs - erlang:'-'/1", fun erlang_unary/1}
-       , {"BIFs - erlang:'=:='/2", fun erlang_equal/1}
-       , {"BIFs - erlang:'=/='/2", fun erlang_unequal/1}
-       , {"BIFs - erlang:float/1", fun erlang_float/1}
+  Ts = [ { "MFA's Parameters & Spec definitions"
+         , [ {"Just define the parameters", fun just_params/1} ]
+         }
+       , { "Constraints"
+         , [ {"Guard True", fun guard_true/1}
+           , {"Guard False", fun guard_false/1}
+           , {"Match equal", fun match_equal/1}
+           , {"Match Not Equal", fun match_not_equal/1}
+           , {"Nonempty List", fun nonempty_list/1}
+           , {"Empty List", fun empty_list/1}
+           , {"Not a List", fun not_a_list/1}
+           , {"Tuple of Size N", fun tuple_sz/1}
+           , {"Tuple of Not Size N", fun tuple_not_sz/1}
+           , {"Not a Tuple", fun not_a_tuple/1}
+           ]
+         }
+       , { "Unfolding symbolic variables"
+         , [ {"Unfold a Symbolic Tuple", fun unfold_tuple/1}
+           , {"Unfold a Symbolic List", fun unfold_list/1}
+           ]
+         }
+       , { "Bogus operations"
+         , [ {"Identity function", fun bogus_identity/1} ]
+         }
+       , { "Type conversions"
+         , [ {"Number to float", fun erlang_float/1}
+           ]
+         }
+       , { "Query types"
+         , [ {"Is integer", fun erlang_is_integer/1}
+           , {"Is atom", fun erlang_is_atom/1}
+           , {"Is float", fun erlang_is_float/1}
+           , {"Is tuple", fun erlang_is_tuple/1}
+           , {"Is list", fun erlang_is_list/1}
+           , {"Is boolean", fun erlang_is_boolean/1}
+           , {"Is number", fun erlang_is_number/1}
+           ]
+         }
+       , { "Arithmetic operations"
+         , [ {"Addition", fun erlang_plus/1}
+           , {"Subtraction", fun erlang_minus/1}
+           , {"Multiplication", fun erlang_times/1}
+           , {"Real division", fun erlang_rdiv/1}
+           , {"Integer division of natural numbers", fun erlang_posdiv/1}
+           , {"Remainder of the integer division of natural numbers", fun erlang_posrem/1}
+           , {"Unary operation", fun erlang_unary/1}
+           ]
+         }
+       , { "Operations on atoms" 
+         , [ {"Is an empty atom", fun atom_nil/1}
+           , {"First letter in an atom", fun atom_head/1}
+           , {"An atom without its first letter", fun atom_tail/1}
+           ]
+         }
+       , { "Operations on lists"
+         , [ {"Head of a list", fun erlang_hd/1}
+           , {"Tail of a list", fun erlang_tl/1}
+           ]
+         }
+       , { "Comparisons"
+         , [ {"Equality", fun erlang_equal/1}
+           , {"Inequality", fun erlang_unequal/1}
+           ]
+         }
        ],
-  [{"Simple Queries: " ++ Desc, {setup, Setup, Cleanup, Inst}} || {Desc, Inst} <- Ts].
+  [{Category, [{Dsc, {setup, Setup, Cleanup, I}} || {Dsc, I} <- Xs]} || {Category, Xs} <- Ts].
 
 
 -spec setup() -> {file:name(), file:name(), string()}.
@@ -229,7 +261,7 @@ not_a_tuple_logs(Fd, SAs=[P1]) ->
   cuter_log:log_tuple(Fd, not_tpl, P1, 2).
 
 %% ----------------------------------------------------------------------------
-%% The auxialiary unfold operations
+%% The auxiliary unfold operations
 %% ----------------------------------------------------------------------------
 
 unfold_tuple({_Dir, Fname, Python}) ->
@@ -258,9 +290,7 @@ unfold_list_logs(Fd, SAs=[P1]) ->
 %% BIFs
 %% ----------------------------------------------------------------------------
 
-%%
-%% erlang:hd/1
-%%
+%% Head of a list.
 
 erlang_hd({_Dir, Fname, Python}) ->
   As = [p1],  % One argument (the type is irrelevant)
@@ -277,9 +307,7 @@ erlang_hd_logs(Fd, SAs) ->
   cuter_log:log_mfa(Fd, {erlang, hd, 1}, SAs, X),
   cuter_log:log_equal(Fd, true, X, ok).
 
-%%
-%% erlang:tl/1
-%%
+%% Tail of a list.
 
 erlang_tl({_Dir, Fname, Python}) ->
   As = [p1],  % One argument (the type is irrelevant)
@@ -296,9 +324,7 @@ erlang_tl_logs(Fd, SAs) ->
   cuter_log:log_mfa(Fd, {erlang, tl, 1}, SAs, X),
   cuter_log:log_equal(Fd, true, X, []).
 
-%%
-%% erlang:is_integer/1
-%%
+%% Is an integer.
 
 erlang_is_integer({_Dir, Fname, Python}) ->
   As = [p1],  % One argument (the type is irrelevant)
@@ -312,9 +338,7 @@ erlang_is_integer_logs(Fd, SAs) ->
   cuter_log:log_mfa(Fd, {erlang, is_integer, 1}, SAs, X),
   cuter_log:log_equal(Fd, true, X, true).
 
-%%
-%% erlang:is_atom/1
-%%
+%% Is an atom.
 
 erlang_is_atom({_Dir, Fname, Python}) ->
   As = [p1],  % One argument (the type is irrelevant)
@@ -328,9 +352,7 @@ erlang_is_atom_logs(Fd, SAs) ->
   cuter_log:log_mfa(Fd, {erlang, is_atom, 1}, SAs, X),
   cuter_log:log_equal(Fd, true, X, true).
 
-%%
-%% erlang:is_float/1
-%%
+%% Is a float.
 
 erlang_is_float({_Dir, Fname, Python}) ->
   As = [p1],  % One argument (the type is irrelevant)
@@ -344,9 +366,7 @@ erlang_is_float_logs(Fd, SAs) ->
   cuter_log:log_mfa(Fd, {erlang, is_float, 1}, SAs, X),
   cuter_log:log_equal(Fd, true, X, true).
 
-%%
-%% erlang:is_list/1
-%%
+%% Is a list.
 
 erlang_is_list({_Dir, Fname, Python}) ->
   As = [p1],  % One argument (the type is irrelevant)
@@ -360,9 +380,7 @@ erlang_is_list_logs(Fd, SAs) ->
   cuter_log:log_mfa(Fd, {erlang, is_list, 1}, SAs, X),
   cuter_log:log_equal(Fd, true, X, true).
 
-%%
-%% erlang:is_tuple/1
-%%
+%% Is a tuple.
 
 erlang_is_tuple({_Dir, Fname, Python}) ->
   As = [p1],  % One argument (the type is irrelevant)
@@ -376,9 +394,7 @@ erlang_is_tuple_logs(Fd, SAs) ->
   cuter_log:log_mfa(Fd, {erlang, is_tuple, 1}, SAs, X),
   cuter_log:log_equal(Fd, true, X, true).
 
-%%
-%% erlang:is_boolean/1
-%%
+%% Is a boolean.
 
 erlang_is_boolean({_Dir, Fname, Python}) ->
   As = [p1],  % One argument (the type is irrelevant)
@@ -392,9 +408,7 @@ erlang_is_boolean_logs(Fd, SAs) ->
   cuter_log:log_mfa(Fd, {erlang, is_boolean, 1}, SAs, X),
   cuter_log:log_equal(Fd, true, X, true).
 
-%%
-%% erlang:is_number/1
-%%
+%% Is a number.
 
 erlang_is_number({_Dir, Fname, Python}) ->
   As = [p1],  % One argument (the type is irrelevant)
@@ -408,9 +422,7 @@ erlang_is_number_logs(Fd, SAs) ->
   cuter_log:log_mfa(Fd, {erlang, is_number, 1}, SAs, X),
   cuter_log:log_equal(Fd, true, X, true).
 
-%%
-%% erlang:'+'/2
-%%
+%% Addition.
 
 erlang_plus({_Dir, Fname, Python}) ->
   As = [0, 0.0],  % Two arguments (int and float)
@@ -431,9 +443,7 @@ erlang_plus_logs(Fd, SAs=[P1, P2]) ->
   cuter_log:log_mfa(Fd, {erlang, '+', 2}, [P1, P2], Y),
   cuter_log:log_equal(Fd, true, Y, 3.14).
 
-%%
-%% erlang:'-'/2
-%%
+%% Subtraction.
 
 erlang_minus({_Dir, Fname, Python}) ->
   As = [0, 0.0],  % Two arguments (int and float)
@@ -454,9 +464,7 @@ erlang_minus_logs(Fd, SAs=[P1, P2]) ->
   cuter_log:log_mfa(Fd, {erlang, '-', 2}, [P1, P2], Y),
   cuter_log:log_equal(Fd, true, Y, 0.25).
 
-%%
-%% erlang:'*'/2
-%%
+%% Multiplication.
 
 erlang_times({_Dir, Fname, Python}) ->
   As = [0, 0.0],  % Two arguments (int and float)
@@ -477,9 +485,7 @@ erlang_times_logs(Fd, SAs=[P1, P2]) ->
   cuter_log:log_mfa(Fd, {erlang, '*', 2}, [P1, P2], Y),
   cuter_log:log_equal(Fd, true, Y, 44.4).
 
-%%
-%% erlang:'/'/2
-%%
+%% Real division.
 
 erlang_rdiv({_Dir, Fname, Python}) ->
   As = [0, 0.0],  % Two arguments (int and float)
@@ -500,9 +506,7 @@ erlang_rdiv_logs(Fd, SAs=[P1, P2]) ->
   cuter_log:log_mfa(Fd, {erlang, '/', 2}, [P1, P2], Y),
   cuter_log:log_equal(Fd, true, Y, 32.0).
 
-%%
-%% cuter_erlang:pos_div/2
-%%
+%% Integer division of natural numbers
 
 erlang_posdiv({_Dir, Fname, Python}) ->
   As = [0, 0],  % Two arguments (ints)
@@ -523,9 +527,7 @@ erlang_posdiv_logs(Fd, SAs=[P1, P2]) ->
   cuter_log:log_mfa(Fd, {cuter_erlang, pos_div, 2}, [P2, P1], Y),
   cuter_log:log_equal(Fd, true, Y, 3).
 
-%%
-%% cuter_erlang:pos_rem/2
-%%
+%% Remainder of integer division of natural numbers
 
 erlang_posrem({_Dir, Fname, Python}) ->
   As = [0, 0],  % Two arguments (ints)
@@ -546,9 +548,7 @@ erlang_posrem_logs(Fd, SAs=[P1, P2]) ->
   cuter_log:log_mfa(Fd, {cuter_erlang, pos_rem, 2}, [P2, P1], Y),
   cuter_log:log_equal(Fd, true, Y, 3).
 
-%%
-%% erlang:'-'/1
-%%
+%% Unary operation
 
 erlang_unary({_Dir, Fname, Python}) ->
   As = [0, 0.0],  % Two arguments (int and float)
@@ -567,9 +567,7 @@ erlang_unary_logs(Fd, SAs=[P1, P2]) ->
   cuter_log:log_mfa(Fd, {erlang, '-', 1}, [P2], Y),
   cuter_log:log_equal(Fd, true, Y, -3.14).
 
-%%
-%% erlang:'=:='/2
-%%
+%% Equality
 
 erlang_equal({_Dir, Fname, Python}) ->
   As = [0, 0.0, 0],  % Two arguments
@@ -594,9 +592,7 @@ erlang_equal_logs(Fd, SAs=[P1, P2, P3]) ->
   cuter_log:log_mfa(Fd, {erlang, '=:=', 2}, [P3, Z], Q),
   cuter_log:log_equal(Fd, true, Q, false).
 
-%%
-%% erlang:'=/='/2
-%%
+%% Inequality
 
 erlang_unequal({_Dir, Fname, Python}) ->
   As = [0, 0.0, 0],  % Two arguments
@@ -621,9 +617,7 @@ erlang_unequal_logs(Fd, SAs=[P1, P2, P3]) ->
   cuter_log:log_mfa(Fd, {erlang, '=/=', 2}, [P3, Z], Q),
   cuter_log:log_equal(Fd, true, Q, true).
 
-%%
-%% erlang:float/1
-%%
+%% Number to float
 
 erlang_float({_Dir, Fname, Python}) ->
   As = [0, 0.0],  % Two arguments
@@ -646,3 +640,71 @@ erlang_float_logs(Fd, SAs=[P1, P2]) ->
   cuter_log:log_equal(Fd, true, Y, 3.14),
   cuter_log:log_mfa(Fd, {erlang, is_integer, 1}, [P1], Z),
   cuter_log:log_equal(Fd, true, Z, true).
+
+%% Bogus operation (identity function)
+
+bogus_identity({_Dir, Fname, Python}) ->
+  As = [0],
+  Mapping = create_logfile(Fname, As, fun bogus_identity_logs/2),
+  {ok, [P1]} = cuter_solver:solve(Python, Mapping, Fname, 42),
+  [ {"In simulating atom_to_list/1", ?_assertEqual(42, P1)}
+  ].
+
+bogus_identity_logs(Fd, SAs=[P1]) ->
+  cuter_log:log_symb_params(Fd, SAs),
+  X = cuter_symbolic:fresh_symbolic_var(),
+  cuter_log:log_mfa(Fd, {cuter_erlang, atom_to_list_bogus, 1}, [P1], X),
+  cuter_log:log_equal(Fd, true, X, 42).
+
+%% Is an empty atom
+
+atom_nil({_Dir, Fname, Python}) ->
+  As = [0, 0],
+  Mapping = create_logfile(Fname, As, fun atom_nil_logs/2),
+  {ok, [P1, P2]} = cuter_solver:solve(Python, Mapping, Fname, 42),
+  [ {"It's an empty atom", ?_assertEqual('', P1)}
+  , {"It's not an empty atom", ?_assertNotEqual('', P2)}
+  ].
+
+atom_nil_logs(Fd, SAs=[P1, P2]) ->
+  cuter_log:log_symb_params(Fd, SAs),
+  X = cuter_symbolic:fresh_symbolic_var(),
+  Y = cuter_symbolic:fresh_symbolic_var(),
+  cuter_log:log_mfa(Fd, {cuter_erlang, is_atom_nil, 1}, [P1], X),
+  cuter_log:log_equal(Fd, true, X, true),
+  cuter_log:log_mfa(Fd, {cuter_erlang, is_atom_nil, 1}, [P2], Y),
+  cuter_log:log_equal(Fd, true, Y, false).
+
+%% First letter in an atom
+
+atom_head({_Dir, Fname, Python}) ->
+  As = [0],
+  Mapping = create_logfile(Fname, As, fun atom_head_logs/2),
+  {ok, [P1]} = cuter_solver:solve(Python, Mapping, Fname, 42),
+  {ok, [P1_RV]} = cuter_solver:solve(Python, Mapping, Fname, 1),
+  [ {"Correct 1st letter of an atom", ?_assertEqual(z, list_to_atom([hd(atom_to_list(P1))]))}
+  , {"Make it throw an exception", ?_assertError(badarg, hd(atom_to_list(P1_RV)))}
+  ].
+
+atom_head_logs(Fd, SAs=[P1]) ->
+  cuter_log:log_symb_params(Fd, SAs),
+  X = cuter_symbolic:fresh_symbolic_var(),
+  cuter_log:log_mfa(Fd, {cuter_erlang, atom_head, 1}, [P1], X),
+  cuter_log:log_equal(Fd, true, X, $z).
+
+%% An atom without its first letter
+
+atom_tail({_Dir, Fname, Python}) ->
+  As = [0],
+  Mapping = create_logfile(Fname, As, fun atom_tail_logs/2),
+  {ok, [P1]} = cuter_solver:solve(Python, Mapping, Fname, 42),
+  {ok, [P1_RV]} = cuter_solver:solve(Python, Mapping, Fname, 1),
+  [ {"Remove the first letter from an atom", ?_assertEqual(ok, list_to_atom(tl(atom_to_list(P1))))}
+  , {"Make it throw an exception", ?_assertError(badarg, tl(atom_to_list(P1_RV)))}
+  ].
+
+atom_tail_logs(Fd, SAs=[P1]) ->
+  cuter_log:log_symb_params(Fd, SAs),
+  X = cuter_symbolic:fresh_symbolic_var(),
+  cuter_log:log_mfa(Fd, {cuter_erlang, atom_tail, 1}, [P1], X),
+  cuter_log:log_equal(Fd, true, X, ok).

@@ -27,7 +27,7 @@ CONSTRAINT_TRUE = 1
 CONSTRAINT_FALSE = 2
 
 OP_PARAMS = 1
-# OP_SPEC = 2
+OP_SPEC = 2
 OP_GUARD_TRUE = 3
 OP_GUARD_FALSE = 4
 OP_MATCH_EQUAL_TRUE = 5
@@ -45,7 +45,6 @@ OP_MSG_RECEIVE = 16
 OP_MSG_CONSUME = 17
 OP_UNFOLD_TUPLE = 18
 OP_UNFOLD_LIST = 19
-
 OP_HD = 25
 OP_TL = 26
 OP_IS_INTEGER = 27
@@ -64,8 +63,11 @@ OP_REM_NAT = 39
 OP_UNARY = 40
 OP_EQUAL = 41
 OP_UNEQUAL = 42
-
 OP_FLOAT = 47
+OP_BOGUS = 48
+OP_ATOM_NIL = 49
+OP_ATOM_HEAD = 50
+OP_ATOM_TAIL = 51
 
 def is_constraint_kind(tp):
   return tp == CONSTRAINT_TRUE or tp == CONSTRAINT_FALSE
@@ -75,29 +77,13 @@ def is_interpretable(tp):
   return tp not in xs
 
 def is_reversible_bif(tp):
-  x = {
-    OP_HD: True,
-    OP_TL: True,
-    OP_IS_INTEGER: False,
-    OP_IS_ATOM: False,
-    OP_IS_FLOAT: False,
-    OP_IS_LIST: False,
-    OP_IS_TUPLE: False,
-    OP_IS_BOOLEAN: False,
-    OP_IS_NUMBER: False,
-    OP_PLUS: True,
-    OP_MINUS: True,
-    OP_TIMES: True,
-    OP_RDIV: True,
-    OP_IDIV_NAT: True,
-    OP_REM_NAT: True,
-    OP_UNARY: False,
-    OP_EQUAL: False,
-    OP_UNEQUAL: False,
-    
-    OP_FLOAT: True,
-  }
-  return x[tp] if tp in x else False
+  xs = set([
+    OP_HD, OP_TL,
+    OP_PLUS, OP_MINUS, OP_TIMES, OP_RDIV, OP_IDIV_NAT, OP_IDIV_NAT, OP_REM_NAT,
+    OP_FLOAT,
+    OP_ATOM_HEAD, OP_ATOM_TAIL
+  ])
+  return tp in xs
 
 def is_reversible(tp, opcode):
   return is_constraint_kind(tp) or is_reversible_bif(opcode)

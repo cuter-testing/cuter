@@ -18,7 +18,7 @@ start_stop_test_() ->
     end,
   Stop = cleanup(Start),
   [{"Start & Finish", ?_assertEqual(ok, Stop)},
-   {"Expected Result", ?_assertEqual({success, {true, true}}, R)}].
+   {"Expected Result", ?_assertMatch({success, {true, _}}, R)}].
 
 setup() ->
   process_flag(trap_exit, true),

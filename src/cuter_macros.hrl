@@ -42,7 +42,7 @@
 -define(DELETE_TRACE, ok).
 %%-define(VERBOSE_SCHEDULER, ok).
 %%-define(VERBOSE_FILE_DELETION, ok).
-%%-define(VERBOSE_SOLVING, ok).
+-define(VERBOSE_SOLVING, ok).
 %%-define(VERBOSE_MERGING, ok).
 
 %%====================================================================
@@ -53,7 +53,7 @@
 -define(RSP_MODEL_DELIMITER_END, <<"model_end">>).
 
 %%====================================================================
-%% Various OpCodes
+%% OpCodes for types in JSON objects
 %%====================================================================
 
 -define(JSON_TYPE_ANY, 0).
@@ -65,6 +65,10 @@
 -define(JSON_TYPE_PID, 6).
 -define(JSON_TYPE_REF, 7).
 
+%%====================================================================
+%% OpCodes for the commands to the solver
+%%====================================================================
+
 -define(JSON_CMD_LOAD_TRACE_FILE, 1).
 -define(JSON_CMD_SOLVE, 2).
 -define(JSON_CMD_GET_MODEL, 3).
@@ -73,6 +77,10 @@
 -define(JSON_CMD_RESET_SOLVER, 6).
 -define(JSON_CMD_STOP, 42).
 
+%%====================================================================
+%% OpCodes for constraint types
+%%====================================================================
+
 -define(CONSTRAINT_TRUE, 1).
 -define(CONSTRAINT_FALSE, 2).
 -define(NOT_CONSTRAINT, 3).
@@ -80,9 +88,14 @@
 -define(CONSTRAINT_TRUE_REPR, 84).   %% $T
 -define(CONSTRAINT_FALSE_REPR, 70).  %% $F
 
-%% Operation & Constraints
+%%====================================================================
+%% OpCodes of constraints & built-in operations
+%%====================================================================
+
+%% MFA's Parameters & Spec definitions.
 -define(OP_PARAMS, 1).
 -define(OP_SPEC, 2).
+%% Constraints.
 -define(OP_GUARD_TRUE, 3).
 -define(OP_GUARD_FALSE, 4).
 -define(OP_MATCH_EQUAL_TRUE, 5).
@@ -93,16 +106,20 @@
 -define(OP_LIST_NON_EMPTY, 10).
 -define(OP_LIST_EMPTY, 11).
 -define(OP_LIST_NOT_LST, 12).
+%% Information used for syncing & merging the traces of many processes.
 -define(OP_SPAWN, 13).
 -define(OP_SPAWNED, 14).
 -define(OP_MSG_SEND, 15).
 -define(OP_MSG_RECEIVE, 16).
 -define(OP_MSG_CONSUME, 17).
+%% Necessary operations for the evaluation of Core Erlang.
 -define(OP_UNFOLD_TUPLE, 18).
 -define(OP_UNFOLD_LIST, 19).
-%% BIF Operations
--define(OP_HD, 25).
--define(OP_TL, 26).
+%% Bogus operation (operations interpreted as the identity function).
+-define(OP_BOGUS, 48).
+%% Type conversions.
+-define(OP_FLOAT, 47).
+%% Query types.
 -define(OP_IS_INTEGER, 27).
 -define(OP_IS_ATOM, 28).
 -define(OP_IS_FLOAT, 29).
@@ -110,6 +127,7 @@
 -define(OP_IS_TUPLE, 31).
 -define(OP_IS_BOOLEAN, 32).
 -define(OP_IS_NUMBER, 33).
+%% Arithmetic operations.
 -define(OP_PLUS, 34).
 -define(OP_MINUS, 35).
 -define(OP_TIMES, 36).
@@ -117,7 +135,14 @@
 -define(OP_IDIV_NAT, 38).
 -define(OP_REM_NAT, 39).
 -define(OP_UNARY, 40).
+%% Operations on atoms.
+-define(OP_ATOM_NIL, 49).
+-define(OP_ATOM_HEAD, 50).
+-define(OP_ATOM_TAIL, 51).
+%% Operations on lists.
+-define(OP_HD, 25).
+-define(OP_TL, 26).
+%% Comparisons.
 -define(OP_EQUAL, 41).
 -define(OP_UNEQUAL, 42).
 
--define(OP_FLOAT, 47).

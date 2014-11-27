@@ -12,28 +12,32 @@
 
 %% erlang module
 %% All overrides will be in cuter_erlang module.
-simulate_behaviour(erlang, abs,        1) -> {ok, {cuter_erlang, abs,        1}};
-simulate_behaviour(erlang, 'and',      2) -> {ok, {cuter_erlang, 'and',      2}};
-simulate_behaviour(erlang, 'andalso',  2) -> {ok, {cuter_erlang, 'andalso',  2}};
-simulate_behaviour(erlang, 'div',      2) -> {ok, {cuter_erlang, 'div',      2}};
-simulate_behaviour(erlang, element,    2) -> {ok, {cuter_erlang, element,    2}};
-simulate_behaviour(erlang, length,     1) -> {ok, {cuter_erlang, length,     1}};
-simulate_behaviour(erlang, make_tuple, 2) -> {ok, {cuter_erlang, make_tuple, 2}};
-simulate_behaviour(erlang, max,        2) -> {ok, {cuter_erlang, max,        2}};
-simulate_behaviour(erlang, min,        2) -> {ok, {cuter_erlang, min,        2}};
-simulate_behaviour(erlang, 'not',      1) -> {ok, {cuter_erlang, 'not',      1}};
-simulate_behaviour(erlang, 'rem',      2) -> {ok, {cuter_erlang, 'rem',      2}};
-simulate_behaviour(erlang, 'or',       2) -> {ok, {cuter_erlang, 'or',       2}};
-simulate_behaviour(erlang, 'orelse',   2) -> {ok, {cuter_erlang, 'orelse',   2}};
-simulate_behaviour(erlang, 'xor',      2) -> {ok, {cuter_erlang, 'xor',      2}};
-simulate_behaviour(erlang, '==',       2) -> {ok, {cuter_erlang, '==',       2}};
-simulate_behaviour(erlang, '/=',       2) -> {ok, {cuter_erlang, '/=',       2}};
+simulate_behaviour(erlang, abs,          1) -> {ok, {cuter_erlang, abs,          1}};
+simulate_behaviour(erlang, 'and',        2) -> {ok, {cuter_erlang, 'and',        2}};
+simulate_behaviour(erlang, 'andalso',    2) -> {ok, {cuter_erlang, 'andalso',    2}};
+simulate_behaviour(erlang, atom_to_list, 1) -> {ok, {cuter_erlang, atom_to_list, 2}};
+simulate_behaviour(erlang, 'div',        2) -> {ok, {cuter_erlang, 'div',        2}};
+simulate_behaviour(erlang, element,      2) -> {ok, {cuter_erlang, element,      2}};
+simulate_behaviour(erlang, length,       1) -> {ok, {cuter_erlang, length,       1}};
+simulate_behaviour(erlang, make_tuple,   2) -> {ok, {cuter_erlang, make_tuple,   2}};
+simulate_behaviour(erlang, max,          2) -> {ok, {cuter_erlang, max,          2}};
+simulate_behaviour(erlang, min,          2) -> {ok, {cuter_erlang, min,          2}};
+simulate_behaviour(erlang, 'not',        1) -> {ok, {cuter_erlang, 'not',        1}};
+simulate_behaviour(erlang, 'rem',        2) -> {ok, {cuter_erlang, 'rem',        2}};
+simulate_behaviour(erlang, 'or',         2) -> {ok, {cuter_erlang, 'or',         2}};
+simulate_behaviour(erlang, 'orelse',     2) -> {ok, {cuter_erlang, 'orelse',     2}};
+simulate_behaviour(erlang, 'xor',        2) -> {ok, {cuter_erlang, 'xor',        2}};
+simulate_behaviour(erlang, '==',         2) -> {ok, {cuter_erlang, '==',         2}};
+simulate_behaviour(erlang, '/=',         2) -> {ok, {cuter_erlang, '/=',         2}};
 simulate_behaviour(erlang, _F, _A)        -> bif;
 
 %% cuter_erlang module
-simulate_behaviour(cuter_erlang, gteq,    2) -> bif;
-simulate_behaviour(cuter_erlang, pos_div, 2) -> bif;
-simulate_behaviour(cuter_erlang, pos_rem, 2) -> bif;
+simulate_behaviour(cuter_erlang, atom_head,   1) -> bif;
+simulate_behaviour(cuter_erlang, atom_tail,   1) -> bif;
+simulate_behaviour(cuter_erlang, is_atom_nil, 1) -> bif;
+simulate_behaviour(cuter_erlang, gteq,        2) -> bif;
+simulate_behaviour(cuter_erlang, pos_div,     2) -> bif;
+simulate_behaviour(cuter_erlang, pos_rem,     2) -> bif;
 
 %% Module beam_asm 
 %% XXX Not BIF but with unsupported primops

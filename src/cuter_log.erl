@@ -27,6 +27,44 @@
 
 -export_type([opcode/0]).
 
+
+%% Maps MFAs to their JSON Opcodes
+-define(OPCODE_MAPPING,
+  dict:from_list([ %% Simulated built-in operations
+                   { {cuter_erlang, atom_to_list_bogus, 1}, ?OP_BOGUS     }
+                 , { {cuter_erlang, is_atom_nil,        1}, ?OP_ATOM_NIL  }
+                 , { {cuter_erlang, atom_head,          1}, ?OP_ATOM_HEAD }
+                 , { {cuter_erlang, atom_tail,          1}, ?OP_ATOM_TAIL }
+                 , { {cuter_erlang, pos_div,            2}, ?OP_IDIV_NAT  }
+                 , { {cuter_erlang, pos_rem,            2}, ?OP_REM_NAT   }
+                   %% Actual erlang BIFs
+                 , { {erlang, hd,         1}, ?OP_HD         }
+                 , { {erlang, tl,         1}, ?OP_TL         }
+                 , { {erlang, is_integer, 1}, ?OP_IS_INTEGER }
+                 , { {erlang, is_atom,    1}, ?OP_IS_ATOM    }
+                 , { {erlang, is_boolean, 1}, ?OP_IS_BOOLEAN }
+                 , { {erlang, is_float,   1}, ?OP_IS_FLOAT   }
+                 , { {erlang, is_list,    1}, ?OP_IS_LIST    }
+                 , { {erlang, is_tuple,   1}, ?OP_IS_TUPLE   }
+                 , { {erlang, is_number,  1}, ?OP_IS_NUMBER  }
+                 , { {erlang, '+',        2}, ?OP_PLUS       }
+                 , { {erlang, '-',        2}, ?OP_MINUS      }
+                 , { {erlang, '*',        2}, ?OP_TIMES      }
+                 , { {erlang, '/',        2}, ?OP_RDIV       }
+                 , { {erlang, '-',        1}, ?OP_UNARY      }
+                 , { {erlang, '=:=',      2}, ?OP_EQUAL      }
+                 , { {erlang, '=/=',      2}, ?OP_UNEQUAL    }
+                 , { {erlang, float,      1}, ?OP_FLOAT      }
+                 ])).
+
+%% The set of all the built-in operations that the solver can try to reverse.
+-define (REVERSIBLE_OPERATIONS,
+  gb_sets:from_list([ ?OP_ATOM_HEAD, ?OP_ATOM_TAIL
+                    , ?OP_HD, ?OP_TL
+                    , ?OP_PLUS, ?OP_MINUS, ?OP_TIMES, ?OP_RDIV, ?OP_IDIV_NAT, ?OP_REM_NAT
+                    , ?OP_FLOAT
+                    ])).
+
 -type mode()   :: read | write.
 -type opcode() :: integer().
 -type entry_type() :: ?CONSTRAINT_TRUE | ?CONSTRAINT_FALSE | ?NOT_CONSTRAINT.
@@ -194,26 +232,10 @@ log(Fd, OpCode, Data) ->
 log(_, _, _) -> ok.
 -endif.
 
-%% Maps MFAs to their JSON Opcodes
-mfa2op({erlang,       hd,         1}) -> ?OP_HD;
-mfa2op({erlang,       tl,         1}) -> ?OP_TL;
-mfa2op({erlang,       is_integer, 1}) -> ?OP_IS_INTEGER;
-mfa2op({erlang,       is_atom,    1}) -> ?OP_IS_ATOM;
-mfa2op({erlang,       is_float,   1}) -> ?OP_IS_FLOAT;
-mfa2op({erlang,       is_list,    1}) -> ?OP_IS_LIST;
-mfa2op({erlang,       is_tuple,   1}) -> ?OP_IS_TUPLE;
-mfa2op({erlang,       is_boolean, 1}) -> ?OP_IS_BOOLEAN;
-mfa2op({erlang,       is_number,  1}) -> ?OP_IS_NUMBER;
-mfa2op({erlang,       '+',        2}) -> ?OP_PLUS;
-mfa2op({erlang,       '-',        2}) -> ?OP_MINUS;
-mfa2op({erlang,       '*',        2}) -> ?OP_TIMES;
-mfa2op({erlang,       '/',        2}) -> ?OP_RDIV;
-mfa2op({cuter_erlang, pos_div,    2}) -> ?OP_IDIV_NAT;
-mfa2op({cuter_erlang, pos_rem,    2}) -> ?OP_REM_NAT;
-mfa2op({erlang,       '-',        1}) -> ?OP_UNARY;
-mfa2op({erlang,       '=:=',      2}) -> ?OP_EQUAL;
-mfa2op({erlang,       '=/=',      2}) -> ?OP_UNEQUAL;
-mfa2op({erlang,       float,      1}) -> ?OP_FLOAT.
+%% Get the JSON Opcode of an MFA.
+-spec mfa2op(mfa()) -> integer().
+mfa2op(MFA) ->
+  dict:fetch(MFA, ?OPCODE_MAPPING).
 
 %% Maps commands to their type
 %% (True constraint | False constraint | Everything else)
@@ -294,17 +316,10 @@ count_reversible(Fd, Acc) ->
       end
   end.
 
+%% Returns whether a command can be reversed by the solver or not.
 -spec is_reversible_operation(opcode()) -> boolean().
-is_reversible_operation(?OP_HD)       -> true;
-is_reversible_operation(?OP_TL)       -> true;
-is_reversible_operation(?OP_PLUS)     -> true;
-is_reversible_operation(?OP_MINUS)    -> true;
-is_reversible_operation(?OP_TIMES)    -> true;
-is_reversible_operation(?OP_RDIV)     -> true;
-is_reversible_operation(?OP_IDIV_NAT) -> true;
-is_reversible_operation(?OP_REM_NAT)  -> true;
-is_reversible_operation(?OP_FLOAT)    -> true;
-is_reversible_operation(_) -> false.
+is_reversible_operation(OpCode) ->
+  gb_sets:is_member(OpCode, ?REVERSIBLE_OPERATIONS).
 
 -spec next_entry(file:io_device(), true) -> {entry_type(), opcode(), binary()} | eof
               ; (file:io_device(), false) -> {entry_type(), opcode()} | eof.
