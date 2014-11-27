@@ -10,6 +10,7 @@ EBIN = $(PWD)/ebin
 PRIV = $(PWD)/priv
 UTEST = $(PWD)/utest
 ERLC = @ERLC@
+MECK = @MECK@
 
 ###----------------------------------------------------------------------
 ### Flags
@@ -87,7 +88,7 @@ $(EBIN)/%.beam: %.erl
 	$(ERLC) $(ERLC_FLAGS) $(ERLC_MACROS) -o $(EBIN) $<
 
 utest: $(TARGETS)
-	@(./runtests.py $(EBIN))
+	@(./runtests.py $(EBIN) $(MECK))
 
 dialyzer: $(TARGETS)
 	dialyzer -n -nn -Wunmatched_returns $(EBIN)/*.beam
