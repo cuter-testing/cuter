@@ -68,6 +68,7 @@ OP_BOGUS = 48
 OP_ATOM_NIL = 49
 OP_ATOM_HEAD = 50
 OP_ATOM_TAIL = 51
+OP_LIST_TO_TUPLE = 52
 
 def is_constraint_kind(tp):
   return tp == CONSTRAINT_TRUE or tp == CONSTRAINT_FALSE
@@ -80,7 +81,7 @@ def is_reversible_bif(tp):
   xs = set([
     OP_HD, OP_TL,
     OP_PLUS, OP_MINUS, OP_TIMES, OP_RDIV, OP_IDIV_NAT, OP_IDIV_NAT, OP_REM_NAT,
-    OP_FLOAT,
+    OP_FLOAT, OP_LIST_TO_TUPLE,
     OP_ATOM_HEAD, OP_ATOM_TAIL
   ])
   return tp in xs

@@ -27,7 +27,6 @@
 
 -export_type([opcode/0]).
 
-
 %% Maps MFAs to their JSON Opcodes
 -define(OPCODE_MAPPING,
   dict:from_list([ %% Simulated built-in operations
@@ -38,23 +37,24 @@
                  , { {cuter_erlang, pos_div,            2}, ?OP_IDIV_NAT  }
                  , { {cuter_erlang, pos_rem,            2}, ?OP_REM_NAT   }
                    %% Actual erlang BIFs
-                 , { {erlang, hd,         1}, ?OP_HD         }
-                 , { {erlang, tl,         1}, ?OP_TL         }
-                 , { {erlang, is_integer, 1}, ?OP_IS_INTEGER }
-                 , { {erlang, is_atom,    1}, ?OP_IS_ATOM    }
-                 , { {erlang, is_boolean, 1}, ?OP_IS_BOOLEAN }
-                 , { {erlang, is_float,   1}, ?OP_IS_FLOAT   }
-                 , { {erlang, is_list,    1}, ?OP_IS_LIST    }
-                 , { {erlang, is_tuple,   1}, ?OP_IS_TUPLE   }
-                 , { {erlang, is_number,  1}, ?OP_IS_NUMBER  }
-                 , { {erlang, '+',        2}, ?OP_PLUS       }
-                 , { {erlang, '-',        2}, ?OP_MINUS      }
-                 , { {erlang, '*',        2}, ?OP_TIMES      }
-                 , { {erlang, '/',        2}, ?OP_RDIV       }
-                 , { {erlang, '-',        1}, ?OP_UNARY      }
-                 , { {erlang, '=:=',      2}, ?OP_EQUAL      }
-                 , { {erlang, '=/=',      2}, ?OP_UNEQUAL    }
-                 , { {erlang, float,      1}, ?OP_FLOAT      }
+                 , { {erlang, hd,            1}, ?OP_HD            }
+                 , { {erlang, tl,            1}, ?OP_TL            }
+                 , { {erlang, is_integer,    1}, ?OP_IS_INTEGER    }
+                 , { {erlang, is_atom,       1}, ?OP_IS_ATOM       }
+                 , { {erlang, is_boolean,    1}, ?OP_IS_BOOLEAN    }
+                 , { {erlang, is_float,      1}, ?OP_IS_FLOAT      }
+                 , { {erlang, is_list,       1}, ?OP_IS_LIST       }
+                 , { {erlang, is_tuple,      1}, ?OP_IS_TUPLE      }
+                 , { {erlang, is_number,     1}, ?OP_IS_NUMBER     }
+                 , { {erlang, '+',           2}, ?OP_PLUS          }
+                 , { {erlang, '-',           2}, ?OP_MINUS         }
+                 , { {erlang, '*',           2}, ?OP_TIMES         }
+                 , { {erlang, '/',           2}, ?OP_RDIV          }
+                 , { {erlang, '-',           1}, ?OP_UNARY         }
+                 , { {erlang, '=:=',         2}, ?OP_EQUAL         }
+                 , { {erlang, '=/=',         2}, ?OP_UNEQUAL       }
+                 , { {erlang, float,         1}, ?OP_FLOAT         }
+                 , { {erlang, list_to_tuple, 1}, ?OP_LIST_TO_TUPLE }
                  ])).
 
 %% The set of all the built-in operations that the solver can try to reverse.
@@ -62,7 +62,7 @@
   gb_sets:from_list([ ?OP_ATOM_HEAD, ?OP_ATOM_TAIL
                     , ?OP_HD, ?OP_TL
                     , ?OP_PLUS, ?OP_MINUS, ?OP_TIMES, ?OP_RDIV, ?OP_IDIV_NAT, ?OP_REM_NAT
-                    , ?OP_FLOAT
+                    , ?OP_FLOAT, ?OP_LIST_TO_TUPLE
                     ])).
 
 -type mode()   :: read | write.

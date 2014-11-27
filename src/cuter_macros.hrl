@@ -119,6 +119,7 @@
 -define(OP_BOGUS, 48).
 %% Type conversions.
 -define(OP_FLOAT, 47).
+-define(OP_LIST_TO_TUPLE, 52).
 %% Query types.
 -define(OP_IS_INTEGER, 27).
 -define(OP_IS_ATOM, 28).
