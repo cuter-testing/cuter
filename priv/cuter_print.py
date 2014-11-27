@@ -144,7 +144,7 @@ for tp, json_data, rev in cio.JsonReader(fname, 100000000):
     xs = json_data["a"]
     print "%s = is_tuple( %s )" % (xs[0], xs[1])
   # Is term a boolean
-  elif tp == cc.cc.OP_IS_BOOLEAN:
+  elif tp == cc.OP_IS_BOOLEAN:
     print "IS BOOLEAN"
     xs = json_data["a"]
     print "%s = is_boolean( %s )" % (xs[0], xs[1])
@@ -203,6 +203,9 @@ for tp, json_data, rev in cio.JsonReader(fname, 100000000):
     print "TO FLOAT"
     xs = json_data["a"]
     print "%s = float( %s )" % (xs[0], xs[1])
+  else:
+    print "UNKNOWN OPCODE", tp
+    sys.exit(1)
 
 print "Total Commands:", n
 

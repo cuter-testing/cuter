@@ -59,7 +59,7 @@ get_int_process([{_Node, Data}|Info]) ->
 
 -spec process_raw_execution_info(raw_info()) -> info().
 process_raw_execution_info(Info) ->
-  io:format("[RAW INFO] ~p~n", [Info]),
+%  io:format("[RAW INFO] ~p~n", [Info]),
   DataDir = maps:get(dir, Info),
   MergedTraceFile = cuter_lib:get_merged_tracefile(DataDir),
   cuter_merger:merge_traces(Info, MergedTraceFile),
@@ -67,7 +67,7 @@ process_raw_execution_info(Info) ->
   PathVertex = cuter_log:path_vertex(MergedTraceFile),
   cuter_pp:path_vertex(PathVertex),
   RvsCnt = cuter_log:count_reversible(MergedTraceFile),
-  io:format("[RVS COUNT] ~p~n", [RvsCnt]),
+%  io:format("[RVS COUNT] ~p~n", [RvsCnt]),
   #{dir => DataDir,
     mappings => maps:get(mappings, Info),
     traceFile => MergedTraceFile,

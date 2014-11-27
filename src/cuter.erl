@@ -49,7 +49,7 @@ run_seed_execution(Conf, As, Loop) ->
 run_loop(true, Conf) ->
   loop(Conf);
 run_loop(false, Conf) ->
-  io:format("[&&] ~p~n", [Conf]),
+%  io:format("[&&] ~p~n", [Conf]),
   stop(Conf).
 
 -spec loop(configuration()) -> ok.

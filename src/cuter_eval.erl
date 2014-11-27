@@ -34,6 +34,7 @@ i(M, F, As, Servers) ->
       {SymbAs, Mapping} = cuter_symbolic:abstract(As),
       {ok, Fd} = cuter_monitor:subscribe(Servers#svs.monitor, Root),
       cuter_log:log_symb_params(Fd, SymbAs),
+      %% FIXME Log the spec of the MFA
       cuter_iserver:send_mapping(Root, Mapping),
       NMF = {named, M, F},
       Ret = eval(NMF, As, SymbAs, external, Servers, Fd),
@@ -1014,10 +1015,12 @@ bit_pattern_match([{c_bitstr, _, {c_literal, _, LVal}, Sz, Unit, Tp, Fgs}|Bs], {
     Rest_c ->
       {_Sx, Rest_s} = cuter_symbolic:match_bitstring_const(LVal, Enc_s, Sv, Rest_c, Fd),
       %% CONSTRAINT: Match
+      %% FIXME Log the 'match' contraint between {Sx, Rest_s} and Sv
       bit_pattern_match(Bs, Bnfo, Mode,  Rest_c, Rest_s, CMaps, SMaps, Svs, Fd)
   catch
     error:_e ->
       %% CONSTRAINT: Not Match
+      %% FIXME Log the 'not match' contraint between {LVal, Enc_s} and Sv
       false
   end;
 
@@ -1031,6 +1034,7 @@ bit_pattern_match([{c_bitstr, _, {c_var, _, VarName}, Sz, Unit, Tp, Fgs}|Bs], {M
     {X_c, Rest_c} ->
       {X_s, Rest_s} = cuter_symbolic:match_bitstring_var(Enc_s, Sv, X_c, Rest_c, Fd),
       %% CONSTRAINT: Match
+      %% FIXME Log the 'match' contraint between {Sx, Rest_s} and Sv
       {CMs, SMs} =
         case lists:keymember(VarName, 1, CMaps) of
           true ->
@@ -1047,6 +1051,7 @@ bit_pattern_match([{c_bitstr, _, {c_var, _, VarName}, Sz, Unit, Tp, Fgs}|Bs], {M
   catch
     error:_E ->
       %% CONSTRAINT: Not Match
+      %% FIXME Log the 'not match' contraint between Enc_s and Sv
       false
   end.
 

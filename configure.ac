@@ -125,8 +125,10 @@ EOF
 ERL=`which erl`
 if $ERLC test_meck.erl && $ERL -noshell -pa $MECK -eval "test_meck:foo()" -s init stop &> /dev/null; then
   HAS_MECK="1"
+  HAS_MECK_MSG="yes"
 else
   HAS_MECK="0"
+  HAS_MECK_MSG="no"
   rm -f erl_crash.dump
 fi
 rm -f test_meck.erl test_meck.beam
@@ -153,7 +155,7 @@ CutEr was configured with success.
 Erlang Compiler:    $ERLC
 Python:             $PYTHON_PATH
 Z3Py:               $HAS_Z3_MSG
-Meck:               $MECK
+Meck:               $HAS_MECK_MSG
 
 To build CutEr, execute:
   make depend
