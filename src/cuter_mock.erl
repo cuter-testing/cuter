@@ -32,12 +32,12 @@ simulate_behaviour(erlang, '/=',         2) -> {ok, {cuter_erlang, '/=',        
 simulate_behaviour(erlang, _F, _A)        -> bif;
 
 %% cuter_erlang module
-simulate_behaviour(cuter_erlang, atom_head,   1) -> bif;
-simulate_behaviour(cuter_erlang, atom_tail,   1) -> bif;
-simulate_behaviour(cuter_erlang, is_atom_nil, 1) -> bif;
-simulate_behaviour(cuter_erlang, gteq,        2) -> bif;
-simulate_behaviour(cuter_erlang, pos_div,     2) -> bif;
-simulate_behaviour(cuter_erlang, pos_rem,     2) -> bif;
+simulate_behaviour(cuter_erlang, F, A) ->
+  MFA = {cuter_erlang, F, A},
+  case gb_sets:is_member(MFA, ?SUPPORTED_MFAS) of
+    true  -> bif;
+    false -> {ok, MFA}
+  end;
 
 %% Module beam_asm 
 %% XXX Not BIF but with unsupported primops

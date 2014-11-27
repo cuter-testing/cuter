@@ -64,26 +64,8 @@ deserialize(L) when is_list(L) -> {?SYMBOLIC_PREFIX, L}.
 
 %% The MFAs the are supported for symbolic evaluation
 -spec is_supported_mfa(mfa()) -> boolean().
-is_supported_mfa({erlang,       hd,         1}) -> true;
-is_supported_mfa({erlang,       tl,         1}) -> true;
-is_supported_mfa({erlang,       is_integer, 1}) -> true;
-is_supported_mfa({erlang,       is_atom,    1}) -> true;
-is_supported_mfa({erlang,       is_float,   1}) -> true;
-is_supported_mfa({erlang,       is_list,    1}) -> true;
-is_supported_mfa({erlang,       is_tuple,   1}) -> true;
-is_supported_mfa({erlang,       is_boolean, 1}) -> true;
-is_supported_mfa({erlang,       is_number,  1}) -> true;
-is_supported_mfa({erlang,       '+',        2}) -> true;
-is_supported_mfa({erlang,       '-',        2}) -> true;
-is_supported_mfa({erlang,       '*',        2}) -> true;
-is_supported_mfa({erlang,       '/',        2}) -> true;
-is_supported_mfa({cuter_erlang, pos_div,    2}) -> true;
-is_supported_mfa({cuter_erlang, pos_rem,    2}) -> true;
-is_supported_mfa({erlang,       '-',        1}) -> true;
-is_supported_mfa({erlang,       '=:=',      2}) -> true;
-is_supported_mfa({erlang,       '=/=',      2}) -> true;
-is_supported_mfa({erlang,       float,      1}) -> true;
-is_supported_mfa(_) -> false.
+is_supported_mfa(MFA) ->
+  gb_sets:is_member(MFA, ?SUPPORTED_MFAS).
 
 -spec evaluate_mfa(mfa(), [maybe_s(any())], any(), file:io_device()) -> maybe_s(any()).
 evaluate_mfa(MFA, SAs, Cv, Fd) ->
