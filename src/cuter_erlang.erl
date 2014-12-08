@@ -14,7 +14,7 @@
         , 'and'/2, 'andalso'/2, 'not'/1, 'or'/2, 'orelse'/2, 'xor'/2
         , 'div'/2, 'rem'/2
         , element/2
-        , length/1
+        , length/1, tuple_size/1
         , make_tuple/2
         , max/2, min/2
         , '=='/2, '/='/2
@@ -152,6 +152,16 @@ length(L) when is_list(L) ->
 
 length([], N) -> N;
 length([_|L], N) -> length(L, N+1).
+
+%%
+%% Simulate erlang:tuple_size/1
+%%
+%% Find the size of a tuple.
+%%
+
+-spec tuple_size(tuple()) -> integer().
+tuple_size(T) when is_tuple(T) ->
+  ?MODULE:length(tuple_to_list(T)).
 
 %%
 %% Simulate erlang:make_tuple/2
