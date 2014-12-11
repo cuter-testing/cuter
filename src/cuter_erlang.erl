@@ -37,93 +37,6 @@ gteq(X, Y) -> X >= Y.
 %% ----------------------------------------------------------------------------
 
 %%
-%% Simulate erlang:abs/1
-%%
-%% Find the absolute value of a number.
-%%
-
--spec abs(integer()) -> integer()
-       ; (float()) -> float().
-abs(X) when is_integer(X); is_float(X) ->
-  case gteq(X, 0) of
-    true  -> X;
-    false -> -X
-  end.
-
-%%
-%% Simulate erlang:'and'/2
-%%
-%% We simulate the 'and' logical operator.
-%%
-
--spec 'and'(boolean(), boolean()) -> boolean().
-'and'(X, Y) ->
-  case X of
-    true ->
-      case Y of
-        true  -> true;
-        false -> false;
-        _ -> error(badarg)
-      end;
-    false ->
-      case Y of
-        true  -> false;
-        false -> false;
-        _ -> error(badarg)
-      end;
-    _ -> error(badarg)
-  end.
-
-%%
-%% Simulate erlang:'andalso'/2
-%%
-%% We simulate the short-circuited 'and' logical operator.
-%%
-
--spec 'andalso'(boolean(), boolean()) -> boolean().
-'andalso'(X, Y) ->
-  case X of
-    false -> false;
-    true ->
-      case Y of
-        true  -> true;
-        false -> false;
-        _ -> error(badarg)
-      end;
-    _ -> error(badarg)
-  end.
-
-%%
-%% Simulate erlang:'div'/2
-%%
-%% The integer division in Erlang for negative integers can produce negative
-%% quotients and remainders.
-%%
-%% e.g.
-%%  12345 =  293 *  42 + 39
-%% -12345 = -293 *  42 - 39
-%%  12345 = -293 * -42 + 39
-%% -12345 =  293 * -42 - 39
-%%
-%% In order to be consistent with Erlang, we call the pos_div/2 function that
-%% returns the quotient of the integer division of two natural numbers and
-%% then we set the proper sign.
-%%
-
--spec pos_div(non_neg_integer(), non_neg_integer()) -> non_neg_integer().
-pos_div(X, Y) -> X div Y.
-
--spec 'div'(integer(), integer()) -> integer().
-'div'(X, Y) when is_integer(X), is_integer(Y), X >= 0, Y >= 0 ->
-  pos_div(X, Y);
-'div'(X, Y) when is_integer(X), is_integer(Y), X < 0, Y < 0 ->
-  pos_div(-X, -Y);
-'div'(X, Y) when is_integer(X), is_integer(Y), X >= 0, Y < 0 ->
-  - pos_div(X, -Y);
-'div'(X, Y) when is_integer(X), is_integer(Y), X < 0, Y >= 0 ->
-  - pos_div(-X, Y).
-
-%%
 %% Simulate erlang:element/2
 %%
 %% Return the term in the n-th position of a tuple.
@@ -181,193 +94,9 @@ make_tuple(N, X) when is_integer(N) ->
 create_tuple(0, _, Acc) -> list_to_tuple(Acc);
 create_tuple(N, X, Acc) -> create_tuple(N-1, X, [X|Acc]).
 
-%%
-%% Simulate erlang:max/2
-%%
-%% Compare two terms and return the maximum.
-%%
-
--spec max(any(), any()) -> any().
-max(X, Y) ->
-  case X >= Y of
-    true  -> X;
-    false -> Y
-  end.
-
-%%
-%% Simulate erlang:min/2
-%%
-%% Compare two terms and return the minimum.
-%%
-
--spec min(any(), any()) -> any().
-min(X, Y) ->
-  case X =< Y of
-    true  -> X;
-    false -> Y
-  end.
-
-%%
-%% Simulate erlang:'not'/1
-%%
-%% We simulate the 'not' logical operator.
-%%
-
--spec 'not'(boolean()) -> boolean().
-'not'(X) ->
-  case X of
-    true  -> false;
-    false -> true;
-    _ -> error(badarg)
-  end.
-
-%%
-%% Simulate erlang:'or'/2
-%%
-%% We simulate the 'or' logical operator.
-%%
-
--spec 'or'(boolean(), boolean()) -> boolean().
-'or'(X, Y) ->
-  case X of
-    true ->
-      case Y of
-        true  -> true;
-        false -> true;
-        _ -> error(badarg)
-      end;
-    false ->
-      case Y of
-        true  -> true;
-        false -> false;
-        _ -> error(badarg)
-      end;
-    _ -> error(badarg)
-  end.
-
-%%
-%% Simulate erlang:'orelse'/2
-%%
-%% We simulate the short-circuited 'or' logical operator.
-%%
-
--spec 'orelse'(boolean(), boolean()) -> boolean().
-'orelse'(X, Y) ->
-  case X of
-    true -> true;
-    false ->
-      case Y of
-        true  -> true;
-        false -> false;
-        _ -> error(badarg)
-      end;
-    _ -> error(badarg)
-  end.
-
-%%
-%% Simulate erlang:'rem'/2
-%%
-%% The integer division in Erlang for negative integers can produce negative
-%% quotients and remainders.
-%%
-%% e.g.
-%%  12345 =  293 *  42 + 39
-%% -12345 = -293 *  42 - 39
-%%  12345 = -293 * -42 + 39
-%% -12345 =  293 * -42 - 39
-%%
-%% In order to be consistent with Erlang, we call the pos_rem/2 function that
-%% returns the remainder of the integer division of two natural numbers and
-%% then we set the proper sign.
-%%
-
--spec pos_rem(non_neg_integer(), non_neg_integer()) -> non_neg_integer().
-pos_rem(X, Y) -> X rem Y.
-
--spec 'rem'(integer(), integer()) -> integer().
-'rem'(X, Y) when is_integer(X), is_integer(Y), X >= 0, Y >= 0 ->
-  pos_rem(X, Y);
-'rem'(X, Y) when is_integer(X), is_integer(Y), X < 0, Y < 0 ->
-  - pos_rem(-X, -Y);
-'rem'(X, Y) when is_integer(X), is_integer(Y), X >= 0, Y < 0 ->
-  pos_rem(X, -Y);
-'rem'(X, Y) when is_integer(X), is_integer(Y), X < 0, Y >= 0 ->
-  - pos_rem(-X, Y).
-
-%%
-%% Simulate erlang:'xor'/2
-%%
-%% The truth table for erlang:'xor'/2 is the following:
-%%
-%%  X Y | X xor Y
-%% -----+---------
-%%  T T |    F
-%%  T F |    T
-%%  F T |    T
-%%  F F |    F
-%%
-
--spec 'xor'(boolean(), boolean()) -> boolean().
-'xor'(X, Y) ->
-  case X of
-    true ->
-      case Y of
-        true  -> false;
-        false -> true;
-        _ -> error(badarg)
-      end;
-    false ->
-      case Y of
-        true  -> true;
-        false -> false;
-        _ -> error(badarg)
-      end;
-    _ -> error(badarg)
-  end.
-
-%%
-%% Simulate erlang:'=='/2
-%%
-%% The difference of erlang:'=='/2 with erlang:'=:='/2 is when comparing
-%% an integer to a float.
-%%
-%% e.g.
-%% 4 =:= 4.0 => false
-%% 4 == 4.0  => true
-%%
-%% Therefore, in such cases, we convert the integer to float and then call
-%% erlang:'=:='/2 for the comparison.
-%%
-
--spec '=='(any(), any()) -> boolean().
-'=='(X, Y) when is_integer(X), is_float(Y) ->
-  float(X) =:= Y;
-'=='(X, Y) when is_float(X), is_integer(Y) ->
-  X =:= float(Y);
-'=='(X, Y) ->
-  X =:= Y.
-
-%%
-%% Simulate erlang:'/='/2
-%%
-%% The difference of erlang:'/='/2 with erlang:'=/='/2 is when comparing
-%% an integer to a float.
-%%
-%% e.g.
-%% 4 =/= 4.0 => true
-%% 4 /= 4.0  => false
-%%
-%% Therefore, in such cases, we convert the integer to float and then call
-%% erlang:'=/='/2 for the comparison.
-%%
-
--spec '/='(any(), any()) -> boolean().
-'/='(X, Y) when is_integer(X), is_float(Y) ->
-  float(X) =/= Y;
-'/='(X, Y) when is_float(X), is_integer(Y) ->
-  X =/= float(Y);
-'/='(X, Y) ->
-  X =/= Y.
+%% ----------------------------------------------------------------------------
+%% TYPE CONVERSION OPERATIONS
+%% ----------------------------------------------------------------------------
 
 %%
 %% Simulate erlang:atom_to_list/1
@@ -414,11 +143,262 @@ atom_to_list(X, Acc) ->
   end.
 
 %% ----------------------------------------------------------------------------
+%% ARITHMETIC OPERATIONS
+%% ----------------------------------------------------------------------------
+
+%%
+%% Simulate erlang:abs/1
+%%
+%% Find the absolute value of a number.
+%%
+
+-spec abs(integer()) -> integer()
+       ; (float()) -> float().
+abs(X) when is_integer(X); is_float(X) ->
+  case gteq(X, 0) of
+    true  -> X;
+    false -> -X
+  end.
+
+%%
+%% Simulate erlang:'div'/2
+%%
+%% The integer division in Erlang for negative integers can produce negative
+%% quotients and remainders.
+%%
+%% e.g.
+%%  12345 =  293 *  42 + 39
+%% -12345 = -293 *  42 - 39
+%%  12345 = -293 * -42 + 39
+%% -12345 =  293 * -42 - 39
+%%
+%% In order to be consistent with Erlang, we call the pos_div/2 function that
+%% returns the quotient of the integer division of two natural numbers and
+%% then we set the proper sign.
+%%
+
+-spec pos_div(non_neg_integer(), non_neg_integer()) -> non_neg_integer().
+pos_div(X, Y) -> X div Y.
+
+-spec 'div'(integer(), integer()) -> integer().
+'div'(X, Y) when is_integer(X), is_integer(Y), X >= 0, Y >= 0 ->
+  pos_div(X, Y);
+'div'(X, Y) when is_integer(X), is_integer(Y), X < 0, Y < 0 ->
+  pos_div(-X, -Y);
+'div'(X, Y) when is_integer(X), is_integer(Y), X >= 0, Y < 0 ->
+  - pos_div(X, -Y);
+'div'(X, Y) when is_integer(X), is_integer(Y), X < 0, Y >= 0 ->
+  - pos_div(-X, Y).
+
+%%
+%% Simulate erlang:'rem'/2
+%%
+%% The integer division in Erlang for negative integers can produce negative
+%% quotients and remainders.
+%%
+%% e.g.
+%%  12345 =  293 *  42 + 39
+%% -12345 = -293 *  42 - 39
+%%  12345 = -293 * -42 + 39
+%% -12345 =  293 * -42 - 39
+%%
+%% In order to be consistent with Erlang, we call the pos_rem/2 function that
+%% returns the remainder of the integer division of two natural numbers and
+%% then we set the proper sign.
+%%
+
+-spec pos_rem(non_neg_integer(), non_neg_integer()) -> non_neg_integer().
+pos_rem(X, Y) -> X rem Y.
+
+-spec 'rem'(integer(), integer()) -> integer().
+'rem'(X, Y) when is_integer(X), is_integer(Y), X >= 0, Y >= 0 ->
+  pos_rem(X, Y);
+'rem'(X, Y) when is_integer(X), is_integer(Y), X < 0, Y < 0 ->
+  - pos_rem(-X, -Y);
+'rem'(X, Y) when is_integer(X), is_integer(Y), X >= 0, Y < 0 ->
+  pos_rem(X, -Y);
+'rem'(X, Y) when is_integer(X), is_integer(Y), X < 0, Y >= 0 ->
+  - pos_rem(-X, Y).
+
+%% ----------------------------------------------------------------------------
+%% BOOLEAN OPERATIONS
+%% ----------------------------------------------------------------------------
+
+%%
+%% Simulate erlang:'not'/1
+%%
+
+-spec 'not'(boolean()) -> boolean().
+'not'(X) ->
+  case X of
+    true  -> false;
+    false -> true;
+    _ -> error(badarg)
+  end.
+
+%%
+%% Simulate erlang:'and'/2
+%%
+
+-spec 'and'(boolean(), boolean()) -> boolean().
+'and'(X, Y) ->
+  case X of
+    true ->
+      case Y of
+        true  -> true;
+        false -> false;
+        _ -> error(badarg)
+      end;
+    false ->
+      case Y of
+        true  -> false;
+        false -> false;
+        _ -> error(badarg)
+      end;
+    _ -> error(badarg)
+  end.
+
+%%
+%% Simulate erlang:'andalso'/2
+%%
+%% The short-circuited 'and' logical operator.
+%%
+
+-spec 'andalso'(boolean(), boolean()) -> boolean().
+'andalso'(X, Y) ->
+  case X of
+    false -> false;
+    true ->
+      case Y of
+        true  -> true;
+        false -> false;
+        _ -> error(badarg)
+      end;
+    _ -> error(badarg)
+  end.
+
+%%
+%% Simulate erlang:'or'/2
+%%
+
+-spec 'or'(boolean(), boolean()) -> boolean().
+'or'(X, Y) ->
+  case X of
+    true ->
+      case Y of
+        true  -> true;
+        false -> true;
+        _ -> error(badarg)
+      end;
+    false ->
+      case Y of
+        true  -> true;
+        false -> false;
+        _ -> error(badarg)
+      end;
+    _ -> error(badarg)
+  end.
+
+%%
+%% Simulate erlang:'orelse'/2
+%%
+%% We simulate the short-circuited 'or' logical operator.
+%%
+
+-spec 'orelse'(boolean(), boolean()) -> boolean().
+'orelse'(X, Y) ->
+  case X of
+    true -> true;
+    false ->
+      case Y of
+        true  -> true;
+        false -> false;
+        _ -> error(badarg)
+      end;
+    _ -> error(badarg)
+  end.
+
+%%
+%% Simulate erlang:'xor'/2
+%%
+%% The truth table for erlang:'xor'/2 is the following:
+%%
+%%  X Y | X xor Y
+%% -----+---------
+%%  T T |    F
+%%  T F |    T
+%%  F T |    T
+%%  F F |    F
+%%
+
+-spec 'xor'(boolean(), boolean()) -> boolean().
+'xor'(X, Y) ->
+  case X of
+    true ->
+      case Y of
+        true  -> false;
+        false -> true;
+        _ -> error(badarg)
+      end;
+    false ->
+      case Y of
+        true  -> true;
+        false -> false;
+        _ -> error(badarg)
+      end;
+    _ -> error(badarg)
+  end.
+
+%% ----------------------------------------------------------------------------
 %% COMPARISONS
 %%
 %% The global term order is
 %% number < atom < reference < fun < port < pid < tuple < map < list < bit string
 %% ----------------------------------------------------------------------------
+
+%%
+%% Simulate erlang:'=='/2
+%%
+%% The difference of erlang:'=='/2 with erlang:'=:='/2 is when comparing
+%% an integer to a float.
+%%
+%% e.g.
+%% 4 =:= 4.0 => false
+%% 4 == 4.0  => true
+%%
+%% Therefore, in such cases, we convert the integer to float and then call
+%% erlang:'=:='/2 for the comparison.
+%%
+
+-spec '=='(any(), any()) -> boolean().
+'=='(X, Y) when is_integer(X), is_float(Y) ->
+  float(X) =:= Y;
+'=='(X, Y) when is_float(X), is_integer(Y) ->
+  X =:= float(Y);
+'=='(X, Y) ->
+  X =:= Y.
+
+%%
+%% Simulate erlang:'/='/2
+%%
+%% The difference of erlang:'/='/2 with erlang:'=/='/2 is when comparing
+%% an integer to a float.
+%%
+%% e.g.
+%% 4 =/= 4.0 => true
+%% 4 /= 4.0  => false
+%%
+%% Therefore, in such cases, we convert the integer to float and then call
+%% erlang:'=/='/2 for the comparison.
+%%
+
+-spec '/='(any(), any()) -> boolean().
+'/='(X, Y) when is_integer(X), is_float(Y) ->
+  float(X) =/= Y;
+'/='(X, Y) when is_float(X), is_integer(Y) ->
+  X =/= float(Y);
+'/='(X, Y) ->
+  X =/= Y.
 
 %%
 %% Simulate erlang:'<'/2
@@ -547,3 +527,29 @@ lt_list([X|Xs], [Y|Ys]) ->
   lt_list(X, Y);
 '<'(X, _Y) when is_list(X) ->
   true.
+
+%%
+%% Simulate erlang:max/2
+%%
+%% Compare two terms and return the maximum.
+%%
+
+-spec max(any(), any()) -> any().
+max(X, Y) ->
+  case X >= Y of
+    true  -> X;
+    false -> Y
+  end.
+
+%%
+%% Simulate erlang:min/2
+%%
+%% Compare two terms and return the minimum.
+%%
+
+-spec min(any(), any()) -> any().
+min(X, Y) ->
+  case X =< Y of
+    true  -> X;
+    false -> Y
+  end.
