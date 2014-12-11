@@ -19,7 +19,7 @@
         , make_tuple/2
         , max/2, min/2
         , '=='/2, '/='/2
-        , '<'/2
+        , '<'/2, '=<'/2
         ]).
 
 %% ----------------------------------------------------------------------------
@@ -527,6 +527,17 @@ lt_list([X|Xs], [Y|Ys]) ->
   lt_list(X, Y);
 '<'(X, _Y) when is_list(X) ->
   true.
+
+%%
+%% Simulate erlang:'=<'/2
+%%
+
+-spec '=<'(any(), any()) -> boolean().
+'=<'(X, Y) ->
+  case ?MODULE:'=='(X, Y) of
+    true  -> true;
+    false -> ?MODULE:'<'(X, Y)
+  end.
 
 %%
 %% Simulate erlang:max/2
