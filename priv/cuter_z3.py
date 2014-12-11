@@ -277,6 +277,8 @@ class ErlangZ3:
       cc.OP_ATOM_TAIL: self.atom_tail_toZ3,
       cc.OP_LIST_TO_TUPLE: self.list_to_tuple_toZ3,
       cc.OP_TUPLE_TO_LIST: self.tuple_to_list_toZ3,
+      cc.OP_LT_INT: self.lt_integers_toZ3,
+      cc.OP_LT_FLOAT: self.lt_floats_toZ3,
     }
     
     opts_rev = {
@@ -862,6 +864,38 @@ class ErlangZ3:
       t1 == t2,
       self.atmFalse,
       self.atmTrue
+    ))
+  
+  ### Compare two integers (<)
+  
+  def lt_integers_toZ3(self, term, term1, term2):
+    T = self.Term
+    s = term["s"]
+    t1 = self.term_toZ3(term1)
+    t2 = self.term_toZ3(term2)
+    self.axs.extend([
+      T.is_int(t1), T.is_int(t2)
+    ])
+    self.env.bind(s, If(
+      T.ival(t1) < T.ival(t2),
+      self.atmTrue,
+      self.atmFalse
+    ))
+  
+  ### Compare two floats (<)
+  
+  def lt_floats_toZ3(self, term, term1, term2):
+    T = self.Term
+    s = term["s"]
+    t1 = self.term_toZ3(term1)
+    t2 = self.term_toZ3(term2)
+    self.axs.extend([
+      T.is_real(t1), T.is_real(t2)
+    ])
+    self.env.bind(s, If(
+      T.rval(t1) < T.rval(t2),
+      self.atmTrue,
+      self.atmFalse
     ))
   
   # ----------------------------------------------------------------------

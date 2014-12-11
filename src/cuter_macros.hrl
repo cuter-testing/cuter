@@ -147,6 +147,8 @@
 %% Comparisons.
 -define(OP_EQUAL, 41).
 -define(OP_UNEQUAL, 42).
+-define(OP_LT_INT, 54).
+-define(OP_LT_FLOAT, 55).
 
 %% Maps MFAs to their JSON Opcodes
 -define(OPCODE_MAPPING,
@@ -157,6 +159,8 @@
                  , { {cuter_erlang, atom_tail,          1}, ?OP_ATOM_TAIL }
                  , { {cuter_erlang, pos_div,            2}, ?OP_IDIV_NAT  }
                  , { {cuter_erlang, pos_rem,            2}, ?OP_REM_NAT   }
+                 , { {cuter_erlang, lt_int,             2}, ?OP_LT_INT    }
+                 , { {cuter_erlang, lt_float,           2}, ?OP_LT_FLOAT  }
                    %% Actual erlang BIFs
                  , { {erlang, hd,            1}, ?OP_HD            }
                  , { {erlang, tl,            1}, ?OP_TL            }
@@ -181,6 +185,9 @@
 
 %% All the MFAs that are supported for symbolic evaluation.
 -define(SUPPORTED_MFAS, gb_sets:from_list(dict:fetch_keys(?OPCODE_MAPPING))).
+
+-define(UNSUPPORTED_MFAS,
+  gb_sets:from_list([ {cuter_erlang, unsupported_lt, 2} ])).
 
 %% The set of all the built-in operations that the solver can try to reverse.
 -define (REVERSIBLE_OPERATIONS,

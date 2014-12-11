@@ -30,12 +30,13 @@ simulate_behaviour(erlang, tuple_size,   1) -> {ok, {cuter_erlang, tuple_size,  
 simulate_behaviour(erlang, 'xor',        2) -> {ok, {cuter_erlang, 'xor',        2}};
 simulate_behaviour(erlang, '==',         2) -> {ok, {cuter_erlang, '==',         2}};
 simulate_behaviour(erlang, '/=',         2) -> {ok, {cuter_erlang, '/=',         2}};
+simulate_behaviour(erlang, '<',          2) -> {ok, {cuter_erlang, '<',          2}};
 simulate_behaviour(erlang, _F, _A)        -> bif;
 
 %% cuter_erlang module
 simulate_behaviour(cuter_erlang, F, A) ->
   MFA = {cuter_erlang, F, A},
-  case gb_sets:is_member(MFA, ?SUPPORTED_MFAS) of
+  case gb_sets:is_member(MFA, ?SUPPORTED_MFAS) orelse gb_sets:is_member(MFA, ?UNSUPPORTED_MFAS) of
     true  -> bif;
     false -> {ok, MFA}
   end;

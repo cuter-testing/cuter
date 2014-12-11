@@ -76,6 +76,8 @@ solve_simple_test_() ->
        , { "Comparisons"
          , [ {"Equality", fun erlang_equal/1}
            , {"Inequality", fun erlang_unequal/1}
+           , {"Compare integers (<)", fun erlang_lt_int/1}
+           , {"Compare floats (<)", fun erlang_lt_float/1}
            ]
          }
        ],
@@ -744,3 +746,31 @@ tpl_to_lst_logs(Fd, SAs=[P1]) ->
   X = cuter_symbolic:fresh_symbolic_var(),
   cuter_log:log_mfa(Fd, {erlang, tuple_to_list, 1}, [P1], X),
   cuter_log:log_equal(Fd, true, X, [ok, 42]).
+
+%% Compare integers (<)
+
+erlang_lt_int({_Dir, Fname, Python}) ->
+  As = [0, 0],
+  Mapping = create_logfile(Fname, As, fun erlang_lt_int_logs/2),
+  {ok, [P1, P2]} = cuter_solver:solve(Python, Mapping, Fname, 42),
+  [ {"Compare integers (<)", ?_assertEqual(true, P1 < P2 andalso is_integer(P1) andalso is_integer(P2))} ].
+
+erlang_lt_int_logs(Fd, SAs=[P1, P2]) ->
+  cuter_log:log_symb_params(Fd, SAs),
+  X = cuter_symbolic:fresh_symbolic_var(),
+  cuter_log:log_mfa(Fd, {cuter_erlang, lt_int, 2}, [P1, P2], X),
+  cuter_log:log_equal(Fd, true, X, true).
+
+%% Compare floats (<)
+
+erlang_lt_float({_Dir, Fname, Python}) ->
+  As = [0, 0],
+  Mapping = create_logfile(Fname, As, fun erlang_lt_float_logs/2),
+  {ok, [P1, P2]} = cuter_solver:solve(Python, Mapping, Fname, 42),
+  [ {"Compare floats (<)", ?_assertEqual(true, P1 < P2 andalso is_float(P1) andalso is_float(P2))} ].
+
+erlang_lt_float_logs(Fd, SAs=[P1, P2]) ->
+  cuter_log:log_symb_params(Fd, SAs),
+  X = cuter_symbolic:fresh_symbolic_var(),
+  cuter_log:log_mfa(Fd, {cuter_erlang, lt_float, 2}, [P1, P2], X),
+  cuter_log:log_equal(Fd, true, X, true).

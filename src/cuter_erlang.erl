@@ -6,6 +6,7 @@
           atom_to_list_bogus/1
           %% Built-in operations
         , is_atom_nil/1, atom_head/1, atom_tail/1
+        , lt_int/2, lt_float/2, unsupported_lt/2
         , gteq/2
         , pos_div/2, pos_rem/2
           %% Overriding functions
@@ -18,6 +19,7 @@
         , make_tuple/2
         , max/2, min/2
         , '=='/2, '/='/2
+        , '<'/2
         ]).
 
 %% ----------------------------------------------------------------------------
@@ -411,3 +413,137 @@ atom_to_list(X, Acc) ->
       atom_to_list(T, [H|Acc])
   end.
 
+%% ----------------------------------------------------------------------------
+%% COMPARISONS
+%%
+%% The global term order is
+%% number < atom < reference < fun < port < pid < tuple < map < list < bit string
+%% ----------------------------------------------------------------------------
+
+%%
+%% Simulate erlang:'<'/2
+%%
+%% The auxiliary built-in operations defined are:
+%%   * lt_int/2
+%%     Compare two integers.
+%%   * lt_float/2
+%%     Compare two floats.
+%%   * unsupported_lt/2
+%%     Compare two terms, where the left operand cannot be understood by the
+%%     solver.
+%%
+
+-spec lt_int(integer(), integer()) -> boolean().
+lt_int(X, Y) -> X < Y.
+
+-spec lt_float(float(), float()) -> boolean().
+lt_float(X, Y) -> X < Y.
+
+%% Used to wrap a call to erlang'<'/2 when the solver cannot 'understand' the
+%% left operand. i.e. when it's a term like reference, fun, pid etc.
+-spec unsupported_lt(reference() | function() | port() | pid() | map() | bitstring(), any()) -> boolean().
+unsupported_lt(X, Y) -> X < Y.
+
+-spec lt_atom(string(), string()) -> boolean().
+lt_atom([], []) ->
+  false;
+lt_atom(_, []) ->
+  false;
+lt_atom([], _) ->
+  true;
+lt_atom([X|Xs], [X|Ys]) ->
+  lt_atom(Xs, Ys);
+lt_atom([X|_Xs], [Y|_Ys]) ->
+  lt_int(X, Y).
+
+-spec lt_tuple([any()], [any()]) -> boolean().
+lt_tuple([], []) ->
+  false;
+lt_tuple([X|Xs], [Y|Ys]) ->
+  case X =:= Y of
+    true  -> lt_tuple(Xs, Ys);
+    false -> ?MODULE:'<'(X, Y)
+  end.
+
+-spec lt_list([any()], [any()]) -> boolean().
+lt_list([], []) ->
+  false;
+lt_list(_, []) ->
+  false;
+lt_list([], _) ->
+  true;
+lt_list([X|Xs], [Y|Ys]) ->
+  case X =:= Y of
+    true  -> lt_list(Xs, Ys);
+    false -> ?MODULE:'<'(X, Y)
+  end.
+
+-spec '<'(any(), any()) -> boolean().
+%% Left operand is a number.
+%% Comparing integers and floats will convert the term with the lesser
+%% precision into the other term's type before the comparison.
+'<'(X, Y) when is_integer(X), is_integer(Y) ->
+  lt_int(X, Y);
+'<'(X, Y) when is_integer(X), is_float(Y) ->
+  lt_float(float(X), Y);
+'<'(X, Y) when is_float(X), is_integer(Y) ->
+  lt_float(X, float(Y));
+'<'(X, Y) when is_float(X), is_float(Y) ->
+  lt_float(X, Y);
+'<'(X, _Y) when is_number(X) ->
+  true;
+%% Left operand is an atom.
+%% Atoms are lexicographically compared.
+'<'(X, Y) when is_atom(X), is_number(Y) ->
+  false;
+'<'(X, Y) when is_atom(X), is_atom(Y) ->
+  LX = ?MODULE:atom_to_list(X),
+  LY = ?MODULE:atom_to_list(Y),
+  lt_atom(LX, LY);
+'<'(X, _Y) when is_atom(X) ->
+  true;
+%% Left operand is a reference, a function, a port, a pid, a map or a bistring.
+%% These terms are 'incomprehensible' for the solver, thus we directly call
+%% the erlang:'<'/2 operator.
+'<'(X, Y) when is_reference(X); is_function(X); is_port(X); is_pid(X); is_map(X); is_bitstring(X) ->
+  unsupported_lt(X, Y);
+%% Left operand is a tuple.
+%% Tuples are ordered by size. When two tuples have the same size, they
+%% are compared element by element.
+'<'(X, Y) when is_tuple(X) andalso (      is_number(Y)
+                                   orelse is_atom(Y)
+                                   orelse is_reference(Y)
+                                   orelse is_function(Y)
+                                   orelse is_port(Y)
+                                   orelse is_pid(Y)
+                                   ) ->
+  false;
+'<'(X, Y) when is_tuple(X), is_tuple(Y) ->
+  SX = ?MODULE:tuple_size(X),
+  SY = ?MODULE:tuple_size(Y),
+  case SX =:= SY of
+    false ->
+      lt_int(SX, SY);
+    true ->
+      LX = tuple_to_list(X),
+      LY = tuple_to_list(Y),
+      lt_tuple(LX, LY)
+  end;
+'<'(X, _Y) when is_tuple(X) ->
+  true;
+%% Left operand is a list.
+%% Lists are compared element by element.
+'<'(X, Y) when is_list(X) andalso (      is_number(Y)
+                                  orelse is_atom(Y)
+                                  orelse is_reference(Y)
+                                  orelse is_function(Y)
+                                  orelse is_port(Y)
+                                  orelse is_pid(Y)
+                                  orelse is_tuple(Y)
+                                  orelse is_map(Y)
+                                  ) ->
+  false;
+'<'(X, Y) when is_list(X), is_list(Y) ->
+  lt_list(X, Y);
+'<'(X, _Y) when is_list(X) ->
+  true.
