@@ -32,6 +32,7 @@ simulate_behaviour(erlang, '==',         2) -> {ok, {cuter_erlang, '==',        
 simulate_behaviour(erlang, '/=',         2) -> {ok, {cuter_erlang, '/=',         2}};
 simulate_behaviour(erlang, '<',          2) -> {ok, {cuter_erlang, '<',          2}};
 simulate_behaviour(erlang, '=<',         2) -> {ok, {cuter_erlang, '=<',         2}};
+simulate_behaviour(erlang, '>',          2) -> {ok, {cuter_erlang, '>',          2}};
 simulate_behaviour(erlang, _F, _A)        -> bif;
 
 %% cuter_erlang module
