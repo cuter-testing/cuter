@@ -3,7 +3,7 @@
 -module(cuter_json_tests).
 
 -include_lib("eunit/include/eunit.hrl").
--include("eunit_config.hrl").
+-include("include/eunit_config.hrl").
 
 -spec test() -> ok | {error | term()}. %% Silence dialyzer warning
 

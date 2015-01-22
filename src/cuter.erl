@@ -4,7 +4,7 @@
 
 -export([run/4, run/5, run_once/4, run_once/5]).
 
--include("cuter_macros.hrl").
+-include("include/cuter_macros.hrl").
 
 -type configuration() :: #{mod => module(),
                            func => atom(),

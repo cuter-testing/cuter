@@ -2,7 +2,7 @@
 %%------------------------------------------------------------------------------
 -module(cuter_pp).
 
--include("cuter_macros.hrl").
+-include("include/cuter_macros.hrl").
 
 -export([ mfa/3
         , input/1

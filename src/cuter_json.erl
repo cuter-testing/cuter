@@ -2,7 +2,7 @@
 %%------------------------------------------------------------------------------
 -module(cuter_json).
 
--include("cuter_macros.hrl").
+-include("include/cuter_macros.hrl").
 
 -export([command_to_json/2, json_to_command/1, term_to_json/1, json_to_term/1, encode_port_command/2]).
 

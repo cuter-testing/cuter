@@ -3,7 +3,7 @@
 -module(cuter_solver).
 -behaviour(gen_fsm).
 
--include("cuter_macros.hrl").
+-include("include/cuter_macros.hrl").
 
 -export([
   %% external exports

@@ -3,7 +3,7 @@
 -module(cuter_iserver).
 -behaviour(gen_server).
 
--include("cuter_macros.hrl").
+-include("include/cuter_macros.hrl").
 
 %% external exports
 -export([start/6, node_servers/2, int_return/2, send_error_report/3, code_logs/2, monitor_logs/2, send_mapping/2]).

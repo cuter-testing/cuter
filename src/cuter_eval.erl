@@ -2,7 +2,7 @@
 %%------------------------------------------------------------------------------
 -module(cuter_eval).
 
--include("cuter_macros.hrl").
+-include("include/cuter_macros.hrl").
 -include_lib("compiler/src/core_parse.hrl").
 
 -export([i/4, eval/6, unzip_error/1]).

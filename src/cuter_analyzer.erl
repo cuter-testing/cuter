@@ -2,7 +2,7 @@
 %%------------------------------------------------------------------------------
 -module(cuter_analyzer).
 
--include("cuter_macros.hrl").
+-include("include/cuter_macros.hrl").
 
 -export([get_result/1, get_mapping/1, get_traces/1,
          get_int_process/1, process_raw_execution_info/1]).

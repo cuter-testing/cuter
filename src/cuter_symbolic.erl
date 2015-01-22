@@ -9,7 +9,7 @@
   append_segments/3, make_bitstring/4, match_bitstring_const/5, match_bitstring_var/5
 ]).
 
--include("cuter_macros.hrl").
+-include("include/cuter_macros.hrl").
 
 -export_type([mapping/0, symbolic/0]).
 

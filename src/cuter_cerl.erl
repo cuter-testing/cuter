@@ -8,7 +8,7 @@
 %% Will be using the records representation of the Core Erlang Abstract Syntax Tree
 %% as they are defined in core_parse.hrl
 -include_lib("compiler/src/core_parse.hrl").
--include("cuter_macros.hrl").
+-include("include/cuter_macros.hrl").
 
 -export_type([compile_error/0]).
 

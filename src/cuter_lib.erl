@@ -2,7 +2,7 @@
 %%------------------------------------------------------------------------------
 -module(cuter_lib).
 
--include("cuter_macros.hrl").
+-include("include/cuter_macros.hrl").
 
 %% external exports
 -export([get_tmp_dir/1, get_data_dir/2, get_trace_dir/1, get_core_dir/1,

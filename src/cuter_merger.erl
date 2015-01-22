@@ -2,7 +2,7 @@
 %%------------------------------------------------------------------------------
 -module(cuter_merger).
 
--include("cuter_macros.hrl").
+-include("include/cuter_macros.hrl").
 
 -export([merge_traces/2, validate_file/1]).
 

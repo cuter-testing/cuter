@@ -6,6 +6,7 @@
 
 TOP  = $(PWD)
 SRC  = $(PWD)/src
+INCLUDE = $(PWD)/include
 EBIN = $(PWD)/ebin
 PRIV = $(PWD)/priv
 UTEST = $(PWD)/utest
@@ -17,6 +18,7 @@ MECK = @MECK@
 ###----------------------------------------------------------------------
 
 WARNS = +warn_exported_vars +warn_unused_import +warn_missing_spec #+warn_untyped_record
+ERLC_INCLUDE = -I $(INCLUDE)
 ERLC_FLAGS = +debug_info $(WARNS)
 ERLC_MACROS = -DEBIN=\"$(EBIN)\" -DPYTHON_PATH=\"@PYTHON_PATH@\" -DPRIV=\"$(PRIV)\"
 
@@ -70,7 +72,7 @@ ERL_DIRS = \
 
 vpath %.erl $(ERL_DIRS)
 
-vpath %.hrl $(ERL_DIRS)
+vpath %.hrl $(INCLUDE)
 
 default: $(TARGETS) dialyzer
 
@@ -85,7 +87,7 @@ cuter_target: $(SRC_MODULES:%=$(EBIN)/%.beam)
 utest_target: $(UTEST_MODULES:%=$(EBIN)/%.beam)
 
 $(EBIN)/%.beam: %.erl
-	$(ERLC) $(ERLC_FLAGS) $(ERLC_MACROS) -o $(EBIN) $<
+	$(ERLC) $(ERLC_INCLUDE) $(ERLC_FLAGS) $(ERLC_MACROS) -o $(EBIN) $<
 
 utest: $(TARGETS)
 	@(./runtests.py $(EBIN) $(MECK))
@@ -101,7 +103,7 @@ depend: cleandep $(SRC_MODULES:%=%.dep) $(HRL_FILES:%=%.hrl)
 	@echo "  make fast"
 
 %.dep: %.erl
-	$(ERLC) -M -MT $(patsubst $(SRC)/%.erl,$(EBIN)/%.beam,$<) $< >> .depend
+	$(ERLC) $(ERLC_INCLUDE) -M -MT $(patsubst $(SRC)/%.erl,$(EBIN)/%.beam,$<) $< >> .depend
 
 clean:
 	$(RM) $(EBIN)/*.beam

@@ -4,7 +4,7 @@
 
 -export([simulate_behaviour/3]).
 
--include("cuter_macros.hrl").
+-include("include/cuter_macros.hrl").
 
 %% BIFs I found during testing, may be more out there
 %% Returns bif if an MFA is an Erlang BIF

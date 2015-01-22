@@ -2,7 +2,7 @@
 %%------------------------------------------------------------------------------
 -module(cuter_log).
 
--include("cuter_macros.hrl").
+-include("include/cuter_macros.hrl").
 
 -export([
     close_file/1

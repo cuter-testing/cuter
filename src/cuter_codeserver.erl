@@ -8,7 +8,7 @@
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_info/2, handle_call/3, handle_cast/2]).
 
--include("cuter_macros.hrl").
+-include("include/cuter_macros.hrl").
 
 %% Internal type declarations
 -type load_reply() :: {ok, ets:tid()} | cuter_cerl:compile_error() | {error, (preloaded | cover_compiled | non_existing)}.

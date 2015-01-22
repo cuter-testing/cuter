@@ -2,7 +2,7 @@
 %%------------------------------------------------------------------------------
 -module(cuter_tests_lib).
 
--include("eunit_config.hrl").
+-include("include/eunit_config.hrl").
 
 -export([setup_dir/0, get_python_command/0]).
 
