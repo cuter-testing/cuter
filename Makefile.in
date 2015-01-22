@@ -56,7 +56,8 @@ UTEST_MODULES = \
 	cuter_iserver_tests \
 	cuter_eval_tests \
 	cuter_json_tests \
-	cuter_solver_tests
+	cuter_solver_tests \
+	cuter_erlang_tests
 
 ###----------------------------------------------------------------------
 ### Targets
