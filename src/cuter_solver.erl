@@ -300,7 +300,7 @@ handle_info({Port, {data, ?RSP_MODEL_DELIMITER_START}}, generating_model, Data=#
 handle_info({Port, {data, ?RSP_MODEL_DELIMITER_END}}, expecting_var, Data=#fsm_state{from = From, port = Port, sol = S}) ->
   cuter_pp:model_end(),
   gen_fsm:reply(From, S),
-  {next_state, model_received, Data#fsm_state{from = null, sol = []}};
+  {next_state, model_received, Data#fsm_state{from = null, sol = #{}}};
 %% A symbolic variable of the solution
 %% expecting_var --> expecting_value
 handle_info({Port, {data, Bin}}, expecting_var, Data=#fsm_state{port = Port}) ->
