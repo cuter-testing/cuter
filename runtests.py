@@ -14,7 +14,7 @@ if len(sys.argv) < 2:
 
 ebin = sys.argv[1]
 meck = sys.argv[2] if len(sys.argv) >= 3 else None
-tests = ["cuter", "cuter_cerl", "cuter_iserver", "cuter_eval", "cuter_json", "cuter_solver"]
+tests = ["cuter", "cuter_cerl", "cuter_iserver", "cuter_eval", "cuter_json", "cuter_solver", "cuter_erlang"]
 tests_with_meck = ["cuter_codeserver", "cuter_monitor"]
 for t in tests:
   run(t, [ebin])

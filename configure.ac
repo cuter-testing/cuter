@@ -140,6 +140,38 @@ fi
 
 ###############################################
 #
+# Testing proper
+#
+###############################################
+cat > test_proper.erl <<EOF
+-module(test_proper).
+-compile(export_all).
+foo() ->
+  case code:which(proper) of
+    non_existing -> error(non_existing);
+    _ -> ok
+  end.
+EOF
+
+ERL=`which erl`
+if $ERLC test_proper.erl && $ERL -noshell -eval "test_proper:foo()" -s init stop &> /dev/null; then
+  HAS_PROPER="1"
+  HAS_PROPER_MSG="yes"
+else
+  HAS_PROPER="0"
+  HAS_PROPER_MSG="unknown"
+  rm -f erl_crash.dump
+fi
+rm -f test_proper.erl test_proper.beam
+
+if test "$HAS_PROPER" = "0"; then
+   PROPER=
+   AC_MSG_NOTICE([The path to PropEr is unknown. If you have installed it make sure you have included it in your ERL_LIBS path. If not, you can find it at https://github.com/manopapad/proper and follow the instructions.])
+fi
+
+
+###############################################
+#
 # Generating configuration
 #
 ###############################################
@@ -157,6 +189,7 @@ Erlang Compiler:    $ERLC
 Python:             $PYTHON_PATH
 Z3Py:               $HAS_Z3_MSG
 Meck:               $HAS_MECK_MSG
+Proper:             $HAS_PROPER_MSG
 
 To build CutEr, execute:
   make depend
