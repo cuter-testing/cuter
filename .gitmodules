@@ -1,3 +1,6 @@
 [submodule "lib/meck"]
 	path = lib/meck
 	url = https://github.com/eproxus/meck.git
+[submodule "lib/proper"]
+	path = lib/proper
+	url = https://github.com/manopapad/proper.git
