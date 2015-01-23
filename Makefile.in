@@ -11,7 +11,7 @@ EBIN = $(PWD)/ebin
 PRIV = $(PWD)/priv
 UTEST = $(PWD)/utest
 ERLC = @ERLC@
-MECK = @MECK@
+MECK = $(realpath @MECK@)
 
 ###----------------------------------------------------------------------
 ### Flags

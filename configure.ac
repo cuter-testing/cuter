@@ -103,11 +103,11 @@ fi
 ###############################################
 AC_ARG_WITH(meck,
 [AS_HELP_STRING([--with-meck=MECK],
-		[specify the location of the meck ebin.])])
+		[specify the location of meck.])])
 
-MECK=
+MECK="lib/meck/ebin/"
 if test "x$with_meck" != x; then
-  MECK="$with_meck"
+  MECK="$with_meck/ebin/"
 fi
 
 AC_SUBST(MECK)
@@ -134,6 +134,7 @@ fi
 rm -f test_meck.erl test_meck.beam
 
 if test "$HAS_MECK" = "0"; then
+   MECK=
    AC_MSG_NOTICE([Meck is missing. You will not be able to run some of the tests. Download it at https://github.com/eproxus/meck.])
 fi
 
