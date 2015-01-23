@@ -76,7 +76,7 @@ vpath %.erl $(ERL_DIRS)
 
 vpath %.hrl $(INCLUDE)
 
-default: $(TARGETS) dialyzer
+default: $(TARGETS) dialyze
 
 fast: cuter_target
 
