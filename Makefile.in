@@ -1,4 +1,4 @@
-.PHONY: depend clean cleandep distclean all
+.PHONY: depend dialyze clean cleandep distclean all
 
 ###----------------------------------------------------------------------
 ### Orientation information
@@ -10,6 +10,7 @@ INCLUDE = $(PWD)/include
 EBIN = $(PWD)/ebin
 PRIV = $(PWD)/priv
 UTEST = $(PWD)/utest
+LIB = $(PWD)/lib
 ERLC = @ERLC@
 MECK = $(realpath @MECK@)
 
@@ -93,7 +94,7 @@ $(EBIN)/%.beam: %.erl
 utest: $(TARGETS)
 	@(./runtests.py $(EBIN) $(MECK))
 
-dialyzer: $(TARGETS)
+dialyze: $(TARGETS)
 	dialyzer -n -nn -Wunmatched_returns $(EBIN)/*.beam
 
 -include .depend
