@@ -4,7 +4,7 @@
 -behaviour(gen_server).
 
 %% external exports
--export([start/2, stop/1, load/2]).
+-export([start/2, stop/1, load/2, unsupported_mfa/2]).
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_info/2, handle_call/3, handle_cast/2]).
 
@@ -30,11 +30,12 @@
 %%   PIDs of all worker processes
 
 -record(state, {
-  super                   :: pid(),
-  db                      :: ets:tab(),
-  dir                     :: nonempty_string(),
-  waiting = orddict:new() :: [{{atom(), tuple()}, pid()}],
-  workers = []            :: [pid()]
+  super                          :: pid(),
+  db                             :: ets:tab(),
+  dir                            :: nonempty_string(),
+  waiting = orddict:new()        :: [{{atom(), tuple()}, pid()}],
+  workers = []                   :: [pid()],
+  unsupported_mfas = sets:new()  :: sets:set()
 }).
 -type state() :: #state{}.
 
@@ -60,6 +61,15 @@ stop(CodeServer) ->
 load(CodeServer, M) ->
   gen_server:call(CodeServer, {load, M}).
 
+%% Log an MFA that cannot be symbolically evaluated.
+-spec unsupported_mfa(pid(), mfa()) -> ok.
+-ifdef(LOG_UNSUPPORTED_MFAS).
+unsupported_mfa(CodeServer, MFA) ->
+  gen_server:cast(CodeServer, {unsupported_mfa, MFA}).
+-else.
+unsupported_mfa(_, _) -> ok.
+-endif.
+
 %% ============================================================================
 %% gen_server callbacks (Server Implementation)
 %% ============================================================================
@@ -77,7 +87,10 @@ init([Dir, Super]) when is_list(Dir) ->
 terminate(_Reason, State) ->
   Db = State#state.db,
   Super = State#state.super,
-  Logs = [{loaded_mods, delete_stored_modules(Db)}],  % Delete all created ETS tables
+  Ms = State#state.unsupported_mfas,
+  Logs = [ {loaded_mods, delete_stored_modules(Db)}  % Delete all created ETS tables
+         , {unsupported_mfas, sets:to_list(Ms)}
+         ],
   ets:delete(Db),
   cuter_lib:clear_and_delete_dir(State#state.dir),    % Clean up .core files directory
   ok = cuter_iserver:code_logs(Super, Logs),          % Send logs to the supervisor
@@ -107,7 +120,11 @@ handle_call({load, M}, _From, State) ->
   end.
 
 %% gen_server callback : handle_cast/2
--spec handle_cast({stop, pid()}, state()) -> {stop, normal, state()} | {noreply, state()}.
+-spec handle_cast({stop, pid()}, state()) -> {stop, normal, state()} | {noreply, state()}
+               ; ({unsupported_mfa, mfa()}, state()) -> {noreply, state()}.
+handle_cast({unsupported_mfa, MFA}, State=#state{unsupported_mfas = Ms}) ->
+  Ms1 = sets:add_element(MFA, Ms),
+  {noreply, State#state{unsupported_mfas = Ms1}};
 handle_cast({stop, FromWho}, State) ->
   case FromWho =:= State#state.super of
     true  -> {stop, normal, State};

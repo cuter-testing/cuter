@@ -40,6 +40,7 @@
 
 -define(LOGGING_FLAG, ok).
 -define(DELETE_TRACE, ok).
+-define(LOG_UNSUPPORTED_MFAS, ok).
 %%-define(VERBOSE_SCHEDULER, ok).
 %%-define(VERBOSE_FILE_DELETION, ok).
 %%-define(VERBOSE_SOLVING, ok).

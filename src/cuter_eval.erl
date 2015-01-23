@@ -362,7 +362,7 @@ eval({named, M, F}, CAs_b, SAs_b, CallType, Servers, Fd) ->
   SAs_e = cuter_symbolic:ensure_list(SAs, Arity, Fd),
   MFA = {M, F, Arity},
   case access_mfa_code(MFA, Servers) of
-    error -> evaluate_bif(MFA, CAs, SAs_e, Fd);
+    error -> evaluate_bif(MFA, CAs, SAs_e, Servers, Fd);
     {NM, {Def, Exported}} ->
       check_exported(Exported, CallType, MFA),
       NCenv = cuter_env:new_environment(),
@@ -681,10 +681,10 @@ eval_expr(Cerl, _M, _Cenv, _Senv, _Servers, _Fd) -> exception(error, {unknown_ce
 %% --------------------------------------------------------
 %% Evaluates a BIF call
 %% --------------------------------------------------------
--spec evaluate_bif(mfa(), [any()], [any()], file:io_device()) -> result().
-evaluate_bif({M, F, _A} = MFA, CAs, SAs, Fd) ->
+-spec evaluate_bif(mfa(), [any()], [any()], servers(), file:io_device()) -> result().
+evaluate_bif({M, F, _A} = MFA, CAs, SAs, Servers, Fd) ->
   Cv = apply(M, F, CAs),
-  Sv = cuter_symbolic:evaluate_mfa(MFA, SAs, Cv, Fd),
+  Sv = cuter_symbolic:evaluate_mfa(MFA, SAs, Cv, Servers#svs.code, Fd),
   {Cv, Sv}.
 
 %% --------------------------------------------------------

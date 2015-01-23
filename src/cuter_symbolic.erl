@@ -3,7 +3,7 @@
 -module(cuter_symbolic).
 
 -export([
-  fresh_symbolic_var/0, abstract/1, evaluate_mfa/4, generate_new_input/2,
+  fresh_symbolic_var/0, abstract/1, evaluate_mfa/5, generate_new_input/2,
   is_symbolic/1, serialize/1, deserialize/1,
   ensure_list/3, tpl_to_list/3, head/2, tail/2,
   append_segments/3, make_bitstring/4, match_bitstring_const/5, match_bitstring_var/5
@@ -67,10 +67,12 @@ deserialize(L) when is_list(L) -> {?SYMBOLIC_PREFIX, L}.
 is_supported_mfa(MFA) ->
   gb_sets:is_member(MFA, ?SUPPORTED_MFAS).
 
--spec evaluate_mfa(mfa(), [maybe_s(any())], any(), file:io_device()) -> maybe_s(any()).
-evaluate_mfa(MFA, SAs, Cv, Fd) ->
+-spec evaluate_mfa(mfa(), [maybe_s(any())], any(), pid(), file:io_device()) -> maybe_s(any()).
+evaluate_mfa(MFA, SAs, Cv, CodeServer, Fd) ->
   case is_supported_mfa(MFA) of
-    false -> Cv;
+    false ->
+      cuter_codeserver:unsupported_mfa(CodeServer, MFA),
+      Cv;
     true  ->
       case lists:any(fun cuter_symbolic:is_symbolic/1, SAs) of
         false -> Cv;
