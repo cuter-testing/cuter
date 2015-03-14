@@ -3,18 +3,32 @@
 -module(cuter_cerl).
 
 %% External exports
--export([load/3]).
+-export([load/3, retrieve_spec/2]).
 
 %% Will be using the records representation of the Core Erlang Abstract Syntax Tree
 %% as they are defined in core_parse.hrl
 -include_lib("compiler/src/core_parse.hrl").
 -include("include/cuter_macros.hrl").
 
--export_type([compile_error/0]).
+-export_type([compile_error/0, cerl_spec/0, cerl_func/0, cerl_type/0]).
 
 -type info()          :: anno | attributes | exports | name.
 -type compile_error() :: {error, {loaded_ret_atoms(), module()}} 
                        | {runtime_error, {compile, {atom(), term()}}}.
+
+-type lineno() :: integer().
+-type cerl_attr() :: {cerl:c_literal(), cerl:c_literal()}.
+-type cerl_func() :: {type, lineno(), 'fun', [cerl_product() | cerl_type()]}.
+-type cerl_spec() :: [cerl_func(), ...].
+
+-type cerl_product() :: {type, lineno(), product, [cerl_type()]}.
+-type cerl_base_type() :: nil | any | term | boolean | integer | float.
+-type cerl_type() :: {atom, lineno(), atom()}
+                   | {integer, lineno(), integer()}
+                   | {type, lineno(), cerl_base_type(), []}
+                   | {type, lineno(), list, [cerl_type()]}
+                   | {type, lineno(), tuple, any | [cerl_type()]}
+                   | {type, lineno(), union, [cerl_type()]}.
 
 %%====================================================================
 %% External exports
@@ -29,6 +43,21 @@ load(Mod, Db, Dir) ->
     throw:cover_compiled    -> {error, {cover_compiled, Mod}};
     throw:{compile, Errors} -> {runtime_error, {compile, {Mod, Errors}}}
   end.
+
+%% Retrieves the spec of a function from a stored module's info.
+-spec retrieve_spec(ets:tid(), {atom(), integer()}) -> cerl_spec() | not_found.
+retrieve_spec(Db, FA) ->
+  [{attributes, Attrs}] = ets:lookup(Db, attributes),
+  locate_spec(Attrs, FA).
+
+%% Locates the spec of a function from the list of the module's attributes.
+-spec locate_spec([cerl_attr()], {atom(), integer()}) -> cerl_spec() | not_found.
+locate_spec([], _FA) ->
+  not_found;
+locate_spec([{#c_literal{val = spec}, #c_literal{val = [{FA, Spec}]}}|_Attrs], FA) ->
+  Spec;
+locate_spec([_|Attrs], FA) ->
+  locate_spec(Attrs, FA).
 
 %%====================================================================
 %% Internal functions
