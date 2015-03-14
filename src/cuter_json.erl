@@ -4,8 +4,7 @@
 
 -include("include/cuter_macros.hrl").
 
--export([command_to_json/2, json_to_command/1, term_to_json/1, json_to_term/1, encode_port_command/2,
-         spec_to_json/1]).
+-export([command_to_json/2, json_to_command/1, term_to_json/1, json_to_term/1, encode_port_command/2]).
 
 -define(Q, $\").
 
@@ -47,6 +46,11 @@
 %% =============================================================
 
 -spec command_to_json(integer(), [any()]) -> binary().
+command_to_json(?OP_SPEC, [Spec]) ->
+  F = fun(X, Acc) -> [$,, json_encode_spec_clause(X) | Acc] end,
+  [$, | Es] = lists:foldl(F, [], lists:reverse(Spec)),
+  C = ?ENCODE_CMD(integer_to_list(?OP_SPEC), Es),
+  list_to_binary(C);
 command_to_json(Cmd, Args) when is_list(Args) ->
   F = fun(X, Acc) -> [$,, json_encode(X) | Acc] end,
   [$, | Es] = lists:foldl(F, [], lists:reverse(Args)),
@@ -74,13 +78,6 @@ json_to_term(JSON, WithRem) ->
   Obj = decode_object_with_sharing(JSON, Decoder),
   ets:delete(Tbl),
   Obj.
-
--spec spec_to_json(cuter_types:erl_spec()) -> binary().
-spec_to_json(Spec) ->
-  F = fun(X, Acc) -> [$,, json_encode_spec_clause(X) | Acc] end,
-  [$, | Es] = lists:foldl(F, [], lists:reverse(Spec)),
-  C = ?ENCODE_CMD(integer_to_list(?OP_SPEC), Es),
-  list_to_binary(C).
 
 %% ==============================================================================
 %% JSON Encoding of Erlang Types

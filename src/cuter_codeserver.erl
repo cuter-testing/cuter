@@ -4,7 +4,7 @@
 -behaviour(gen_server).
 
 %% external exports
--export([start/2, stop/1, load/2, unsupported_mfa/2]).
+-export([start/2, stop/1, load/2, unsupported_mfa/2, retrieve_spec/2]).
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_info/2, handle_call/3, handle_cast/2]).
 
@@ -12,6 +12,7 @@
 
 %% Internal type declarations
 -type load_reply() :: {ok, ets:tid()} | cuter_cerl:compile_error() | {error, (preloaded | cover_compiled | non_existing)}.
+-type spec_reply() :: {ok, cuter_types:erl_spec()} | error.
 
 %% Server's state
 %% ---------------
@@ -70,6 +71,11 @@ unsupported_mfa(CodeServer, MFA) ->
 unsupported_mfa(_, _) -> ok.
 -endif.
 
+%% Retrieves the spec of a given MFA.
+-spec retrieve_spec(pid(), mfa()) -> spec_reply().
+retrieve_spec(CodeServer, MFA) ->
+  gen_server:call(CodeServer, {get_spec, MFA}).
+
 %% ============================================================================
 %% gen_server callbacks (Server Implementation)
 %% ============================================================================
@@ -110,13 +116,25 @@ handle_info(Msg, State) ->
   {noreply, State}.
 
 %% gen_server callback : handle_call/3
--spec handle_call({load, module()}, {pid(), reference()}, state()) -> {reply, load_reply(), state()}.
+-spec handle_call({load, module()}, {pid(), reference()}, state()) -> {reply, load_reply(), state()}
+               ; ({get_spec, mfa()}, {pid(), reference()}, state()) -> {reply, spec_reply(), state()}.
 handle_call({load, M}, _From, State) ->
-  case is_mod_stored(M, State) of
-    {true, MDb}     -> {reply, {ok, MDb}, State};
-    {false, eexist} -> {reply, load_mod(M, State), State}; %% Load module M
-    {false, Msg} when Msg =:= preloaded; Msg =:= cover_compiled; Msg =:= non_existing ->
-      {reply, {error, Msg}, State}
+  {reply, try_load(M, State), State};
+handle_call({get_spec, {M, F, A}=MFA}, _From, State) ->
+  case try_load(M, State) of
+    {ok, MDb} ->
+      try
+        CerlSpec = cuter_cerl:retrieve_spec(MDb, {F, A}),
+        ErlSpec = cuter_types:parse_spec(CerlSpec),
+        {reply, {ok, ErlSpec}, State}
+      catch
+        error:E ->
+          io:format("[cserver] Could not find spec for ~p. Error: ~p~n", [MFA, E]),
+          {reply, error, State}
+      end;
+    Msg ->
+      io:format("[cserver] Could not find spec for ~p. Error: ~p~n", [MFA, Msg]),
+      {reply, error, State}
   end.
 
 %% gen_server callback : handle_cast/2
@@ -134,6 +152,14 @@ handle_cast({stop, FromWho}, State) ->
 %% ============================================================================
 %% Internal functions (Helper methods)
 %% ============================================================================
+
+-spec try_load(module(), state()) -> load_reply().
+try_load(M, State) ->
+  case is_mod_stored(M, State) of
+    {true, MDb}     -> {ok, MDb};
+    {false, eexist} -> load_mod(M, State); %% Load module M
+    {false, Msg}    -> {error, Msg}
+  end.
 
 %% Load a module's code
 -spec load_mod(module(), state()) -> {ok, ets:tid()} | cuter_cerl:compile_error().

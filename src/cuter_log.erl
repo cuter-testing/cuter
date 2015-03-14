@@ -16,6 +16,7 @@
   , log_message_sent/3
   , log_spawn/3
   , log_spawned/3
+  , log_spec/2
   , log_symb_params/2
   , log_tuple/4
   , log_unfold_symbolic/4
@@ -57,6 +58,9 @@ log_mfa(Fd, MFA, SAs, X) ->
 -spec log_symb_params(file:io_device(), [cuter_symbolic:symbolic()]) -> ok.
 log_symb_params(_Fd, []) -> ok;
 log_symb_params(Fd, Ps)  -> log(Fd, ?OP_PARAMS, Ps).
+
+-spec log_spec(file:io_device(), cuter_types:erl_spec()) -> ok.
+log_spec(Fd, Spec)  -> log(Fd, ?OP_SPEC, [Spec]).
 
 %% ------------------------------------------------------------------
 %% Log process spawns

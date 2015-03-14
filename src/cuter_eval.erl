@@ -34,7 +34,12 @@ i(M, F, As, Servers) ->
       {SymbAs, Mapping} = cuter_symbolic:abstract(As),
       {ok, Fd} = cuter_monitor:subscribe(Servers#svs.monitor, Root),
       cuter_log:log_symb_params(Fd, SymbAs),
-      %% FIXME Log the spec of the MFA
+      %% Log the spec of the MFA
+      MFA = {M, F, length(As)},
+      case cuter_codeserver:retrieve_spec(Servers#svs.code, MFA) of
+        {ok, Spec} -> cuter_log:log_spec(Fd, Spec);
+        error -> ok
+      end,
       cuter_iserver:send_mapping(Root, Mapping),
       NMF = {named, M, F},
       Ret = eval(NMF, As, SymbAs, external, Servers, Fd),
