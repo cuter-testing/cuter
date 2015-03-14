@@ -4,7 +4,8 @@
 
 -include("include/cuter_macros.hrl").
 
--export([command_to_json/2, json_to_command/1, term_to_json/1, json_to_term/1, encode_port_command/2]).
+-export([command_to_json/2, json_to_command/1, term_to_json/1, json_to_term/1, encode_port_command/2,
+         spec_to_json/1]).
 
 -define(Q, $\").
 
@@ -14,6 +15,9 @@
 -define(ENCODE_DICT_ENTRY(K, V), [?Q, K, ?Q, $:, V]).    %% "K":V
 -define(ENCODE_DICT(D), [?Q, $d, ?Q, $:, $\{, D, $\}]).  %% "d":{D}
 -define(ENCODE_CMD(C, As), [$\{, ?Q, $c, ?Q, $:, C, $,, ?Q, $a, ?Q, $:, $\[, As, $\], $\}]). %% {"c":C, "a":[As]}
+-define(ENCODE_TYPE(Tp), [$\{, ?Q, $t, $p, ?Q, $:, Tp, $\}]). %% {"tp":Tp}
+-define(ENCODE_COMPTYPE(Tp, As), [$\{, ?Q, $t, $p, ?Q, $:, Tp, $,, ?Q, $a, ?Q, $:, As, $\}]). %% {"tp":Tp, "a":As}
+-define(ENCODE_SPEC(Ps, Ret), [$\{, ?Q, $p, ?Q, $:, $\[, Ps, $\], $,, ?Q, $r, ?Q, $:, Ret, $\}]). %% {"t":Ps, "r":Ret}
 
 -define(ENCODE_KV_INT(K, V), [?Q, K, ?Q, $:, integer_to_list(V)]).  %% "K":V
 -define(ENCODE_KV_TERM(K, V), [?Q, K, ?Q, $:, json_encode(V)]).     %% "K":V
@@ -70,6 +74,57 @@ json_to_term(JSON, WithRem) ->
   Obj = decode_object_with_sharing(JSON, Decoder),
   ets:delete(Tbl),
   Obj.
+
+-spec spec_to_json(cuter_types:erl_spec()) -> binary().
+spec_to_json(Spec) ->
+  F = fun(X, Acc) -> [$,, json_encode_spec_clause(X) | Acc] end,
+  [$, | Es] = lists:foldl(F, [], lists:reverse(Spec)),
+  C = ?ENCODE_CMD(integer_to_list(?OP_SPEC), Es),
+  list_to_binary(C).
+
+%% ==============================================================================
+%% JSON Encoding of Erlang Types
+%% ==============================================================================
+
+-spec json_encode_spec_clause(cuter_types:erl_spec_clause()) -> list().
+json_encode_spec_clause({Params, Ret}) ->
+  F = fun(X, Acc) -> [$,, json_encode_type(X) | Acc] end,
+  [$, | Ps] = lists:foldl(F, [], lists:reverse(Params)),
+  Rt = json_encode_type(Ret),
+  ?ENCODE_SPEC(Ps, Rt).
+
+-spec json_encode_type(cuter_types:erl_type()) -> list().
+json_encode_type(any) ->
+  ?ENCODE_TYPE(integer_to_list(?JSON_ERLTYPE_ANY));
+json_encode_type(atom) ->
+  ?ENCODE_TYPE(integer_to_list(?JSON_ERLTYPE_ATOM));
+json_encode_type({atom, Atom}) ->
+  A = json_encode(Atom),
+  ?ENCODE_COMPTYPE(integer_to_list(?JSON_ERLTYPE_ATOMLIT), A);
+json_encode_type(boolean) ->
+  ?ENCODE_TYPE(integer_to_list(?JSON_ERLTYPE_BOOLEAN));
+json_encode_type(float) ->
+  ?ENCODE_TYPE(integer_to_list(?JSON_ERLTYPE_FLOAT));
+json_encode_type(integer) ->
+  ?ENCODE_TYPE(integer_to_list(?JSON_ERLTYPE_INTEGER));
+json_encode_type({integer, Integer}) ->
+  I = json_encode(Integer),
+  ?ENCODE_COMPTYPE(integer_to_list(?JSON_ERLTYPE_INTEGERLIT), I);
+json_encode_type({list, Type}) ->
+  T = json_encode_type(Type),
+  ?ENCODE_COMPTYPE(integer_to_list(?JSON_ERLTYPE_LIST), T);
+json_encode_type(nil) ->
+  ?ENCODE_TYPE(integer_to_list(?JSON_ERLTYPE_NIL));
+json_encode_type(tuple) ->
+  ?ENCODE_TYPE(integer_to_list(?JSON_ERLTYPE_TUPLE));
+json_encode_type({tuple, Types}) ->
+  F = fun(X, Acc) -> [$,, json_encode_type(X) | Acc] end,
+  [$, | Ts] = lists:foldl(F, [], lists:reverse(Types)),
+  ?ENCODE_COMPTYPE(integer_to_list(?JSON_ERLTYPE_TUPLEDET), [$\[, Ts, $\]]);
+json_encode_type({union, Types}) ->
+  F = fun(X, Acc) -> [$,, json_encode_type(X) | Acc] end,
+  [$, | Ts] = lists:foldl(F, [], lists:reverse(Types)),
+  ?ENCODE_COMPTYPE(integer_to_list(?JSON_ERLTYPE_UNION), [$\[, Ts, $\]]).
 
 %% ==============================================================================
 %% Exported JSON Encoding / Decoding functions for Port Communication
