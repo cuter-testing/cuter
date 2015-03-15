@@ -9,6 +9,8 @@ import cuter_common as cc
 class Env:
   def __init__(self):
     self.cnt = 0
+    self.func_cnt = 0
+    self.const_cnt = 0
     self.e = {}
     self.params = []
   
@@ -24,9 +26,19 @@ class Env:
   
   def fresh_var(self, s, Type):
     self.cnt += 1
-    x =  Const("x%s" % self.cnt, Type)
+    x = Const("x%s" % self.cnt, Type)
     self.e[s] = x
     return x
+  
+  def generate_const(self, Type):
+    self.const_cnt += 1
+    x = Const("c%s" % self.const_cnt, Type)
+    return x
+  
+  def generate_func(self, T1, T2):
+    self.func_cnt += 1
+    f = Function("f%s" % self.func_cnt, T1, T2)
+    return f
 
 class TermEncoder:
   def __init__(self, eZ3):
@@ -156,6 +168,7 @@ class ErlangZ3:
     self.env = Env()
     self.axs = []
     self.slv = Solver()
+    self.slv.set(mbqi=False)
     
     self.atmTrue = self.term_toZ3(json.loads("{\"t\": 3, \"v\": [116,114,117,101]}"))
     self.atmFalse = self.term_toZ3(json.loads("{\"t\": 3, \"v\": [102,97,108,115,101]}"))
@@ -249,6 +262,7 @@ class ErlangZ3:
       cc.OP_LIST_NOT_LST: self.list_not_lst_toZ3,
       # Other important commands
       cc.OP_PARAMS: self.params_toZ3,
+      cc.OP_SPEC: self.spec_toZ3,
       cc.OP_UNFOLD_TUPLE: self.unfold_tuple_toZ3,
       cc.OP_UNFOLD_LIST: self.unfold_list_toZ3,
       # Erlang BIFs
@@ -449,6 +463,140 @@ class ErlangZ3:
   def tuple_not_tpl_toZ3_RV(self, term, num):
     t = self.term_toZ3(term)
     self.axs.append(self.Term.is_tpl(t))
+  
+  # ----------------------------------------------------------------------
+  # Define Type Specs
+  # ----------------------------------------------------------------------
+  
+  def spec_toZ3(self, *spec):
+    axms = []
+    for cl in spec:
+      xs = self.spec_clause_toZ3(cl)
+      prnt("CL  " + str(xs))
+      axms.append(xs)
+    ax = Or(*axms)
+    prnt(str(ax))
+    self.axs.append(ax)
+  
+  def spec_clause_toZ3(self, cl):
+    pms = self.env.params
+    axms = []
+    for pm, tp in zip(pms, cl["p"]):
+      s = self.env.lookup(pm)
+      prnt(str(s))
+      xs = self.typedef_toZ3(s, tp)
+      prnt("  " + str(xs))
+      if xs != None:
+        axms.append(xs)
+    return And(*axms)
+  
+  def typedef_toZ3(self, s, tp):
+    opts = {
+      cc.JSON_ERLTYPE_ANY: self.type_any_toZ3,
+      cc.JSON_ERLTYPE_ATOM: self.type_atom_toZ3,
+      cc.JSON_ERLTYPE_ATOMLIT: self.type_atomlit_toZ3,
+      cc.JSON_ERLTYPE_BOOLEAN: self.type_boolean_toZ3,
+      cc.JSON_ERLTYPE_FLOAT: self.type_float_toZ3,
+      cc.JSON_ERLTYPE_INTEGER: self.type_integer_toZ3,
+      cc.JSON_ERLTYPE_INTEGERLIT: self.type_integerlit_toZ3,
+      cc.JSON_ERLTYPE_LIST: self.type_list_toZ3,
+      cc.JSON_ERLTYPE_NIL: self.type_nil_toZ3,
+      cc.JSON_ERLTYPE_TUPLE: self.type_tuple_toZ3,
+      cc.JSON_ERLTYPE_TUPLEDET: self.type_tupledet_toZ3,
+      cc.JSON_ERLTYPE_UNION: self.type_union_toZ3
+    }
+    tpcode = tp["tp"]
+    arg = tp["a"] if "a" in tp else None
+    return opts[tpcode](s, arg)
+  
+  def type_any_toZ3(self, s, arg):
+    return None
+  
+  def type_atom_toZ3(self, s, arg):
+    return self.Term.is_atm(s)
+  
+  def type_atomlit_toZ3(self, s, arg):
+    atm = self.term_toZ3(arg)
+    return (s == atm)
+  
+  def type_boolean_toZ3(self, s, arg):
+    return Or(s == self.atmTrue, s == self.atmFalse)
+  
+  def type_float_toZ3(self, s, arg):
+    return self.Term.is_real(s)
+  
+  def type_integer_toZ3(self, s, arg):
+    return self.Term.is_int(s)
+  
+  def type_integerlit_toZ3(self, s, arg):
+    i = self.term_toZ3(arg)
+    return (s == i)
+  
+  def type_list_toZ3(self, s, tp):
+    T, L = self.Term, self.List
+    f = self.env.generate_func(T, BoolSort())
+    x = self.env.generate_const(T)
+    y = self.env.generate_const(T)
+    z = self.env.generate_const(T)
+    
+    axs = [
+      T.is_lst(z),
+      x == T.lst(L.cons(y, T.lval(z)))
+    ]
+    ax = self.typedef_toZ3(y, tp)
+    if ax != None:
+      axs.append(ax)
+    
+    ax1 = ForAll(x,
+      Or(
+        And(x == T.lst(L.nil), f(x) == True),
+        And(
+          Exists([y, z],
+            And(
+              And(*axs),
+              f(z) == True
+            )
+          ),
+          f(x) == True
+        ),
+        f(x) == False
+      ),
+      patterns=[f(x)]
+    )
+    
+    return And(ax1, f(s) == True)
+  
+  
+  def type_nil_toZ3(self, s, arg):
+    T, L = self.Term, self.List
+    return And(
+      T.is_lst(s),
+      L.is_nil(T.lval(s))
+    )
+  
+  def type_tuple_toZ3(self, s, arg):
+    return self.Term.is_tpl(s)
+  
+  def type_tupledet_toZ3(self, s, types):
+    T, L = self.Term, self.List
+    axms = [T.is_tpl(s)]
+    t = T.tval(s)
+    for tp in types:
+      axms.append(L.is_cons(t))
+      h, t = L.hd(t), L.tl(t)
+      ax = self.typedef_toZ3(h, tp)
+      if ax != None:
+        axms.append(ax)
+    axms.append(L.is_nil(t))
+    return And(*axms)
+  
+  def type_union_toZ3(self, s, types):
+    axms = []
+    for tp in types:
+      ax = self.typedef_toZ3(s, tp)
+      if ax != None:
+        axms.append(ax)
+    return Or(*axms)
   
   # ----------------------------------------------------------------------
   # Other Important Commands
