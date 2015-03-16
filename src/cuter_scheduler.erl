@@ -165,6 +165,7 @@ expand_state(Q, Rf, I, Python, Depth) ->
   N = maps:get(nextRvs, Info),
   case cuter_solver:solve(Python, Mapping, Fname, N) of
     error ->
+      io:format(".\n"),
       Q1 = requeue_state(Q, Rf, Info, I, Depth),
       generate_new_testcase(Q1, I, Python, Depth);
     {ok, Inp} ->
