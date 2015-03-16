@@ -6,6 +6,13 @@ from z3 import *
 import cuter_global as cglb
 import cuter_common as cc
 
+import struct, sys
+def prnt(data):
+  sz = len(data)
+  x = struct.pack('!h', sz)
+  sys.stdout.write(x)
+  sys.stdout.write(data)
+
 class Env:
   def __init__(self):
     self.cnt = 0
