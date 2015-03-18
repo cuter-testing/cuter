@@ -10,7 +10,7 @@
 -include_lib("compiler/src/core_parse.hrl").
 -include("include/cuter_macros.hrl").
 
--export_type([compile_error/0, cerl_spec/0, cerl_func/0, cerl_type/0]).
+-export_type([compile_error/0, cerl_spec/0, cerl_func/0, cerl_type/0, cerl_bounded_func/0]).
 
 -type info()          :: anno | attributes | exports | name.
 -type compile_error() :: {error, {loaded_ret_atoms(), module()}} 
@@ -19,7 +19,9 @@
 -type lineno() :: integer().
 -type cerl_attr() :: {cerl:c_literal(), cerl:c_literal()}.
 -type cerl_func() :: {type, lineno(), 'fun', [cerl_product() | cerl_type()]}.
--type cerl_spec() :: [cerl_func(), ...].
+-type cerl_bounded_func() :: {type, lineno(), bounded_fun, [cerl_func() | cerl_constraint()]}.
+-type cerl_constraint() :: {type, lineno(), constraint, [{atom, lineno(), is_subtype} | [atom() | cerl_type()]]}.
+-type cerl_spec() :: [cerl_func() | cerl_bounded_func(), ...].
 
 -type cerl_product() :: {type, lineno(), product, [cerl_type()]}.
 -type cerl_base_type() :: nil | any | term | boolean | integer | float.
