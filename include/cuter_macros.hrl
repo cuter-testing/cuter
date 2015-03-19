@@ -45,6 +45,7 @@
 %%-define(VERBOSE_FILE_DELETION, ok).
 %%-define(VERBOSE_SOLVING, ok).
 %%-define(VERBOSE_MERGING, ok).
+-define(USE_SPECS, ok).
 
 %%====================================================================
 %% Solver Responses

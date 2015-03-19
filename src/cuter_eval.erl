@@ -36,16 +36,25 @@ i(M, F, As, Servers) ->
       cuter_log:log_symb_params(Fd, SymbAs),
       %% Log the spec of the MFA
       MFA = {M, F, length(As)},
-      case cuter_codeserver:retrieve_spec(Servers#svs.code, MFA) of
-        {ok, Spec} -> cuter_log:log_spec(Fd, Spec);
-        error -> ok
-      end,
+      log_mfa_spec(Fd, Servers#svs.code, MFA),
       cuter_iserver:send_mapping(Root, Mapping),
       NMF = {named, M, F},
       Ret = eval(NMF, As, SymbAs, external, Servers, Fd),
       cuter_iserver:int_return(Root, Ret)
     end,
   erlang:spawn(I).
+
+%% Parse and log the spec of the mfa.
+-spec log_mfa_spec(file:io_device(), pid(), mfa()) -> ok.
+-ifdef(USE_SPECS).
+log_mfa_spec(Fd, CodeServer, MFA) ->
+  case cuter_codeserver:retrieve_spec(CodeServer, MFA) of
+    {ok, Spec} -> cuter_log:log_spec(Fd, Spec);
+    error -> ok
+  end.
+-else.
+log_mfa_spec(_, _, _) -> ok.
+-endif.
 
 %% -------------------------------------------------------------------
 %% eval
