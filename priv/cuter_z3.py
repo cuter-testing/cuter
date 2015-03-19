@@ -13,6 +13,11 @@ def prnt(data):
   sys.stdout.write(x)
   sys.stdout.write(data)
 
+set_param(max_lines=1, max_width=1000000, max_depth=10000000, max_visited=1000000)
+tmp = open('tmp', 'w')
+def log(data):
+  tmp.write(str(data) + ",\n")
+
 class Env:
   def __init__(self):
     self.cnt = 0
@@ -174,6 +179,7 @@ class ErlangZ3:
     self.Term, self.List, self.Atom = self.erlang_type_system()
     self.env = Env()
     self.axs = []
+    self.quantifier_axs = []
     self.slv = Solver()
     self.slv.set(mbqi=False)
     
@@ -210,7 +216,12 @@ class ErlangZ3:
   
   # Add the axioms to the solver
   def add_axioms(self):
-    self.slv.add(self.axs)
+#    for ax in self.axs:
+#      log(ax)
+#    import sys
+#    sys.exit(0)
+    self.slv.add(simplify(And(*self.quantifier_axs)))
+    self.slv.add(simplify(And(*self.axs)))
   
   # Solve a Constraint Set
   def solve(self):
@@ -543,35 +554,37 @@ class ErlangZ3:
     T, L = self.Term, self.List
     f = self.env.generate_func(T, BoolSort())
     x = self.env.generate_const(T)
-    y = self.env.generate_const(T)
-    z = self.env.generate_const(T)
     
-    axs = [
-      T.is_lst(z),
-      x == T.lst(L.cons(y, T.lval(z)))
+    
+    
+    ax_nil = [
+      T.is_lst(x),
+      L.is_nil(T.lval(x)),
+      f(x) == True
     ]
-    ax = self.typedef_toZ3(y, tp)
-    if ax != None:
-      axs.append(ax)
     
-    ax1 = ForAll(x,
+    ax_cons = [
+      T.is_lst(x),
+      L.is_cons(T.lval(x)),
+      
+      f(T.lst(L.tl(T.lval(x)))) == True,
+      f(x) == True
+    ]
+    ax_hd = self.typedef_toZ3(L.hd(T.lval(x)), tp)
+    if ax_hd != None:
+      ax_cons.append(ax_hd)
+    
+    ax_forall = ForAll(x,
       Or(
-        And(x == T.lst(L.nil), f(x) == True),
-        And(
-          Exists([y, z],
-            And(
-              And(*axs),
-              f(z) == True
-            )
-          ),
-          f(x) == True
-        ),
+        And(*ax_nil),
+        And(*ax_cons),
         f(x) == False
       ),
       patterns=[f(x)]
     )
     
-    return And(ax1, f(s) == True)
+    self.quantifier_axs.append(ax_forall)
+    return f(s) == True
   
   
   def type_nil_toZ3(self, s, arg):
