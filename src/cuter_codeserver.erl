@@ -130,6 +130,9 @@ handle_call({get_spec, {M, F, A}=MFA}, _From, State) ->
       catch
         error:E ->
           io:format("[cserver] Could not find spec for ~p. Error: ~p~n", [MFA, E]),
+          {reply, error, State};
+        throw:E ->
+          io:format("[cserver] Could not find spec for ~p. Error: ~p~n", [MFA, E]),
           {reply, error, State}
       end;
     Msg ->
