@@ -9,6 +9,7 @@
         , exec_status/1
         , exec_info/1
         , path_vertex/1
+        , reversible_operations/1
         %% Verbose Scheduling
         , seed_execution/2
         , request_input/2
@@ -17,6 +18,12 @@
         , store_execution/4
         , store_execution_fail/3
         , store_execution_success/4
+        , dequeued_handle/1
+        , attempting_to_reverse/2
+        , solving_failed/0
+        , solving_succeeded/1
+        , requeue_success/4
+        , requeue_failure/4
         %% Verbose File/Folder Deletion
         , delete_file/2
         %% Verbose solving
@@ -102,6 +109,11 @@ exec_info_data(_) -> ok.
 path_vertex(Vertex) ->
   io:format("PATH VERTEX~n"),
   io:format("  ~p (~w)~n", [Vertex, length(Vertex)]).
+
+-spec reversible_operations(integer()) -> ok.
+reversible_operations(RvsCnt) ->
+  io:format("REVERSIBLE OPERATIONS~n"),
+  io:format("  ~w~n", [RvsCnt]).
 
 divider(Divider) ->
   lists:foreach(fun(_) -> io:format(Divider) end, lists:seq(1,50)),
@@ -204,7 +216,7 @@ store_execution_fail(_N, _D, _I) -> ok.
 store_execution_success(N, Depth, Q, I) ->
   io:format("EXECUTION STORED~n"),
   io:format("  NEXT REVERSIBLE COMMAND =< DEPTH~n"),
-  io:format("    ~p >= ~p~n", [N, Depth]),
+  io:format("    ~p =< ~p~n", [N, Depth]),
   io:format("  NEW QUEUE~n"),
   io:format("    ~p~n", [queue:to_list(Q)]),
   io:format("  ALL HANDLES~n"),
@@ -212,6 +224,61 @@ store_execution_success(N, Depth, Q, I) ->
   io:format("    ~p~n", [Handles]).
 -else.
 store_execution_success(_N, _D, _Q, _I) -> ok.
+-endif.
+
+-spec dequeued_handle(reference()) -> ok.
+-ifdef(VERBOSE_SCHEDULER).
+dequeued_handle(Ref) ->
+  io:format("DEQUEUED HANDLE~n"),
+  io:format("  ~p~n", [Ref]).
+-else.
+dequeued_handle(_Ref) -> ok.
+-endif.
+
+-spec attempting_to_reverse(integer(), file:name()) -> ok.
+-ifdef(VERBOSE_SCHEDULER).
+attempting_to_reverse(N, Fname) ->
+  io:format("ATTEMPTING TO REVERSE~n"),
+  io:format("  OPERATION ~w IN FILE ~p~n", [N, Fname]).
+-else.
+attempting_to_reverse(_N, _Fname) -> ok.
+-endif.
+
+-spec solving_failed() -> ok.
+-ifdef(VERBOSE_SCHEDULER).
+solving_failed() ->
+  io:format("SOLVING FAILED~n").
+-else.
+solving_failed() ->
+  io:format(".~n").
+-endif.
+
+-spec solving_succeeded(any()) -> ok.
+-ifdef(VERBOSE_SCHEDULER).
+solving_succeeded(Inp) ->
+  io:format("TESTCASE GENERATED~n"),
+  io:format("  ~p~n", [Inp]).
+-else.
+solving_succeeded(_Inp) -> ok.
+-endif.
+
+-spec requeue_success(reference(), integer(), integer(), integer()) -> ok.
+-ifdef(VERBOSE_SCHEDULER).
+requeue_success(Ref, X, L, D) ->
+  io:format("REQUEUING HANDLE~n"),
+  io:format("  ~p (~w =< ~w /\\ ~w =< ~w)~n", [Ref, X, L, X, D]).
+
+-else.
+requeue_success(_Ref, _X, _L, _D) -> ok.
+-endif.
+
+-spec requeue_failure(reference(), integer(), integer(), integer()) -> ok.
+-ifdef(VERBOSE_SCHEDULER).
+requeue_failure(Ref, X, L, D) ->
+  io:format("WILL NOT REQUEUE HANDLE~n"),
+  io:format("  ~p (~w > ~w \\/ ~w > ~w)~n", [Ref, X, L, X, D]).
+-else.
+requeue_failure(_Ref, _X, _L, _D) -> ok.
 -endif.
 
 %%

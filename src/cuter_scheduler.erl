@@ -152,6 +152,7 @@ generate_new_testcase(Q, Info, Python, Depth) ->
     {empty, Q} ->
       empty;
     {{value, Rf}, Q1} ->
+      cuter_pp:dequeued_handle(Rf),
       expand_state(Q1, Rf, Info, Python, Depth)
   end.
 
@@ -163,12 +164,14 @@ expand_state(Q, Rf, I, Python, Depth) ->
   Fname = maps:get(traceFile, Info),
   Mapping = maps:get(mappings, Info),
   N = maps:get(nextRvs, Info),
+  cuter_pp:attempting_to_reverse(N, Fname),
   case cuter_solver:solve(Python, Mapping, Fname, N) of
     error ->
-      io:format(".\n"),
+      cuter_pp:solving_failed(),
       Q1 = requeue_state(Q, Rf, Info, I, Depth),
       generate_new_testcase(Q1, I, Python, Depth);
     {ok, Inp} ->
+      cuter_pp:solving_succeeded(Inp),
       R = make_ref(),
       PartialInfo = #{nextRvs => N+1},
       ets:insert(I, {R, PartialInfo}),
@@ -185,10 +188,12 @@ requeue_state(Q, Rf, Info, I, Depth) ->
   X = N + 1,
   case X > L orelse X > Depth of
     true ->
+      cuter_pp:requeue_failure(Rf, X, L, Depth),
       DataDir = maps:get(dir, Info),
       cuter_lib:clear_and_delete_dir(DataDir),
       Q;
     false ->
+      cuter_pp:requeue_success(Rf, X, L, Depth),
       ets:insert(I, {Rf, Info#{nextRvs := X}}),  % Replace the old information
       queue:in(Rf, Q)
   end.

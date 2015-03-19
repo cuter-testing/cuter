@@ -67,7 +67,7 @@ process_raw_execution_info(Info) ->
   PathVertex = cuter_log:path_vertex(MergedTraceFile),
   cuter_pp:path_vertex(PathVertex),
   RvsCnt = cuter_log:count_reversible(MergedTraceFile),
-%  io:format("[RVS COUNT] ~p~n", [RvsCnt]),
+%%  cuter_pp:reversible_operations(RvsCnt),
   #{dir => DataDir,
     mappings => maps:get(mappings, Info),
     traceFile => MergedTraceFile,
