@@ -16,7 +16,7 @@
 -define(ENCODE_CMD(C, As), [$\{, ?Q, $c, ?Q, $:, C, $,, ?Q, $a, ?Q, $:, $\[, As, $\], $\}]). %% {"c":C, "a":[As]}
 -define(ENCODE_TYPE(Tp), [$\{, ?Q, $t, $p, ?Q, $:, Tp, $\}]). %% {"tp":Tp}
 -define(ENCODE_COMPTYPE(Tp, As), [$\{, ?Q, $t, $p, ?Q, $:, Tp, $,, ?Q, $a, ?Q, $:, As, $\}]). %% {"tp":Tp, "a":As}
--define(ENCODE_SPEC(Ps, Ret), [$\{, ?Q, $p, ?Q, $:, $\[, Ps, $\], $,, ?Q, $r, ?Q, $:, Ret, $\}]). %% {"t":Ps, "r":Ret}
+-define(ENCODE_SPEC(Ps, Ret), [$\{, ?Q, $p, ?Q, $:, Ps, $,, ?Q, $r, ?Q, $:, Ret, $\}]). %% {"t":Ps, "r":Ret}
 
 -define(ENCODE_KV_INT(K, V), [?Q, K, ?Q, $:, integer_to_list(V)]).  %% "K":V
 -define(ENCODE_KV_TERM(K, V), [?Q, K, ?Q, $:, json_encode(V)]).     %% "K":V
@@ -84,11 +84,13 @@ json_to_term(JSON, WithRem) ->
 %% ==============================================================================
 
 -spec json_encode_spec_clause(cuter_types:erl_spec_clause()) -> list().
-json_encode_spec_clause({Params, Ret}) ->
-  F = fun(X, Acc) -> [$,, json_encode_type(X) | Acc] end,
-  [$, | Ps] = lists:foldl(F, [], lists:reverse(Params)),
+json_encode_spec_clause({Params, Ret}=XX) ->
   Rt = json_encode_type(Ret),
-  ?ENCODE_SPEC(Ps, Rt).
+  F = fun(X, Acc) -> [$,, json_encode_type(X) | Acc] end,
+  case lists:foldl(F, [], lists:reverse(Params)) of
+    [] -> ?ENCODE_SPEC([$\[, $\]], Rt);
+    [$, | Ps] -> ?ENCODE_SPEC([$\[, Ps, $\]], Rt)
+  end.
 
 -spec json_encode_type(cuter_types:erl_type()) -> list().
 json_encode_type(any) ->
