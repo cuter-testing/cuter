@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import json
+import json, sys
 from z3 import *
 import cuter_global as cglb
 import cuter_common as cc
@@ -13,10 +13,11 @@ def prnt(data):
   sys.stdout.write(x)
   sys.stdout.write(data)
 
-set_param(max_lines=1, max_width=1000000, max_depth=10000000, max_visited=1000000)
-tmp = open('tmp', 'w')
-def log(data):
-  tmp.write(str(data) + ",\n")
+#set_param(max_lines=1, max_width=1000000, max_depth=10000000, max_visited=1000000)
+#tmp = open('tmp', 'a')
+#def log(data):
+#  tmp.write(str(data) + ",\n")
+#  tmp.flush()
 
 class Env:
   def __init__(self):
@@ -230,6 +231,10 @@ class ErlangZ3:
       self.model = self.slv.model()
       return True
     else:
+#      if self.check == unknown:
+#        log(simplify(And(*self.quantifier_axs)))
+#        log(simplify(And(*self.axs)))
+#        sys.exit(1)
       return False
   
   # Fix a symbolic variable to a specific value
@@ -555,8 +560,6 @@ class ErlangZ3:
     f = self.env.generate_func(T, BoolSort())
     x = self.env.generate_const(T)
     
-    
-    
     ax_nil = [
       T.is_lst(x),
       L.is_nil(T.lval(x)),
@@ -566,13 +569,14 @@ class ErlangZ3:
     ax_cons = [
       T.is_lst(x),
       L.is_cons(T.lval(x)),
-      
-      f(T.lst(L.tl(T.lval(x)))) == True,
-      f(x) == True
     ]
     ax_hd = self.typedef_toZ3(L.hd(T.lval(x)), tp)
     if ax_hd != None:
       ax_cons.append(ax_hd)
+    ax_cons.extend([
+      f(T.lst(L.tl(T.lval(x)))) == True,
+      f(x) == True
+    ])
     
     ax_forall = ForAll(x,
       Or(
