@@ -62,7 +62,7 @@ find_nth_element(N, [_|T]) -> find_nth_element(N-1, T).
 %%
 
 -spec length(list()) -> integer().
-length(L) when is_list(L) ->
+length(L) ->
   length(L, 0).
 
 length([], N) -> N;
