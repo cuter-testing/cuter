@@ -84,14 +84,17 @@ clear_and_delete_dir(F, F) ->
 clear_and_delete_dir(D, EF) ->
   cuter_pp:delete_file(D, true),
   case filelib:is_regular(D) of
-    true -> delete_file(D);
+    true ->
+      delete_file(D),
+      ok;
     false ->
       case file:del_dir(D) of
         ok -> ok;
         {error, eexist} ->
           Fs = list_dir(D),
           lists:foreach(fun(F) -> clear_and_delete_dir(F, EF) end, Fs),
-          file:del_dir(D);
+          file:del_dir(D),
+          ok;
         _ -> ok
       end
   end.
