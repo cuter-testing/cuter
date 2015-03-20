@@ -84,7 +84,7 @@ json_to_term(JSON, WithRem) ->
 %% ==============================================================================
 
 -spec json_encode_spec_clause(cuter_types:erl_spec_clause()) -> list().
-json_encode_spec_clause({Params, Ret}=XX) ->
+json_encode_spec_clause({Params, Ret}) ->
   Rt = json_encode_type(Ret),
   F = fun(X, Acc) -> [$,, json_encode_type(X) | Acc] end,
   case lists:foldl(F, [], lists:reverse(Params)) of
