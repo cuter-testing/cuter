@@ -33,6 +33,8 @@
 -define(CONCOLIC_PREFIX_PDICT, '__concp').
 -define(FUNCTION_PREFIX, '__cfunc').
 -define(UNBOUND_VAR_PREFIX, '__uboundvar').
+-define(BRANCH_COUNTER_PREFIX, '__branch_count').
+-define(BRANCH_TAG_PREFIX, '__branch_tag').
 
 %%====================================================================
 %% Flags

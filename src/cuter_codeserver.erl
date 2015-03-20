@@ -7,6 +7,8 @@
 -export([start/2, stop/1, load/2, unsupported_mfa/2, retrieve_spec/2]).
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_info/2, handle_call/3, handle_cast/2]).
+%% counter of branches
+-export([reset_branch_counter/0, generate_tag/0]).
 
 -include("include/cuter_macros.hrl").
 
@@ -86,6 +88,7 @@ init([Dir, Super]) when is_list(Dir) ->
   link(Super),
   Db = ets:new(?MODULE, [ordered_set, protected]),
   CoreDir = cuter_lib:get_codeserver_dir(Dir),
+  reset_branch_counter(), %% Initialize the counter for the branch enumeration.
   {ok, #state{db = Db, dir = CoreDir, super = Super}}.
 
 %% gen_server callback : terminate/2
@@ -169,7 +172,7 @@ try_load(M, State) ->
 load_mod(M, #state{db = Db, dir = Dir}) ->
   MDb = ets:new(M, [ordered_set, protected]),  %% Create an ETS table to store the code of the module
   ets:insert(Db, {M, MDb}),                    %% Store the tid of the ETS table
-  Reply = cuter_cerl:load(M, MDb, Dir),        %% Load the code of the module
+  Reply = cuter_cerl:load(M, MDb, Dir, fun generate_tag/0),        %% Load the code of the module
   case Reply of
     {ok, M} -> {ok, MDb};
     _ -> Reply
@@ -195,3 +198,16 @@ is_mod_stored(M, State) ->
 delete_stored_modules(Db) ->
   ets:foldl(fun({M, MDb}, Ms) -> ets:delete(MDb), [M|Ms] end, [], Db).
 
+%% ============================================================================
+%% Counter for branch enumeration
+%% ============================================================================
+
+-spec reset_branch_counter() -> any().
+reset_branch_counter() ->
+  put(?BRANCH_COUNTER_PREFIX, 0).
+
+-spec generate_tag() -> cuter_cerl:tag().
+generate_tag() ->
+  N = get(?BRANCH_COUNTER_PREFIX) + 1,
+  put(?BRANCH_COUNTER_PREFIX, N),
+  cuter_cerl:tag_from_id(N).

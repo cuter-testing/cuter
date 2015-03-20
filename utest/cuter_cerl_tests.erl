@@ -4,6 +4,7 @@
 
 -include_lib("eunit/include/eunit.hrl").
 -include("include/eunit_config.hrl").
+-include("include/cuter_macros.hrl").
 
 -spec test() -> ok | {error | term()}. %% Silence dialyzer warning
 
@@ -16,7 +17,8 @@ just_load_test_() ->
   [{"Load Module: " ++ atom_to_list(M), {setup, Setup(M), Cleanup, Inst}} || M <- ?MODS_LIST].
 
 just_load({Dir, M, MDb}) ->
-  R = cuter_cerl:load(M, MDb, Dir),
+  TagGen = fun() -> {?BRANCH_TAG_PREFIX, 42} end,
+  R = cuter_cerl:load(M, MDb, Dir, TagGen),
   Ns = ets:lookup(MDb, name),
   [{"successful loading", ?_assertEqual({ok, M}, R)},
    {"retrieve module's name", ?_assertEqual([{name, M}], Ns)}].
@@ -30,7 +32,8 @@ load_exports_test_() ->
   [{"Validate exported funs: " ++ atom_to_list(M), {setup, Setup(M), Cleanup, Inst}} || M <- ?MODS_LIST].
   
 load_exports({Dir, M, MDb}) ->
-  _ = cuter_cerl:load(M, MDb, Dir),
+  TagGen = fun() -> {?BRANCH_TAG_PREFIX, 42} end,
+  _ = cuter_cerl:load(M, MDb, Dir, TagGen),
   Exp = lists:sort(M:module_info(exports)),
   MExp = lists:map(fun({F,A}) -> {M, F, A} end, Exp),
   Ns = lists:sort(ets:lookup(MDb, exported)),

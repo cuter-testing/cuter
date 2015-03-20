@@ -93,7 +93,7 @@ clear_and_delete_dir(D, EF) ->
         {error, eexist} ->
           Fs = list_dir(D),
           lists:foreach(fun(F) -> clear_and_delete_dir(F, EF) end, Fs),
-          file:del_dir(D),
+          _ = file:del_dir(D),
           ok;
         _ -> ok
       end
