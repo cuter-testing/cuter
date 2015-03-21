@@ -856,6 +856,7 @@ find_clause([Cl|Cls], M, Mode, Cv, Sv, Cenv, Senv, Servers, Fd, Cnt) ->
     false ->
       find_clause(Cls, M, Mode, Cv, Sv, Cenv, Senv, Servers, Fd, Cnt+1);
     {true, {_Body, _NCenv, _NSenv, Cnt} = Matched} ->
+      visit_tag(Servers#svs.code, cuter_cerl:get_tag(Cl)),
       Matched
   end.
 
@@ -1522,3 +1523,24 @@ y(M) ->
   G = fun(F) -> M(fun() -> (F(F))() end) end,
   G(G).
 
+%% --------------------------------------------------------
+%% Reports visiting a tag.
+%% --------------------------------------------------------
+-spec visited_tags() -> gb_sets:set().
+visited_tags() ->
+  case get(?VISITED_TAGS_PREFIX) of
+    undefined -> gb_sets:new();
+    Tags -> Tags
+  end.
+
+-spec visit_tag(pid(), cuter_cerl:tag()) -> ok.
+visit_tag(CodeServer, Tag) ->
+  TagIDs = visited_tags(),
+  TagID = cuter_cerl:id_of_tag(Tag),
+  case gb_sets:is_element(TagID, TagIDs) of
+    true -> ok;
+    false ->
+      cuter_codeserver:visit_tag(CodeServer, Tag),
+      put(?VISITED_TAGS_PREFIX, gb_sets:insert(TagID, TagIDs)),
+      ok
+  end.

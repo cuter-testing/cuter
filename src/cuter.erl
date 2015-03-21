@@ -116,7 +116,8 @@ retrieve_info(IServer, DataDir) ->
             dir => DataDir,
             mappings => cuter_analyzer:get_mapping(Info),
             traces => cuter_analyzer:get_traces(Info),
-            int => cuter_analyzer:get_int_process(Info)
+            int => cuter_analyzer:get_int_process(Info),
+            tags => cuter_analyzer:get_tags(Info)
           },
           cuter_analyzer:process_raw_execution_info(RawInfo)
       end;

@@ -35,6 +35,7 @@
 -define(UNBOUND_VAR_PREFIX, '__uboundvar').
 -define(BRANCH_COUNTER_PREFIX, '__branch_count').
 -define(BRANCH_TAG_PREFIX, '__branch_tag').
+-define(VISITED_TAGS_PREFIX, '__visited_tags').
 
 %%====================================================================
 %% Flags

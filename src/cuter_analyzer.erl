@@ -5,25 +5,28 @@
 -include("include/cuter_macros.hrl").
 
 -export([get_result/1, get_mapping/1, get_traces/1,
-         get_int_process/1, process_raw_execution_info/1]).
+         get_int_process/1, process_raw_execution_info/1, get_tags/1]).
 
 -export_type([execution_result/0, node_trace/0, path_vertex/0, int_process/0,
-              raw_info/0, info/0]).
+              raw_info/0, info/0, visited_tags/0]).
 
 -type execution_result() :: {success, any()} | {runtime_error, any()} | internal_error.
 -type node_trace()  :: {atom(), string()}.
 -type int_process() :: {node(), pid()}.
+-type visited_tags() :: gb_sets:set().
 -type path_vertex() :: [?CONSTRAINT_TRUE_REPR | ?CONSTRAINT_FALSE_REPR].  % [$T | $F]
 
 -type raw_info() :: #{mappings => [cuter_symbolic:mapping()],
-                      traces => [cuter_analyzer:node_trace()],
-                      int => cuter_analyzer:int_process(),
-                      dir => file:filename_all()}.
+                      traces => [node_trace()],
+                      int => int_process(),
+                      dir => file:filename_all(),
+                      tags => visited_tags()}.
 
 -type info() :: #{mappings => [cuter_symbolic:mapping()],
                   traceFile => file:filename_all(),
                   pathLength => integer(),
-                  dir => file:filename_all()}.
+                  dir => file:filename_all(),
+                  tags => visited_tags()}.
 
 
 -spec get_result(cuter_iserver:execution_status()) -> execution_result().
@@ -56,6 +59,15 @@ get_int_process([{_Node, Data}|Info]) ->
     Pid -> Pid
   end.
 
+-spec get_tags(orddict:orddict()) -> visited_tags().
+get_tags(Info) ->
+  lists:foldl(fun(X, Ts) -> gb_sets:union(X, Ts) end,
+              gb_sets:new(),
+              [get_tags_of_node(I) || I <- Info]).
+
+get_tags_of_node({_Node, Data}) ->
+  Logs = proplists:get_value(code_logs, Data),
+  proplists:get_value(visited_tags, Logs).
 
 -spec process_raw_execution_info(raw_info()) -> info().
 process_raw_execution_info(Info) ->
@@ -71,6 +83,7 @@ process_raw_execution_info(Info) ->
   #{dir => DataDir,
     mappings => maps:get(mappings, Info),
     traceFile => MergedTraceFile,
-    pathLength => RvsCnt}.
+    pathLength => RvsCnt,
+    tags => maps:get(tags, Info)}.
 
 

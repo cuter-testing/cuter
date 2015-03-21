@@ -4,7 +4,7 @@
 -behaviour(gen_server).
 
 %% external exports
--export([start/2, stop/1, load/2, unsupported_mfa/2, retrieve_spec/2]).
+-export([start/2, stop/1, load/2, unsupported_mfa/2, retrieve_spec/2, visit_tag/2]).
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_info/2, handle_call/3, handle_cast/2]).
 %% counter of branches
@@ -38,7 +38,8 @@
   dir                            :: nonempty_string(),
   waiting = orddict:new()        :: [{{atom(), tuple()}, pid()}],
   workers = []                   :: [pid()],
-  unsupported_mfas = sets:new()  :: sets:set()
+  unsupported_mfas = sets:new()  :: sets:set(),
+  tags = gb_sets:new()           :: gb_sets:set()
 }).
 -type state() :: #state{}.
 
@@ -78,6 +79,11 @@ unsupported_mfa(_, _) -> ok.
 retrieve_spec(CodeServer, MFA) ->
   gen_server:call(CodeServer, {get_spec, MFA}).
 
+%% Reports visiting a tag.
+-spec visit_tag(pid(), cuter_cerl:tag()) -> ok.
+visit_tag(CodeServer, Tag) ->
+  gen_server:cast(CodeServer, {visit_tag, Tag}).
+
 %% ============================================================================
 %% gen_server callbacks (Server Implementation)
 %% ============================================================================
@@ -97,8 +103,10 @@ terminate(_Reason, State) ->
   Db = State#state.db,
   Super = State#state.super,
   Ms = State#state.unsupported_mfas,
+  Tags = State#state.tags,
   Logs = [ {loaded_mods, delete_stored_modules(Db)}  % Delete all created ETS tables
          , {unsupported_mfas, sets:to_list(Ms)}
+         , {visited_tags, Tags}
          ],
   ets:delete(Db),
   cuter_lib:clear_and_delete_dir(State#state.dir),    % Clean up .core files directory
@@ -145,7 +153,8 @@ handle_call({get_spec, {M, F, A}=MFA}, _From, State) ->
 
 %% gen_server callback : handle_cast/2
 -spec handle_cast({stop, pid()}, state()) -> {stop, normal, state()} | {noreply, state()}
-               ; ({unsupported_mfa, mfa()}, state()) -> {noreply, state()}.
+               ; ({unsupported_mfa, mfa()}, state()) -> {noreply, state()}
+               ; ({visit_tag, cuter_cerl:tag()}, state()) -> {noreply, state()}.
 handle_cast({unsupported_mfa, MFA}, State=#state{unsupported_mfas = Ms}) ->
   Ms1 = sets:add_element(MFA, Ms),
   {noreply, State#state{unsupported_mfas = Ms1}};
@@ -153,7 +162,11 @@ handle_cast({stop, FromWho}, State) ->
   case FromWho =:= State#state.super of
     true  -> {stop, normal, State};
     false -> {noreply, State}
-  end.
+  end;
+handle_cast({visit_tag, Tag}, State=#state{tags = Tags}) ->
+  io:format("[code] ~p~n", [Tag]),
+  Ts = gb_sets:add_element(cuter_cerl:id_of_tag(Tag), Tags),
+  {noreply, State#state{tags = Ts}}.
 
 %% ============================================================================
 %% Internal functions (Helper methods)
