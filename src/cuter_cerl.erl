@@ -3,7 +3,7 @@
 -module(cuter_cerl).
 
 %% External exports
--export([load/4, retrieve_spec/2, get_tag/1, get_next_tag/1, id_of_tag/1, tag_from_id/1]).
+-export([load/4, retrieve_spec/2, get_tag/1, get_next_tag/1, id_of_tag/1, tag_from_id/1, empty_tag/0]).
 
 %% Will be using the records representation of the Core Erlang Abstract Syntax Tree
 %% as they are defined in core_parse.hrl
@@ -252,10 +252,10 @@ add_next_tag(#c_clause{anno=Anno}=C, Tag) ->
 get_next_tag(#c_clause{anno=Anno}) ->
   get_next_tag_from_anno(Anno).
 
--spec get_next_tag_from_anno(list()) -> tag().
+-spec get_next_tag_from_anno(list()) -> tag() | none.
 get_next_tag_from_anno([]) ->
   none;
-get_next_tag_from_anno([{next, {?BRANCH_TAG_PREFIX, _N}=Tag} | _Annos]) ->
+get_next_tag_from_anno([{next_tag, Tag={?BRANCH_TAG_PREFIX, _N}} | _Annos]) ->
   Tag;
 get_next_tag_from_anno([_|Annos]) ->
   get_next_tag_from_anno(Annos).
@@ -268,3 +268,7 @@ tag_from_id(N) ->
 %% Get the tag info of a tag.
 -spec id_of_tag(tag()) -> tagID().
 id_of_tag({?BRANCH_TAG_PREFIX, N}) -> N.
+
+%% Creates an empty tag.
+-spec empty_tag() -> tag().
+empty_tag() -> tag_from_id(?EMPTY_TAG_ID).

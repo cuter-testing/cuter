@@ -26,6 +26,11 @@ class JsonReader:
     x = [struct.unpack('B', self.read(1))[0] for z in range(4)]
     return (x[0] << 24) | (x[1] << 16) | (x[2] << 8) | x[3]
   
+  # Decode 4 bytes that represent the tag of the entry
+  def tag(self):
+    x = [struct.unpack('B', self.read(1))[0] for z in range(4)]
+    return (x[0] << 24) | (x[1] << 16) | (x[2] << 8) | x[3]
+
   # Decode 1 byte that represents the kind of the entry
   def kind(self):
     x = self.read(1)
@@ -53,6 +58,7 @@ class JsonReader:
       tp = self.entry_type()
       if cglb.__TTY__:
         print "\n", tp
+      self.tag()  # Tag is not useful
       sz = self.size()
       data = self.read(sz)
       rev = False

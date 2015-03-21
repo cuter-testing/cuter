@@ -14,6 +14,11 @@
 -type eval()     :: {named, module(), atom()}
                   | {lambda, function()}
                   | {letrec_func, {atom(), atom(), cerl:c_fun(), function()}}.
+%% Tags
+-record(tags, {
+  this             :: cuter_cerl:tag(),
+  next = undefined :: cuter_cerl:tag()
+}).
 %% Used to represent list of values for Core Erlang interpretation
 -record(valuelist, {
   values :: [any()],
@@ -851,12 +856,19 @@ find_clause(Clauses, M, Mode, Cv, Sv, Cenv, Senv, Servers, Fd) ->
 find_clause([], _M, _Mode, _Cv, _Sv, _Cenv, _Senv, _Servers, _Fd, _Cnt) ->
   false;
 find_clause([Cl|Cls], M, Mode, Cv, Sv, Cenv, Senv, Servers, Fd, Cnt) ->
-  Match = match_clause(Cl, M, Mode, Cv, Sv, Cenv, Senv, Servers, Fd, Cnt),
+  Tag = cuter_cerl:get_tag(Cl),
+  NextTag =
+    case cuter_cerl:get_next_tag(Cl) of
+      none -> cuter_cerl:empty_tag();
+      T -> T
+    end,
+  Tags = #tags{this = Tag, next = NextTag},
+  Match = match_clause(Cl, M, Mode, Cv, Sv, Cenv, Senv, Servers, Tags, Fd, Cnt),
   case Match of
     false ->
       find_clause(Cls, M, Mode, Cv, Sv, Cenv, Senv, Servers, Fd, Cnt+1);
     {true, {_Body, _NCenv, _NSenv, Cnt} = Matched} ->
-      visit_tag(Servers#svs.code, cuter_cerl:get_tag(Cl)),
+      visit_tag(Servers#svs.code, Tags#tags.this),
       Matched
   end.
 
@@ -866,7 +878,7 @@ find_clause([Cl|Cls], M, Mode, Cv, Sv, Cenv, Senv, Servers, Fd, Cnt) ->
 %% Match a pair of concrete & symbolic values against
 %% a specific clause (i.e. with patterns and guard)
 %% --------------------------------------------------------
-match_clause({c_clause, _Anno, Pats, Guard, Body}, M, Mode, Cv, Sv, Cenv, Senv, Servers, Fd, Cnt) ->
+match_clause({c_clause, _Anno, Pats, Guard, Body}, M, Mode, Cv, Sv, Cenv, Senv, Servers, Tags, Fd, Cnt) ->
   case is_patlist_compatible(Pats, Cv) of
     false -> false;
     true ->
@@ -882,7 +894,7 @@ match_clause({c_clause, _Anno, Pats, Guard, Body}, M, Mode, Cv, Sv, Cenv, Senv, 
       %% BitInfo is needed for parameterized bit-syntax patterns
       BitInfo = {M, Cenv, Senv},
       Ss_e = cuter_symbolic:ensure_list(Ss, length(Cs), Fd),
-      Match = pattern_match_all(Pats, BitInfo, Mode, Cs, Ss_e, Servers, Fd),
+      Match = pattern_match_all(Pats, BitInfo, Mode, Cs, Ss_e, Servers, Tags, Fd),
       case Match of
         false -> false;
         {true, {CMs, SMs}} ->
@@ -892,11 +904,11 @@ match_clause({c_clause, _Anno, Pats, Guard, Body}, M, Mode, Cv, Sv, Cenv, Senv, 
           try eval_expr(Guard, M, Ce, Se, Servers, Fd) of
             {true, SGv} ->
               %% CONSTRAINT: SGv is a True guard
-              cuter_log:log_guard(Fd, true, SGv),
+              cuter_log:log_guard(Fd, true, SGv, Tags#tags.next),
               {true, {Body, Ce, Se, Cnt}};
             {false, SGv} ->
-              cuter_log:log_guard(Fd, false, SGv),
               %% CONSTRAINT: SGv is a False guard
+              cuter_log:log_guard(Fd, false, SGv, Tags#tags.this),
               false
           catch
             error:_E -> false
@@ -911,17 +923,17 @@ match_clause({c_clause, _Anno, Pats, Guard, Body}, M, Mode, Cv, Sv, Cenv, Senv, 
 %% patterns (short-circuited match)
 %% --------------------------------------------------------
 
-pattern_match_all(Pats, BitInfo, Mode, Cs, Ss, Servers, Fd) ->
-  pattern_match_all(Pats, BitInfo, Mode, Cs, Ss, [], [], Servers, Fd).
+pattern_match_all(Pats, BitInfo, Mode, Cs, Ss, Servers, Tags, Fd) ->
+  pattern_match_all(Pats, BitInfo, Mode, Cs, Ss, [], [], Servers, Tags, Fd).
 
-pattern_match_all([], _BitInfo, _Mode, [], [], CMaps, SMaps, _Servers, _Fd) ->
+pattern_match_all([], _BitInfo, _Mode, [], [], CMaps, SMaps, _Servers, _Tags, _Fd) ->
   {true, {CMaps, SMaps}};
-pattern_match_all([P|Ps], BitInfo, Mode, [Cv|Cvs], [Sv|Svs], CMaps, SMaps, Servers, Fd) ->
-  Match = pattern_match(P, BitInfo, Mode, Cv, Sv, CMaps, SMaps, Servers, Fd),
+pattern_match_all([P|Ps], BitInfo, Mode, [Cv|Cvs], [Sv|Svs], CMaps, SMaps, Servers, Tags, Fd) ->
+  Match = pattern_match(P, BitInfo, Mode, Cv, Sv, CMaps, SMaps, Servers, Tags, Fd),
   case Match of
     false -> false;
     {true, {CMs, SMs}} ->
-      pattern_match_all(Ps, BitInfo, Mode, Cvs, Svs, CMs, SMs, Servers, Fd)
+      pattern_match_all(Ps, BitInfo, Mode, Cvs, Svs, CMs, SMs, Servers, Tags, Fd)
   end.
 
 %% --------------------------------------------------------
@@ -932,67 +944,67 @@ pattern_match_all([P|Ps], BitInfo, Mode, [Cv|Cvs], [Sv|Svs], CMaps, SMaps, Serve
 %% --------------------------------------------------------
 
 %% AtomicLiteral pattern
-pattern_match({c_literal, _Anno, LitVal}, _Bitinfo, _Mode, Cv, Sv, CMaps, SMaps, _Servers, Fd) ->
+pattern_match({c_literal, _Anno, LitVal}, _Bitinfo, _Mode, Cv, Sv, CMaps, SMaps, _Servers, Tags, Fd) ->
   case LitVal =:= Cv of
     true ->
       %% CONSTRAINT: Sv =:= Litval
-      cuter_log:log_equal(Fd, true, LitVal, Sv),
+      cuter_log:log_equal(Fd, true, LitVal, Sv, Tags#tags.next),
       {true, {CMaps, SMaps}};
     false ->
       %% CONSTRAINT: Sv =/= Litval
-      cuter_log:log_equal(Fd, false, LitVal, Sv),
+      cuter_log:log_equal(Fd, false, LitVal, Sv, Tags#tags.this),
       false
   end;
 
 %% VariableName pattern
-pattern_match({c_var, _Anno, Name}, _BitInfo, _Mode, Cv, Sv, CMaps, SMaps, _Servers, _Fd) ->
+pattern_match({c_var, _Anno, Name}, _BitInfo, _Mode, Cv, Sv, CMaps, SMaps, _Servers, _Tags, _Fd) ->
   CMs = [{Name, Cv}|CMaps],
   SMs = [{Name, Sv}|SMaps],
   {true, {CMs, SMs}};
 
 %% Tuple pattern
-pattern_match({c_tuple, _Anno, Es}, BitInfo, Mode, Cv, Sv, CMaps, SMaps, Servers, Fd) when is_tuple(Cv) ->
+pattern_match({c_tuple, _Anno, Es}, BitInfo, Mode, Cv, Sv, CMaps, SMaps, Servers, Tags, Fd) when is_tuple(Cv) ->
   Ne = length(Es),
   case tuple_size(Cv) of
     Ne ->
       Cv_l = tuple_to_list(Cv),
       %% CONSTRAINT: Sv is a tuple of Ne elements
-      cuter_log:log_tuple(Fd, sz, Sv, Ne),
+      cuter_log:log_tuple(Fd, sz, Sv, Ne, Tags#tags.next),
       Sv_l = cuter_symbolic:tpl_to_list(Sv, Ne, Fd),
-      pattern_match_all(Es, BitInfo, Mode, Cv_l, Sv_l, CMaps, SMaps, Servers, Fd);
+      pattern_match_all(Es, BitInfo, Mode, Cv_l, Sv_l, CMaps, SMaps, Servers, Tags, Fd);
     _ ->
       %% CONSTRAINT: Sv is a tuple of not Ne elements
-      cuter_log:log_tuple(Fd, not_sz, Sv, Ne),
+      cuter_log:log_tuple(Fd, not_sz, Sv, Ne, Tags#tags.this),
       false
   end;
-pattern_match({c_tuple, _Anno, Es}, _BitInfo, _Mode, _Cv, Sv, _CMaps, _SMaps, _Servers, Fd) ->
+pattern_match({c_tuple, _Anno, Es}, _BitInfo, _Mode, _Cv, Sv, _CMaps, _SMaps, _Servers, Tags, Fd) ->
   Ne = length(Es),
   %% CONSTRAINT: Sv is not a tuple
-  cuter_log:log_tuple(Fd, not_tpl, Sv, Ne),
+  cuter_log:log_tuple(Fd, not_tpl, Sv, Ne, Tags#tags.this),
   false;
 
 %% List constructor pattern
-pattern_match({c_cons, _Anno, _Hd, _Tl}, _BitInfo, _Mode, [], Sv, _CMaps, _SMaps, _Servers, Fd) ->
+pattern_match({c_cons, _Anno, _Hd, _Tl}, _BitInfo, _Mode, [], Sv, _CMaps, _SMaps, _Servers, Tags, Fd) ->
   %% CONSTRAINT: Sv is an empty list
-  cuter_log:log_list(Fd, empty, Sv),
+  cuter_log:log_list(Fd, empty, Sv, Tags#tags.this),
   false;
-pattern_match({c_cons, _Anno, Hd, Tl}, BitInfo, Mode, [Cv|Cvs], Sv, CMaps, SMaps, Servers, Fd) ->
+pattern_match({c_cons, _Anno, Hd, Tl}, BitInfo, Mode, [Cv|Cvs], Sv, CMaps, SMaps, Servers, Tags, Fd) ->
   %% CONSTRAINT: S is a non empty list
-  cuter_log:log_list(Fd, nonempty, Sv),
+  cuter_log:log_list(Fd, nonempty, Sv, Tags#tags.next),
   Sv_h = cuter_symbolic:head(Sv, Fd),
   Sv_t = cuter_symbolic:tail(Sv, Fd),
-  case pattern_match(Hd, BitInfo, Mode, Cv, Sv_h, CMaps, SMaps, Servers, Fd) of
+  case pattern_match(Hd, BitInfo, Mode, Cv, Sv_h, CMaps, SMaps, Servers, Tags, Fd) of
     false -> false;
-    {true, {CMs, SMs}} -> pattern_match(Tl, BitInfo, Mode, Cvs, Sv_t, CMs, SMs, Servers, Fd)
+    {true, {CMs, SMs}} -> pattern_match(Tl, BitInfo, Mode, Cvs, Sv_t, CMs, SMs, Servers, Tags, Fd)
   end;
-pattern_match({c_cons, _Anno, _Hd, _Tl}, _BitInfo, _Mode, _Cv, Sv, _CMaps, _SMaps, _Servers, Fd) ->
+pattern_match({c_cons, _Anno, _Hd, _Tl}, _BitInfo, _Mode, _Cv, Sv, _CMaps, _SMaps, _Servers, Tags, Fd) ->
   %% CONSTRAINT: Sv is not a list
-  cuter_log:log_list(Fd, not_lst, Sv),
+  cuter_log:log_list(Fd, not_lst, Sv, Tags#tags.this),
   false;
 
 %% Alias pattern
-pattern_match({c_alias, _Anno, Var, Pat}, BitInfo, Mode, Cv, Sv, CMaps, SMaps, Servers, Fd) ->
-  Match = pattern_match(Pat, BitInfo, Mode, Cv, Sv, CMaps, SMaps, Servers, Fd),
+pattern_match({c_alias, _Anno, Var, Pat}, BitInfo, Mode, Cv, Sv, CMaps, SMaps, Servers, Tags, Fd) ->
+  Match = pattern_match(Pat, BitInfo, Mode, Cv, Sv, CMaps, SMaps, Servers, Tags, Fd),
   case Match of
     false -> false;
     {true, {CMs, SMs}} ->
@@ -1003,24 +1015,24 @@ pattern_match({c_alias, _Anno, Var, Pat}, BitInfo, Mode, Cv, Sv, CMaps, SMaps, S
   end;
 
 %% Binary pattern
-pattern_match({c_binary, _Anno, Segments}, BitInfo, Mode, Cv, Sv, CMaps, SMaps, Servers, Fd) ->
-  bit_pattern_match(Segments, BitInfo, Mode, Cv, Sv, CMaps, SMaps, Servers, Fd).
+pattern_match({c_binary, _Anno, Segments}, BitInfo, Mode, Cv, Sv, CMaps, SMaps, Servers, Tags, Fd) ->
+  bit_pattern_match(Segments, BitInfo, Mode, Cv, Sv, CMaps, SMaps, Servers, Tags, Fd).
 
 %% --------------------------------------------------------
 %% bit_pattern_match
 %% 
 %% --------------------------------------------------------
 
-bit_pattern_match([], _BitInfo, _Mode, <<>>, Sv, CMaps, SMaps, _Servers, Fd) ->
+bit_pattern_match([], _BitInfo, _Mode, <<>>, Sv, CMaps, SMaps, _Servers, Tags, Fd) ->
   %% CONSTRAINT: Sv =:= <<>>
-  cuter_log:log_equal(Fd, true, <<>>, Sv),
+  cuter_log:log_equal(Fd, true, <<>>, Sv, Tags#tags.next),
   {true, {CMaps, SMaps}};
-bit_pattern_match([], _BitInfo, _Mode, _Cv, Sv, _CMaps, _SMaps, _Servers, Fd) ->
+bit_pattern_match([], _BitInfo, _Mode, _Cv, Sv, _CMaps, _SMaps, _Servers, Tags, Fd) ->
   %% CONSTRAINT: Sv =/= <<>>
-  cuter_log:log_equal(Fd, false, <<>>, Sv),
+  cuter_log:log_equal(Fd, false, <<>>, Sv, Tags#tags.this),
   false;
 
-bit_pattern_match([{c_bitstr, _, {c_literal, _, LVal}, Sz, Unit, Tp, Fgs}|Bs], {M, Cenv, Senv} = Bnfo, Mode, Cv, Sv, CMaps, SMaps, Svs, Fd) -> 
+bit_pattern_match([{c_bitstr, _, {c_literal, _, LVal}, Sz, Unit, Tp, Fgs}|Bs], {M, Cenv, Senv} = Bnfo, Mode, Cv, Sv, CMaps, SMaps, Svs, _Tags, Fd) ->
   {Size_c, Size_s} = eval_expr(Sz, M, Cenv, Senv, Svs, Fd),
   {Unit_c, Unit_s} = eval_expr(Unit, M, Cenv, Senv, Svs, Fd),
   {Type_c, Type_s} = eval_expr(Tp, M, Cenv, Senv, Svs, Fd),
@@ -1031,7 +1043,7 @@ bit_pattern_match([{c_bitstr, _, {c_literal, _, LVal}, Sz, Unit, Tp, Fgs}|Bs], {
       {_Sx, Rest_s} = cuter_symbolic:match_bitstring_const(LVal, Enc_s, Sv, Rest_c, Fd),
       %% CONSTRAINT: Match
       %% FIXME Log the 'match' contraint between {Sx, Rest_s} and Sv
-      bit_pattern_match(Bs, Bnfo, Mode,  Rest_c, Rest_s, CMaps, SMaps, Svs, Fd)
+      bit_pattern_match(Bs, Bnfo, Mode,  Rest_c, Rest_s, CMaps, SMaps, Svs, _Tags, Fd)
   catch
     error:_e ->
       %% CONSTRAINT: Not Match
@@ -1039,7 +1051,7 @@ bit_pattern_match([{c_bitstr, _, {c_literal, _, LVal}, Sz, Unit, Tp, Fgs}|Bs], {
       false
   end;
 
-bit_pattern_match([{c_bitstr, _, {c_var, _, VarName}, Sz, Unit, Tp, Fgs}|Bs], {M, Cenv, Senv}, Mode, Cv, Sv, CMaps, SMaps, Svs, Fd) ->
+bit_pattern_match([{c_bitstr, _, {c_var, _, VarName}, Sz, Unit, Tp, Fgs}|Bs], {M, Cenv, Senv}, Mode, Cv, Sv, CMaps, SMaps, Svs, _Tags, Fd) ->
   {Size_c, Size_s} = eval_expr(Sz, M, Cenv, Senv, Svs, Fd),
   {Unit_c, Unit_s} = eval_expr(Unit, M, Cenv, Senv, Svs, Fd),
   {Type_c, Type_s} = eval_expr(Tp, M, Cenv, Senv, Svs, Fd),
@@ -1062,7 +1074,7 @@ bit_pattern_match([{c_bitstr, _, {c_var, _, VarName}, Sz, Unit, Tp, Fgs}|Bs], {M
       
       NCenv = cuter_env:add_binding(VarName, X_c, Cenv),
       NSenv = cuter_env:add_binding(VarName, X_s, Senv),
-      bit_pattern_match(Bs, {M, NCenv, NSenv}, Mode, Rest_c, Rest_s, CMs, SMs, Svs, Fd)
+      bit_pattern_match(Bs, {M, NCenv, NSenv}, Mode, Rest_c, Rest_s, CMs, SMs, Svs, _Tags, Fd)
   catch
     error:_E ->
       %% CONSTRAINT: Not Match

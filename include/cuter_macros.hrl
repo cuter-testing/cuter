@@ -114,6 +114,9 @@
 %% OpCodes of constraints & built-in operations
 %%====================================================================
 
+%% Empty tag ID
+-define(EMPTY_TAG_ID, 0).
+
 %% MFA's Parameters & Spec definitions.
 -define(OP_PARAMS, 1).
 -define(OP_SPEC, 2).

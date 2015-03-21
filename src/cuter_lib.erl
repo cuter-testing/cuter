@@ -85,7 +85,7 @@ clear_and_delete_dir(D, EF) ->
   cuter_pp:delete_file(D, true),
   case filelib:is_regular(D) of
     true ->
-      delete_file(D),
+      _ = delete_file(D),
       ok;
     false ->
       case file:del_dir(D) of

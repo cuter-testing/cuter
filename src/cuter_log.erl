@@ -7,9 +7,9 @@
 -export([
     close_file/1
   , count_reversible/1
-  , log_equal/4
-  , log_guard/3
-  , log_list/3
+  , log_equal/5
+  , log_guard/4
+  , log_list/4
   , log_mfa/4
   , log_message_consumed/3
   , log_message_received/3
@@ -18,12 +18,12 @@
   , log_spawned/3
   , log_spec/2
   , log_symb_params/2
-  , log_tuple/4
+  , log_tuple/5
   , log_unfold_symbolic/4
   , next_entry/2
   , open_file/2
   , path_vertex/1
-  , write_data/4
+  , write_data/5
 ]).
 
 -export_type([opcode/0]).
@@ -49,7 +49,7 @@ close_file(F) -> ok = file:close(F).
 log_mfa(Fd, MFA, SAs, X) ->
   %% SAs has at least one symbolic argument 
   %% as ensured by cuter_sumbolic:evaluate_mfa/4
-  log(Fd, mfa2op(MFA), [X | SAs]).
+  log(Fd, mfa2op(MFA), ?EMPTY_TAG_ID, [X | SAs]).
 
 %% ------------------------------------------------------------------
 %% Log Entry Point MFA's parameters & spec
@@ -57,10 +57,10 @@ log_mfa(Fd, MFA, SAs, X) ->
 
 -spec log_symb_params(file:io_device(), [cuter_symbolic:symbolic()]) -> ok.
 log_symb_params(_Fd, []) -> ok;
-log_symb_params(Fd, Ps)  -> log(Fd, ?OP_PARAMS, Ps).
+log_symb_params(Fd, Ps)  -> log(Fd, ?OP_PARAMS, ?EMPTY_TAG_ID, Ps).
 
 -spec log_spec(file:io_device(), cuter_types:erl_spec()) -> ok.
-log_spec(Fd, Spec)  -> log(Fd, ?OP_SPEC, [Spec]).
+log_spec(Fd, Spec)  -> log(Fd, ?OP_SPEC, ?EMPTY_TAG_ID, [Spec]).
 
 %% ------------------------------------------------------------------
 %% Log process spawns
@@ -68,11 +68,11 @@ log_spec(Fd, Spec)  -> log(Fd, ?OP_SPEC, [Spec]).
 
 -spec log_spawn(file:io_device(), pid(), reference()) -> ok.
 log_spawn(Fd, Child, Ref) ->
-  log(Fd, ?OP_SPAWN, [node(Child), Child, Ref]).
+  log(Fd, ?OP_SPAWN, ?EMPTY_TAG_ID, [node(Child), Child, Ref]).
 
 -spec log_spawned(file:io_device(), pid(), reference()) -> ok.
 log_spawned(Fd, Parent, Ref) ->
-  log(Fd, ?OP_SPAWNED, [node(Parent), Parent, Ref]).
+  log(Fd, ?OP_SPAWNED, ?EMPTY_TAG_ID, [node(Parent), Parent, Ref]).
 
 %% ------------------------------------------------------------------
 %% Log message passing
@@ -80,15 +80,15 @@ log_spawned(Fd, Parent, Ref) ->
 
 -spec log_message_sent(file:io_device(), pid(), reference()) -> ok.
 log_message_sent(Fd, Dest, Ref) ->
-  log(Fd, ?OP_MSG_SEND, [node(Dest), Dest, Ref]).
+  log(Fd, ?OP_MSG_SEND, ?EMPTY_TAG_ID, [node(Dest), Dest, Ref]).
 
 -spec log_message_received(file:io_device(), pid(), reference()) -> ok.
 log_message_received(Fd, From, Ref) ->
-  log(Fd, ?OP_MSG_RECEIVE, [node(From), From, Ref]).
+  log(Fd, ?OP_MSG_RECEIVE, ?EMPTY_TAG_ID, [node(From), From, Ref]).
 
 -spec log_message_consumed(file:io_device(), pid(), reference()) -> ok.
 log_message_consumed(Fd, From, Ref) ->
-  log(Fd, ?OP_MSG_CONSUME, [node(From), From, Ref]).
+  log(Fd, ?OP_MSG_CONSUME, ?EMPTY_TAG_ID, [node(From), From, Ref]).
 
 %% ------------------------------------------------------------------
 %% Log the unfolding of a symbolic variable that represents 
@@ -97,80 +97,80 @@ log_message_consumed(Fd, From, Ref) ->
 
 -spec log_unfold_symbolic(file:io_device(), (break_tuple | break_list), cuter_symbolic:symbolic(), [cuter_symbolic:symbolic()]) -> ok.
 log_unfold_symbolic(Fd, break_tuple, Sv, Vs) ->
-  log(Fd, ?OP_UNFOLD_TUPLE, [Sv | Vs]);
+  log(Fd, ?OP_UNFOLD_TUPLE, ?EMPTY_TAG_ID, [Sv | Vs]);
 log_unfold_symbolic(Fd, break_list, Sv, Vs) ->
-  log(Fd, ?OP_UNFOLD_LIST, [Sv | Vs]).
+  log(Fd, ?OP_UNFOLD_LIST, ?EMPTY_TAG_ID, [Sv | Vs]).
 
 %% ------------------------------------------------------------------
 %% Log Constraints
 %% ------------------------------------------------------------------
 
--spec log_guard(file:io_device(), boolean(), any()) -> ok.
+-spec log_guard(file:io_device(), boolean(), any(), cuter_cerl:tag()) -> ok.
 %% True guard
-log_guard(Fd, true, Sv) ->
+log_guard(Fd, true, Sv, Tag) ->
   case cuter_symbolic:is_symbolic(Sv) of
     false -> ok;
-    true  -> log(Fd, ?OP_GUARD_TRUE, [Sv])
+    true  -> log(Fd, ?OP_GUARD_TRUE, cuter_cerl:id_of_tag(Tag), [Sv])
   end;
 %% False guard
-log_guard(Fd, false, Sv) ->
+log_guard(Fd, false, Sv, Tag) ->
   case cuter_symbolic:is_symbolic(Sv) of
     false -> ok;
-    true  -> log(Fd, ?OP_GUARD_FALSE, [Sv])
+    true  -> log(Fd, ?OP_GUARD_FALSE, cuter_cerl:id_of_tag(Tag), [Sv])
   end.
 
--spec log_equal(file:io_device(), boolean(), any(), any()) -> ok.
+-spec log_equal(file:io_device(), boolean(), any(), any(), cuter_cerl:tag()) -> ok.
 %% Match equal
-log_equal(Fd, true, Sv1, Sv2) ->
+log_equal(Fd, true, Sv1, Sv2, Tag) ->
   case cuter_symbolic:is_symbolic(Sv1) orelse cuter_symbolic:is_symbolic(Sv2) of
     false -> ok;
-    true  -> log(Fd, ?OP_MATCH_EQUAL_TRUE, [Sv1, Sv2])
+    true  -> log(Fd, ?OP_MATCH_EQUAL_TRUE, cuter_cerl:id_of_tag(Tag), [Sv1, Sv2])
   end;
 %% Match not equal
-log_equal(Fd, false, Sv1, Sv2) ->
+log_equal(Fd, false, Sv1, Sv2, Tag) ->
   case cuter_symbolic:is_symbolic(Sv1) orelse cuter_symbolic:is_symbolic(Sv2) of
     false -> ok;
-    true  -> log(Fd, ?OP_MATCH_EQUAL_FALSE, [Sv1, Sv2])
+    true  -> log(Fd, ?OP_MATCH_EQUAL_FALSE, cuter_cerl:id_of_tag(Tag), [Sv1, Sv2])
   end.
 
--spec log_tuple(file:io_device(), (sz | not_sz | not_tpl), any(), integer()) -> ok.
+-spec log_tuple(file:io_device(), (sz | not_sz | not_tpl), any(), integer(), cuter_cerl:tag()) -> ok.
 %% Tuple of size N
-log_tuple(Fd, sz, Sv, N) when is_integer(N) ->
+log_tuple(Fd, sz, Sv, N, Tag) when is_integer(N) ->
   case cuter_symbolic:is_symbolic(Sv) of
     false -> ok;
-    true  -> log(Fd, ?OP_TUPLE_SZ, [Sv, N])
+    true  -> log(Fd, ?OP_TUPLE_SZ, cuter_cerl:id_of_tag(Tag), [Sv, N])
   end;
 %% Tuple of not size N
-log_tuple(Fd, not_sz, Sv, N) when is_integer(N) ->
+log_tuple(Fd, not_sz, Sv, N, Tag) when is_integer(N) ->
   case cuter_symbolic:is_symbolic(Sv) of
     false -> ok;
-    true  -> log(Fd, ?OP_TUPLE_NOT_SZ, [Sv, N])
+    true  -> log(Fd, ?OP_TUPLE_NOT_SZ, cuter_cerl:id_of_tag(Tag), [Sv, N])
   end;
 %% Not a tuple
-log_tuple(Fd, not_tpl, Sv, N) when is_integer(N) ->
+log_tuple(Fd, not_tpl, Sv, N, Tag) when is_integer(N) ->
   case cuter_symbolic:is_symbolic(Sv) of
     false -> ok;
-    true  -> log(Fd, ?OP_TUPLE_NOT_TPL, [Sv, N])
+    true  -> log(Fd, ?OP_TUPLE_NOT_TPL, cuter_cerl:id_of_tag(Tag), [Sv, N])
   end.
 
--spec log_list(file:io_device(), (nonempty | empty | not_lst), any()) -> ok.
+-spec log_list(file:io_device(), (nonempty | empty | not_lst), any(), cuter_cerl:tag()) -> ok.
 %% Non-empty list
-log_list(Fd, nonempty, Sv) ->
+log_list(Fd, nonempty, Sv, Tag) ->
   case cuter_symbolic:is_symbolic(Sv) of
     false -> ok;
-    true  -> log(Fd, ?OP_LIST_NON_EMPTY, [Sv])
+    true  -> log(Fd, ?OP_LIST_NON_EMPTY, cuter_cerl:id_of_tag(Tag), [Sv])
   end;
 %% Empty list
-log_list(Fd, empty, Sv) ->
+log_list(Fd, empty, Sv, Tag) ->
   case cuter_symbolic:is_symbolic(Sv) of
     false -> ok;
-    true  -> log(Fd, ?OP_LIST_EMPTY, [Sv])
+    true  -> log(Fd, ?OP_LIST_EMPTY, cuter_cerl:id_of_tag(Tag), [Sv])
   end;
 %% Not a list
-log_list(Fd, not_lst, Sv) ->
+log_list(Fd, not_lst, Sv, Tag) ->
   case cuter_symbolic:is_symbolic(Sv) of
     false -> ok;
-    true  -> log(Fd, ?OP_LIST_NOT_LST, [Sv])
+    true  -> log(Fd, ?OP_LIST_NOT_LST, cuter_cerl:id_of_tag(Tag), [Sv])
   end.
 
 %% ------------------------------------------------------------------
@@ -178,9 +178,9 @@ log_list(Fd, not_lst, Sv) ->
 %% ------------------------------------------------------------------
 
 %% Log data to a file
--spec log(file:io_device(), opcode(), [any()]) -> ok.
+-spec log(file:io_device(), opcode(), cuter_cerl:tagID(), [any()]) -> ok.
 -ifdef(LOGGING_FLAG).
-log(Fd, OpCode, Data) ->
+log(Fd, OpCode, TagID, Data) ->
   case get(?DEPTH_PREFIX) of
     undefined -> throw(depth_undefined_in_pdict);
     0 -> ok;
@@ -188,7 +188,7 @@ log(Fd, OpCode, Data) ->
       Type = entry_type(OpCode),
       try cuter_json:command_to_json(OpCode, Data) of
         Jdata ->
-          write_data(Fd, Type, OpCode, Jdata),
+          write_data(Fd, Type, OpCode, TagID, Jdata),
           update_constraint_counter(Type, N)
       catch
         throw:{unsupported_term, _} -> ok
@@ -229,10 +229,10 @@ update_constraint_counter(_Type, _ok) -> ok.
 %% Read / Write Data
 %% ------------------------------------------------------------------
 
--spec write_data(file:io_device(), entry_type(), opcode(), binary()) -> ok.
-write_data(Fd, Tp, Op, Data) when is_integer(Tp), is_integer(Op), is_binary(Data) ->
+-spec write_data(file:io_device(), entry_type(), opcode(), cuter_cerl:tagID(), binary()) -> ok.
+write_data(Fd, Tp, Op, Tag, Data) when is_integer(Tp), is_integer(Op), is_integer(Tag), is_binary(Data) ->
   Sz = erlang:byte_size(Data),
-  ok = file:write(Fd, [Tp, Op, i32_to_list(Sz), Data]).
+  ok = file:write(Fd, [Tp, Op, i32_to_list(Tag), i32_to_list(Sz), Data]).
 
 %% Encode a 32-bit integer to its corresponding sequence of four bytes
 -spec i32_to_list(non_neg_integer()) -> [byte(), ...].
@@ -258,9 +258,9 @@ path_vertex(File) ->
 generate_vertex(Fd, Acc) ->
   case next_entry(Fd, false) of
     eof -> lists:reverse(Acc);
-    {?CONSTRAINT_TRUE, _Tp}  -> generate_vertex(Fd, [?CONSTRAINT_TRUE_REPR|Acc]);
-    {?CONSTRAINT_FALSE, _Tp} -> generate_vertex(Fd, [?CONSTRAINT_FALSE_REPR|Acc]);
-    {?NOT_CONSTRAINT, _Tp}   -> generate_vertex(Fd, Acc)
+    {?CONSTRAINT_TRUE, _Op, _TagID}  -> generate_vertex(Fd, [?CONSTRAINT_TRUE_REPR|Acc]);
+    {?CONSTRAINT_FALSE, _Op, _TagID} -> generate_vertex(Fd, [?CONSTRAINT_FALSE_REPR|Acc]);
+    {?NOT_CONSTRAINT, _Op, _TagID}   -> generate_vertex(Fd, Acc)
   end.
 
 %% Count the reversible commands in a trace file
@@ -273,9 +273,9 @@ count_reversible(File) ->
 count_reversible(Fd, Acc) ->
   case next_entry(Fd, false) of
     eof -> Acc;
-    {?CONSTRAINT_TRUE, _Tp}  -> count_reversible(Fd, Acc + 1);
-    {?CONSTRAINT_FALSE, _Tp} -> count_reversible(Fd, Acc + 1);
-    {?NOT_CONSTRAINT, Op} ->
+    {?CONSTRAINT_TRUE, _Op, _TagID}  -> count_reversible(Fd, Acc + 1);
+    {?CONSTRAINT_FALSE, _Op, _TagID} -> count_reversible(Fd, Acc + 1);
+    {?NOT_CONSTRAINT, Op, _TagID} ->
       case is_reversible_operation(Op) of
         true  -> count_reversible(Fd, Acc + 1);
         false -> count_reversible(Fd, Acc)
@@ -287,27 +287,28 @@ count_reversible(Fd, Acc) ->
 is_reversible_operation(OpCode) ->
   gb_sets:is_member(OpCode, ?REVERSIBLE_OPERATIONS).
 
--spec next_entry(file:io_device(), true) -> {entry_type(), opcode(), binary()} | eof
-              ; (file:io_device(), false) -> {entry_type(), opcode()} | eof.
+-spec next_entry(file:io_device(), true) -> {entry_type(), opcode(), cuter_cerl:tagID(), binary()} | eof
+              ; (file:io_device(), false) -> {entry_type(), opcode(), cuter_cerl:tagID()} | eof.
 next_entry(Fd, WithData) ->
   case safe_read(Fd, 1, true) of
     eof ->
       close_file(Fd),
       eof;
-    <<N>> ->
-      <<Tp>> = safe_read(Fd, 1, false),
+    <<Tp>> ->
+      <<OpCode>> = safe_read(Fd, 1, false),
+      TagID = bin_to_i32(safe_read(Fd, 4, false)),
       Sz = bin_to_i32(safe_read(Fd, 4, false)),
-      next_entry_data(Fd, WithData, N, Tp, Sz)
+      next_entry_data(Fd, WithData, Tp, OpCode, TagID, Sz)
   end.
 
--spec next_entry_data(file:io_device(), true, entry_type(), opcode(), integer()) -> {entry_type(), opcode(), binary()}
-                   ; (file:io_device(), false, entry_type(), opcode(), integer()) -> {entry_type(), opcode()}.
-next_entry_data(Fd, true, Type, OpCode, Sz) ->
+-spec next_entry_data(file:io_device(), true, entry_type(), opcode(), cuter_cerl:tagID(), integer()) -> {entry_type(), opcode(), cuter_cerl:tagID(), binary()}
+                   ; (file:io_device(), false, entry_type(), opcode(), cuter_cerl:tagID(), integer()) -> {entry_type(), opcode(), cuter_cerl:tagID()}.
+next_entry_data(Fd, true, Type, OpCode, TagID, Sz) ->
   Data = safe_read(Fd, Sz, false),
-  {Type, OpCode, Data};
-next_entry_data(Fd, false, Type, OpCode, Sz) ->
+  {Type, OpCode, TagID, Data};
+next_entry_data(Fd, false, Type, OpCode, TagID, Sz) ->
   {ok, _} = file:position(Fd, {cur, Sz}),
-  {Type, OpCode}.
+  {Type, OpCode, TagID}.
 
 -spec safe_read(file:io_device(), integer(), boolean()) -> binary() | eof.
 safe_read(Fd, Sz, AllowEOF) ->

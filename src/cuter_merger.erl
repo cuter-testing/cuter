@@ -77,38 +77,38 @@ merge(State=#sts{currFd = Fd, logFd = LogFd, openFds = Open, seenRefs = Seen}) -
       ets:delete(Open, File),
       merge_next_file(State#sts{currFd = undefined});
     %% SPAWN
-    {?NOT_CONSTRAINT, ?OP_SPAWN, Data} ->
+    {?NOT_CONSTRAINT, ?OP_SPAWN, _Tag, Data} ->
       {?OP_SPAWN, [_ChildNode, _ChildPid, Rf]} = cuter_json:json_to_command(Data),
       Reached = {?OP_SPAWN, Rf},
       ets:insert(Seen, {Rf, ?OP_SPAWN}),
       check_for_goal(Reached, State);
     %% SPAWNED
-    {?NOT_CONSTRAINT, ?OP_SPAWNED, Data} ->
+    {?NOT_CONSTRAINT, ?OP_SPAWNED, _Tag, Data} ->
       {?OP_SPAWNED, [ParentNode, ParentPid, Rf]} = cuter_json:json_to_command(Data),
       Goal = {?OP_SPAWN, Rf},
       cuter_pp:set_goal(Goal, "SPAWNED"),
       achieve_goal(Goal, ParentNode, ParentPid, State);
     %% MSG SEND
-    {?NOT_CONSTRAINT, ?OP_MSG_SEND, Data} ->
+    {?NOT_CONSTRAINT, ?OP_MSG_SEND, _Tag, Data} ->
       {?OP_MSG_SEND, [_DestNode, _DestPid, Rf]} = cuter_json:json_to_command(Data),
       Reached = {?OP_MSG_SEND, Rf},
       ets:insert(Seen, {Rf, ?OP_MSG_SEND}),
       check_for_goal(Reached, State);
     %% MSG RECEIVE
-    {?NOT_CONSTRAINT, ?OP_MSG_RECEIVE, Data} ->
+    {?NOT_CONSTRAINT, ?OP_MSG_RECEIVE, _Tag, Data} ->
       {?OP_MSG_RECEIVE, [FromNode, FromPid, Rf]} = cuter_json:json_to_command(Data),
       Goal = {?OP_MSG_SEND, Rf},
       cuter_pp:set_goal(Goal, "MSG RCV"),
       achieve_goal(Goal, FromNode, FromPid, State);
     %% MSG CONSUME
-    {?NOT_CONSTRAINT, ?OP_MSG_CONSUME, Data} ->
+    {?NOT_CONSTRAINT, ?OP_MSG_CONSUME, _Tag, Data} ->
       {?OP_MSG_CONSUME, [_FromNode, _FromPid, Rf]} = cuter_json:json_to_command(Data),
       cuter_pp:consume_msg(Rf),
       ets:delete(Seen, Rf),
       merge(State);
     %% Any Command
-    {Kind, Type, Data} ->
-      cuter_log:write_data(LogFd, Kind, Type, Data),
+    {Kind, Type, Tag, Data} ->
+      cuter_log:write_data(LogFd, Kind, Type, Tag, Data),
       merge(State)
   end.
 
@@ -224,7 +224,7 @@ validate_file(F) ->
 validate_entries(Fd, Known) ->
   case cuter_log:next_entry(Fd, true) of
     eof -> ok;
-    {Kind, Tp, Data}=Entry ->
+    {Kind, Tp, _Tag, Data}=Entry ->
       {Tp, Args} = cuter_json:json_to_command(Data),
       case validate_entry(Kind, Tp, Args, Known) of
         error -> {error, Entry};
