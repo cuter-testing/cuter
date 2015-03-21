@@ -4,7 +4,7 @@
 
 -export([
   fresh_symbolic_var/0, abstract/1, evaluate_mfa/5, generate_new_input/2,
-  is_symbolic/1, serialize/1, deserialize/1,
+  is_symbolic/1, serialize/1, deserialize/1, is_supported_mfa/1,
   ensure_list/3, tpl_to_list/3, head/2, tail/2,
   append_segments/3, make_bitstring/4, match_bitstring_const/5, match_bitstring_var/5
 ]).

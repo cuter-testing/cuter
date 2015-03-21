@@ -701,10 +701,24 @@ eval_expr(Cerl, _M, _Cenv, _Senv, _Servers, _Fd) -> exception(error, {unknown_ce
 %% Evaluates a BIF call
 %% --------------------------------------------------------
 -spec evaluate_bif(mfa(), [any()], [any()], servers(), file:io_device()) -> result().
-evaluate_bif({M, F, _A} = MFA, CAs, SAs, Servers, Fd) ->
-  Cv = apply(M, F, CAs),
+evaluate_bif(MFA, CAs, SAs, Servers, Fd) ->
+  Cv = evaluate_bif_concrete(MFA, CAs),
   Sv = cuter_symbolic:evaluate_mfa(MFA, SAs, Cv, Servers#svs.code, Fd),
   {Cv, Sv}.
+
+%% Concrete evaluation of a BIF.
+evaluate_bif_concrete({M, F, _A}=MFA, As) ->
+  case cuter_symbolic:is_supported_mfa(MFA) of
+    false -> apply(M, F, As);
+    true ->
+      try
+        apply(M, F, As)
+      catch
+        error:E ->
+          io:format("ERROR ~p~n", [E]),
+          erlang:error({E, MFA, As})
+      end
+  end.
 
 %% --------------------------------------------------------
 %% Try to retrieve the code of an MFA
