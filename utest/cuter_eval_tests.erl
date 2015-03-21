@@ -52,7 +52,7 @@ eval_cerl_test_() ->
     {"Pattern Mathing", {lambdaEval, [{{{$\\,x,{$\\,y,{$+,x,y}}},5},4}], 9}},
     {"Bit Pattern Matching", {doBitMatch, [], {42, <<"ok">>}}},
     {"Naming Processes", {doRegister, [], true}},
-    {"Start a Slave Node", {doDistributed, [lists:seq(1,100)], 100}},
+%    {"Start a Slave Node", {doDistributed, [lists:seq(1,100)], 100}},
     {"Selective Receive", {selective_receive, [100], ok}}
   ],
   Setup = fun(I) -> fun() -> setup(I) end end,
