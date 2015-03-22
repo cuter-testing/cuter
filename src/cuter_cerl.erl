@@ -13,6 +13,7 @@
 -export_type([compile_error/0, cerl_spec/0, cerl_func/0, cerl_type/0, cerl_bounded_func/0,
               tagID/0, tag/0, tag_generator/0]).
 
+-type c_apply() :: #c_apply{}.  %% Unexported type of cerl.erl
 -type info()          :: anno | attributes | exports | name.
 -type compile_error() :: {error, {loaded_ret_atoms(), module()}} 
                        | {runtime_error, {compile, {atom(), term()}}}.
@@ -174,14 +175,14 @@ store_fun(Exps, M, {Fun, Def}, Db, TagGen) ->
 annotate({c_alias, Anno, Var, Pat}, TagGen) ->
   {c_alias, Anno, annotate(Var, TagGen), annotate(Pat, TagGen)};
 annotate({c_apply, Anno, Op, Args}, TagGen) ->
-  {c_apply, Anno, annotate(Op, TagGen), [annotate(A, TagGen) || A <- Args]};
+  {c_apply, [TagGen()|Anno], annotate(Op, TagGen), [annotate(A, TagGen) || A <- Args]};
 annotate({c_binary, Anno, Segs}, TagGen) ->
   {c_binary, Anno, [annotate(S, TagGen) || S <- Segs]};
 annotate({c_bitstr, Anno, Val, Sz, Unit, Type, Flags}, TagGen) ->
   {c_bitstr, Anno, annotate(Val, TagGen), annotate(Sz, TagGen),
     annotate(Unit, TagGen), annotate(Type, TagGen), annotate(Flags, TagGen)};
 annotate({c_call, Anno, Mod, Name, Args}, TagGen) ->
-  {c_call, Anno, annotate(Mod, TagGen), annotate(Name, TagGen), [annotate(A, TagGen) || A <- Args]};
+  {c_call, [TagGen()|Anno], annotate(Mod, TagGen), annotate(Name, TagGen), [annotate(A, TagGen) || A <- Args]};
 annotate({c_case, Anno, Arg, Clauses}, TagGen) ->
   Cs0 = [annotate(Cl, TagGen) || Cl <- Clauses],
   Cs1 = annotate_next_clause(Cs0),
@@ -230,13 +231,17 @@ annotate_next_clause([C1, C2 | Cs], Acc) ->
   annotate_next_clause([C2 | Cs], [NC1 | Acc]).
 
 %% Gets the tag of a clause.
--spec get_tag(cerl:c_clause()) -> tag() | none.
+-spec get_tag(c_apply() | cerl:c_call() | cerl:c_clause()) -> tag() | none.
+get_tag(#c_apply{anno=Anno}) ->
+  get_tag_from_anno(Anno);
+get_tag(#c_call{anno=Anno}) ->
+  get_tag_from_anno(Anno);
 get_tag(#c_clause{anno=Anno}) ->
   get_tag_from_anno(Anno).
 
--spec get_tag_from_anno(list()) -> tag() | none.
-get_tag_from_anno([]) ->
-  none;
+-spec get_tag_from_anno(list()) -> tag().
+%get_tag_from_anno([]) ->
+%  empty_tag();
 get_tag_from_anno([{?BRANCH_TAG_PREFIX, _N}=Tag | _Annos]) ->
   Tag;
 get_tag_from_anno([_|Annos]) ->
@@ -248,13 +253,13 @@ add_next_tag(#c_clause{anno=Anno}=C, Tag) ->
   C#c_clause{anno=[{next_tag, Tag}|Anno]}.
 
 %% Gets the next tag of clause.
--spec get_next_tag(cerl:c_clause()) -> tag() | none.
+-spec get_next_tag(cerl:c_clause()) -> tag().
 get_next_tag(#c_clause{anno=Anno}) ->
   get_next_tag_from_anno(Anno).
 
--spec get_next_tag_from_anno(list()) -> tag() | none.
+-spec get_next_tag_from_anno(list()) -> tag().
 get_next_tag_from_anno([]) ->
-  none;
+  empty_tag();
 get_next_tag_from_anno([{next_tag, Tag={?BRANCH_TAG_PREFIX, _N}} | _Annos]) ->
   Tag;
 get_next_tag_from_anno([_|Annos]) ->
