@@ -706,7 +706,7 @@ eval_expr(Cerl, _M, _Cenv, _Senv, _Servers, _Fd) -> exception(error, {unknown_ce
 -spec evaluate_bif(mfa(), [any()], [any()], servers(), cuter_cerl:tag(), file:io_device()) -> result().
 evaluate_bif(MFA, CAs, SAs, Servers, Tag, Fd) ->
   Cv = evaluate_bif_concrete(MFA, CAs, Servers#svs.code, Tag),
-  Sv = cuter_symbolic:evaluate_mfa(MFA, SAs, Cv, Servers#svs.code, Fd),
+  Sv = cuter_symbolic:evaluate_mfa(MFA, SAs, Cv, Servers#svs.code, Tag, Fd),
   {Cv, Sv}.
 
 %% Concrete evaluation of a BIF.
