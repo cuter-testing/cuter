@@ -14,6 +14,7 @@
 -type node_trace()  :: {atom(), string()}.
 -type int_process() :: {node(), pid()}.
 -type visited_tags() :: gb_sets:set().
+-type reversible_with_tags() :: {integer(), cuter_cerl:tag()}.
 -type path_vertex() :: [?CONSTRAINT_TRUE_REPR | ?CONSTRAINT_FALSE_REPR].  % [$T | $F]
 
 -type raw_info() :: #{mappings => [cuter_symbolic:mapping()],
@@ -25,6 +26,7 @@
 -type info() :: #{mappings => [cuter_symbolic:mapping()],
                   traceFile => file:filename_all(),
                   pathLength => integer(),
+                  reversible => reversible_with_tags(),
                   dir => file:filename_all(),
                   tags => visited_tags()}.
 
@@ -85,6 +87,7 @@ process_raw_execution_info(Info) ->
     mappings => maps:get(mappings, Info),
     traceFile => MergedTraceFile,
     pathLength => RvsCnt,
+    reversible => Rvs,
     tags => maps:get(tags, Info)}.
 
 
