@@ -6,11 +6,16 @@ import cuter_global as cglb
 import cuter_common as cc
 import cuter_io as cio
 
+with_tags = True if "tags" in sys.argv else False
+
 scnt = 0
 symbs = {}
 
-def pprint(ls):
-  print ls[0]
+def pprint(ls, tag):
+  if with_tags:
+    print "%s (%s)" % (ls[0], tag)
+  else:
+    print ls[0]
   for l in ls[1:]:
     print "  %s" % l
 
@@ -80,7 +85,7 @@ cglb.init()
 
 fname = sys.argv[1]
 n = 0
-for tp, json_data, rev in cio.JsonReader(fname, 100000000):
+for tp, tag, json_data, rev in cio.JsonReader(fname, 100000000):
   n += 1
 #  print tp
 #  print json_data
@@ -90,83 +95,83 @@ for tp, json_data, rev in cio.JsonReader(fname, 100000000):
     pprint([
       "PARAMS",
       pretty_list(json_data["a"])
-    ])
+    ], tag)
   # Symbolic parameters
   elif tp == cc.OP_SPEC:
     msg = ["SPEC"]
     for sp in json_data["a"]:
       msg.append("(%s) -> %s" % (pretty_list(sp["p"]), pretty(sp["r"])))
-    pprint(msg)
+    pprint(msg, tag)
   # True guard constraint
   elif tp == cc.OP_GUARD_TRUE:
     xs = json_data["a"]
     pprint([
       "TRUE GUARD",
       "%s : true" % pretty(xs[0])
-    ])
+    ], tag)
   # False guard constraint
   elif tp == cc.OP_GUARD_FALSE:
     xs = json_data["a"]
     pprint([
       "FALSE GUARD",
       "%s : false" % pretty(xs[0])
-    ])
+    ], tag)
   # Match equal constraint
   elif tp == cc.OP_MATCH_EQUAL_TRUE:
     xs = json_data["a"]
     pprint([
       "MATCH EQUAL TRUE",
       "%s == %s" % (pretty(xs[0]), pretty(xs[1]))
-    ])
+    ], tag)
   # Match not equal constraint
   elif tp == cc.OP_MATCH_EQUAL_FALSE:
     xs = json_data["a"]
     pprint([
       "MATCH EQUAL FALSE",
       "%s =/= %s" % (pretty(xs[0]), pretty(xs[1]))
-    ])
+    ], tag)
   # Tuple of size N constraint
   elif tp == cc.OP_TUPLE_SZ:
     xs = json_data["a"]
     pprint([
       "TUPLE SZ",
       "%s : tuple of size %s" % (pretty(xs[0]), pretty(xs[1]))
-    ])
+    ], tag)
   # Tuple of not size N constraint
   elif tp == cc.OP_TUPLE_NOT_SZ:
     xs = json_data["a"]
     pprint([
       "TUPLE NOT SZ",
       "%s : tuple of not size %s" % (pretty(xs[0]), pretty(xs[1]))
-    ])
+    ], tag)
   # Not a tuple constraint
   elif tp == cc.OP_TUPLE_NOT_TPL:
     xs = json_data["a"]
     pprint([
       "TUPLE NOT TPL",
       "%s : not a tuple (of size %s)" % (pretty(xs[0]), pretty(xs[1]))
-    ])
+    ], tag)
   # Nonempty list constraint
   elif tp == cc.OP_LIST_NON_EMPTY:
     xs = json_data["a"]
     pprint([
       "LIST NONEMPTY",
       "%s : nonempty list" % pretty(xs[0])
-    ])
+    ], tag)
   # Empty list constraint
   elif tp == cc.OP_LIST_EMPTY:
     xs = json_data["a"]
     pprint([
       "LIST EMPTY",
       "%s : empty list" % pretty(xs[0])
-    ])
+    ], tag)
   # Not a list constraint
   elif tp == cc.OP_LIST_NOT_LST:
     xs = json_data["a"]
     pprint([
       "LIST NOT LST",
       "%s : not a list" % pretty(xs[0])
-    ])
+    ], tag)
   # Spawn a process
   elif tp == cc.OP_SPAWN:
     print "SPAWN"
@@ -208,14 +213,14 @@ for tp, json_data, rev in cio.JsonReader(fname, 100000000):
     pprint([
       "HD",
       "%s := hd( %s )" % (pretty(xs[0]), pretty(xs[1]))
-    ])
+    ], tag)
   # Get the tail of a list
   elif tp == cc.OP_TL:
     xs = json_data["a"]
     pprint([
       "TL",
       "%s := tl( %s )" % (pretty(xs[0]), pretty(xs[1]))
-    ])
+    ], tag)
   # Is a term an integer
   elif tp == cc.OP_IS_INTEGER:
     print "IS INTEGER"
@@ -292,7 +297,7 @@ for tp, json_data, rev in cio.JsonReader(fname, 100000000):
     pprint([
       "EQUAL",
       "%s := (%s == %s)" % (pretty(xs[0]), pretty(xs[1]), pretty(xs[2]))
-    ])
+    ], tag)
   # Inequality of terms
   elif tp == cc.OP_UNEQUAL:
     print "UNEQUAL"

@@ -45,7 +45,7 @@ def decode_command(erlport, erlz3, data):
 # Load a trace file
 def decode_load_trace_file(erlport, erlz3, cmd):
   r = cIO.JsonReader(cmd["f"], cmd["e"])
-  for tp, x, rev in r:
+  for tp, tag, x, rev in r:
     if cglb.__TTY__:
       print x
     if cc.is_interpretable(tp):

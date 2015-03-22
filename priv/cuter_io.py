@@ -58,7 +58,7 @@ class JsonReader:
       tp = self.entry_type()
       if cglb.__TTY__:
         print "\n", tp
-      self.tag()  # Tag is not useful
+      tag = self.tag()
       sz = self.size()
       data = self.read(sz)
       rev = False
@@ -70,7 +70,7 @@ class JsonReader:
           rev = True
       
       json_data = json.loads(data)
-      return tp, json_data, rev
+      return tp, tag, json_data, rev
     except BinaryEOF:
       raise StopIteration
   
