@@ -6,7 +6,7 @@
 
 -export([
     close_file/1
-  , count_reversible/1
+  , locate_reversible/1
   , log_equal/5
   , log_guard/4
   , log_list/4
@@ -263,22 +263,27 @@ generate_vertex(Fd, Acc) ->
     {?NOT_CONSTRAINT, _Op, _TagID}   -> generate_vertex(Fd, Acc)
   end.
 
-%% Count the reversible commands in a trace file
--spec count_reversible(file:name()) -> integer().
-count_reversible(File) ->
+%% Locatse the reversible commands with their tag IDs in a trace file.
+-spec locate_reversible(file:name()) -> [{integer(), cuter_cerl:tagID()}].
+locate_reversible(File) ->
   {ok, Fd} = open_file(File, read),
-  count_reversible(Fd, 0).
+  locate_reversible(Fd, 0, []).
 
--spec count_reversible(file:io_device(), integer()) -> integer().
-count_reversible(Fd, Acc) ->
+-spec locate_reversible(file:io_device(), integer(), [{integer(), cuter_cerl:tagID()}]) -> [{integer(), cuter_cerl:tagID()}].
+locate_reversible(Fd, N, Acc) ->
+  N1 = N + 1,
   case next_entry(Fd, false) of
-    eof -> Acc;
-    {?CONSTRAINT_TRUE, _Op, _TagID}  -> count_reversible(Fd, Acc + 1);
-    {?CONSTRAINT_FALSE, _Op, _TagID} -> count_reversible(Fd, Acc + 1);
-    {?NOT_CONSTRAINT, Op, _TagID} ->
+    eof -> lists:reverse(Acc);
+    {?CONSTRAINT_TRUE, _Op, TagID}  -> locate_reversible(Fd, N1, [{N1, TagID}|Acc]);
+    {?CONSTRAINT_FALSE, _Op, TagID} -> locate_reversible(Fd, N1, [{N1, TagID}|Acc]);
+    {?NOT_CONSTRAINT, Op, TagID} ->
       case is_reversible_operation(Op) of
-        true  -> count_reversible(Fd, Acc + 1);
-        false -> count_reversible(Fd, Acc)
+        false -> locate_reversible(Fd, N, Acc);
+        true ->
+          case TagID =:= ?EMPTY_TAG_ID of
+            true  -> locate_reversible(Fd, N1, Acc);
+            false -> locate_reversible(Fd, N1, [{N1, TagID}|Acc])
+          end
       end
   end.
 
