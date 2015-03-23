@@ -2,19 +2,20 @@
 %%------------------------------------------------------------------------------
 -module(cuter).
 
--export([run/4, run/5, run_once/4, run_once/5]).
+-export([run/4, run/5, run/6, run_once/4, run_once/5]).
 
 -include("include/cuter_macros.hrl").
 
+-type scheduling() :: bfs.
 -type configuration() :: #{mod => module(),
                            func => atom(),
                            dataDir => file:filename_all(),
                            depth => pos_integer(),
                            no => integer(),
                            scheduler => pid(),
+                           scheduler_mod => module(),
                            stored_mods => cuter_analyzer:stored_modules(),
                            tags_added_no => integer()}.
-
 
 
 -spec run_once(module(), atom(), [any()], pos_integer()) -> ok.
@@ -24,7 +25,7 @@ run_once(M, F, As, Depth) ->
 
 -spec run_once(module(), atom(), [any()], pos_integer(), file:filename_all()) -> ok.
 run_once(M, F, As, Depth, BaseDir) ->
-  Conf = initialize_app(M, F, As, Depth, BaseDir),
+  Conf = initialize_app(M, F, As, Depth, BaseDir, default_scheduling()),
   run_seed_execution(Conf, As, false).
 
 -spec run(module(), atom(), [any()], pos_integer()) -> ok.
@@ -34,7 +35,12 @@ run(M, F, As, Depth) ->
 
 -spec run(module(), atom(), [any()], pos_integer(), file:filename_all()) -> ok.
 run(M, F, As, Depth, BaseDir) ->
-  Conf = initialize_app(M, F, As, Depth, BaseDir),
+  Conf = initialize_app(M, F, As, Depth, BaseDir, default_scheduling()),
+  run_seed_execution(Conf, As, true).
+
+-spec run(module(), atom(), [any()], pos_integer(), file:filename_all(), scheduling()) -> ok.
+run(M, F, As, Depth, BaseDir, Sched) ->
+  Conf = initialize_app(M, F, As, Depth, BaseDir, Sched),
   run_seed_execution(Conf, As, true).
 
 -spec run_seed_execution(configuration(), [any()], boolean()) -> ok.
@@ -43,7 +49,8 @@ run_seed_execution(Conf, As, Loop) ->
     cuter_error ->
       stop(Conf);
     Info ->
-      ok = cuter_scheduler:seed_execution(maps:get(scheduler, Conf), Info),
+      M = maps:get(scheduler_mod, Conf),
+      ok = M:seed_execution(maps:get(scheduler, Conf), Info),
       run_loop(Loop, Conf)
   end.
 
@@ -56,7 +63,8 @@ run_loop(false, Conf) ->
 
 -spec loop(configuration()) -> ok.
 loop(Conf) ->
-  case cuter_scheduler:request_input(maps:get(scheduler, Conf)) of
+  M = maps:get(scheduler_mod, Conf),
+  case M:request_input(maps:get(scheduler, Conf)) of
     empty -> stop(Conf);
     {Ref, As, StoredMods, TagsN} ->
       No = maps:get(no, Conf) + 1,
@@ -65,30 +73,39 @@ loop(Conf) ->
         cuter_error ->
           stop(Conf);
         Info ->
-          ok = cuter_scheduler:store_execution(maps:get(scheduler, Conf), Ref, Info),
+          ok = M:store_execution(maps:get(scheduler, Conf), Ref, Info),
           loop(Conf_n)
       end
   end.
 
--spec initialize_app(module(), atom(), [any()], pos_integer(), file:filename_all()) -> configuration().
-initialize_app(M, F, As, Depth, BaseDir) ->
+-spec initialize_app(module(), atom(), [any()], pos_integer(), file:filename_all(), scheduling()) -> configuration().
+initialize_app(M, F, As, Depth, BaseDir, Sched) ->
   process_flag(trap_exit, true),
   error_logger:tty(false),  %% Disable error_logger
   cuter_pp:mfa(M, F, length(As)),
-  Sched = cuter_scheduler:start(?PYTHON_CALL, Depth),
+  SchedMod = get_scheduler_module(Sched),
+  SchedPid = SchedMod:start(?PYTHON_CALL, Depth),
   #{mod => M,
     func => F,
     no => 1,
     depth => Depth,
     dataDir => cuter_lib:get_tmp_dir(BaseDir),
-    scheduler => Sched,
+    scheduler => SchedPid,
+    scheduler_mod => SchedMod,
     stored_mods => orddict:new(),
     tags_added_no => 0}.
 
 -spec stop(configuration()) -> ok.
 stop(Conf) ->
-  cuter_scheduler:stop(maps:get(scheduler, Conf)),
+  M = maps:get(scheduler_mod, Conf),
+  M:stop(maps:get(scheduler, Conf)),
   cuter_lib:clear_and_delete_dir(maps:get(dataDir, Conf)).
+
+-spec default_scheduling() -> scheduling().
+default_scheduling() -> bfs.
+
+-spec get_scheduler_module(scheduling()) -> module().
+get_scheduler_module(bfs) -> cuter_bfs_scheduler.
 
 %% ------------------------------------------------------------------
 %% Concolic Execution
