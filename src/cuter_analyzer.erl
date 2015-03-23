@@ -9,13 +9,13 @@
          get_no_of_tags_added/1]).
 
 -export_type([execution_result/0, node_trace/0, path_vertex/0, int_process/0,
-              raw_info/0, info/0, visited_tags/0, stored_modules/0]).
+              raw_info/0, info/0, visited_tags/0, stored_modules/0, reversible_with_tags/0]).
 
 -type execution_result() :: {success, any()} | {runtime_error, any()} | internal_error.
 -type node_trace()  :: {atom(), string()}.
 -type int_process() :: {node(), pid()}.
 -type visited_tags() :: gb_sets:set().
--type reversible_with_tags() :: {integer(), cuter_cerl:tag()}.
+-type reversible_with_tags() :: [{integer(), cuter_cerl:tagID()}].
 -type stored_modules() :: orddict:orddict().
 -type path_vertex() :: [?CONSTRAINT_TRUE_REPR | ?CONSTRAINT_FALSE_REPR].  % [$T | $F]
 

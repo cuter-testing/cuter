@@ -264,12 +264,12 @@ generate_vertex(Fd, Acc) ->
   end.
 
 %% Locatse the reversible commands with their tag IDs in a trace file.
--spec locate_reversible(file:name()) -> [{integer(), cuter_cerl:tagID()}].
+-spec locate_reversible(file:name()) -> cuter_analyzer:reversible_with_tags().
 locate_reversible(File) ->
   {ok, Fd} = open_file(File, read),
   locate_reversible(Fd, 0, []).
 
--spec locate_reversible(file:io_device(), integer(), [{integer(), cuter_cerl:tagID()}]) -> [{integer(), cuter_cerl:tagID()}].
+-spec locate_reversible(file:io_device(), integer(), cuter_analyzer:reversible_with_tags()) -> cuter_analyzer:reversible_with_tags().
 locate_reversible(Fd, N, Acc) ->
   N1 = N + 1,
   case next_entry(Fd, false) of
