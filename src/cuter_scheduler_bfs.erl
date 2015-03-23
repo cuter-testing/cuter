@@ -1,6 +1,6 @@
 %% -*- erlang-indent-level: 2 -*-
 %%------------------------------------------------------------------------------
--module(cuter_bfs_scheduler).
+-module(cuter_scheduler_bfs).
 -behaviour(gen_server).
 
 %% External exports
