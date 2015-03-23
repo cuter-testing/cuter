@@ -117,7 +117,8 @@ retrieve_info(IServer, DataDir) ->
             mappings => cuter_analyzer:get_mapping(Info),
             traces => cuter_analyzer:get_traces(Info),
             int => cuter_analyzer:get_int_process(Info),
-            tags => cuter_analyzer:get_tags(Info)
+            tags => cuter_analyzer:get_tags(Info),
+            stored_mods => cuter_analyzer:get_stored_modules(Info)
           },
           cuter_analyzer:process_raw_execution_info(RawInfo)
       end;

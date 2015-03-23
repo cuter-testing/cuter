@@ -104,9 +104,11 @@ terminate(_Reason, State) ->
   Super = State#state.super,
   Ms = State#state.unsupported_mfas,
   Tags = State#state.tags,
+  StoredMods = stored_mods(Db),
   Logs = [ {loaded_mods, delete_stored_modules(Db)}  % Delete all created ETS tables
          , {unsupported_mfas, sets:to_list(Ms)}
          , {visited_tags, Tags}
+         , {stored_mods, StoredMods}
          ],
   ets:delete(Db),
   cuter_lib:clear_and_delete_dir(State#state.dir),    % Clean up .core files directory
@@ -210,6 +212,10 @@ is_mod_stored(M, State) ->
 -spec delete_stored_modules(ets:tid()) -> [module()].
 delete_stored_modules(Db) ->
   ets:foldl(fun({M, MDb}, Ms) -> ets:delete(MDb), [M|Ms] end, [], Db).
+
+-spec stored_mods(ets:tid()) -> orddict:orddict().
+stored_mods(Db) ->
+  ets:foldl(fun({M, MDb}, Stored) -> orddict:store(M, ets:tab2list(MDb), Stored) end, orddict:new(), Db).
 
 %% ============================================================================
 %% Counter for branch enumeration

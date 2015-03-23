@@ -4,7 +4,7 @@
 
 -include("include/cuter_macros.hrl").
 
--export([get_result/1, get_mapping/1, get_traces/1,
+-export([get_result/1, get_mapping/1, get_traces/1, get_stored_modules/1,
          get_int_process/1, process_raw_execution_info/1, get_tags/1]).
 
 -export_type([execution_result/0, node_trace/0, path_vertex/0, int_process/0,
@@ -15,20 +15,23 @@
 -type int_process() :: {node(), pid()}.
 -type visited_tags() :: gb_sets:set().
 -type reversible_with_tags() :: {integer(), cuter_cerl:tag()}.
+-type stored_modules() :: orddict:orddict().
 -type path_vertex() :: [?CONSTRAINT_TRUE_REPR | ?CONSTRAINT_FALSE_REPR].  % [$T | $F]
 
 -type raw_info() :: #{mappings => [cuter_symbolic:mapping()],
                       traces => [node_trace()],
                       int => int_process(),
                       dir => file:filename_all(),
-                      tags => visited_tags()}.
+                      tags => visited_tags(),
+                      stored_mods => stored_modules()}.
 
 -type info() :: #{mappings => [cuter_symbolic:mapping()],
                   traceFile => file:filename_all(),
                   pathLength => integer(),
                   reversible => reversible_with_tags(),
                   dir => file:filename_all(),
-                  tags => visited_tags()}.
+                  tags => visited_tags(),
+                  stored_mods => stored_modules()}.
 
 
 -spec get_result(cuter_iserver:execution_status()) -> execution_result().
@@ -71,6 +74,16 @@ get_tags_of_node({_Node, Data}) ->
   Logs = proplists:get_value(code_logs, Data),
   proplists:get_value(visited_tags, Logs).
 
+-spec get_stored_modules(orddict:orddict()) -> stored_modules().
+get_stored_modules(Info) ->
+  AllNodes = [get_stored_modules_of_node(I) || I <- Info],
+  %% FIXME Expect just one node.
+  hd(AllNodes).
+
+get_stored_modules_of_node({_Node, Data}) ->
+  Logs = proplists:get_value(code_logs, Data),
+  proplists:get_value(stored_mods, Logs).
+
 -spec process_raw_execution_info(raw_info()) -> info().
 process_raw_execution_info(Info) ->
 %  io:format("[RAW INFO] ~p~n", [Info]),
@@ -88,6 +101,7 @@ process_raw_execution_info(Info) ->
     traceFile => MergedTraceFile,
     pathLength => RvsCnt,
     reversible => Rvs,
-    tags => maps:get(tags, Info)}.
+    tags => maps:get(tags, Info),
+    stored_mods => maps:get(stored_mods, Info)}.
 
 
