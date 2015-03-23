@@ -98,12 +98,30 @@ exec_info_data({monitor_logs, Logs}) ->
   io:format("      ~p~n", [Logs]);
 exec_info_data({code_logs, Logs}) ->
   io:format("    CODE LOGS~n"),
-  io:format("      ~p~n", [Logs]);
+  code_logs(Logs);
 exec_info_data({int, Pid}) ->
   io:format("    INT~n"),
   io:format("      ~p~n", [Pid]);
 %exec_info_data(Data) -> io:format("    ~p~n", [Data]).
 exec_info_data(_) -> ok.
+
+code_logs([]) -> ok;
+code_logs([{loaded_mods, Ms}|Logs]) ->
+  io:format("      LOADED MODS~n"),
+  io:format("        ~p~n", [Ms]),
+  code_logs(Logs);
+code_logs([{unsupported_mfas, MFAs}|Logs]) ->
+  io:format("      UNSUPPORTED MFAS~n"),
+  io:format("        ~p~n", [MFAs]),
+  code_logs(Logs);
+code_logs([{visited_tags, Tags}|Logs]) ->
+  io:format("      VISITED TAGS~n"),
+  io:format("        ~p~n", [gb_sets:to_list(Tags)]),
+  code_logs(Logs);
+code_logs([{stored_mods, Stored}|Logs]) ->
+  io:format("      STORED MODS~n"),
+  io:format("        ~p~n", [[M || {M, _Info} <- orddict:to_list(Stored)]]),
+  code_logs(Logs).
 
 -spec path_vertex(cuter_analyzer:path_vertex()) -> ok.
 path_vertex(Vertex) ->
