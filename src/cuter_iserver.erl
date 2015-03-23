@@ -6,7 +6,7 @@
 -include("include/cuter_macros.hrl").
 
 %% external exports
--export([start/6, node_servers/2, int_return/2, send_error_report/3, code_logs/2, monitor_logs/2, send_mapping/2]).
+-export([start/8, node_servers/2, int_return/2, send_error_report/3, code_logs/2, monitor_logs/2, send_mapping/2]).
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_info/2, handle_call/3, handle_cast/2]).
 
@@ -47,16 +47,18 @@
 %%   Stores the status of the concolic execution
 
 -record(state, {
-  super    :: pid(),
-  coredir  :: nonempty_string(),
-  logdir   :: nonempty_string(),
-  depth    :: integer(),
-  prefix   :: nonempty_string(),
-  cpids    :: orddict:orddict(), %% [{node(), pid()}]
-  mpids    :: orddict:orddict(), %% [{node(), pid()}]
-  info     :: orddict:orddict(), %% [{node(), list()}]
-  int      :: {pid(), running} | exited,
-  exstatus :: execution_status()
+  super         :: pid(),
+  coredir       :: nonempty_string(),
+  logdir        :: nonempty_string(),
+  depth         :: integer(),
+  prefix        :: nonempty_string(),
+  cpids         :: orddict:orddict(), %% [{node(), pid()}]
+  mpids         :: orddict:orddict(), %% [{node(), pid()}]
+  info          :: orddict:orddict(), %% [{node(), list()}]
+  int           :: {pid(), running} | exited,
+  exstatus      :: execution_status(),
+  stored_mods   :: cuter_analyzer:stored_modules(),
+  tags_added_no :: integer()
 }).
 -type state() :: #state{}.
 
@@ -65,9 +67,10 @@
 %% ============================================================================
 
 %% Start the interpreter server
--spec start(module(), atom(), [any()], nonempty_string(), nonempty_string(), pos_integer()) -> {ok, state()} | execution_status().
-start(M, F, As, CoreDir, LogDir, Depth) ->
-  Args = [M, F, As, CoreDir, LogDir, Depth, self()],
+-spec start(module(), atom(), [any()], nonempty_string(), nonempty_string(), pos_integer(), cuter_analyzer:stored_modules(), integer()) ->
+              {ok, state()} | execution_status().
+start(M, F, As, CoreDir, LogDir, Depth, StoredMods, TagsN) ->
+  Args = [M, F, As, CoreDir, LogDir, Depth, StoredMods, TagsN, self()],
   case gen_server:start(?MODULE, Args, []) of
     {ok, IServer} -> IServer;
     {error, Reason} -> internal_error(iserver, Reason)
@@ -108,13 +111,13 @@ send_mapping(IServer, Mapping) ->
 %% ============================================================================
 
 %% gen_server callback : init/1
--spec init([module() | atom() | [any()] | nonempty_string() | pos_integer(), ...]) -> {ok, state()}.
-init([M, F, As, CoreDir, LogDir, Depth, Super]) ->
+-spec init([module() | atom() | [any()] | nonempty_string() | integer() | cuter_analyzer:stored_modules(), ...]) -> {ok, state()}.
+init([M, F, As, CoreDir, LogDir, Depth, StoredMods, TagsN, Super]) ->
   link(Super),
   process_flag(trap_exit, true),
   Node = node(),
   Prefix = cuter_lib:unique_string() ++ "_",
-  CodeServer = cuter_codeserver:start(CoreDir, self()),
+  CodeServer = cuter_codeserver:start(CoreDir, self(), StoredMods, TagsN),
   MonitorServer = cuter_monitor:start(LogDir, self(), Depth, Prefix),
   Servers = #svs{code = CodeServer, monitor = MonitorServer},
   Ipid = cuter_eval:i(M, F, As, Servers),
@@ -127,7 +130,9 @@ init([M, F, As, CoreDir, LogDir, Depth, Super]) ->
     cpids = [{Node, CodeServer}],
     mpids = [{Node, MonitorServer}],
     info = orddict:store(Node, [{int, {node(Ipid), Ipid}}], orddict:new()),
-    int = {Ipid, running}
+    int = {Ipid, running},
+    stored_mods = StoredMods,
+    tags_added_no = TagsN
   },
   {ok, InitState}.
 
@@ -205,7 +210,9 @@ handle_call({node_servers, Node}, {_From, _FromTag}, State) ->
       LogDir = State#state.logdir,
       Depth = State#state.depth,
       Prefix = State#state.prefix,
-      case spawn_remote_servers(Node, self(), CoreDir, LogDir, Depth, Prefix) of
+      StoredMods = State#state.stored_mods,
+      TagsN = State#state.tags_added_no,
+      case spawn_remote_servers(Node, self(), CoreDir, LogDir, Depth, Prefix, StoredMods, TagsN) of
         error ->
           %% Error while spawning servers so shutdown processes and
           %% terminate immediately with internal error
@@ -316,12 +323,13 @@ node_monitored(Node, Cs, Ms) ->
   end.
 
 %% Spawn a code server and a monitor server at a remote node
--spec spawn_remote_servers(node(), pid(), nonempty_string(), nonempty_string(), pos_integer(), nonempty_string()) -> {ok, servers()} | error.
-spawn_remote_servers(Node, Super, CoreDir, LogDir, Depth, Prefix) ->
+-spec spawn_remote_servers(node(), pid(), nonempty_string(), nonempty_string(), pos_integer(), nonempty_string(), cuter_analyzer:stored_modules(), integer()) ->
+        {ok, servers()} | error.
+spawn_remote_servers(Node, Super, CoreDir, LogDir, Depth, Prefix, StoredMods, TagsN) ->
   Me = self(),
   Setup = fun() ->
     process_flag(trap_exit, true),
-    CodeServer = cuter_codeserver:start(CoreDir, Super),
+    CodeServer = cuter_codeserver:start(CoreDir, Super, StoredMods, TagsN),
     MonitorServer = cuter_monitor:start(LogDir, Super, Depth, Prefix),
     Me ! {self(), #svs{code = CodeServer, monitor = MonitorServer}}
   end,

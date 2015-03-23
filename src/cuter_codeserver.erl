@@ -4,11 +4,11 @@
 -behaviour(gen_server).
 
 %% external exports
--export([start/2, stop/1, load/2, unsupported_mfa/2, retrieve_spec/2, visit_tag/2]).
+-export([start/4, stop/1, load/2, unsupported_mfa/2, retrieve_spec/2, visit_tag/2]).
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_info/2, handle_call/3, handle_cast/2]).
 %% counter of branches
--export([reset_branch_counter/0, generate_tag/0]).
+-export([set_branch_counter/1, generate_tag/0]).
 
 -include("include/cuter_macros.hrl").
 
@@ -48,9 +48,9 @@
 %% ============================================================================
 
 %% Start a CodeServer
--spec start(nonempty_string(), pid()) -> pid().
-start(CoreDir, Super) ->
-  case gen_server:start(?MODULE, [CoreDir, Super], []) of
+-spec start(nonempty_string(), pid(), cuter_analyzer:stored_modules(), integer()) -> pid().
+start(CoreDir, Super, StoredMods, TagsN) ->
+  case gen_server:start(?MODULE, [CoreDir, Super, StoredMods, TagsN], []) of
     {ok, CodeServer} -> CodeServer;
     {error, Reason}  -> exit({codeserver_start, Reason})
   end.
@@ -89,12 +89,13 @@ visit_tag(CodeServer, Tag) ->
 %% ============================================================================
 
 %% gen_server callback : init/1
--spec init([nonempty_string() | pid(), ...]) -> {ok, state()}.
-init([Dir, Super]) when is_list(Dir) ->
+-spec init([nonempty_string() | pid() | cuter_analyzer:stored_modules() | integer(), ...]) -> {ok, state()}.
+init([Dir, Super, StoredMods, TagsN]) when is_list(Dir) ->
   link(Super),
   Db = ets:new(?MODULE, [ordered_set, protected]),
+  populate_db_with_mods(Db, StoredMods),
   CoreDir = cuter_lib:get_codeserver_dir(Dir),
-  reset_branch_counter(), %% Initialize the counter for the branch enumeration.
+  set_branch_counter(TagsN), %% Initialize the counter for the branch enumeration.
   {ok, #state{db = Db, dir = CoreDir, super = Super}}.
 
 %% gen_server callback : terminate/2
@@ -104,11 +105,13 @@ terminate(_Reason, State) ->
   Super = State#state.super,
   Ms = State#state.unsupported_mfas,
   Tags = State#state.tags,
+  Cnt = get_branch_counter(),
   StoredMods = stored_mods(Db),
   Logs = [ {loaded_mods, delete_stored_modules(Db)}  % Delete all created ETS tables
          , {unsupported_mfas, sets:to_list(Ms)}
          , {visited_tags, Tags}
          , {stored_mods, StoredMods}
+         , {tags_added_no, Cnt}
          ],
   ets:delete(Db),
   cuter_lib:clear_and_delete_dir(State#state.dir),    % Clean up .core files directory
@@ -174,6 +177,21 @@ handle_cast({visit_tag, Tag}, State=#state{tags = Tags}) ->
 %% Internal functions (Helper methods)
 %% ============================================================================
 
+%% Populates the DB with the stored modules provided.
+-spec populate_db_with_mods(ets:tid(), cuter_analyzer:stored_modules()) -> ok.
+populate_db_with_mods(Db, StoredMods) ->
+  orddict:fold(
+    fun(M, Info, CDb) ->
+      MDb = ets:new(M, [ordered_set, protected]),
+      ets:insert(MDb, Info),
+      ets:insert(CDb, {M, MDb}),
+      CDb
+    end,
+    Db,
+    StoredMods
+  ),
+  ok.
+
 -spec try_load(module(), state()) -> load_reply().
 try_load(M, State) ->
   case is_mod_stored(M, State) of
@@ -221,9 +239,13 @@ stored_mods(Db) ->
 %% Counter for branch enumeration
 %% ============================================================================
 
--spec reset_branch_counter() -> any().
-reset_branch_counter() ->
-  put(?BRANCH_COUNTER_PREFIX, 0).
+-spec get_branch_counter() -> integer().
+get_branch_counter() ->
+  get(?BRANCH_COUNTER_PREFIX),
+
+-spec set_branch_counter(integer()) -> any().
+set_branch_counter(N) ->
+  put(?BRANCH_COUNTER_PREFIX, N).
 
 -spec generate_tag() -> cuter_cerl:tag().
 generate_tag() ->

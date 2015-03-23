@@ -14,7 +14,7 @@ load_modules_test_() ->
   Setup = fun setup/0,
   Cleanup = fun cleanup/1,
   Inst = fun(Dir) ->
-    Cs = cuter_codeserver:start(Dir, self()),
+    Cs = cuter_codeserver:start(Dir, self(), orddict:new(), 0),
     As = [load_mod(Cs, M) || M <- ?MODS_LIST],
     Stop = cuter_codeserver:stop(Cs),
     Chk = is_dir_empty(Cs, Dir),
@@ -34,7 +34,7 @@ load_and_retrieve_test_() ->
   Setup = fun setup/0,
   Cleanup = fun cleanup/1,
   Inst = fun(Dir) ->
-    Cs = cuter_codeserver:start(Dir, self()),
+    Cs = cuter_codeserver:start(Dir, self(), orddict:new(), 0),
     R1 = cuter_codeserver:load(Cs, lists),
     R2 = cuter_codeserver:load(Cs, os),
     R3 = cuter_codeserver:load(Cs, lists),
@@ -53,7 +53,7 @@ error_load_test_() ->
   Setup = fun setup/0,
   Cleanup = fun cleanup/1,
   Inst = fun(Dir) ->
-    Cs = cuter_codeserver:start(Dir, self()),
+    Cs = cuter_codeserver:start(Dir, self(), orddict:new(), 0),
     R1 = cuter_codeserver:load(Cs, erlang),
     R2 = cuter_codeserver:load(Cs, foobar),
     Stop = cuter_codeserver:stop(Cs),

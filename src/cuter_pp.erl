@@ -121,6 +121,10 @@ code_logs([{visited_tags, Tags}|Logs]) ->
 code_logs([{stored_mods, Stored}|Logs]) ->
   io:format("      STORED MODS~n"),
   io:format("        ~p~n", [[M || {M, _Info} <- orddict:to_list(Stored)]]),
+  code_logs(Logs);
+code_logs([{tags_added_no, N}|Logs]) ->
+  io:format("      NO OF ADDED TAGS~n"),
+  io:format("        ~p~n", [N]),
   code_logs(Logs).
 
 -spec path_vertex(cuter_analyzer:path_vertex()) -> ok.

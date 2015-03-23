@@ -21,11 +21,13 @@
 
 %% gen_server state datatype
 -record(sts, {
-    queue           :: queue:queue()
-  , info            :: ets:tid()
-  , python          :: string()
-  , depth           :: integer()
-  , waiting = none  :: from() | none
+    queue              :: queue:queue()
+  , info               :: ets:tid()
+  , python             :: string()
+  , depth              :: integer()
+  , waiting = none     :: from() | none
+  , stored_mods = none :: cuter_analyzer:stored_modules() | none
+  , tags_added_no = 0  :: integer()
 }).
 -type state() :: #sts{}.
 -type from()  :: {pid(), reference()}.
@@ -54,7 +56,7 @@ seed_execution(Scheduler, Info) ->
   gen_server:call(Scheduler, {seed_execution, Info}).
 
 %% Request a new Input vertex for concolic execution
--spec request_input(pid()) -> {reference(), [any()]} | empty.
+-spec request_input(pid()) -> {reference(), [any()], cuter_analyzer:stored_modules(), integer()} | empty.
 request_input(Scheduler) ->
   gen_server:call(Scheduler, request_input, 500000).
 
@@ -94,18 +96,23 @@ handle_info(Msg, State) ->
 
 %% handle_call/3
 -spec handle_call({seed_execution, cuter_analyzer:info()}, from(), state()) -> {reply, ok, state()}
-               ; (request_input, from(), state()) -> {reply, (empty | {reference(), [any()]}), state()}
+               ; (request_input, from(), state()) -> {reply, (empty | {reference(), [any()], cuter_analyzer:stored_modules(), integer()}), state()}
                ; ({store_execution, reference(), cuter_analyzer:info()}, from(), state()) -> {reply, ok, state}.
 %% Store the information of the first concolic execution
 handle_call({seed_execution, Info}, _From, S=#sts{queue = Q, info = I}) ->
   Rf = make_ref(),
   Q1 = queue:in(Rf, Q),
-  ExecInfo = Info#{nextRvs => 1},  % Add the next command to be reversed
+  %% Store the code of the modules
+  StoredMods = maps:get(stored_mods, Info),
+  %% Get the number of added tags
+  TagsCnt = maps:get(tags_added_no, Info),
+  %% Add the next command to be reversed and remove the stored modules
+  ExecInfo = Info#{nextRvs => 1, stored_mods => removed},
   ets:insert(I, {Rf, ExecInfo}),   % Store the extended info
   cuter_pp:seed_execution(Rf, ExecInfo),
-  {reply, ok, S#sts{queue = Q1}};
+  {reply, ok, S#sts{queue = Q1, stored_mods = StoredMods, tags_added_no = TagsCnt}};
 %% Ask for a new input to execute
-handle_call(request_input, _From, S=#sts{queue = Q, info = I, python = P, depth = D}) ->
+handle_call(request_input, _From, S=#sts{queue = Q, info = I, python = P, depth = D, stored_mods = SMs, tags_added_no = TagsN}) ->
   cuter_pp:request_input(Q, I),
   case generate_new_testcase(Q, I, P, D) of
     empty ->
@@ -113,11 +120,16 @@ handle_call(request_input, _From, S=#sts{queue = Q, info = I, python = P, depth 
       {reply, empty, S};
     {ok, Rf, Inp, Q1} ->
       cuter_pp:request_input_success(Rf, Inp, Q1, I),
-      {reply, {Rf, Inp}, S#sts{queue = Q1}}
+      {reply, {Rf, Inp, SMs, TagsN}, S#sts{queue = Q1}}
   end;
 %% Store the information of a concolic execution
-handle_call({store_execution, Rf, Info}, _From, S=#sts{queue = Q, info = I, waiting = W}) ->
+handle_call({store_execution, Rf, Info}, _From, S=#sts{queue = Q, info = I, waiting = _W, stored_mods = SMs}) ->
   cuter_pp:store_execution(Rf, Info, Q, I),
+  %% Update the stored code of modules
+  StoredMods = maps:get(stored_mods, Info),
+  NewSMs = orddict:merge(fun(_K, V1, _V2) -> V1 end, SMs, StoredMods),
+  %% Get the updated number of added tags
+  TagsCnt = maps:get(tags_added_no, Info),
   [{Rf, PartialInfo}] = ets:lookup(I, Rf),
   Ln = maps:get(pathLength, Info),
   N = maps:get(nextRvs, PartialInfo),
@@ -126,13 +138,13 @@ handle_call({store_execution, Rf, Info}, _From, S=#sts{queue = Q, info = I, wait
       cuter_lib:clear_and_delete_dir(maps:get(dir, Info)),
       ets:delete(I, Rf),
       cuter_pp:store_execution_fail(N, Ln, I),
-      {reply, ok, S};
+      {reply, ok, S#sts{stored_mods = NewSMs, tags_added_no = TagsCnt}};
     false ->
       ExecInfo = Info#{nextRvs => N},
       ets:insert(I, {Rf, ExecInfo}),  % Replaces the old information
       Q1 = queue:in(Rf, Q),
       cuter_pp:store_execution_success(N, Ln, Q, I),
-      {reply, ok, S#sts{queue = Q1}}
+      {reply, ok, S#sts{queue = Q1, stored_mods = NewSMs, tags_added_no = TagsCnt}}
   end.
 
 %% handle_cast/2

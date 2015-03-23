@@ -11,7 +11,9 @@
                            dataDir => file:filename_all(),
                            depth => pos_integer(),
                            no => integer(),
-                           scheduler => pid()}.
+                           scheduler => pid(),
+                           stored_mods => cuter_analyzer:stored_modules(),
+                           tags_added_no => integer()}.
 
 
 
@@ -56,9 +58,9 @@ run_loop(false, Conf) ->
 loop(Conf) ->
   case cuter_scheduler:request_input(maps:get(scheduler, Conf)) of
     empty -> stop(Conf);
-    {Ref, As} ->
+    {Ref, As, StoredMods, TagsN} ->
       No = maps:get(no, Conf) + 1,
-      Conf_n = Conf#{no := No},
+      Conf_n = Conf#{no := No, stored_mods := StoredMods, tags_added_no := TagsN},
       case concolic_execute(Conf_n, As) of
         cuter_error ->
           stop(Conf);
@@ -79,7 +81,9 @@ initialize_app(M, F, As, Depth, BaseDir) ->
     no => 1,
     depth => Depth,
     dataDir => cuter_lib:get_tmp_dir(BaseDir),
-    scheduler => Sched}.
+    scheduler => Sched,
+    stored_mods => orddict:new(),
+    tags_added_no => 0}.
 
 -spec stop(configuration()) -> ok.
 stop(Conf) ->
@@ -100,7 +104,9 @@ concolic_execute(Conf, Input) ->
   M = maps:get(mod, Conf),
   F = maps:get(func, Conf),
   Depth = maps:get(depth, Conf),
-  IServer = cuter_iserver:start(M, F, Input, CoreDir, TraceDir, Depth),
+  StoredMods = maps:get(stored_mods, Conf),
+  TagsN = maps:get(tags_added_no, Conf),
+  IServer = cuter_iserver:start(M, F, Input, CoreDir, TraceDir, Depth, StoredMods, TagsN),
   retrieve_info(IServer, DataDir).
 
 -spec retrieve_info(pid(), file:filename_all()) -> cuter_analyzer:info() | cuter_error.
@@ -118,7 +124,8 @@ retrieve_info(IServer, DataDir) ->
             traces => cuter_analyzer:get_traces(Info),
             int => cuter_analyzer:get_int_process(Info),
             tags => cuter_analyzer:get_tags(Info),
-            stored_mods => cuter_analyzer:get_stored_modules(Info)
+            stored_mods => cuter_analyzer:get_stored_modules(Info),
+            tags_added_no => cuter_analyzer:get_no_of_tags_added(Info)
           },
           cuter_analyzer:process_raw_execution_info(RawInfo)
       end;
