@@ -24,6 +24,7 @@
         , solving_succeeded/1
         , requeue_success/4
         , requeue_failure/4
+        , report_erroneous/1
         %% Verbose File/Folder Deletion
         , delete_file/2
         %% Verbose solving
@@ -302,6 +303,16 @@ requeue_failure(Ref, X, L, D) ->
 -else.
 requeue_failure(_Ref, _X, _L, _D) -> ok.
 -endif.
+
+-spec report_erroneous(orddict:orddict()) -> ok.
+report_erroneous(Err) ->
+  io:format("ERRORS FOUND~n"),
+  orddict:fold(
+    fun(Input, Error, _Acc) -> io:format("  ~p => ~p~n", [Input, Error]), _Acc end,
+    ok,
+    Err
+  ),
+  ok.
 
 %%
 %% Verbose File/Folder Deletion

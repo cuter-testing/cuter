@@ -6,7 +6,7 @@
 
 -include("include/cuter_macros.hrl").
 
--type scheduling() :: bfs.
+-type scheduling() :: bfs | maxcover.
 -type configuration() :: #{mod => module(),
                            func => atom(),
                            dataDir => file:filename_all(),
@@ -102,10 +102,11 @@ stop(Conf) ->
   cuter_lib:clear_and_delete_dir(maps:get(dataDir, Conf)).
 
 -spec default_scheduling() -> scheduling().
-default_scheduling() -> bfs.
+default_scheduling() -> maxcover.
 
 -spec get_scheduler_module(scheduling()) -> module().
-get_scheduler_module(bfs) -> cuter_bfs_scheduler.
+get_scheduler_module(bfs) -> cuter_bfs_scheduler;
+get_scheduler_module(maxcover) -> cuter_scheduler_maxcover.
 
 %% ------------------------------------------------------------------
 %% Concolic Execution

@@ -44,6 +44,7 @@ SRC_MODULES = \
 	cuter_json \
 	cuter_pp \
 	cuter_bfs_scheduler \
+	cuter_scheduler_maxcover \
 	cuter_analyzer \
 	cuter_solver \
 	cuter_merger \
