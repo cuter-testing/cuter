@@ -880,7 +880,7 @@ find_clause([Cl|Cls], M, Mode, Cv, Sv, Cenv, Senv, Servers, Fd, Cnt) ->
     false ->
       find_clause(Cls, M, Mode, Cv, Sv, Cenv, Senv, Servers, Fd, Cnt+1);
     {true, {_Body, _NCenv, _NSenv, Cnt} = Matched} ->
-      visit_tag(Servers#svs.code, Tags#tags.this),
+%      visit_tag(Servers#svs.code, Tags#tags.this),
       Matched
   end.
 
@@ -890,7 +890,7 @@ find_clause([Cl|Cls], M, Mode, Cv, Sv, Cenv, Senv, Servers, Fd, Cnt) ->
 %% Match a pair of concrete & symbolic values against
 %% a specific clause (i.e. with patterns and guard)
 %% --------------------------------------------------------
-match_clause({c_clause, _Anno, Pats, Guard, Body}, M, Mode, Cv, Sv, Cenv, Senv, Servers, Tags, Fd, Cnt) ->
+match_clause({c_clause, Anno, Pats, Guard, Body}, M, Mode, Cv, Sv, Cenv, Senv, Servers, Tags, Fd, Cnt) ->
   case is_patlist_compatible(Pats, Cv) of
     false -> false;
     true ->
@@ -916,11 +916,13 @@ match_clause({c_clause, _Anno, Pats, Guard, Body}, M, Mode, Cv, Sv, Cenv, Senv, 
           try eval_expr(Guard, M, Ce, Se, Servers, Fd) of
             {true, SGv} ->
               %% CONSTRAINT: SGv is a True guard
-              cuter_log:log_guard(Fd, true, SGv, Tags#tags.next),
+              visit_tag(Servers#svs.code, cuter_cerl:get_tag_from_anno(Anno)),
+              cuter_log:log_guard(Fd, true, SGv,  cuter_cerl:get_next_tag_from_anno(Anno)),
               {true, {Body, Ce, Se, Cnt}};
             {false, SGv} ->
               %% CONSTRAINT: SGv is a False guard
-              cuter_log:log_guard(Fd, false, SGv, Tags#tags.this),
+              visit_tag(Servers#svs.code, cuter_cerl:get_next_tag_from_anno(Anno)),
+              cuter_log:log_guard(Fd, false, SGv,  cuter_cerl:get_tag_from_anno(Anno)),
               false
           catch
             error:_E -> false
@@ -956,15 +958,17 @@ pattern_match_all([P|Ps], BitInfo, Mode, [Cv|Cvs], [Sv|Svs], CMaps, SMaps, Serve
 %% --------------------------------------------------------
 
 %% AtomicLiteral pattern
-pattern_match({c_literal, _Anno, LitVal}, _Bitinfo, _Mode, Cv, Sv, CMaps, SMaps, _Servers, Tags, Fd) ->
+pattern_match({c_literal, Anno, LitVal}, _Bitinfo, _Mode, Cv, Sv, CMaps, SMaps, Servers, _Tags, Fd) ->
   case LitVal =:= Cv of
     true ->
       %% CONSTRAINT: Sv =:= Litval
-      cuter_log:log_equal(Fd, true, LitVal, Sv, Tags#tags.next),
+      visit_tag(Servers#svs.code, cuter_cerl:get_tag_from_anno(Anno)),
+      cuter_log:log_equal(Fd, true, LitVal, Sv, cuter_cerl:get_next_tag_from_anno(Anno)),
       {true, {CMaps, SMaps}};
     false ->
       %% CONSTRAINT: Sv =/= Litval
-      cuter_log:log_equal(Fd, false, LitVal, Sv, Tags#tags.this),
+      visit_tag(Servers#svs.code, cuter_cerl:get_next_tag_from_anno(Anno)),
+      cuter_log:log_equal(Fd, false, LitVal, Sv, cuter_cerl:get_tag_from_anno(Anno)),
       false
   end;
 
@@ -975,43 +979,49 @@ pattern_match({c_var, _Anno, Name}, _BitInfo, _Mode, Cv, Sv, CMaps, SMaps, _Serv
   {true, {CMs, SMs}};
 
 %% Tuple pattern
-pattern_match({c_tuple, _Anno, Es}, BitInfo, Mode, Cv, Sv, CMaps, SMaps, Servers, Tags, Fd) when is_tuple(Cv) ->
+pattern_match({c_tuple, Anno, Es}, BitInfo, Mode, Cv, Sv, CMaps, SMaps, Servers, Tags, Fd) when is_tuple(Cv) ->
   Ne = length(Es),
   case tuple_size(Cv) of
     Ne ->
       Cv_l = tuple_to_list(Cv),
       %% CONSTRAINT: Sv is a tuple of Ne elements
-      cuter_log:log_tuple(Fd, sz, Sv, Ne, Tags#tags.next),
+      visit_tag(Servers#svs.code, cuter_cerl:get_tag_from_anno(Anno)),
+      cuter_log:log_tuple(Fd, sz, Sv, Ne, cuter_cerl:get_next_tag_from_anno(Anno)),
       Sv_l = cuter_symbolic:tpl_to_list(Sv, Ne, Fd),
       pattern_match_all(Es, BitInfo, Mode, Cv_l, Sv_l, CMaps, SMaps, Servers, Tags, Fd);
     _ ->
       %% CONSTRAINT: Sv is a tuple of not Ne elements
-      cuter_log:log_tuple(Fd, not_sz, Sv, Ne, Tags#tags.this),
+      visit_tag(Servers#svs.code, cuter_cerl:get_next_tag_from_anno(Anno)),
+      cuter_log:log_tuple(Fd, not_sz, Sv, Ne, cuter_cerl:get_tag_from_anno(Anno)),
       false
   end;
-pattern_match({c_tuple, _Anno, Es}, _BitInfo, _Mode, _Cv, Sv, _CMaps, _SMaps, _Servers, Tags, Fd) ->
+pattern_match({c_tuple, Anno, Es}, _BitInfo, _Mode, _Cv, Sv, _CMaps, _SMaps, Servers, _Tags, Fd) ->
   Ne = length(Es),
   %% CONSTRAINT: Sv is not a tuple
-  cuter_log:log_tuple(Fd, not_tpl, Sv, Ne, Tags#tags.this),
+  visit_tag(Servers#svs.code, cuter_cerl:get_next_tag_from_anno(Anno)),
+  cuter_log:log_tuple(Fd, not_tpl, Sv, Ne, cuter_cerl:get_tag_from_anno(Anno)),
   false;
 
 %% List constructor pattern
-pattern_match({c_cons, _Anno, _Hd, _Tl}, _BitInfo, _Mode, [], Sv, _CMaps, _SMaps, _Servers, Tags, Fd) ->
+pattern_match({c_cons, Anno, _Hd, _Tl}, _BitInfo, _Mode, [], Sv, _CMaps, _SMaps, Servers, _Tags, Fd) ->
   %% CONSTRAINT: Sv is an empty list
-  cuter_log:log_list(Fd, empty, Sv, Tags#tags.this),
+  visit_tag(Servers#svs.code, cuter_cerl:get_next_tag_from_anno(Anno)),
+  cuter_log:log_list(Fd, empty, Sv, cuter_cerl:get_tag_from_anno(Anno)),
   false;
-pattern_match({c_cons, _Anno, Hd, Tl}, BitInfo, Mode, [Cv|Cvs], Sv, CMaps, SMaps, Servers, Tags, Fd) ->
+pattern_match({c_cons, Anno, Hd, Tl}, BitInfo, Mode, [Cv|Cvs], Sv, CMaps, SMaps, Servers, Tags, Fd) ->
   %% CONSTRAINT: S is a non empty list
-  cuter_log:log_list(Fd, nonempty, Sv, Tags#tags.next),
+  visit_tag(Servers#svs.code, cuter_cerl:get_tag_from_anno(Anno)),
+  cuter_log:log_list(Fd, nonempty, Sv, cuter_cerl:get_next_tag_from_anno(Anno)),
   Sv_h = cuter_symbolic:head(Sv, Fd),
   Sv_t = cuter_symbolic:tail(Sv, Fd),
   case pattern_match(Hd, BitInfo, Mode, Cv, Sv_h, CMaps, SMaps, Servers, Tags, Fd) of
     false -> false;
     {true, {CMs, SMs}} -> pattern_match(Tl, BitInfo, Mode, Cvs, Sv_t, CMs, SMs, Servers, Tags, Fd)
   end;
-pattern_match({c_cons, _Anno, _Hd, _Tl}, _BitInfo, _Mode, _Cv, Sv, _CMaps, _SMaps, _Servers, Tags, Fd) ->
+pattern_match({c_cons, Anno, _Hd, _Tl}, _BitInfo, _Mode, _Cv, Sv, _CMaps, _SMaps, Servers, _Tags, Fd) ->
   %% CONSTRAINT: Sv is not a list
-  cuter_log:log_list(Fd, not_lst, Sv, Tags#tags.this),
+  visit_tag(Servers#svs.code, cuter_cerl:get_next_tag_from_anno(Anno)),
+  cuter_log:log_list(Fd, not_lst, Sv, cuter_cerl:get_tag_from_anno(Anno)),
   false;
 
 %% Alias pattern

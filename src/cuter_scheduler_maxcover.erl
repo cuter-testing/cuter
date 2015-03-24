@@ -112,7 +112,7 @@ handle_info(Msg, State) ->
 %% Store the information of the first concolic execution
 handle_call({seed_execution, Info}, _From, S=#sts{info = AllInfo, depth = Depth}) ->
   Handle = fresh_execution_handle(),  %% A handle for an execution
-  io:format("[sched] Init Exec ~p~n", [Handle]),
+%  io:format("[sched] Init Exec ~p~n", [Handle]),
   %% Generate the information of the execution
   I = #{ traceFile => maps:get(traceFile, Info)
        , dataDir => maps:get(dir, Info)
@@ -121,8 +121,8 @@ handle_call({seed_execution, Info}, _From, S=#sts{info = AllInfo, depth = Depth}
   Rvs = maps:get(reversible, Info),
   Visited = maps:get(tags, Info),
   Items = generate_queue_items(Rvs, Handle, Visited, Depth),
-  io:format("[sched] Init Visited ~p~n", [gb_sets:to_list(Visited)]),
-  io:format("[sched] Init Queue ~p~n", [queue:from_list(Items)]),
+%  io:format("[sched] Init Visited ~p~n", [gb_sets:to_list(Visited)]),
+%  io:format("[sched] Init Queue ~p~n", [queue:from_list(Items)]),
   {reply, ok, S#sts{ queue = queue:from_list(Items)
                    , info = dict:store(Handle, I, AllInfo)
                    , stored_mods = maps:get(stored_mods, Info)      %% Code of loaded modules
@@ -175,7 +175,7 @@ generate_new_input(Queue, Python, Info, Visited) ->
       I = dict:fetch(Handle, Info),
       File = maps:get(traceFile, I),
       Ms = maps:get(mappings, I),
-      io:format("[sched] Attempting ~w in ~p~n", [N, File]),
+%      io:format("[sched] Attempting ~w in ~p~n", [N, File]),
       case cuter_solver:solve(Python, Ms, File, N) of
         error ->
           io:format(".~n"),

@@ -3,7 +3,8 @@
 -module(cuter_cerl).
 
 %% External exports
--export([load/4, retrieve_spec/2, get_tag/1, get_next_tag/1, id_of_tag/1, tag_from_id/1, empty_tag/0]).
+-export([load/4, retrieve_spec/2, get_tag/1, get_next_tag/1, id_of_tag/1, tag_from_id/1, empty_tag/0,
+         get_tag_from_anno/1, get_next_tag_from_anno/1]).
 
 %% Will be using the records representation of the Core Erlang Abstract Syntax Tree
 %% as they are defined in core_parse.hrl
@@ -166,57 +167,124 @@ store_fun(Exps, M, {Fun, Def}, Db, TagGen) ->
   {FunName, Arity} = Fun#c_var.name,
   MFA = {M, FunName, Arity},
   Exported = lists:member(MFA, Exps),
-  AnnDef = annotate(Def, TagGen),
+%  io:format("===========================================================================~n"),
+%  io:format("BEFORE~n"),
+%  io:format("~p~n", [Def]),
+  AnnDef = annotate(patterns, Def, TagGen),
+%  io:format("AFTER~n"),
+%  io:format("~p~n", [AnnDef]),
   true = ets:insert(Db, {MFA, {AnnDef, Exported}}),
   ok.
 
-%% Annotate the clauses with tags.
--spec annotate(cerl:cerl(), tag_generator()) -> cerl:cerl().
-annotate({c_alias, Anno, Var, Pat}, TagGen) ->
-  {c_alias, Anno, annotate(Var, TagGen), annotate(Pat, TagGen)};
-annotate({c_apply, Anno, Op, Args}, TagGen) ->
-  {c_apply, [TagGen()|Anno], annotate(Op, TagGen), [annotate(A, TagGen) || A <- Args]};
-annotate({c_binary, Anno, Segs}, TagGen) ->
-  {c_binary, Anno, [annotate(S, TagGen) || S <- Segs]};
-annotate({c_bitstr, Anno, Val, Sz, Unit, Type, Flags}, TagGen) ->
-  {c_bitstr, Anno, annotate(Val, TagGen), annotate(Sz, TagGen),
-    annotate(Unit, TagGen), annotate(Type, TagGen), annotate(Flags, TagGen)};
-annotate({c_call, Anno, Mod, Name, Args}, TagGen) ->
-  {c_call, [TagGen()|Anno], annotate(Mod, TagGen), annotate(Name, TagGen), [annotate(A, TagGen) || A <- Args]};
-annotate({c_case, Anno, Arg, Clauses}, TagGen) ->
-  Cs0 = [annotate(Cl, TagGen) || Cl <- Clauses],
+%% Annotates the AST with tags.
+-spec annotate(patterns | clauses, cerl:cerl(), tag_generator()) -> cerl:cerl().
+annotate(patterns, Def, TagGen) -> annotate_pats(Def, TagGen, false);
+annotate(clauses, Def, TagGen) -> annotate_clauses(Def, TagGen).
+
+%% Annotate patterns
+-spec annotate_pats(cerl:cerl(), tag_generator(), boolean()) -> cerl:cerl().
+annotate_pats({c_alias, Anno, Var, Pat}, TagGen, InPats) ->
+  {c_alias, Anno, annotate_pats(Var, TagGen, InPats), annotate_pats(Pat, TagGen, InPats)};
+annotate_pats({c_apply, Anno, Op, Args}, TagGen, InPats) ->
+  {c_apply, [TagGen()|Anno], annotate_pats(Op, TagGen, InPats), [annotate_pats(A, TagGen, InPats) || A <- Args]};
+annotate_pats({c_binary, Anno, Segs}, TagGen, InPats) ->
+  {c_binary, Anno, [annotate_pats(S, TagGen, InPats) || S <- Segs]};
+annotate_pats({c_bitstr, Anno, Val, Sz, Unit, Type, Flags}, TagGen, InPats) ->
+  {c_bitstr, Anno, annotate_pats(Val, TagGen, InPats), annotate_pats(Sz, TagGen, InPats),
+    annotate_pats(Unit, TagGen, InPats), annotate_pats(Type, TagGen, InPats), annotate_pats(Flags, TagGen, InPats)};
+annotate_pats({c_call, Anno, Mod, Name, Args}, TagGen, InPats) ->
+  {c_call, [TagGen()|Anno], annotate_pats(Mod, TagGen, InPats), annotate_pats(Name, TagGen, InPats), [annotate_pats(A, TagGen, InPats) || A <- Args]};
+annotate_pats({c_case, Anno, Arg, Clauses}, TagGen, InPats) ->
+  {c_case, Anno, annotate_pats(Arg, TagGen, InPats), [annotate_pats(Cl, TagGen, InPats) || Cl <- Clauses]};
+annotate_pats({c_catch, Anno, Body}, TagGen, InPats) ->
+  {c_catch, Anno, annotate_pats(Body, TagGen, InPats)};
+annotate_pats({c_clause, Anno, Pats, Guard, Body}, TagGen, InPats) ->
+  WithTags = [{next_tag, TagGen()}, TagGen() | Anno],
+  {c_clause, WithTags, [annotate_pats(P, TagGen, true) || P <- Pats], annotate_pats(Guard, TagGen, InPats), annotate_pats(Body, TagGen, InPats)};
+annotate_pats({c_cons, Anno, Hd, Tl}, TagGen, InPats) ->
+  WithTags = [{next_tag, TagGen()}, TagGen() | Anno],
+  case InPats of
+    false -> {c_cons, Anno, annotate_pats(Hd, TagGen, false), annotate_pats(Tl, TagGen, false)};
+    true  -> {c_cons, WithTags, annotate_pats(Hd, TagGen, true), annotate_pats(Tl, TagGen, true)}
+  end;
+annotate_pats({c_fun, Anno, Vars, Body}, TagGen, InPats) ->
+  {c_fun, Anno, [annotate_pats(V, TagGen, InPats) || V <- Vars], annotate_pats(Body, TagGen, InPats)};
+annotate_pats({c_let, Anno, Vars, Arg, Body}, TagGen, InPats) ->
+  {c_let, Anno, [annotate_pats(V, TagGen, InPats) || V <- Vars], annotate_pats(Arg, TagGen, InPats), annotate_pats(Body, TagGen, InPats)};
+annotate_pats({c_letrec, Anno, Defs, Body}, TagGen, InPats) ->
+  {c_letrec, Anno, [{annotate_pats(X, TagGen, InPats), annotate_pats(Y, TagGen, InPats)} || {X, Y} <- Defs], annotate_pats(Body, TagGen, InPats)};
+annotate_pats({c_literal, Anno, Val}, TagGen, InPats) ->
+  case InPats of
+    false -> {c_literal, Anno, Val};
+    true  -> {c_literal, [{next_tag, TagGen()}, TagGen() | Anno], Val}
+  end;
+annotate_pats({c_primop, Anno, Name, Args}, TagGen, InPats) ->
+  {c_primop, Anno, annotate_pats(Name, TagGen, InPats), [annotate_pats(A, TagGen, InPats) || A <- Args]};
+annotate_pats({c_receive, Anno, Clauses, Timeout, Action}, TagGen, InPats) ->
+  {c_receive, Anno, [annotate_pats(Cl, TagGen, InPats) || Cl <- Clauses], annotate_pats(Timeout, TagGen, InPats), annotate_pats(Action, TagGen, InPats)};
+annotate_pats({c_seq, Anno, Arg, Body}, TagGen, InPats) ->
+  {c_seq, Anno, annotate_pats(Arg, TagGen, InPats), annotate_pats(Body, TagGen, InPats)};
+annotate_pats({c_try, Anno, Arg, Vars, Body, Evars, Handler}, TagGen, InPats) ->
+  {c_try, Anno, annotate_pats(Arg, TagGen, InPats), [annotate_pats(V, TagGen, InPats) || V <- Vars],
+    annotate_pats(Body, TagGen, InPats), [annotate_pats(EV, TagGen, InPats) || EV <- Evars], annotate_pats(Handler, TagGen, InPats)};
+annotate_pats({c_tuple, Anno, Es}, TagGen, InPats) ->
+  WithTags = [{next_tag, TagGen()}, TagGen() | Anno],
+  case InPats of
+    false -> {c_tuple, Anno, [annotate_pats(E, TagGen, false) || E <- Es]};
+    true  -> {c_tuple, WithTags, [annotate_pats(E, TagGen, true) || E <- Es]}
+  end;
+annotate_pats({c_values, Anno, Es}, TagGen, InPats) ->
+  {c_values, Anno, [annotate_pats(E, TagGen, InPats) || E <- Es]};
+annotate_pats({c_var, Anno, Name}, _TagGen, _InPats) ->
+  {c_var, Anno, Name}.
+
+%% Annotates clauses with tags.
+-spec annotate_clauses(cerl:cerl(), tag_generator()) -> cerl:cerl().
+annotate_clauses({c_alias, Anno, Var, Pat}, TagGen) ->
+  {c_alias, Anno, annotate_clauses(Var, TagGen), annotate_clauses(Pat, TagGen)};
+annotate_clauses({c_apply, Anno, Op, Args}, TagGen) ->
+  {c_apply, [TagGen()|Anno], annotate_clauses(Op, TagGen), [annotate_clauses(A, TagGen) || A <- Args]};
+annotate_clauses({c_binary, Anno, Segs}, TagGen) ->
+  {c_binary, Anno, [annotate_clauses(S, TagGen) || S <- Segs]};
+annotate_clauses({c_bitstr, Anno, Val, Sz, Unit, Type, Flags}, TagGen) ->
+  {c_bitstr, Anno, annotate_clauses(Val, TagGen), annotate_clauses(Sz, TagGen),
+    annotate_clauses(Unit, TagGen), annotate_clauses(Type, TagGen), annotate_clauses(Flags, TagGen)};
+annotate_clauses({c_call, Anno, Mod, Name, Args}, TagGen) ->
+  {c_call, [TagGen()|Anno], annotate_clauses(Mod, TagGen), annotate_clauses(Name, TagGen), [annotate_clauses(A, TagGen) || A <- Args]};
+annotate_clauses({c_case, Anno, Arg, Clauses}, TagGen) ->
+  Cs0 = [annotate_clauses(Cl, TagGen) || Cl <- Clauses],
   Cs1 = annotate_next_clause(Cs0),
-  {c_case, Anno, annotate(Arg, TagGen), Cs1};
-annotate({c_catch, Anno, Body}, TagGen) ->
-  {c_catch, Anno, annotate(Body, TagGen)};
-annotate({c_clause, Anno, Pats, Guard, Body}, TagGen) ->
-  {c_clause, [TagGen()|Anno], [annotate(P, TagGen) || P <- Pats], annotate(Guard, TagGen), annotate(Body, TagGen)};
-annotate({c_cons, Anno, Hd, Tl}, TagGen) ->
-  {c_cons, Anno, annotate(Hd, TagGen), annotate(Tl, TagGen)};
-annotate({c_fun, Anno, Vars, Body}, TagGen) ->
-  {c_fun, Anno, [annotate(V, TagGen) || V <- Vars], annotate(Body, TagGen)};
-annotate({c_let, Anno, Vars, Arg, Body}, TagGen) ->
-  {c_let, Anno, [annotate(V, TagGen) || V <- Vars], annotate(Arg, TagGen), annotate(Body, TagGen)};
-annotate({c_letrec, Anno, Defs, Body}, TagGen) ->
-  {c_letrec, Anno, [{annotate(X, TagGen), annotate(Y, TagGen)} || {X, Y} <- Defs], annotate(Body, TagGen)};
-annotate({c_literal, Anno, Val}, _TagGen) ->
+  {c_case, Anno, annotate_clauses(Arg, TagGen), Cs1};
+annotate_clauses({c_catch, Anno, Body}, TagGen) ->
+  {c_catch, Anno, annotate_clauses(Body, TagGen)};
+annotate_clauses({c_clause, Anno, Pats, Guard, Body}, TagGen) ->
+  {c_clause, [TagGen()|Anno], [annotate_clauses(P, TagGen) || P <- Pats], annotate_clauses(Guard, TagGen), annotate_clauses(Body, TagGen)};
+annotate_clauses({c_cons, Anno, Hd, Tl}, TagGen) ->
+  {c_cons, Anno, annotate_clauses(Hd, TagGen), annotate_clauses(Tl, TagGen)};
+annotate_clauses({c_fun, Anno, Vars, Body}, TagGen) ->
+  {c_fun, Anno, [annotate_clauses(V, TagGen) || V <- Vars], annotate_clauses(Body, TagGen)};
+annotate_clauses({c_let, Anno, Vars, Arg, Body}, TagGen) ->
+  {c_let, Anno, [annotate_clauses(V, TagGen) || V <- Vars], annotate_clauses(Arg, TagGen), annotate_clauses(Body, TagGen)};
+annotate_clauses({c_letrec, Anno, Defs, Body}, TagGen) ->
+  {c_letrec, Anno, [{annotate_clauses(X, TagGen), annotate_clauses(Y, TagGen)} || {X, Y} <- Defs], annotate_clauses(Body, TagGen)};
+annotate_clauses({c_literal, Anno, Val}, _TagGen) ->
   {c_literal, Anno, Val};
-annotate({c_primop, Anno, Name, Args}, TagGen) ->
-  {c_primop, Anno, annotate(Name, TagGen), [annotate(A, TagGen) || A <- Args]};
-annotate({c_receive, Anno, Clauses, Timeout, Action}, TagGen) ->
-  Cs0 = [annotate(Cl, TagGen) || Cl <- Clauses],
+annotate_clauses({c_primop, Anno, Name, Args}, TagGen) ->
+  {c_primop, Anno, annotate_clauses(Name, TagGen), [annotate_clauses(A, TagGen) || A <- Args]};
+annotate_clauses({c_receive, Anno, Clauses, Timeout, Action}, TagGen) ->
+  Cs0 = [annotate_clauses(Cl, TagGen) || Cl <- Clauses],
   Cs1 = annotate_next_clause(Cs0),
-  {c_receive, Anno, Cs1, annotate(Timeout, TagGen), annotate(Action, TagGen)};
-annotate({c_seq, Anno, Arg, Body}, TagGen) ->
-  {c_seq, Anno, annotate(Arg, TagGen), annotate(Body, TagGen)};
-annotate({c_try, Anno, Arg, Vars, Body, Evars, Handler}, TagGen) ->
-  {c_try, Anno, annotate(Arg, TagGen), [annotate(V, TagGen) || V <- Vars],
-    annotate(Body, TagGen), [annotate(EV, TagGen) || EV <- Evars], annotate(Handler, TagGen)};
-annotate({c_tuple, Anno, Es}, TagGen) ->
-  {c_tuple, Anno, [annotate(E, TagGen) || E <- Es]};
-annotate({c_values, Anno, Es}, TagGen) ->
-  {c_values, Anno, [annotate(E, TagGen) || E <- Es]};
-annotate({c_var, Anno, Name}, _TagGen) ->
+  {c_receive, Anno, Cs1, annotate_clauses(Timeout, TagGen), annotate_clauses(Action, TagGen)};
+annotate_clauses({c_seq, Anno, Arg, Body}, TagGen) ->
+  {c_seq, Anno, annotate_clauses(Arg, TagGen), annotate_clauses(Body, TagGen)};
+annotate_clauses({c_try, Anno, Arg, Vars, Body, Evars, Handler}, TagGen) ->
+  {c_try, Anno, annotate_clauses(Arg, TagGen), [annotate_clauses(V, TagGen) || V <- Vars],
+    annotate_clauses(Body, TagGen), [annotate_clauses(EV, TagGen) || EV <- Evars], annotate_clauses(Handler, TagGen)};
+annotate_clauses({c_tuple, Anno, Es}, TagGen) ->
+  {c_tuple, Anno, [annotate_clauses(E, TagGen) || E <- Es]};
+annotate_clauses({c_values, Anno, Es}, TagGen) ->
+  {c_values, Anno, [annotate_clauses(E, TagGen) || E <- Es]};
+annotate_clauses({c_var, Anno, Name}, _TagGen) ->
   {c_var, Anno, Name}.
 
 %% Annotates clauses with next tags.
@@ -240,8 +308,8 @@ get_tag(#c_clause{anno=Anno}) ->
   get_tag_from_anno(Anno).
 
 -spec get_tag_from_anno(list()) -> tag().
-%get_tag_from_anno([]) ->
-%  empty_tag();
+get_tag_from_anno([]) ->
+  empty_tag();
 get_tag_from_anno([{?BRANCH_TAG_PREFIX, _N}=Tag | _Annos]) ->
   Tag;
 get_tag_from_anno([_|Annos]) ->
@@ -265,12 +333,12 @@ get_next_tag_from_anno([{next_tag, Tag={?BRANCH_TAG_PREFIX, _N}} | _Annos]) ->
 get_next_tag_from_anno([_|Annos]) ->
   get_next_tag_from_anno(Annos).
 
-%% Create a tag from tag info.
+%% Creates a tag from tag info.
 -spec tag_from_id(tagID()) -> tag().
 tag_from_id(N) ->
   {?BRANCH_TAG_PREFIX, N}.
 
-%% Get the tag info of a tag.
+%% Gets the tag info of a tag.
 -spec id_of_tag(tag()) -> tagID().
 id_of_tag({?BRANCH_TAG_PREFIX, N}) -> N.
 

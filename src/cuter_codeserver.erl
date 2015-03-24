@@ -169,7 +169,7 @@ handle_cast({stop, FromWho}, State) ->
     false -> {noreply, State}
   end;
 handle_cast({visit_tag, Tag}, State=#state{tags = Tags}) ->
-  io:format("[code] ~p~n", [Tag]),
+%  io:format("[code] ~p~n", [Tag]),
   Ts = gb_sets:add_element(cuter_cerl:id_of_tag(Tag), Tags),
   {noreply, State#state{tags = Ts}}.
 

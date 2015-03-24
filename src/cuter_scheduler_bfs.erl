@@ -104,6 +104,7 @@ handle_call({seed_execution, Info}, _From, S=#sts{queue = Q, info = I}) ->
   Q1 = queue:in(Rf, Q),
   %% Store the code of the modules
   StoredMods = maps:get(stored_mods, Info),
+  io:format("[sched] Init storing ~p~n", [orddict:fetch_keys(StoredMods)]),
   %% Get the number of added tags
   TagsCnt = maps:get(tags_added_no, Info),
   %% Add the next command to be reversed and remove the stored modules
@@ -128,6 +129,7 @@ handle_call({store_execution, Rf, Info}, _From, S=#sts{queue = Q, info = I, wait
   %% Update the stored code of modules
   StoredMods = maps:get(stored_mods, Info),
   NewSMs = orddict:merge(fun(_K, V1, _V2) -> V1 end, SMs, StoredMods),
+  io:format("[sched] New Stored ~p~n", [orddict:fetch_keys(NewSMs)]),
   %% Get the updated number of added tags
   TagsCnt = maps:get(tags_added_no, Info),
   [{Rf, PartialInfo}] = ets:lookup(I, Rf),
