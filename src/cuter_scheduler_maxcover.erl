@@ -35,6 +35,7 @@
   , tags_added_no = 0  :: integer()
   , visited_tags       :: cuter_analyzer:visited_tags()
   , running            :: dict:dict(exec_handle(), input())
+  , first_operation    :: dict:dict(exec_handle(), integer())
   , erroneous          :: orddict:orddict()  %% TODO Populate this field
 }).
 -type state() :: #sts{}.
@@ -84,7 +85,8 @@ store_execution(Scheduler, Handle, Info) ->
 init([Python, Depth]) ->
   _ = set_execution_counter(0),
   {ok, #sts{queue = queue:new(), info = dict:new(), python = Python,
-            depth = Depth, visited_tags = gb_sets:new(), running = dict:new()}}.
+            depth = Depth, visited_tags = gb_sets:new(), running = dict:new(),
+            first_operation = dict:new()}}.
 
 %% terminate/2
 -spec terminate(any(), state()) -> ok.
@@ -109,10 +111,10 @@ handle_info(Msg, State) ->
 -spec handle_call({seed_execution, cuter_analyzer:info()}, from(), state()) -> {reply, ok, state()}
                ; (request_input, from(), state()) -> {reply, (empty | {exec_handle(), input(), cuter_analyzer:stored_modules(), integer()}), state()}
                ; ({store_execution, exec_handle(), cuter_analyzer:info()}, from(), state()) -> {reply, ok, state}.
+
 %% Store the information of the first concolic execution
 handle_call({seed_execution, Info}, _From, S=#sts{info = AllInfo, depth = Depth}) ->
   Handle = fresh_execution_handle(),  %% A handle for an execution
-%  io:format("[sched] Init Exec ~p~n", [Handle]),
   %% Generate the information of the execution
   I = #{ traceFile => maps:get(traceFile, Info)
        , dataDir => maps:get(dir, Info)
@@ -120,24 +122,27 @@ handle_call({seed_execution, Info}, _From, S=#sts{info = AllInfo, depth = Depth}
   %% Initialize the queue
   Rvs = maps:get(reversible, Info),
   Visited = maps:get(tags, Info),
-  Items = generate_queue_items(Rvs, Handle, Visited, Depth),
-%  io:format("[sched] Init Visited ~p~n", [gb_sets:to_list(Visited)]),
-%  io:format("[sched] Init Queue ~p~n", [queue:from_list(Items)]),
+  Items = generate_queue_items(Rvs, Handle, Visited, 0, Depth),
   {reply, ok, S#sts{ queue = queue:from_list(Items)
                    , info = dict:store(Handle, I, AllInfo)
                    , stored_mods = maps:get(stored_mods, Info)      %% Code of loaded modules
                    , tags_added_no = maps:get(tags_added_no, Info)  %% Number of added tags
                    , visited_tags = Visited}};
+
 %% Ask for a new input to execute
-handle_call(request_input, _From, S=#sts{queue = Q, info = AllInfo, python = P, stored_mods = SMs, visited_tags = Vs, tags_added_no = TagsN, running = Rn}) ->
+handle_call(request_input, _From, S=#sts{queue = Q, info = AllInfo, python = P, stored_mods = SMs, visited_tags = Vs, tags_added_no = TagsN, running = Rn,
+                                         first_operation = FOp}) ->
   case generate_new_input(Q, P, AllInfo, Vs) of
     empty -> {reply, empty, S};
-    {ok, Handle, Input, Q1} ->
+    {ok, Handle, Input, Q1, NAllowed} ->
       {reply, {Handle, Input, SMs, TagsN}, S#sts{ queue = Q1
-                                                , running = dict:store(Handle, Input, Rn)}}
+                                                , running = dict:store(Handle, Input, Rn)
+                                                , first_operation = dict:store(Handle, NAllowed, FOp)}}
   end;
+
 %% Store the information of a concolic execution
-handle_call({store_execution, Handle, Info}, _From, S=#sts{queue = Queue, info = AllInfo, stored_mods = SMs, visited_tags = Vs, depth = Depth, running = Rn}) ->
+handle_call({store_execution, Handle, Info}, _From, S=#sts{queue = Queue, info = AllInfo, stored_mods = SMs, visited_tags = Vs, depth = Depth, running = Rn,
+                                                           first_operation = FOp}) ->
   %% Generate the information of the execution
   I = #{ traceFile => maps:get(traceFile, Info)
        , dataDir => maps:get(dir, Info)
@@ -147,14 +152,16 @@ handle_call({store_execution, Handle, Info}, _From, S=#sts{queue = Queue, info =
   %% Update the visited tags
   Visited = gb_sets:union(Vs, maps:get(tags, Info)),
   %% Update the queue
+  N = dict:fetch(Handle, FOp),
   Rvs = maps:get(reversible, Info),
-  Items = generate_queue_items(Rvs, Handle, Visited, Depth),
+  Items = generate_queue_items(Rvs, Handle, Visited, N, Depth),
   {reply, ok, S#sts{ queue = queue:join(Queue, queue:from_list(Items))
                    , info = dict:store(Handle, I, AllInfo)
                    , stored_mods = StoredMods
                    , tags_added_no = maps:get(tags_added_no, Info)  %% Number of added tags
                    , visited_tags = Visited
-                   , running = dict:erase(Handle, Rn)}}.  %% Remove the handle from the running set
+                   , running = dict:erase(Handle, Rn)  %% Remove the handle from the running set
+                   , first_operation = dict:erase(Handle, FOp)}}.
 
 %% handle_cast/2
 -spec handle_cast(stop, state()) -> {stop, normal, state()}.
@@ -167,7 +174,7 @@ handle_cast(stop, State) ->
 %% ============================================================================
 
 -spec generate_new_input(queue:queue(item()), string(), exec_info(), cuter_analyzer:visited_tags()) ->
-        {ok, exec_handle(), input(), queue:queue(item())} | empty.
+        {ok, exec_handle(), input(), queue:queue(item()), integer()} | empty.
 generate_new_input(Queue, Python, Info, Visited) ->
   case locate_next_reversible(Queue, Visited) of
     empty -> empty;
@@ -182,20 +189,16 @@ generate_new_input(Queue, Python, Info, Visited) ->
           generate_new_input(Queue1, Python, Info, Visited);
         {ok, Input} ->
           H = fresh_execution_handle(),
-          {ok, H, Input, Queue1}
+          {ok, H, Input, Queue1, N+1}
       end
   end.
 
 -spec locate_next_reversible(queue:queue(item()), cuter_analyzer:visited_tags()) ->
         {ok, integer(), exec_handle(), queue:queue(item())} | empty.
-locate_next_reversible(Queue, Visited) ->
+locate_next_reversible(Queue, _Visited) ->
   case queue:out(Queue) of
     {empty, Queue} -> empty;
-    {{value, {N, TagID, Handle}}, Queue1} ->
-      case gb_sets:is_member(TagID, Visited) of
-        true  -> locate_next_reversible(Queue1, Visited);
-        false -> {ok, N, Handle, Queue1}
-      end
+    {{value, {N, _TagID, Handle}}, Queue1} -> {ok, N, Handle, Queue1}
   end.
 
 %% ============================================================================
@@ -216,24 +219,24 @@ fresh_execution_handle() ->
 %% Functions for tags
 %% ============================================================================
 
--spec generate_queue_items(cuter_analyzer:reversible_with_tags(), exec_handle(), cuter_analyzer:visited_tags(), integer()) -> [item()].
-generate_queue_items(Rvs, Handle, Visited, Depth) ->
-  generate_queue_items(Rvs, Handle, Visited, Depth, []).
+-spec generate_queue_items(cuter_analyzer:reversible_with_tags(), exec_handle(), cuter_analyzer:visited_tags(), integer(), integer()) -> [item()].
+generate_queue_items(Rvs, Handle, Visited, N, Depth) ->
+  generate_queue_items(Rvs, Handle, Visited, N, Depth, []).
 
--spec generate_queue_items(cuter_analyzer:reversible_with_tags(), exec_handle(), cuter_analyzer:visited_tags(), integer(), [item()]) -> [item()].
-generate_queue_items([], _Handle, _Visited, _Depth, Acc) ->
+-spec generate_queue_items(cuter_analyzer:reversible_with_tags(), exec_handle(), cuter_analyzer:visited_tags(), integer(), integer(), [item()]) -> [item()].
+generate_queue_items([], _Handle, _Visited, _N, _Depth, Acc) ->
   lists:reverse(Acc);
-generate_queue_items([R|Rs], Handle, Visited, Depth, Acc) ->
-  case maybe_item(R, Handle, Visited, Depth) of
-    false -> generate_queue_items(Rs, Handle, Visited, Depth, Acc);
-    {ok, Item} -> generate_queue_items(Rs, Handle, Visited, Depth, [Item|Acc])
+generate_queue_items([R|Rs], Handle, Visited, N, Depth, Acc) ->
+  case maybe_item(R, Handle, Visited, N, Depth) of
+    false -> generate_queue_items(Rs, Handle, Visited, N, Depth, Acc);
+    {ok, Item} -> generate_queue_items(Rs, Handle, Visited, N, Depth, [Item|Acc])
   end.
 
--spec maybe_item(cuter_analyzer:reversible_with_tag(), exec_handle(), cuter_analyzer:visited_tags(), integer()) -> {ok, item()} | false.
-maybe_item({N, TagID}, Handle, Visited, Depth) ->
-  case N > Depth orelse gb_sets:is_member(TagID, Visited) of
+-spec maybe_item(cuter_analyzer:reversible_with_tag(), exec_handle(), cuter_analyzer:visited_tags(), integer(), integer()) -> {ok, item()} | false.
+maybe_item({Id, TagID}, Handle, _Visited, N, Depth) ->
+  case Id > Depth orelse Id < N of
     true  -> false;
-    false -> {ok, {N, TagID, Handle}}
+    false -> {ok, {Id, TagID, Handle}}
   end.
 
 
