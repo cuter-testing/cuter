@@ -3,8 +3,7 @@
 -module(cuter_cerl).
 
 %% External exports
--export([load/4, retrieve_spec/2, get_tag/1, get_next_tag/1, id_of_tag/1, tag_from_id/1, empty_tag/0,
-         get_tag_from_anno/1, get_next_tag_from_anno/1]).
+-export([load/4, retrieve_spec/2, get_tags/1, id_of_tag/1, tag_from_id/1, empty_tag/0]).
 
 %% Will be using the records representation of the Core Erlang Abstract Syntax Tree
 %% as they are defined in core_parse.hrl
@@ -14,7 +13,6 @@
 -export_type([compile_error/0, cerl_spec/0, cerl_func/0, cerl_type/0, cerl_bounded_func/0,
               tagID/0, tag/0, tag_generator/0]).
 
--type c_apply() :: #c_apply{}.  %% Unexported type of cerl.erl
 -type info()          :: anno | attributes | exports | name.
 -type compile_error() :: {error, {loaded_ret_atoms(), module()}} 
                        | {runtime_error, {compile, {atom(), term()}}}.
@@ -170,16 +168,15 @@ store_fun(Exps, M, {Fun, Def}, Db, TagGen) ->
 %  io:format("===========================================================================~n"),
 %  io:format("BEFORE~n"),
 %  io:format("~p~n", [Def]),
-  AnnDef = annotate(patterns, Def, TagGen),
+  AnnDef = annotate(Def, TagGen),
 %  io:format("AFTER~n"),
 %  io:format("~p~n", [AnnDef]),
   true = ets:insert(Db, {MFA, {AnnDef, Exported}}),
   ok.
 
 %% Annotates the AST with tags.
--spec annotate(patterns | clauses, cerl:cerl(), tag_generator()) -> cerl:cerl().
-annotate(patterns, Def, TagGen) -> annotate_pats(Def, TagGen, false);
-annotate(clauses, Def, TagGen) -> annotate_clauses(Def, TagGen).
+-spec annotate(cerl:cerl(), tag_generator()) -> cerl:cerl().
+annotate(Def, TagGen) -> annotate_pats(Def, TagGen, false).
 
 %% Annotate patterns
 -spec annotate_pats(cerl:cerl(), tag_generator(), boolean()) -> cerl:cerl().
@@ -238,100 +235,19 @@ annotate_pats({c_values, Anno, Es}, TagGen, InPats) ->
 annotate_pats({c_var, Anno, Name}, _TagGen, _InPats) ->
   {c_var, Anno, Name}.
 
-%% Annotates clauses with tags.
--spec annotate_clauses(cerl:cerl(), tag_generator()) -> cerl:cerl().
-annotate_clauses({c_alias, Anno, Var, Pat}, TagGen) ->
-  {c_alias, Anno, annotate_clauses(Var, TagGen), annotate_clauses(Pat, TagGen)};
-annotate_clauses({c_apply, Anno, Op, Args}, TagGen) ->
-  {c_apply, [TagGen()|Anno], annotate_clauses(Op, TagGen), [annotate_clauses(A, TagGen) || A <- Args]};
-annotate_clauses({c_binary, Anno, Segs}, TagGen) ->
-  {c_binary, Anno, [annotate_clauses(S, TagGen) || S <- Segs]};
-annotate_clauses({c_bitstr, Anno, Val, Sz, Unit, Type, Flags}, TagGen) ->
-  {c_bitstr, Anno, annotate_clauses(Val, TagGen), annotate_clauses(Sz, TagGen),
-    annotate_clauses(Unit, TagGen), annotate_clauses(Type, TagGen), annotate_clauses(Flags, TagGen)};
-annotate_clauses({c_call, Anno, Mod, Name, Args}, TagGen) ->
-  {c_call, [TagGen()|Anno], annotate_clauses(Mod, TagGen), annotate_clauses(Name, TagGen), [annotate_clauses(A, TagGen) || A <- Args]};
-annotate_clauses({c_case, Anno, Arg, Clauses}, TagGen) ->
-  Cs0 = [annotate_clauses(Cl, TagGen) || Cl <- Clauses],
-  Cs1 = annotate_next_clause(Cs0),
-  {c_case, Anno, annotate_clauses(Arg, TagGen), Cs1};
-annotate_clauses({c_catch, Anno, Body}, TagGen) ->
-  {c_catch, Anno, annotate_clauses(Body, TagGen)};
-annotate_clauses({c_clause, Anno, Pats, Guard, Body}, TagGen) ->
-  {c_clause, [TagGen()|Anno], [annotate_clauses(P, TagGen) || P <- Pats], annotate_clauses(Guard, TagGen), annotate_clauses(Body, TagGen)};
-annotate_clauses({c_cons, Anno, Hd, Tl}, TagGen) ->
-  {c_cons, Anno, annotate_clauses(Hd, TagGen), annotate_clauses(Tl, TagGen)};
-annotate_clauses({c_fun, Anno, Vars, Body}, TagGen) ->
-  {c_fun, Anno, [annotate_clauses(V, TagGen) || V <- Vars], annotate_clauses(Body, TagGen)};
-annotate_clauses({c_let, Anno, Vars, Arg, Body}, TagGen) ->
-  {c_let, Anno, [annotate_clauses(V, TagGen) || V <- Vars], annotate_clauses(Arg, TagGen), annotate_clauses(Body, TagGen)};
-annotate_clauses({c_letrec, Anno, Defs, Body}, TagGen) ->
-  {c_letrec, Anno, [{annotate_clauses(X, TagGen), annotate_clauses(Y, TagGen)} || {X, Y} <- Defs], annotate_clauses(Body, TagGen)};
-annotate_clauses({c_literal, Anno, Val}, _TagGen) ->
-  {c_literal, Anno, Val};
-annotate_clauses({c_primop, Anno, Name, Args}, TagGen) ->
-  {c_primop, Anno, annotate_clauses(Name, TagGen), [annotate_clauses(A, TagGen) || A <- Args]};
-annotate_clauses({c_receive, Anno, Clauses, Timeout, Action}, TagGen) ->
-  Cs0 = [annotate_clauses(Cl, TagGen) || Cl <- Clauses],
-  Cs1 = annotate_next_clause(Cs0),
-  {c_receive, Anno, Cs1, annotate_clauses(Timeout, TagGen), annotate_clauses(Action, TagGen)};
-annotate_clauses({c_seq, Anno, Arg, Body}, TagGen) ->
-  {c_seq, Anno, annotate_clauses(Arg, TagGen), annotate_clauses(Body, TagGen)};
-annotate_clauses({c_try, Anno, Arg, Vars, Body, Evars, Handler}, TagGen) ->
-  {c_try, Anno, annotate_clauses(Arg, TagGen), [annotate_clauses(V, TagGen) || V <- Vars],
-    annotate_clauses(Body, TagGen), [annotate_clauses(EV, TagGen) || EV <- Evars], annotate_clauses(Handler, TagGen)};
-annotate_clauses({c_tuple, Anno, Es}, TagGen) ->
-  {c_tuple, Anno, [annotate_clauses(E, TagGen) || E <- Es]};
-annotate_clauses({c_values, Anno, Es}, TagGen) ->
-  {c_values, Anno, [annotate_clauses(E, TagGen) || E <- Es]};
-annotate_clauses({c_var, Anno, Name}, _TagGen) ->
-  {c_var, Anno, Name}.
+%% Get the tags from the annotations of an AST's node.
+-spec get_tags(list()) -> ast_tags().
+get_tags(Annos) ->
+  get_tags(Annos, #tags{}).
 
-%% Annotates clauses with next tags.
-annotate_next_clause(Clauses) ->
-  annotate_next_clause(Clauses, []).
-
-annotate_next_clause([Clause], Acc) ->
-  lists:reverse([Clause | Acc]);
-annotate_next_clause([C1, C2 | Cs], Acc) ->
-  Tag2 = get_tag(C2),
-  NC1 = add_next_tag(C1, Tag2),
-  annotate_next_clause([C2 | Cs], [NC1 | Acc]).
-
-%% Gets the tag of a clause.
--spec get_tag(c_apply() | cerl:c_call() | cerl:c_clause()) -> tag() | none.
-get_tag(#c_apply{anno=Anno}) ->
-  get_tag_from_anno(Anno);
-get_tag(#c_call{anno=Anno}) ->
-  get_tag_from_anno(Anno);
-get_tag(#c_clause{anno=Anno}) ->
-  get_tag_from_anno(Anno).
-
--spec get_tag_from_anno(list()) -> tag().
-get_tag_from_anno([]) ->
-  empty_tag();
-get_tag_from_anno([{?BRANCH_TAG_PREFIX, _N}=Tag | _Annos]) ->
-  Tag;
-get_tag_from_anno([_|Annos]) ->
-  get_tag_from_anno(Annos).
-
-%% Adds a next tag to a clause.
--spec add_next_tag(cerl:c_clause(), tag()) -> cerl:c_clause().
-add_next_tag(#c_clause{anno=Anno}=C, Tag) ->
-  C#c_clause{anno=[{next_tag, Tag}|Anno]}.
-
-%% Gets the next tag of clause.
--spec get_next_tag(cerl:c_clause()) -> tag().
-get_next_tag(#c_clause{anno=Anno}) ->
-  get_next_tag_from_anno(Anno).
-
--spec get_next_tag_from_anno(list()) -> tag().
-get_next_tag_from_anno([]) ->
-  empty_tag();
-get_next_tag_from_anno([{next_tag, Tag={?BRANCH_TAG_PREFIX, _N}} | _Annos]) ->
-  Tag;
-get_next_tag_from_anno([_|Annos]) ->
-  get_next_tag_from_anno(Annos).
+get_tags([], Tags) ->
+  Tags;
+get_tags([{?BRANCH_TAG_PREFIX, _N}=Tag | Annos], Tags) ->
+  get_tags(Annos, Tags#tags{this = Tag});
+get_tags([{next_tag, Tag={?BRANCH_TAG_PREFIX, _N}} | Annos], Tags) ->
+  get_tags(Annos, Tags#tags{next = Tag});
+get_tags([_|Annos], Tags) ->
+  get_tags(Annos, Tags).
 
 %% Creates a tag from tag info.
 -spec tag_from_id(tagID()) -> tag().

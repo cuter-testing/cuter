@@ -1,3 +1,5 @@
+%% -*- erlang-indent-level: 2 -*-
+%%------------------------------------------------------------------------------
 -module(cuter_scheduler_maxcover).
 -behaviour(gen_server).
 

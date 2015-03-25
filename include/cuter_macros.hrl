@@ -5,14 +5,22 @@
 %% Types
 %%====================================================================
 
+%% Code and Monitor servers' info.
 -record(svs, {
   code    :: pid(),
   monitor :: pid()
 }).
 
+%% Tags of an AST's node.
+-record(tags, {
+  this = undefined :: cuter_cerl:tag() | undefined,
+  next = undefined :: cuter_cerl:tag() | undefined
+}).
+
 -type loaded_ret_atoms() :: cover_compiled | preloaded | non_existing.
 -type logs() :: [{atom(), any()}].
 -type servers() :: #svs{}.
+-type ast_tags() :: #tags{}.
 
 %%====================================================================
 %% Directories
