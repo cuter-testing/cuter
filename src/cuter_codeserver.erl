@@ -241,7 +241,7 @@ stored_mods(Db) ->
 
 -spec get_branch_counter() -> integer().
 get_branch_counter() ->
-  get(?BRANCH_COUNTER_PREFIX),
+  get(?BRANCH_COUNTER_PREFIX).
 
 -spec set_branch_counter(integer()) -> any().
 set_branch_counter(N) ->
