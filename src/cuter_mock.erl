@@ -15,7 +15,7 @@
 simulate_behaviour(erlang, abs,          1) -> {ok, {cuter_erlang, abs,          1}};
 simulate_behaviour(erlang, 'and',        2) -> {ok, {cuter_erlang, 'and',        2}};
 simulate_behaviour(erlang, 'andalso',    2) -> {ok, {cuter_erlang, 'andalso',    2}};
-simulate_behaviour(erlang, atom_to_list, 1) -> {ok, {cuter_erlang, atom_to_list, 2}};
+simulate_behaviour(erlang, atom_to_list, 1) -> {ok, {cuter_erlang, atom_to_list, 1}};
 simulate_behaviour(erlang, 'div',        2) -> {ok, {cuter_erlang, 'div',        2}};
 simulate_behaviour(erlang, element,      2) -> {ok, {cuter_erlang, element,      2}};
 simulate_behaviour(erlang, length,       1) -> {ok, {cuter_erlang, length,       1}};
