@@ -29,7 +29,7 @@
                                                , input => undefined}).  %% TODO Populate this field
 %% gen_server state datatype
 -record(sts, {
-    queue              :: queue:queue(item())
+    queue = none       :: cuter_minheap:minheap() | none
   , info               :: exec_info()
   , python             :: string()
   , depth              :: integer()
@@ -86,14 +86,14 @@ store_execution(Scheduler, Handle, Info) ->
 -spec init([string() | integer(), ...]) -> {ok, state()}.
 init([Python, Depth]) ->
   _ = set_execution_counter(0),
-  {ok, #sts{queue = queue:new(), info = dict:new(), python = Python,
-            depth = Depth, visited_tags = gb_sets:new(), running = dict:new(),
-            first_operation = dict:new()}}.
+  {ok, #sts{info = dict:new(), python = Python, depth = Depth, visited_tags = gb_sets:new(),
+            running = dict:new(), first_operation = dict:new()}}.
 
 %% terminate/2
 -spec terminate(any(), state()) -> ok.
-terminate(_Reason, #sts{erroneous = _Err}) ->
+terminate(_Reason, #sts{queue = Queue, erroneous = _Err}) ->
 %  cuter_pp:report_erroneous(Err),
+  cuter_minheap:delete(Queue),
   %% TODO clear dirs
   ok.
 
@@ -125,7 +125,7 @@ handle_call({seed_execution, Info}, _From, S=#sts{info = AllInfo, depth = Depth}
   Rvs = maps:get(reversible, Info),
   Visited = maps:get(tags, Info),
   Items = generate_queue_items(Rvs, Handle, Visited, 0, Depth),
-  {reply, ok, S#sts{ queue = queue:from_list(Items)
+  {reply, ok, S#sts{ queue = cuter_minheap:from_list(fun erlang:'<'/2, Items)
                    , info = dict:store(Handle, I, AllInfo)
                    , stored_mods = maps:get(stored_mods, Info)      %% Code of loaded modules
                    , tags_added_no = maps:get(tags_added_no, Info)  %% Number of added tags
@@ -136,9 +136,8 @@ handle_call(request_input, _From, S=#sts{queue = Q, info = AllInfo, python = P, 
                                          first_operation = FOp}) ->
   case generate_new_input(Q, P, AllInfo, Vs) of
     empty -> {reply, empty, S};
-    {ok, Handle, Input, Q1, NAllowed} ->
-      {reply, {Handle, Input, SMs, TagsN}, S#sts{ queue = Q1
-                                                , running = dict:store(Handle, Input, Rn)
+    {ok, Handle, Input, NAllowed} ->
+      {reply, {Handle, Input, SMs, TagsN}, S#sts{ running = dict:store(Handle, Input, Rn)
                                                 , first_operation = dict:store(Handle, NAllowed, FOp)}}
   end;
 
@@ -157,8 +156,8 @@ handle_call({store_execution, Handle, Info}, _From, S=#sts{queue = Queue, info =
   N = dict:fetch(Handle, FOp),
   Rvs = maps:get(reversible, Info),
   Items = generate_queue_items(Rvs, Handle, Visited, N, Depth),
-  {reply, ok, S#sts{ queue = queue:join(Queue, queue:from_list(Items))
-                   , info = dict:store(Handle, I, AllInfo)
+  lists:foreach(fun(Item) -> cuter_minheap:insert(Item, Queue) end, Items),
+  {reply, ok, S#sts{ info = dict:store(Handle, I, AllInfo)
                    , stored_mods = StoredMods
                    , tags_added_no = maps:get(tags_added_no, Info)  %% Number of added tags
                    , visited_tags = Visited
@@ -175,12 +174,12 @@ handle_cast(stop, State) ->
 %% Generate new input
 %% ============================================================================
 
--spec generate_new_input(queue:queue(item()), string(), exec_info(), cuter_analyzer:visited_tags()) ->
-        {ok, exec_handle(), input(), queue:queue(item()), integer()} | empty.
+-spec generate_new_input(cuter_minheap:minheap(), string(), exec_info(), cuter_analyzer:visited_tags()) ->
+        {ok, exec_handle(), input(), integer()} | empty.
 generate_new_input(Queue, Python, Info, Visited) ->
   case locate_next_reversible(Queue, Visited) of
     empty -> empty;
-    {ok, N, Handle, Queue1} ->
+    {ok, N, Handle} ->
       I = dict:fetch(Handle, Info),
       File = maps:get(traceFile, I),
       Ms = maps:get(mappings, I),
@@ -188,19 +187,18 @@ generate_new_input(Queue, Python, Info, Visited) ->
       case cuter_solver:solve(Python, Ms, File, N) of
         error ->
           io:format(".~n"),
-          generate_new_input(Queue1, Python, Info, Visited);
+          generate_new_input(Queue, Python, Info, Visited);
         {ok, Input} ->
           H = fresh_execution_handle(),
-          {ok, H, Input, Queue1, N+1}
+          {ok, H, Input, N+1}
       end
   end.
 
--spec locate_next_reversible(queue:queue(item()), cuter_analyzer:visited_tags()) ->
-        {ok, integer(), exec_handle(), queue:queue(item())} | empty.
+-spec locate_next_reversible(cuter_minheap:minheap(), cuter_analyzer:visited_tags()) -> {ok, integer(), exec_handle()} | empty.
 locate_next_reversible(Queue, _Visited) ->
-  case queue:out(Queue) of
-    {empty, Queue} -> empty;
-    {{value, {N, _TagID, Handle}}, Queue1} -> {ok, N, Handle, Queue1}
+  case cuter_minheap:take_min(Queue) of
+    {error, empty_heap} -> empty;
+    {N, _TagID, Handle} -> {ok, N, Handle}
   end.
 
 %% ============================================================================
