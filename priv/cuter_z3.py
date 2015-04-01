@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import json, sys
+import json, sys, datetime
 from z3 import *
 import cuter_global as cglb
 import cuter_common as cc
@@ -13,11 +13,11 @@ def prnt(data):
   sys.stdout.write(x)
   sys.stdout.write(data)
 
-#set_param(max_lines=1, max_width=1000000, max_depth=10000000, max_visited=1000000)
-#tmp = open('tmp', 'a')
-#def log(data):
-#  tmp.write(str(data) + ",\n")
-#  tmp.flush()
+set_param(max_lines=1, max_width=1000000, max_depth=10000000, max_visited=1000000)
+tmp = open('unknown.log', 'a')
+def log(data):
+  tmp.write(str(data) + ",\n")
+  tmp.flush()
 
 class Env:
   def __init__(self):
@@ -231,9 +231,10 @@ class ErlangZ3:
       self.model = self.slv.model()
       return True
     else:
-#      if self.check == unknown:
-#        log(simplify(And(*self.quantifier_axs)))
-#        log(simplify(And(*self.axs)))
+      if self.check == unknown:
+        log("### " + str(datetime.datetime.now()))
+        log(simplify(And(*self.quantifier_axs)))
+        log(simplify(And(*self.axs)))
 #        sys.exit(1)
       return False
   
