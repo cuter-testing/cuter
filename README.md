@@ -1,10 +1,9 @@
 CutEr
 ==============
 
-This is the source tree for CutEr a concolic testing tool
-for the Erlang functional programming language.
+This is the source tree for CutEr a concolic unit testing tool for Erlang.
 
-***CAUTION: This tool is still under heavy development! There will be stable version available by the end of 2014!***
+***CAUTION: This tool is still under heavy development (and not yet released!)***
 
 Dependencies
 ------------
