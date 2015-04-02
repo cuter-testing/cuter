@@ -574,6 +574,8 @@ class ErlangZ3:
     ax_hd = self.typedef_toZ3(L.hd(T.lval(x)), tp)
     if ax_hd != None:
       ax_cons.append(ax_hd)
+    else:
+      return T.is_lst(s)
     ax_cons.extend([
       f(T.lst(L.tl(T.lval(x)))) == True,
       f(x) == True
