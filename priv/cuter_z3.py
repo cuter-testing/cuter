@@ -182,7 +182,7 @@ class ErlangZ3:
     self.axs = []
     self.quantifier_axs = []
     self.slv = Solver()
-    if cglb.__WPATS__:
+    if cglb.__LISTS_INTERP__ == cglb.LISTS_FORALL_PATS:
       self.slv.set(mbqi=False)
     else:
       self.slv.set(mbqi=True)
@@ -560,7 +560,32 @@ class ErlangZ3:
     i = self.term_toZ3(arg)
     return (s == i)
   
+  
   def type_list_toZ3(self, s, tp):
+    if cglb.__LISTS_INTERP__ == cglb.LISTS_EXPAND:
+      return self.type_list_expand_toZ3(s, tp)
+    else:
+      return self.type_list_forall_toZ3(s, tp)
+  
+  def type_list_expand_toZ3(self, s, tp):
+    T, L = self.Term, self.List
+    x = T.lval(s)
+    axs = []
+    for _ in range(20):
+      ax_hd = self.typedef_toZ3(L.hd(x), tp)
+      # Override for lists of type [any()]
+      if ax_hd == None:
+        return T.is_lst(s)
+      axs.append( (L.is_nil(x), L.is_nil(x), ax_hd) )
+      x = L.tl(x)
+    
+    ax_if = True
+    for (cond, ax_true, ax_false) in reversed(axs):
+      ax_if = If(cond, ax_true, And(ax_false, ax_if))
+    return And(T.is_lst(s), ax_if)
+  
+  
+  def type_list_forall_toZ3(self, s, tp):
     T, L = self.Term, self.List
     f = self.env.generate_func(T, BoolSort())
     x = self.env.generate_const(T)
@@ -578,6 +603,7 @@ class ErlangZ3:
     ax_hd = self.typedef_toZ3(L.hd(T.lval(x)), tp)
     if ax_hd != None:
       ax_cons.append(ax_hd)
+    # Override for lists of type [any()]
     else:
       return T.is_lst(s)
     ax_cons.extend([
@@ -585,7 +611,7 @@ class ErlangZ3:
       f(x) == True
     ])
     
-    if cglb.__WPATS__:
+    if cglb.__LISTS_INTERP__ == cglb.LISTS_FORALL_PATS:
       ax_forall = ForAll(x,
         Or(
           And(*ax_nil),
