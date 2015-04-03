@@ -182,7 +182,11 @@ class ErlangZ3:
     self.axs = []
     self.quantifier_axs = []
     self.slv = Solver()
-    self.slv.set(mbqi=False)
+    if cglb.__WPATS__:
+      self.slv.set(mbqi=False)
+    else:
+      self.slv.set(mbqi=True)
+    self.slv.set(auto_config=False)
     
     self.atmTrue = self.term_toZ3(json.loads("{\"t\": 3, \"v\": [116,114,117,101]}"))
     self.atmFalse = self.term_toZ3(json.loads("{\"t\": 3, \"v\": [102,97,108,115,101]}"))
@@ -581,14 +585,23 @@ class ErlangZ3:
       f(x) == True
     ])
     
-    ax_forall = ForAll(x,
-      Or(
-        And(*ax_nil),
-        And(*ax_cons),
-        f(x) == False
-      ),
-      patterns=[f(x)]
-    )
+    if cglb.__WPATS__:
+      ax_forall = ForAll(x,
+        Or(
+          And(*ax_nil),
+          And(*ax_cons),
+          f(x) == False
+        ),
+        patterns=[f(x)]
+      )
+    else:
+      ax_forall = ForAll(x,
+        Or(
+          And(*ax_nil),
+          And(*ax_cons),
+          f(x) == False
+        )
+      )
     
     self.quantifier_axs.append(ax_forall)
     return f(s) == True
