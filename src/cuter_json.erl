@@ -677,11 +677,12 @@ encode_maybe_shared_term(Term, _Seen) ->
 
 encode_term_alias(R) -> ?ENCODE_ALIAS(R).
 
+is_shared([], _Seen) -> false;  %% Never remember the empty list
 is_shared(Term, Seen) ->
   case ets:lookup(Seen, Term) of
     [{Term, init}] -> false;
     [{Term, R}] -> {true, R};
-    [] -> throw(assert_term_seen)
+    [] -> throw({assert_term_seen, Term})
   end.
 
 encode_shared(Shared, Seen) ->
