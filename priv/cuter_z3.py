@@ -114,7 +114,7 @@ class TermEncoder:
 class TermDecoder:
   def __init__(self, eZ3):
     self.eZ3 = eZ3
-    self.env = []
+    self.env = {}
   
   def toZ3(self, t, dct):
     if "s" in t:
@@ -122,7 +122,8 @@ class TermDecoder:
       assert x is not None, "Symbolic Variable lookup"
       return x
     if "l" in t:
-      if "l" in self.env:
+      l = t["l"]
+      if l in self.env:
         return self.env[l]
       else:
         x = self.toZ3(dct[l], dct)
