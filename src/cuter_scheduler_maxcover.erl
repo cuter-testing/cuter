@@ -21,7 +21,7 @@
 -include("include/cuter_macros.hrl").
 
 -type input() :: [any()].
--type item()  :: {integer(), cuter_cerl:tagID(), exec_handle()}.
+-type item()  :: {boolean(), integer(), cuter_cerl:tagID(), exec_handle()}.
 -type exec_handle() :: string().
 -type exec_info() :: dict:dict(exec_handle(), #{ traceFile => file:name()
                                                , dataDir => file:filename_all()
@@ -195,10 +195,26 @@ generate_new_input(Queue, Python, Info, Visited) ->
   end.
 
 -spec locate_next_reversible(cuter_minheap:minheap(), cuter_analyzer:visited_tags()) -> {ok, integer(), exec_handle()} | empty.
-locate_next_reversible(Queue, _Visited) ->
+locate_next_reversible(Queue, Visited) ->
+  locate_next_reversible(Queue, Visited, cuter_minheap:heap_size(Queue)).
+
+-spec locate_next_reversible(cuter_minheap:minheap(), cuter_analyzer:visited_tags(), integer()) -> {ok, integer(), exec_handle()} | empty.
+locate_next_reversible(Queue, Visited, M) ->
   case cuter_minheap:take_min(Queue) of
     {error, empty_heap} -> empty;
-    {N, _TagID, Handle} -> {ok, N, Handle}
+    {true, N, _TagID, Handle} -> {ok, N, Handle};
+    {false, N, TagID, Handle} ->
+      %% Verify that the tag is not visited
+      case gb_sets:is_element(TagID, Visited) of
+        false -> {ok, N, Handle};
+        true  ->
+          case M of
+            0 -> {ok, N, Handle};  %% Have seen all the entries at least once
+            _ ->
+              cuter_minheap:insert({true, N, TagID, Handle}, Queue),
+              locate_next_reversible(Queue, Visited, M-1)
+          end
+      end
   end.
 
 %% ============================================================================
@@ -233,10 +249,10 @@ generate_queue_items([R|Rs], Handle, Visited, N, Depth, Acc) ->
   end.
 
 -spec maybe_item(cuter_analyzer:reversible_with_tag(), exec_handle(), cuter_analyzer:visited_tags(), integer(), integer()) -> {ok, item()} | false.
-maybe_item({Id, TagID}, Handle, _Visited, N, Depth) ->
+maybe_item({Id, TagID}, Handle, Visited, N, Depth) ->
   case Id > Depth orelse Id < N of
     true  -> false;
-    false -> {ok, {Id, TagID, Handle}}
+    false -> {ok, {gb_sets:is_element(TagID, Visited), Id, TagID, Handle}}
   end.
 
 
