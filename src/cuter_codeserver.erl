@@ -145,14 +145,14 @@ handle_call({get_spec, {M, F, A}=MFA}, _From, State) ->
         {reply, {ok, ErlSpec}, State}
       catch
         error:E ->
-          io:format("[cserver] Could not find spec for ~p. Error: ~p~n", [MFA, E]),
+          cuter_pp:error_retrieving_spec(MFA, E),
           {reply, error, State};
         throw:E ->
-          io:format("[cserver] Could not find spec for ~p. Error: ~p~n", [MFA, E]),
+          cuter_pp:error_retrieving_spec(MFA, E),
           {reply, error, State}
       end;
     Msg ->
-      io:format("[cserver] Could not find spec for ~p. Error: ~p~n", [MFA, Msg]),
+      cuter_pp:error_retrieving_spec(MFA, Msg),
       {reply, error, State}
   end.
 

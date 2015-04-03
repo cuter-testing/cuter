@@ -10,6 +10,8 @@
         , exec_info/1
         , path_vertex/1
         , reversible_operations/1
+        %% Verbose reporting
+        , error_retrieving_spec/2
         %% Verbose Scheduling
         , seed_execution/2
         , request_input/2
@@ -91,6 +93,8 @@ exec_info(Info) ->
   end,
   lists:foreach(F, Info).
 
+-spec exec_info_data(any()) -> ok.
+-ifdef(VERBOSE_REPORTING).
 exec_info_data({mapping, Ms}) ->
   io:format("    MAPPING~n"),
   lists:foreach(fun({Sv, Cv}) -> io:format("      ~p <=> ~p~n", [Sv, Cv]) end, Ms);
@@ -103,9 +107,14 @@ exec_info_data({code_logs, Logs}) ->
 exec_info_data({int, Pid}) ->
   io:format("    INT~n"),
   io:format("      ~p~n", [Pid]);
-%exec_info_data(Data) -> io:format("    ~p~n", [Data]).
-exec_info_data(_) -> ok.
+exec_info_data(_Data) -> ok.
+-else.
+exec_info_data({code_logs, Logs}) -> code_logs(Logs);
+exec_info_data(_Data) -> ok.
+-endif.
 
+-spec code_logs([any()]) -> ok.
+-ifdef(VERBOSE_REPORTING).
 code_logs([]) -> ok;
 code_logs([{loaded_mods, Ms}|Logs]) ->
   io:format("      LOADED MODS~n"),
@@ -127,6 +136,13 @@ code_logs([{tags_added_no, N}|Logs]) ->
   io:format("      NO OF ADDED TAGS~n"),
   io:format("        ~p~n", [N]),
   code_logs(Logs).
+-else.
+code_logs([]) -> ok;
+code_logs([{unsupported_mfas, MFAs}|Logs]) ->
+  io:format("    UNSUPPORTED MFAS: ~p~n", [MFAs]),
+  code_logs(Logs);
+code_logs([_L|Logs]) -> code_logs(Logs).
+-endif.
 
 -spec path_vertex(cuter_analyzer:path_vertex()) -> ok.
 path_vertex(Vertex) ->
@@ -472,4 +488,16 @@ achieve_goal(_Goal, _NextGoal) -> ok.
 open_pending_file(File) -> io:format("[MERGE] Opening from pending ~p~n", [File]).
 -else.
 open_pending_file(_File) -> ok.
+-endif.
+
+%%
+%% Verbose Reporting
+%%
+
+%% Reports an error while retrieving the spec of an MFA.
+-spec error_retrieving_spec(mfa(), any()) -> ok.
+-ifdef(VERBOSE_REPORTING).
+error_retrieving_spec(MFA, Error) -> io:format("[SPEC] Spec for ~p not found.~n  Error: ~p~n", [MFA, Error]).
+-else.
+error_retrieving_spec(MFA, _Error) -> io:format("[SPEC] Spec for ~p not found.~n", [MFA]).
 -endif.
