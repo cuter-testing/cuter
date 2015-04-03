@@ -22,6 +22,7 @@
 -type path_vertex() :: [?CONSTRAINT_TRUE_REPR | ?CONSTRAINT_FALSE_REPR].  % [$T | $F]
 
 -type raw_info() :: #{mappings => [cuter_symbolic:mapping()],
+                      result => execution_result(),
                       traces => [node_trace()],
                       int => int_process(),
                       dir => file:filename_all(),
@@ -30,6 +31,7 @@
                       tags_added_no => integer()}.
 
 -type info() :: #{mappings => [cuter_symbolic:mapping()],
+                  runtime_error => boolean(),
                   traceFile => file:filename_all(),
                   pathLength => integer(),
                   reversible => reversible_with_tags(),
@@ -46,6 +48,11 @@ get_result({internal_error, _What, _Node, _Why}) ->
   internal_error;
 get_result({runtime_error, _Node, _Pid, {Cv, _Sv}}) ->
   {runtime_error, Cv}.
+
+-spec is_runtime_error(execution_result()) -> boolean().
+is_runtime_error(internal_error) -> false;
+is_runtime_error({success, _Cv}) -> false;
+is_runtime_error({runtime_error, _Cv}) -> true.
 
 -spec get_mapping(orddict:orddict()) -> [cuter_symbolic:mapping()].
 get_mapping([{_Node, Data}|Info]) ->
@@ -112,6 +119,7 @@ process_raw_execution_info(Info) ->
   RvsCnt = length(Rvs),
 %%  cuter_pp:reversible_operations(RvsCnt),
   #{dir => DataDir,
+    runtime_error => is_runtime_error(maps:get(result, Info)),
     mappings => maps:get(mappings, Info),
     traceFile => MergedTraceFile,
     pathLength => RvsCnt,

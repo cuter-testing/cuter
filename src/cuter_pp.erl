@@ -320,15 +320,23 @@ requeue_failure(Ref, X, L, D) ->
 requeue_failure(_Ref, _X, _L, _D) -> ok.
 -endif.
 
--spec report_erroneous(orddict:orddict()) -> ok.
+-spec report_erroneous([list(any())]) -> ok.
 report_erroneous(Err) ->
-  io:format("ERRORS FOUND~n"),
-  orddict:fold(
-    fun(Input, Error, _Acc) -> io:format("  ~p => ~p~n", [Input, Error]), _Acc end,
-    ok,
-    Err
-  ),
-  ok.
+  divider("-"),
+  io:format("INPUTS THAT LEAD TO RUNTIME ERRORS~n"),
+  report_erroneous_loop(Err, 1).
+
+report_erroneous_loop([], _N) -> ok;
+report_erroneous_loop([I|Is], N) ->
+  io:format("[#~w] ", [N]),
+  print_input(I),
+  report_erroneous_loop(Is, N+1).
+
+print_input([X]) ->
+  io:format("~p~n", [X]);
+print_input([X, Y | Rest]) ->
+  io:format("~p, ", [X]),
+  print_input([Y | Rest]).
 
 %%
 %% Verbose File/Folder Deletion

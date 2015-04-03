@@ -22,6 +22,7 @@
 
 -type input() :: [any()].
 -type item()  :: {boolean(), integer(), cuter_cerl:tagID(), exec_handle()}.
+-type erroneous_inputs() :: [input()].
 -type exec_handle() :: string().
 -type exec_info() :: dict:dict(exec_handle(), #{ traceFile => file:name()
                                                , dataDir => file:filename_all()
@@ -38,7 +39,7 @@
   , visited_tags       :: cuter_analyzer:visited_tags()
   , running            :: dict:dict(exec_handle(), input())
   , first_operation    :: dict:dict(exec_handle(), integer())
-  , erroneous          :: orddict:orddict()  %% TODO Populate this field
+  , erroneous          :: cuter_analyzer:erroneous_inputs()
 }).
 -type state() :: #sts{}.
 -type from()  :: {pid(), reference()}.
@@ -87,12 +88,12 @@ store_execution(Scheduler, Handle, Info) ->
 init([Python, Depth]) ->
   _ = set_execution_counter(0),
   {ok, #sts{info = dict:new(), python = Python, depth = Depth, visited_tags = gb_sets:new(),
-            running = dict:new(), first_operation = dict:new()}}.
+            running = dict:new(), first_operation = dict:new(), erroneous = []}}.
 
 %% terminate/2
 -spec terminate(any(), state()) -> ok.
-terminate(_Reason, #sts{queue = Queue, erroneous = _Err}) ->
-%  cuter_pp:report_erroneous(Err),
+terminate(_Reason, #sts{queue = Queue, erroneous = Err}) ->
+  cuter_pp:report_erroneous(lists:reverse(Err)),
   cuter_minheap:delete(Queue),
   %% TODO clear dirs
   ok.
@@ -143,11 +144,14 @@ handle_call(request_input, _From, S=#sts{queue = Q, info = AllInfo, python = P, 
 
 %% Store the information of a concolic execution
 handle_call({store_execution, Handle, Info}, _From, S=#sts{queue = Queue, info = AllInfo, stored_mods = SMs, visited_tags = Vs, depth = Depth, running = Rn,
-                                                           first_operation = FOp}) ->
+                                                           first_operation = FOp, erroneous = Err}) ->
   %% Generate the information of the execution
   I = #{ traceFile => maps:get(traceFile, Info)
        , dataDir => maps:get(dir, Info)
        , mappings => maps:get(mappings, Info)},
+  %% Get the input & update the erroneous inputs
+  Input = dict:fetch(Handle, Rn),
+  NErr = update_erroneous(maps:get(runtime_error, Info), Input, Err),
   %% Update the stored code of modules
   StoredMods = orddict:merge(fun(_K, V1, _V2) -> V1 end, SMs, maps:get(stored_mods, Info)),
   %% Update the visited tags
@@ -162,7 +166,8 @@ handle_call({store_execution, Handle, Info}, _From, S=#sts{queue = Queue, info =
                    , tags_added_no = maps:get(tags_added_no, Info)  %% Number of added tags
                    , visited_tags = Visited
                    , running = dict:erase(Handle, Rn)  %% Remove the handle from the running set
-                   , first_operation = dict:erase(Handle, FOp)}}.
+                   , first_operation = dict:erase(Handle, FOp)
+                   , erroneous = NErr}}.
 
 %% handle_cast/2
 -spec handle_cast(stop, state()) -> {stop, normal, state()}.
@@ -255,5 +260,10 @@ maybe_item({Id, TagID}, Handle, Visited, N, Depth) ->
     false -> {ok, {gb_sets:is_element(TagID, Visited), Id, TagID, Handle}}
   end.
 
+%% ============================================================================
+%% Erroenous inputs
+%% ============================================================================
 
-
+-spec update_erroneous(boolean(), input(), erroneous_inputs()) -> erroneous_inputs().
+update_erroneous(false, _Input, Erroneous) -> Erroneous;
+update_erroneous(true, Input, Erroneous) -> [Input | Erroneous].

@@ -135,8 +135,9 @@ retrieve_info(IServer, DataDir) ->
       cuter_pp:exec_info(Info),
       case cuter_analyzer:get_result(ExStatus) of
         internal_error -> cuter_error;
-        _ ->
+        ExResult ->
           RawInfo = #{
+            result => ExResult,
             dir => DataDir,
             mappings => cuter_analyzer:get_mapping(Info),
             traces => cuter_analyzer:get_traces(Info),
