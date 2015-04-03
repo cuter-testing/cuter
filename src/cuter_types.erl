@@ -89,6 +89,8 @@ parse_type({ann_type, _, [_Var, Type]}, Bound) ->
 %% More custom types.
 parse_type({type, _, orddict, []}, _Bound) ->
   {list, {tuple, [any, any]}};
+parse_type({type, _, number, []}, _Bound) ->
+  {union, [integer, float]};
 %% Unsupported type.
 parse_type(Type, _Bound) -> throw({unsupported_type, Type}).
 
