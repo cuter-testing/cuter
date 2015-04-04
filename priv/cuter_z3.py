@@ -8,10 +8,13 @@ import cuter_common as cc
 
 import struct, sys
 def prnt(data):
-  sz = len(data)
-  x = struct.pack('!h', sz)
-  sys.stdout.write(x)
-  sys.stdout.write(data)
+  try:
+    sz = len(data)
+    x = struct.pack('!h', sz)
+    sys.stdout.write(x)
+    sys.stdout.write(data)
+  except:
+    pass
 
 set_param(max_lines=1, max_width=1000000, max_depth=10000000, max_visited=1000000)
 tmp = open('unknown.log', 'a')

@@ -39,7 +39,7 @@
   , visited_tags       :: cuter_analyzer:visited_tags()
   , running            :: dict:dict(exec_handle(), input())
   , first_operation    :: dict:dict(exec_handle(), integer())
-  , erroneous          :: cuter_analyzer:erroneous_inputs()
+  , erroneous          :: erroneous_inputs()
 }).
 -type state() :: #sts{}.
 -type from()  :: {pid(), reference()}.
