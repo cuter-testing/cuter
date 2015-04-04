@@ -103,6 +103,12 @@ parse_type({type, _, string, []}, _Bound) ->
   {list, {range, 0, 16#10ffff}};
 parse_type({type, _, range, [{integer, _, I1}, {integer, _, I2}]}, _Bound) ->
   {range, I1, I2};
+parse_type({type, _, non_neg_integer, []}, _Bound) ->
+  {range, 0, inf};
+parse_type({type, _, pos_integer, []}, _Bound) ->
+  {range, 1, inf};
+parse_type({type, _, neg_integer, []}, _Bound) ->
+  {range, inf, -1};
 %% Unsupported type.
 parse_type(Type, _Bound) -> throw({unsupported_type, Type}).
 
