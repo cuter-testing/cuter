@@ -483,22 +483,9 @@ lt_list([X|Xs], [Y|Ys]) ->
   lt_atom(LX, LY);
 '<'(X, _Y) when is_atom(X) ->
   true;
-%% Left operand is a reference, a function, a port, a pid, a map or a bistring.
-%% These terms are 'incomprehensible' for the solver, thus we directly call
-%% the erlang:'<'/2 operator.
-'<'(X, Y) when is_reference(X); is_function(X); is_port(X); is_pid(X); is_map(X); is_bitstring(X) ->
-  unsupported_lt(X, Y);
 %% Left operand is a tuple.
 %% Tuples are ordered by size. When two tuples have the same size, they
 %% are compared element by element.
-'<'(X, Y) when is_tuple(X) andalso (      is_number(Y)
-                                   orelse is_atom(Y)
-                                   orelse is_reference(Y)
-                                   orelse is_function(Y)
-                                   orelse is_port(Y)
-                                   orelse is_pid(Y)
-                                   ) ->
-  false;
 '<'(X, Y) when is_tuple(X), is_tuple(Y) ->
   SX = ?MODULE:tuple_size(X),
   SY = ?MODULE:tuple_size(Y),
@@ -510,10 +497,20 @@ lt_list([X|Xs], [Y|Ys]) ->
       LY = tuple_to_list(Y),
       lt_tuple(LX, LY)
   end;
+'<'(X, Y) when is_tuple(X) andalso (      is_number(Y)
+                                   orelse is_atom(Y)
+                                   orelse is_reference(Y)
+                                   orelse is_function(Y)
+                                   orelse is_port(Y)
+                                   orelse is_pid(Y)
+                                   ) ->
+  false;
 '<'(X, _Y) when is_tuple(X) ->
   true;
 %% Left operand is a list.
 %% Lists are compared element by element.
+'<'(X, Y) when is_list(X), is_list(Y) ->
+  lt_list(X, Y);
 '<'(X, Y) when is_list(X) andalso (      is_number(Y)
                                   orelse is_atom(Y)
                                   orelse is_reference(Y)
@@ -524,10 +521,13 @@ lt_list([X|Xs], [Y|Ys]) ->
                                   orelse is_map(Y)
                                   ) ->
   false;
-'<'(X, Y) when is_list(X), is_list(Y) ->
-  lt_list(X, Y);
 '<'(X, _Y) when is_list(X) ->
-  true.
+  true;
+%% Left operand is a reference, a function, a port, a pid, a map or a bistring.
+%% These terms are 'incomprehensible' for the solver, thus we directly call
+%% the erlang:'<'/2 operator.
+'<'(X, Y) when is_reference(X); is_function(X); is_port(X); is_pid(X); is_map(X); is_bitstring(X) ->
+  unsupported_lt(X, Y).
 
 %%
 %% Simulate erlang:'=<'/2
