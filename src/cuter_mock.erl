@@ -28,6 +28,7 @@ simulate_behaviour(erlang, 'or',         2) -> {ok, {cuter_erlang, 'or',        
 simulate_behaviour(erlang, 'orelse',     2) -> {ok, {cuter_erlang, 'orelse',     2}};
 simulate_behaviour(erlang, tuple_size,   1) -> {ok, {cuter_erlang, tuple_size,   1}};
 simulate_behaviour(erlang, 'xor',        2) -> {ok, {cuter_erlang, 'xor',        2}};
+simulate_behaviour(erlang, '++',         2) -> {ok, {cuter_erlang, '++',         2}};
 simulate_behaviour(erlang, '==',         2) -> {ok, {cuter_erlang, '==',         2}};
 simulate_behaviour(erlang, '/=',         2) -> {ok, {cuter_erlang, '/=',         2}};
 simulate_behaviour(erlang, '<',          2) -> {ok, {cuter_erlang, '<',          2}};
@@ -117,7 +118,7 @@ simulate_behaviour(ets, update_element, 3) -> bif;
 simulate_behaviour(file, native_name_encoding, 0) -> bif;
 %% Module lists
 simulate_behaviour(lists, member, 2)  -> bif;
-simulate_behaviour(lists, reverse, 2) -> bif;
+simulate_behaviour(lists, reverse, 2) -> {ok, {cuter_erlang, reverse, 2}};
 simulate_behaviour(lists, keymember, 3) -> bif;
 simulate_behaviour(lists, keysearch, 3) -> bif;
 simulate_behaviour(lists, keyfind, 3) -> bif;

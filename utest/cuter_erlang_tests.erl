@@ -52,3 +52,23 @@ gteq_test() ->
 -spec prop_gteq() -> proper:outer_test().
 prop_gteq() ->
   ?FORALL({X,Y}, {any(),any()}, (X >= Y) =:= cuter_erlang:'>='(X, Y)).
+
+%% Test cuter_erlang:'++'/2.
+-spec append_test() -> boolean().
+append_test() ->
+  {timeout,10000,
+  proper:quickcheck(prop_append(), [{to_file, user}, {numtests, 1000}])}.
+
+-spec prop_append() -> proper:outer_test().
+prop_append() ->
+  ?FORALL({X,Y}, {list(),list()}, (X ++ Y) =:= cuter_erlang:'++'(X, Y)).
+
+%% Test cuter_erlang:reverse/2.
+-spec lreverse_test() -> boolean().
+lreverse_test() ->
+  {timeout,10000,
+  proper:quickcheck(prop_lreverse(), [{to_file, user}, {numtests, 1000}])}.
+
+-spec prop_lreverse() -> proper:outer_test().
+prop_lreverse() ->
+  ?FORALL({X,Y}, {list(),list()}, lists:reverse(X, Y) =:= cuter_erlang:reverse(X, Y)).
