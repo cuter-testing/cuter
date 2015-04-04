@@ -533,7 +533,8 @@ class ErlangZ3:
       cc.JSON_ERLTYPE_TUPLE: self.type_tuple_toZ3,
       cc.JSON_ERLTYPE_TUPLEDET: self.type_tupledet_toZ3,
       cc.JSON_ERLTYPE_UNION: self.type_union_toZ3,
-      cc.JSON_ERLTYPE_RANGE: self.type_range_toZ3
+      cc.JSON_ERLTYPE_RANGE: self.type_range_toZ3,
+      cc.JSON_ERLTYPE_NONEMPTY_LIST: self.type_nonempty_list_toZ3
     }
     tpcode = tp["tp"]
     arg = tp["a"] if "a" in tp else None
@@ -572,6 +573,11 @@ class ErlangZ3:
       T.ival(s) <= T.ival(l2)
     ]
     return And(*axs)
+  
+  def type_nonempty_list_toZ3(self, s, tp):
+    T, L = self.Term, self.List
+    ax = self.type_list_toZ3(s, tp)
+    return And(ax, s != T.lst(L.nil))
   
   def type_list_toZ3(self, s, tp):
     if cglb.__LISTS_INTERP__ == cglb.LISTS_EXPAND:

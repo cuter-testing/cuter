@@ -112,6 +112,9 @@ json_encode_type({integer, Integer}) ->
 json_encode_type({list, Type}) ->
   T = json_encode_type(Type),
   ?ENCODE_COMPTYPE(integer_to_list(?JSON_ERLTYPE_LIST), T);
+json_encode_type({nonempty_list, Type}) ->
+  T = json_encode_type(Type),
+  ?ENCODE_COMPTYPE(integer_to_list(?JSON_ERLTYPE_NONEMPTY_LIST), T);
 json_encode_type(nil) ->
   ?ENCODE_TYPE(integer_to_list(?JSON_ERLTYPE_NIL));
 json_encode_type(tuple) ->

@@ -97,6 +97,7 @@
 -define(JSON_ERLTYPE_TUPLEDET, 10).
 -define(JSON_ERLTYPE_UNION, 11).
 -define(JSON_ERLTYPE_RANGE, 12).
+-define(JSON_ERLTYPE_NONEMPTY_LIST, 13).
 
 %%====================================================================
 %% OpCodes for the commands to the solver

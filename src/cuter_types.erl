@@ -17,6 +17,7 @@
                   | integer
                   | {integer, integer()}
                   | {list, erl_type()}
+                  | {nonempty_list, erl_type()}
                   | nil
                   | {range, integer(), integer()}
                   | tuple
@@ -70,6 +71,10 @@ parse_type({type, _, integer, []}, _Bound) ->
   integer;
 parse_type({type, _, float, []}, _Bound) ->
   float;
+parse_type({type, _, nonempty_list, []}, _Bound) ->
+  {nonempty_list, any};
+parse_type({type, _, nonempty_list, [Type]}, Bound) ->
+  {nonempty_list, parse_type(Type, Bound)};
 parse_type({type, _, list, []}, _Bound) ->
   {list, any};
 parse_type({type, _, list, [Type]}, Bound) ->
@@ -94,9 +99,8 @@ parse_type({type, _, number, []}, _Bound) ->
   {union, [integer, float]};
 parse_type({type, _, char, []}, _Bound) ->
   {range, 0, 16#10ffff};
-parse_type({type, Ln, string, []}, Bound) ->
-  Char = parse_type({type, Ln, char, []}, Bound),
-  {list, Char};
+parse_type({type, _, string, []}, _Bound) ->
+  {list, {range, 0, 16#10ffff}};
 parse_type({type, _, range, [{integer, _, I1}, {integer, _, I2}]}, _Bound) ->
   {range, I1, I2};
 %% Unsupported type.
