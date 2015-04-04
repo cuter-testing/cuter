@@ -68,6 +68,7 @@ input_parameters([H|T]) ->
   io:format("~n").
 
 -spec exec_status(cuter_iserver:execution_status()) -> ok.
+-ifdef(VERBOSE_REPORTING).
 exec_status({success, {Cv, Sv}}) ->
   io:format("OK~n"),
   io:format("  CONCRETE: ~p~n", [Cv]),
@@ -83,6 +84,19 @@ exec_status({internal_error, Type, Node, Why}) ->
   io:format("  TYPE: ~p~n", [Type]),
   io:format("  NODE: ~p~n", [Node]),
   io:format("  REASON: ~p~n", [Why]).
+-else.
+exec_status({success, {Cv, _Sv}}) ->
+  io:format("OK~n"),
+  io:format("  CONCRETE: ~p~n", [Cv]);
+exec_status({runtime_error, _Node, _Pid, {Cv, _Sv}}) ->
+  io:format("RUNTIME ERROR~n"),
+  io:format("  CONCRETE: ~p~n", [Cv]);
+exec_status({internal_error, Type, Node, Why}) ->
+  io:format("INTERNAL ERROR~n"),
+  io:format("  TYPE: ~p~n", [Type]),
+  io:format("  NODE: ~p~n", [Node]),
+  io:format("  REASON: ~p~n", [Why]).
+-endif.
 
 -spec exec_info(orddict:orddict()) -> ok.
 exec_info(Info) ->
@@ -321,6 +335,9 @@ requeue_failure(_Ref, _X, _L, _D) -> ok.
 -endif.
 
 -spec report_erroneous([list(any())]) -> ok.
+report_erroneous([]) ->
+  divider("-"),
+  io:format("NO RUNTIME ERRORS OCCURED~n");
 report_erroneous(Err) ->
   divider("-"),
   io:format("INPUTS THAT LEAD TO RUNTIME ERRORS~n"),
