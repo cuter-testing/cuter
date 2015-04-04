@@ -117,7 +117,7 @@ simulate_behaviour(ets, update_element, 3) -> bif;
 %% Module file
 simulate_behaviour(file, native_name_encoding, 0) -> bif;
 %% Module lists
-simulate_behaviour(lists, member, 2)  -> bif;
+simulate_behaviour(lists, member, 2)  -> {ok, {cuter_erlang, member, 2}};
 simulate_behaviour(lists, reverse, 2) -> {ok, {cuter_erlang, reverse, 2}};
 simulate_behaviour(lists, keymember, 3) -> bif;
 simulate_behaviour(lists, keysearch, 3) -> bif;

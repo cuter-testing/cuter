@@ -20,7 +20,7 @@
         , max/2, min/2
         , '=='/2, '/='/2
         , '<'/2, '=<'/2, '>'/2, '>='/2
-        , '++'/2, reverse/2
+        , '++'/2, reverse/2, member/2
         ]).
 
 %% ----------------------------------------------------------------------------
@@ -604,3 +604,12 @@ lappend([X|L1], L2) -> lappend(L1, [X|L2]).
 -spec reverse(list(), list()) -> list().
 reverse([], X) -> X;
 reverse([H|T], Y) -> reverse(T, [H|Y]).
+
+%%
+%% Simulate lists:member/2
+%%
+
+-spec member(any(), [any()]) -> boolean().
+member(X, [X|_]) -> true;
+member(X, [_|Y]) -> member(X, Y);
+member(_X, []) -> false.

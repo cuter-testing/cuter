@@ -65,8 +65,17 @@ prop_append() ->
 %% Test cuter_erlang:reverse/2.
 -spec lreverse_test() -> {timeout, integer(), boolean()}.
 lreverse_test() ->
-  {timeout, 10000, proper:quickcheck(prop_lreverse(), [{to_file, user}, {numtests, 1000}])}.
+  {timeout, 50000, proper:quickcheck(prop_lreverse(), [{to_file, user}, {numtests, 1000}])}.
 
 -spec prop_lreverse() -> proper:outer_test().
 prop_lreverse() ->
   ?FORALL({X,Y}, {list(),list()}, lists:reverse(X, Y) =:= cuter_erlang:reverse(X, Y)).
+
+%% Test cuter_erlang:member/2.
+-spec lmember_test() -> {timeout, integer(), boolean()}.
+lmember_test() ->
+  {timeout, 10000, proper:quickcheck(prop_lmember(), [{to_file, user}, {numtests, 1000}])}.
+
+-spec prop_lmember() -> proper:outer_test().
+prop_lmember() ->
+  ?FORALL({X,Y}, {any(),list()}, lists:member(X, Y) =:= cuter_erlang:member(X, Y)).
