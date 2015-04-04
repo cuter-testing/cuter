@@ -568,13 +568,13 @@ class ErlangZ3:
   
   def type_range_toZ3(self, s, limits):
     T = self.Term
-    l1 = self.term_toZ3(limits[0])
-    l2 = self.term_toZ3(limits[1])
-    axs = [
-      T.is_int(s),
-      T.ival(s) >= T.ival(l1),
-      T.ival(s) <= T.ival(l2)
-    ]
+    axs = [T.is_int(s)]
+    if not ("tp" in limits[0] and limits[0]["tp"] == cc.JSON_ERLTYPE_INTEGER):
+      l1 = self.term_toZ3(limits[0])
+      axs.append(T.ival(s) >= T.ival(l1))
+    if not ("tp" in limits[1] and limits[1]["tp"] == cc.JSON_ERLTYPE_INTEGER):
+      l2 = self.term_toZ3(limits[1])
+      axs.append(T.ival(s) <= T.ival(l2))
     return And(*axs)
   
   def type_nonempty_list_toZ3(self, s, tp):

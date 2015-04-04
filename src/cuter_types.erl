@@ -19,7 +19,7 @@
                   | {list, erl_type()}
                   | {nonempty_list, erl_type()}
                   | nil
-                  | {range, integer(), integer()}
+                  | {range, integer() | inf, integer() | inf}
                   | tuple
                   | {tuple, [erl_type()]}
                   | {union, [erl_type()]}.

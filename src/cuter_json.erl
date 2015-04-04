@@ -128,9 +128,13 @@ json_encode_type({union, Types}) ->
   [$, | Ts] = lists:foldl(F, [], lists:reverse(Types)),
   ?ENCODE_COMPTYPE(integer_to_list(?JSON_ERLTYPE_UNION), [$\[, Ts, $\]]);
 json_encode_type({range, Integer1, Integer2}) ->
-  I1 = json_encode(Integer1),
-  I2 = json_encode(Integer2),
+  I1 = range_encode_maybe_integer(Integer1),
+  I2 = range_encode_maybe_integer(Integer2),
   ?ENCODE_COMPTYPE(integer_to_list(?JSON_ERLTYPE_RANGE), [$\[, I1, $,, I2, $\]]).
+
+-spec range_encode_maybe_integer(integer() | inf) -> list().
+range_encode_maybe_integer(inf) -> json_encode_type(integer);
+range_encode_maybe_integer(I) -> json_encode(I).
 
 %% ==============================================================================
 %% Exported JSON Encoding / Decoding functions for Port Communication
