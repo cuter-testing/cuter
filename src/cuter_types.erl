@@ -18,6 +18,7 @@
                   | {integer, integer()}
                   | {list, erl_type()}
                   | nil
+                  | {range, integer(), integer()}
                   | tuple
                   | {tuple, [erl_type()]}
                   | {union, [erl_type()]}.
@@ -91,6 +92,13 @@ parse_type({type, _, orddict, []}, _Bound) ->
   {list, {tuple, [any, any]}};
 parse_type({type, _, number, []}, _Bound) ->
   {union, [integer, float]};
+parse_type({type, _, char, []}, _Bound) ->
+  {range, 0, 16#10ffff};
+parse_type({type, Ln, string, []}, Bound) ->
+  Char = parse_type({type, Ln, char, []}, Bound),
+  {list, Char};
+parse_type({type, _, range, [{integer, _, I1}, {integer, _, I2}]}, _Bound) ->
+  {range, I1, I2};
 %% Unsupported type.
 parse_type(Type, _Bound) -> throw({unsupported_type, Type}).
 

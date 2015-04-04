@@ -532,7 +532,8 @@ class ErlangZ3:
       cc.JSON_ERLTYPE_NIL: self.type_nil_toZ3,
       cc.JSON_ERLTYPE_TUPLE: self.type_tuple_toZ3,
       cc.JSON_ERLTYPE_TUPLEDET: self.type_tupledet_toZ3,
-      cc.JSON_ERLTYPE_UNION: self.type_union_toZ3
+      cc.JSON_ERLTYPE_UNION: self.type_union_toZ3,
+      cc.JSON_ERLTYPE_RANGE: self.type_range_toZ3
     }
     tpcode = tp["tp"]
     arg = tp["a"] if "a" in tp else None
@@ -561,6 +562,16 @@ class ErlangZ3:
     i = self.term_toZ3(arg)
     return (s == i)
   
+  def type_range_toZ3(self, s, limits):
+    T = self.Term
+    l1 = self.term_toZ3(limits[0])
+    l2 = self.term_toZ3(limits[1])
+    axs = [
+      T.is_int(s),
+      T.ival(s) >= T.ival(l1),
+      T.ival(s) <= T.ival(l2)
+    ]
+    return And(*axs)
   
   def type_list_toZ3(self, s, tp):
     if cglb.__LISTS_INTERP__ == cglb.LISTS_EXPAND:
