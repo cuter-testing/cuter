@@ -92,6 +92,8 @@ parse_type({var, _, Var}, Bound) ->
   end;
 parse_type({ann_type, _, [_Var, Type]}, Bound) ->
   parse_type(Type, Bound);
+parse_type({paren_type, _, [Type]}, Bound) ->
+  parse_type(Type, Bound);
 %% More custom types.
 parse_type({type, _, orddict, []}, _Bound) ->
   {list, {tuple, [any, any]}};
