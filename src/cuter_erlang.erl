@@ -526,7 +526,8 @@ lt_list([X|Xs], [Y|Ys]) ->
 %% Left operand is a reference, a function, a port, a pid, a map or a bistring.
 %% These terms are 'incomprehensible' for the solver, thus we directly call
 %% the erlang:'<'/2 operator.
-'<'(X, Y) when is_reference(X); is_function(X); is_port(X); is_pid(X); is_map(X); is_bitstring(X) ->
+%'<'(X, Y) when is_reference(X); is_function(X); is_port(X); is_pid(X); is_map(X); is_bitstring(X) ->
+'<'(X, Y) ->
   unsupported_lt(X, Y).
 
 %%
