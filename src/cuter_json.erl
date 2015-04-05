@@ -649,6 +649,8 @@ encode_term(I, _Seen) when is_integer(I) ->
 encode_term(F, _Seen) when is_float(F) ->
   ?ENCODE(integer_to_list(?JSON_TYPE_FLOAT), float_to_list(F, [{decimals, 10}, compact]));
 %% atom
+encode_term('', _Seen) ->
+  ?ENCODE(integer_to_list(?JSON_TYPE_ATOM), [$\[, $\]]);
 encode_term(A, _Seen) when is_atom(A) ->
   F = fun(X, Acc) -> [$,, integer_to_list(X) | Acc] end,
   [$, | Es] = lists:foldl(F, [], lists:reverse(atom_to_list(A))),
