@@ -592,7 +592,7 @@ class ErlangZ3:
     T, L = self.Term, self.List
     x = T.lval(s)
     axs = []
-    for _ in range(20):
+    for _ in range(10):
       ax_hd = self.typedef_toZ3(L.hd(x), tp)
       # Override for lists of type [any()]
       if ax_hd == None:
