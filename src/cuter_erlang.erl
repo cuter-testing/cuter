@@ -20,7 +20,7 @@
         , max/2, min/2
         , '=='/2, '/='/2
         , '<'/2, '=<'/2, '>'/2, '>='/2
-        , '++'/2, reverse/2, member/2
+        , '++'/2, '--'/2, reverse/2, member/2
         ]).
 
 %% ----------------------------------------------------------------------------
@@ -663,6 +663,14 @@ min(X, Y) ->
 -spec lappend(list(), list()) -> list().
 lappend([], L2) -> L2;
 lappend([X|L1], L2) -> lappend(L1, [X|L2]).
+
+%%
+%% Simulate erlang:'--'/2
+%%
+
+-spec '--'(list(), list()) -> list().
+'--'(L1, []) -> L1;
+'--'(L1, [H|T]) -> '--'(lists:delete(H, L1), T).
 
 %%
 %% Simulate lists:reverse/2

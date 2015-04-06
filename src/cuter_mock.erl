@@ -29,6 +29,7 @@ simulate_behaviour(erlang, 'orelse',     2) -> {ok, {cuter_erlang, 'orelse',    
 simulate_behaviour(erlang, tuple_size,   1) -> {ok, {cuter_erlang, tuple_size,   1}};
 simulate_behaviour(erlang, 'xor',        2) -> {ok, {cuter_erlang, 'xor',        2}};
 simulate_behaviour(erlang, '++',         2) -> {ok, {cuter_erlang, '++',         2}};
+simulate_behaviour(erlang, '--',         2) -> {ok, {cuter_erlang, '--',         2}};
 simulate_behaviour(erlang, '==',         2) -> {ok, {cuter_erlang, '==',         2}};
 simulate_behaviour(erlang, '/=',         2) -> {ok, {cuter_erlang, '/=',         2}};
 simulate_behaviour(erlang, '<',          2) -> {ok, {cuter_erlang, '<',          2}};
