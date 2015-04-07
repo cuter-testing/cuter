@@ -233,7 +233,8 @@ annotate_pats({c_tuple, Anno, Es}, TagGen, InPats) ->
 annotate_pats({c_values, Anno, Es}, TagGen, InPats) ->
   {c_values, Anno, [annotate_pats(E, TagGen, InPats) || E <- Es]};
 annotate_pats({c_var, Anno, Name}, _TagGen, _InPats) ->
-  {c_var, Anno, Name}.
+  {c_var, Anno, Name};
+annotate_pats(X, _,_) -> X. %% FIXME temp fix for maps
 
 %% Get the tags from the annotations of an AST's node.
 -spec get_tags(list()) -> ast_tags().
