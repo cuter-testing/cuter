@@ -58,3 +58,14 @@ prop_lreverse() ->
 -spec prop_lmember() -> proper:outer_test().
 prop_lmember() ->
   ?FORALL({X,Y}, {any(),list()}, lists:member(X, Y) =:= cuter_erlang:member(X, Y)).
+
+-spec reversible_bifs_test_() -> any().
+reversible_bifs_test_() ->
+  Props = [
+    {"erlang:'+'/2 => cuter_erlang:'+'/2", prop_add(), 1000}
+  ],
+  [{Descr, {timeout, 10000, ?_assert(proper:quickcheck(Prop, [{to_file, user}, {numtests, N}]))}} || {Descr, Prop, N} <- Props].
+
+-spec prop_add() -> proper:outer_test().
+prop_add() ->
+  ?FORALL({X,Y}, {number(),number()}, (X + Y) =:= cuter_erlang:'+'(X, Y)).

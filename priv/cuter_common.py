@@ -98,7 +98,7 @@ def is_interpretable(tp):
 def is_reversible_bif(tp):
   xs = set([
     OP_HD, OP_TL,
-    OP_PLUS, OP_MINUS, OP_TIMES, OP_RDIV, OP_IDIV_NAT, OP_REM_NAT,
+    OP_MINUS, OP_TIMES, OP_RDIV, OP_IDIV_NAT, OP_REM_NAT,
     OP_FLOAT, OP_LIST_TO_TUPLE, OP_TUPLE_TO_LIST,
     OP_ATOM_HEAD, OP_ATOM_TAIL
   ])

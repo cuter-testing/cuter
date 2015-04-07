@@ -36,6 +36,7 @@ simulate_behaviour(erlang, '<',          2) -> {ok, {cuter_erlang, '<',         
 simulate_behaviour(erlang, '=<',         2) -> {ok, {cuter_erlang, '=<',         2}};
 simulate_behaviour(erlang, '>',          2) -> {ok, {cuter_erlang, '>',          2}};
 simulate_behaviour(erlang, '>=',         2) -> {ok, {cuter_erlang, '>=',         2}};
+simulate_behaviour(erlang, '+',          2) -> {ok, {cuter_erlang, '+',          2}};
 simulate_behaviour(erlang, _F, _A)        -> bif;
 
 %% cuter_erlang module
@@ -134,6 +135,8 @@ simulate_behaviour(os, getenv, 1) -> bif;
 simulate_behaviour(os, getpid, 0) -> bif;
 simulate_behaviour(os, putenv, 2) -> bif;
 simulate_behaviour(os, timestamp, 0) -> bif;
+%% Module io
+simulate_behaviour(io, printable_range, 0) -> bif;
 %% Module slave
 %% It is treated as BIF because it includes a registered name in the command
 %% that creates a new node and thus cannot work by just overriding

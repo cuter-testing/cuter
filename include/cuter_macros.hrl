@@ -198,6 +198,7 @@
                  , { {cuter_erlang, pos_rem,            2}, ?OP_REM_NAT   }
                  , { {cuter_erlang, lt_int,             2}, ?OP_LT_INT    }
                  , { {cuter_erlang, lt_float,           2}, ?OP_LT_FLOAT  }
+                 , { {cuter_erlang, safe_add,           2}, ?OP_PLUS      }
                    %% Actual erlang BIFs
                  , { {erlang, hd,            1}, ?OP_HD            }
                  , { {erlang, tl,            1}, ?OP_TL            }
@@ -208,7 +209,6 @@
                  , { {erlang, is_list,       1}, ?OP_IS_LIST       }
                  , { {erlang, is_tuple,      1}, ?OP_IS_TUPLE      }
                  , { {erlang, is_number,     1}, ?OP_IS_NUMBER     }
-                 , { {erlang, '+',           2}, ?OP_PLUS          }
                  , { {erlang, '-',           2}, ?OP_MINUS         }
                  , { {erlang, '*',           2}, ?OP_TIMES         }
                  , { {erlang, '/',           2}, ?OP_RDIV          }

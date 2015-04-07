@@ -9,6 +9,7 @@
         , lt_int/2, lt_float/2, unsupported_lt/2
         , gteq/2
         , pos_div/2, pos_rem/2
+        , safe_add/2
           %% Overriding functions
         , abs/1
         , atom_to_list/1
@@ -20,6 +21,7 @@
         , max/2, min/2
         , '=='/2, '/='/2
         , '<'/2, '=<'/2, '>'/2, '>='/2
+        , '+'/2
         , '++'/2, '--'/2, reverse/2, member/2
         ]).
 
@@ -146,6 +148,19 @@ atom_to_list(X, Acc) ->
 %% ----------------------------------------------------------------------------
 %% ARITHMETIC OPERATIONS
 %% ----------------------------------------------------------------------------
+
+%%
+%% Simulate erlang:'+'/2
+%%
+%% Ensure that both operands are numbers.
+%%
+
+-spec '+'(any(), any()) -> number() | none().
+'+'(X, Y) when is_number(X), is_number(Y) -> ?MODULE:safe_add(X, Y).
+%% TODO Maybe throw badarith for non-numbers
+
+-spec safe_add(number(), number()) -> number().
+safe_add(X, Y) -> X + Y.
 
 %%
 %% Simulate erlang:abs/1
