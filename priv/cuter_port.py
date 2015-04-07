@@ -23,10 +23,16 @@ class ErlangPort:
     if cglb.__TTY__:
       print data
     else:
-      sz = len(data)
-      x = struct.pack('!h', sz)
-      self.chan_out.write(x)
-      return self.chan_out.write(data)
+      try:
+        sz = len(data)
+        x = struct.pack('!h', sz)
+        self.chan_out.write(x)
+        return self.chan_out.write(data)
+      except:
+        err = open('error.log', 'a')
+        err.write(str(data) + ",\n")
+        err.flush()
+        err.close()
 
 def decode_command(erlport, erlz3, data):
   cmd = json.loads(data)
