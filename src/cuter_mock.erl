@@ -26,6 +26,7 @@ simulate_behaviour(erlang, 'not',        1) -> {ok, {cuter_erlang, 'not',       
 simulate_behaviour(erlang, 'rem',        2) -> {ok, {cuter_erlang, 'rem',        2}};
 simulate_behaviour(erlang, 'or',         2) -> {ok, {cuter_erlang, 'or',         2}};
 simulate_behaviour(erlang, 'orelse',     2) -> {ok, {cuter_erlang, 'orelse',     2}};
+simulate_behaviour(erlang, setelement,   3) -> {ok, {cuter_erlang, setelement,   3}};
 simulate_behaviour(erlang, tuple_size,   1) -> {ok, {cuter_erlang, tuple_size,   1}};
 simulate_behaviour(erlang, 'xor',        2) -> {ok, {cuter_erlang, 'xor',        2}};
 simulate_behaviour(erlang, '++',         2) -> {ok, {cuter_erlang, '++',         2}};

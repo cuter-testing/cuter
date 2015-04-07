@@ -15,7 +15,7 @@
         , atom_to_list/1
         , 'and'/2, 'andalso'/2, 'not'/1, 'or'/2, 'orelse'/2, 'xor'/2
         , 'div'/2, 'rem'/2
-        , element/2
+        , element/2, setelement/3
         , length/1, tuple_size/1
         , make_tuple/2
         , max/2, min/2
@@ -57,6 +57,24 @@ element(N, T) when is_tuple(T), is_integer(N) ->
 
 find_nth_element(1, [H|_]) -> H;
 find_nth_element(N, [_|T]) -> find_nth_element(N-1, T).
+
+%%
+%% Simulate erlang:setelement/3
+%%
+%% Set the term in the n-th position of a tuple.
+%%
+
+-spec setelement(pos_integer(), tuple(), any()) -> tuple().
+setelement(N, T, V) ->
+  L = erlang:tuple_to_list(T),
+  set_nth_element(N, V, L, 1, []).
+
+set_nth_element(_N, _V, [], _Curr, Acc) ->
+  erlang:list_to_tuple(lists:reverse(Acc));
+set_nth_element(N, V, [_|T], N, Acc) ->
+  set_nth_element(N, V, T, N+1, [V|Acc]);
+set_nth_element(N, V, [H|T], Curr, Acc) ->
+  set_nth_element(N, V, T, Curr+1, [H|Acc]).
 
 %%
 %% Simulate erlang:length/1
