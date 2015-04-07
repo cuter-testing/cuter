@@ -7,7 +7,6 @@
           %% Built-in operations
         , is_atom_nil/1, atom_head/1, atom_tail/1
         , lt_int/2, lt_float/2, unsupported_lt/2
-        , gteq/2
         , pos_div/2, pos_rem/2
         , safe_add/2
           %% Overriding functions
@@ -26,16 +25,6 @@
         ]).
 
 %% ----------------------------------------------------------------------------
-%% BIFs
-%%
-%% NOTE: There is no need to validate the arguments of each function as it
-%% is only called internally .
-%% ----------------------------------------------------------------------------
-
--spec gteq(number(), number()) -> boolean().
-gteq(X, Y) -> X >= Y.
-
-%% ----------------------------------------------------------------------------
 %% Other functions
 %% ----------------------------------------------------------------------------
 
@@ -47,16 +36,8 @@ gteq(X, Y) -> X >= Y.
 
 -spec element(integer(), tuple()) -> any().
 element(N, T) when is_tuple(T), is_integer(N) ->
-  case gteq(N, 1) of
-    false ->
-      error(badarg);
-    true ->
-      L = erlang:tuple_to_list(T),
-      find_nth_element(N, L)
-  end.
-
-find_nth_element(1, [H|_]) -> H;
-find_nth_element(N, [_|T]) -> find_nth_element(N-1, T).
+  L = erlang:tuple_to_list(T),
+  lists:nth(N, L).
 
 %%
 %% Simulate erlang:setelement/3
@@ -107,9 +88,9 @@ tuple_size(T) when is_tuple(T) ->
 
 -spec make_tuple(integer(), any()) -> tuple().
 make_tuple(N, X) when is_integer(N) ->
-  case gteq(N, 0) of
-    false -> error(badarg);
-    true  -> create_tuple(N, X, [])
+  case ?MODULE:lt_int(N, 0) of
+    true  -> error(badarg);
+    false -> create_tuple(N, X, [])
   end.
 
 create_tuple(0, _, Acc) -> list_to_tuple(Acc);
@@ -188,11 +169,17 @@ safe_add(X, Y) -> X + Y.
 
 -spec abs(integer()) -> integer()
        ; (float()) -> float().
-abs(X) when is_integer(X); is_float(X) ->
-  case gteq(X, 0) of
-    true  -> X;
-    false -> -X
+abs(X) when is_integer(X) ->
+  case case ?MODULE:lt_int(X, 0) of
+    false -> X;
+    true  -> -X
+  end;
+abs(X) when is_float(X) ->
+  case case ?MODULE:lt_float(X, 0) of
+    false -> X;
+    true  -> -X
   end.
+
 
 %%
 %% Simulate erlang:'div'/2
