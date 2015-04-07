@@ -124,7 +124,7 @@ simulate_behaviour(lists, member, 2)  -> {ok, {cuter_erlang, member, 2}};
 simulate_behaviour(lists, reverse, 2) -> {ok, {cuter_erlang, reverse, 2}};
 simulate_behaviour(lists, keymember, 3) -> bif;
 simulate_behaviour(lists, keysearch, 3) -> bif;
-simulate_behaviour(lists, keyfind, 3) -> bif;
+simulate_behaviour(lists, keyfind, 3) -> {ok, {cuter_erlang, keyfind, 3}};
 %% Module math
 simulate_behaviour(math, pi, 0) -> {ok, {math, pi, 0}};
 simulate_behaviour(math, _F, _A) -> bif;

@@ -22,7 +22,7 @@
         , '=='/2, '/='/2
         , '<'/2, '=<'/2, '>'/2, '>='/2
         , '+'/2
-        , '++'/2, '--'/2, reverse/2, member/2
+        , '++'/2, '--'/2, reverse/2, member/2, keyfind/3
         ]).
 
 %% ----------------------------------------------------------------------------
@@ -721,3 +721,16 @@ reverse([H|T], Y) -> reverse(T, [H|Y]).
 member(X, [X|_]) -> true;
 member(X, [_|Y]) -> member(X, Y);
 member(_X, []) -> false.
+
+%%
+%% Simulate lists:keyfind/3
+%%
+
+-spec keyfind(any(), pos_integer(), [tuple()]) -> tuple() | false.
+keyfind(_Key, _N, []) ->
+  false;
+keyfind(Key, N, [H|T]) when is_tuple(H) ->
+  case erlang:element(N, H) of
+    Key -> H;
+    _   -> keyfind(Key, N, T)
+  end.
