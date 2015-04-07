@@ -626,8 +626,8 @@ eval_expr({c_seq, _Anno, Arg, Body}, M, Cenv, Senv, Servers, Fd) ->
 %        {valuelist, CAs, Deg} = A_c,
 %        {valuelist, SAs, Deg} = A_s
 %    end,
-%    Ce = cuter_env:bind_paramenters(CAs, Vars, Cenv),
-%    Se = cuter_env:bind_paramenters(SAs, Vars, Senv),
+%    Ce = cuter_env:bind_parameters(CAs, Vars, Cenv),
+%    Se = cuter_env:bind_parameters(SAs, Vars, Senv),
 %    eval_expr(Body, M, Ce, Se, Servers, Fd)
 %  catch
 %    Class:Reason ->
