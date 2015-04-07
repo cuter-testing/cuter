@@ -170,12 +170,12 @@ safe_add(X, Y) -> X + Y.
 -spec abs(integer()) -> integer()
        ; (float()) -> float().
 abs(X) when is_integer(X) ->
-  case case ?MODULE:lt_int(X, 0) of
+  case ?MODULE:lt_int(X, 0) of
     false -> X;
     true  -> -X
   end;
 abs(X) when is_float(X) ->
-  case case ?MODULE:lt_float(X, 0) of
+  case ?MODULE:lt_float(X, 0) of
     false -> X;
     true  -> -X
   end.
