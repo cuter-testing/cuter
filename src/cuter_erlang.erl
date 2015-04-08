@@ -474,7 +474,7 @@ lt_list(_, []) ->
 lt_list([], _) ->
   true;
 lt_list([X|Xs], [Y|Ys]) ->
-  case X =:= Y of
+  case X == Y of
     true  -> lt_list(Xs, Ys);
     false -> ?MODULE:'<'(X, Y)
   end.
