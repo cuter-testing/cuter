@@ -461,7 +461,7 @@ lt_atom([X|_Xs], [Y|_Ys]) ->
 lt_tuple([], []) ->
   false;
 lt_tuple([X|Xs], [Y|Ys]) ->
-  case X =:= Y of
+  case X == Y of
     true  -> lt_tuple(Xs, Ys);
     false -> ?MODULE:'<'(X, Y)
   end.
