@@ -9,11 +9,11 @@
         , lt_int/2, lt_float/2, unsupported_lt/2
         , safe_pos_div/2, safe_pos_rem/2
         , safe_plus/2, safe_minus/2, safe_times/2, safe_rdiv/2
-        , safe_float/1, safe_list_to_tuple/1
+        , safe_float/1, safe_list_to_tuple/1, safe_tuple_to_list/1
           %% Overriding functions
         , abs/1
         , float/1
-        , atom_to_list/1, list_to_tuple/1
+        , atom_to_list/1, list_to_tuple/1, tuple_to_list/1
         , 'and'/2, 'andalso'/2, 'not'/1, 'or'/2, 'orelse'/2, 'xor'/2
         , 'div'/2, 'rem'/2
         , element/2, setelement/3
@@ -80,7 +80,7 @@ length([_|L], N) -> length(L, N+1).
 
 -spec tuple_size(tuple()) -> integer().
 tuple_size(T) when is_tuple(T) ->
-  ?MODULE:length(tuple_to_list(T)).
+  ?MODULE:length(erlang:tuple_to_list(T)).
 
 %%
 %% Simulate erlang:make_tuple/2
@@ -169,6 +169,18 @@ list_to_tuple(X) when is_list(X) -> safe_list_to_tuple(X).
 
 -spec safe_list_to_tuple(list()) -> tuple().
 safe_list_to_tuple(X) -> erlang:list_to_tuple(X).
+
+%%
+%% Simulate erlang:tuple_to_list/1
+%%
+%% Ensure that the argument is a tuple.
+%%
+
+-spec tuple_to_list(tuple()) -> list().
+tuple_to_list(X) when is_tuple(X) -> safe_tuple_to_list(X).
+
+-spec safe_tuple_to_list(tuple()) -> list().
+safe_tuple_to_list(X) -> erlang:tuple_to_list(X).
 
 %% ----------------------------------------------------------------------------
 %% ARITHMETIC OPERATIONS
@@ -575,8 +587,8 @@ lt_list([X|Xs], [Y|Ys]) ->
     false ->
       lt_int(SX, SY);
     true ->
-      LX = tuple_to_list(X),
-      LY = tuple_to_list(Y),
+      LX = erlang:tuple_to_list(X),
+      LY = erlang:tuple_to_list(Y),
       lt_tuple(LX, LY)
   end;
 '<'(X, Y) when is_tuple(X) andalso (      is_number(Y)
@@ -660,8 +672,8 @@ lt_list([X|Xs], [Y|Ys]) ->
     false ->
       lt_int(SY, SX);
     true ->
-      LX = tuple_to_list(X),
-      LY = tuple_to_list(Y),
+      LX = erlang:tuple_to_list(X),
+      LY = erlang:tuple_to_list(Y),
       lt_tuple(LY, LX)
   end;
 '>'(X, Y) when is_tuple(X) andalso (      is_number(Y)

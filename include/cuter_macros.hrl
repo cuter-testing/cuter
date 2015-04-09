@@ -204,6 +204,7 @@
                  , { {cuter_erlang, safe_rdiv,          2}, ?OP_RDIV          }
                  , { {cuter_erlang, safe_float,         1}, ?OP_FLOAT         }
                  , { {cuter_erlang, safe_list_to_tuple, 1}, ?OP_LIST_TO_TUPLE }
+                 , { {cuter_erlang, safe_tuple_to_list, 1}, ?OP_TUPLE_TO_LIST }
                    %% Actual erlang BIFs
                  , { {erlang, hd,            1}, ?OP_HD            }
                  , { {erlang, tl,            1}, ?OP_TL            }
@@ -217,7 +218,6 @@
                  , { {erlang, '-',           1}, ?OP_UNARY         }
                  , { {erlang, '=:=',         2}, ?OP_EQUAL         }
                  , { {erlang, '=/=',         2}, ?OP_UNEQUAL       }
-                 , { {erlang, tuple_to_list, 1}, ?OP_TUPLE_TO_LIST }
                  ])).
 
 %% All the MFAs that are supported for symbolic evaluation.
@@ -230,5 +230,4 @@
 -define (REVERSIBLE_OPERATIONS,
   gb_sets:from_list([ ?OP_ATOM_HEAD, ?OP_ATOM_TAIL
                     , ?OP_HD, ?OP_TL
-                    , ?OP_TUPLE_TO_LIST
                     ])).
