@@ -62,10 +62,15 @@ prop_lmember() ->
 -spec reversible_bifs_test_() -> any().
 reversible_bifs_test_() ->
   Props = [
-    {"erlang:'+'/2 => cuter_erlang:'+'/2", prop_add(), 1000}
+    {"erlang:'+'/2 => cuter_erlang:'+'/2", prop_plus(), 1000}
+  , {"erlang:'-'/2 => cuter_erlang:'-'/2", prop_minus(), 1000}
   ],
   [{Descr, {timeout, 10000, ?_assert(proper:quickcheck(Prop, [{to_file, user}, {numtests, N}]))}} || {Descr, Prop, N} <- Props].
 
--spec prop_add() -> proper:outer_test().
-prop_add() ->
+-spec prop_plus() -> proper:outer_test().
+prop_plus() ->
   ?FORALL({X,Y}, {number(),number()}, (X + Y) =:= cuter_erlang:'+'(X, Y)).
+
+-spec prop_minus() -> proper:outer_test().
+prop_minus() ->
+  ?FORALL({X,Y}, {number(),number()}, (X - Y) =:= cuter_erlang:'-'(X, Y)).

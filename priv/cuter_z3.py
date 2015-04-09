@@ -342,7 +342,6 @@ class ErlangZ3:
       # Erlang BIFs
       cc.OP_HD: self.hd_toZ3_RV,
       cc.OP_TL: self.tl_toZ3_RV,
-      cc.OP_MINUS: self.minus_toZ3_RV,
       cc.OP_TIMES: self.times_toZ3_RV,
       cc.OP_RDIV: self.rdiv_toZ3_RV,
       cc.OP_IDIV_NAT: self.idiv_nat_toZ3_RV,
@@ -896,18 +895,6 @@ class ErlangZ3:
         )
       )
     ))
-  
-  # (Reversed)
-  def minus_toZ3_RV(self, term, term1, term2):
-    T = self.Term
-    t1 = self.term_toZ3(term1)
-    t2 = self.term_toZ3(term2)
-    self.axs.append(
-      Not(And(
-        Or(T.is_int(t1), T.is_real(t1)),
-        Or(T.is_int(t2), T.is_real(t2))
-      ))
-    )
   
   ## Multiply two numbers ###
   
