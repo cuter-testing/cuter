@@ -712,7 +712,6 @@ evaluate_bif_concrete({M, F, _A}=MFA, As, CodeServer, Tag) ->
         apply(M, F, As)
       catch
         error:E ->
-          io:format("ERROR ~p~n", [E]),
           visit_tag(CodeServer, Tag),
           erlang:error({E, MFA, As})
       end
