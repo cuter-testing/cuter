@@ -342,7 +342,6 @@ class ErlangZ3:
       # Erlang BIFs
       cc.OP_HD: self.hd_toZ3_RV,
       cc.OP_TL: self.tl_toZ3_RV,
-      cc.OP_REM_NAT: self.rem_nat_toZ3_RV,
       cc.OP_FLOAT: self.float_toZ3_RV,
       cc.OP_ATOM_HEAD: self.atom_head_toZ3_RV,
       cc.OP_ATOM_TAIL: self.atom_tail_toZ3_RV,
@@ -975,19 +974,6 @@ class ErlangZ3:
       T.ival(t2) > 0
     ])
     self.env.bind(s, T.int(T.ival(t1) % T.ival(t2)))
-  
-  # (Reversed)
-  def rem_nat_toZ3_RV(self, term, term1, term2):
-    T = self.Term
-    t1 = self.term_toZ3(term1)
-    t2 = self.term_toZ3(term2)
-    self.axs.append(
-      Or(
-        Not(T.is_int(t1)),
-        Not(T.is_int(t2)),
-        And( T.is_int(t1), T.is_int(t2), T.ival(t2) == 0 )
-      )
-    )
   
   ### Unary operation
   

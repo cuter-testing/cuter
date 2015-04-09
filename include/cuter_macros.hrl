@@ -195,7 +195,7 @@
                  , { {cuter_erlang, atom_head,          1}, ?OP_ATOM_HEAD }
                  , { {cuter_erlang, atom_tail,          1}, ?OP_ATOM_TAIL }
                  , { {cuter_erlang, safe_pos_div,       2}, ?OP_IDIV_NAT  }
-                 , { {cuter_erlang, pos_rem,            2}, ?OP_REM_NAT   }
+                 , { {cuter_erlang, safe_pos_rem,       2}, ?OP_REM_NAT   }
                  , { {cuter_erlang, lt_int,             2}, ?OP_LT_INT    }
                  , { {cuter_erlang, lt_float,           2}, ?OP_LT_FLOAT  }
                  , { {cuter_erlang, safe_plus,          2}, ?OP_PLUS      }
@@ -230,6 +230,5 @@
 -define (REVERSIBLE_OPERATIONS,
   gb_sets:from_list([ ?OP_ATOM_HEAD, ?OP_ATOM_TAIL
                     , ?OP_HD, ?OP_TL
-                    , ?OP_REM_NAT
                     , ?OP_FLOAT, ?OP_LIST_TO_TUPLE, ?OP_TUPLE_TO_LIST
                     ])).
