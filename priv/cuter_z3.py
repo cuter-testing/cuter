@@ -342,7 +342,6 @@ class ErlangZ3:
       # Erlang BIFs
       cc.OP_HD: self.hd_toZ3_RV,
       cc.OP_TL: self.tl_toZ3_RV,
-      cc.OP_FLOAT: self.float_toZ3_RV,
       cc.OP_ATOM_HEAD: self.atom_head_toZ3_RV,
       cc.OP_ATOM_TAIL: self.atom_tail_toZ3_RV,
       cc.OP_LIST_TO_TUPLE: self.list_to_tuple_toZ3_RV,
@@ -1069,15 +1068,6 @@ class ErlangZ3:
       t1,
       T.real( ToReal(T.ival(t1)) )
     ))
-  
-  # (Reversed)
-  def float_toZ3_RV(self, term, term1):
-    T = self.Term
-    t1 = self.term_toZ3(term1)
-    self.axs.append(Not(Or(
-      T.is_int(t1),
-      T.is_real(t1)
-    )))
   
   ## Convert a list to a tuple
   

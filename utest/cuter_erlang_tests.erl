@@ -68,6 +68,7 @@ reversible_bifs_test_() ->
   , {"erlang:'/'/2 => cuter_erlang:'/'/2", prop_rdiv(), 1000}
   , {"erlang:div/2 => cuter_erlang:div/2", prop_idiv(), 1000}
   , {"erlang:'rem'/2 => cuter_erlang:'rem'/2", prop_rem(), 1000}
+  , {"erlang:float/1 => cuter_erlang:float/1", prop_float(), 1000}
   ],
   [{Descr, {timeout, 10000, ?_assert(proper:quickcheck(Prop, [{to_file, user}, {numtests, N}]))}} || {Descr, Prop, N} <- Props].
 
@@ -97,3 +98,7 @@ prop_idiv() ->
 prop_rem() ->
   TY = ?SUCHTHAT(Y, integer(), Y =/= 0),
   ?FORALL({X,Y}, {integer(),TY}, (X rem Y) =:= cuter_erlang:'rem'(X, Y)).
+
+-spec prop_float() -> proper:outer_test().
+prop_float() ->
+  ?FORALL(X, number(), float(X) =:= cuter_erlang:float(X)).

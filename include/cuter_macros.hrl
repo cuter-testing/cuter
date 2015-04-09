@@ -202,6 +202,7 @@
                  , { {cuter_erlang, safe_minus,         2}, ?OP_MINUS     }
                  , { {cuter_erlang, safe_times,         2}, ?OP_TIMES     }
                  , { {cuter_erlang, safe_rdiv,          2}, ?OP_RDIV      }
+                 , { {cuter_erlang, safe_float,         1}, ?OP_FLOAT     }
                    %% Actual erlang BIFs
                  , { {erlang, hd,            1}, ?OP_HD            }
                  , { {erlang, tl,            1}, ?OP_TL            }
@@ -215,7 +216,6 @@
                  , { {erlang, '-',           1}, ?OP_UNARY         }
                  , { {erlang, '=:=',         2}, ?OP_EQUAL         }
                  , { {erlang, '=/=',         2}, ?OP_UNEQUAL       }
-                 , { {erlang, float,         1}, ?OP_FLOAT         }
                  , { {erlang, list_to_tuple, 1}, ?OP_LIST_TO_TUPLE }
                  , { {erlang, tuple_to_list, 1}, ?OP_TUPLE_TO_LIST }
                  ])).
@@ -230,5 +230,5 @@
 -define (REVERSIBLE_OPERATIONS,
   gb_sets:from_list([ ?OP_ATOM_HEAD, ?OP_ATOM_TAIL
                     , ?OP_HD, ?OP_TL
-                    , ?OP_FLOAT, ?OP_LIST_TO_TUPLE, ?OP_TUPLE_TO_LIST
+                    , ?OP_LIST_TO_TUPLE, ?OP_TUPLE_TO_LIST
                     ])).

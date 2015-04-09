@@ -580,7 +580,7 @@ erlang_equal_logs(Fd, SAs=[P1, P2, P3]) ->
   cuter_log:log_equal(Fd, true, X, true, cuter_cerl:empty_tag()),
   cuter_log:log_mfa(Fd, {erlang, '=:=', 2}, [P2, ok], Y, cuter_cerl:empty_tag()),
   cuter_log:log_equal(Fd, true, Y, true, cuter_cerl:empty_tag()),
-  cuter_log:log_mfa(Fd, {erlang, float, 1}, [P3], Z, cuter_cerl:empty_tag()),
+  cuter_log:log_mfa(Fd, {cuter_erlang, safe_float, 1}, [P3], Z, cuter_cerl:empty_tag()),
   cuter_log:log_mfa(Fd, {erlang, '=:=', 2}, [P3, Z], Q, cuter_cerl:empty_tag()),
   cuter_log:log_equal(Fd, true, Q, false, cuter_cerl:empty_tag()).
 
@@ -605,7 +605,7 @@ erlang_unequal_logs(Fd, SAs=[P1, P2, P3]) ->
   cuter_log:log_equal(Fd, true, X, false, cuter_cerl:empty_tag()),
   cuter_log:log_mfa(Fd, {erlang, '=/=', 2}, [P2, ok], Y, cuter_cerl:empty_tag()),
   cuter_log:log_equal(Fd, true, Y, false, cuter_cerl:empty_tag()),
-  cuter_log:log_mfa(Fd, {erlang, float, 1}, [P3], Z, cuter_cerl:empty_tag()),
+  cuter_log:log_mfa(Fd, {cuter_erlang, safe_float, 1}, [P3], Z, cuter_cerl:empty_tag()),
   cuter_log:log_mfa(Fd, {erlang, '=/=', 2}, [P3, Z], Q, cuter_cerl:empty_tag()),
   cuter_log:log_equal(Fd, true, Q, true, cuter_cerl:empty_tag()).
 
@@ -615,10 +615,8 @@ erlang_float({_Dir, Fname, Python}) ->
   As = [0, 0.0],  % Two arguments
   Mapping = create_logfile(Fname, As, fun erlang_float_logs/2),
   {ok, [P1, P2]} = cuter_solver:solve(Python, Mapping, Fname, 42),
-  {ok, [P1_RV, _P2_RV]} = cuter_solver:solve(Python, Mapping, Fname, 1),
   [ {"Convert integer to float", ?_assertEqual(42, P1)}
   , {"Convert float to float", ?_assertEqual(3.14, P2)}
-  , {"Make it throw an exception", ?_assertError(badarg, float(P1_RV))}
   ].
 
 erlang_float_logs(Fd, SAs=[P1, P2]) ->
@@ -626,9 +624,9 @@ erlang_float_logs(Fd, SAs=[P1, P2]) ->
   X = cuter_symbolic:fresh_symbolic_var(),
   Y = cuter_symbolic:fresh_symbolic_var(),
   Z = cuter_symbolic:fresh_symbolic_var(),
-  cuter_log:log_mfa(Fd, {erlang, float, 1}, [P1], X, cuter_cerl:empty_tag()),
+  cuter_log:log_mfa(Fd, {cuter_erlang, safe_float, 1}, [P1], X, cuter_cerl:empty_tag()),
   cuter_log:log_equal(Fd, true, X, 42.0, cuter_cerl:empty_tag()),
-  cuter_log:log_mfa(Fd, {erlang, float, 1}, [P2], Y, cuter_cerl:empty_tag()),
+  cuter_log:log_mfa(Fd, {cuter_erlang, safe_float, 1}, [P2], Y, cuter_cerl:empty_tag()),
   cuter_log:log_equal(Fd, true, Y, 3.14, cuter_cerl:empty_tag()),
   cuter_log:log_mfa(Fd, {erlang, is_integer, 1}, [P1], Z, cuter_cerl:empty_tag()),
   cuter_log:log_equal(Fd, true, Z, true, cuter_cerl:empty_tag()).

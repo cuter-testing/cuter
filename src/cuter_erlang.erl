@@ -9,8 +9,10 @@
         , lt_int/2, lt_float/2, unsupported_lt/2
         , safe_pos_div/2, safe_pos_rem/2
         , safe_plus/2, safe_minus/2, safe_times/2, safe_rdiv/2
+        , safe_float/1
           %% Overriding functions
         , abs/1
+        , float/1
         , atom_to_list/1
         , 'and'/2, 'andalso'/2, 'not'/1, 'or'/2, 'orelse'/2, 'xor'/2
         , 'div'/2, 'rem'/2
@@ -143,6 +145,18 @@ atom_to_list(X, Acc) ->
       T = atom_tail(X),
       atom_to_list(T, [H|Acc])
   end.
+
+%%
+%% Simulate erlang:float/1
+%%
+%% Ensure that the argument is a float.
+%%
+
+-spec float(number()) -> float().
+float(X) when is_number(X) -> safe_float(X).
+
+-spec safe_float(number()) -> float().
+safe_float(X) -> erlang:float(X).
 
 %% ----------------------------------------------------------------------------
 %% ARITHMETIC OPERATIONS
@@ -429,9 +443,9 @@ safe_pos_rem(X, Y) -> X rem Y.
 
 -spec '=='(any(), any()) -> boolean().
 '=='(X, Y) when is_integer(X), is_float(Y) ->
-  float(X) =:= Y;
+  erlang:float(X) =:= Y;
 '=='(X, Y) when is_float(X), is_integer(Y) ->
-  X =:= float(Y);
+  X =:= erlang:float(Y);
 '=='(X, Y) ->
   X =:= Y.
 
@@ -451,9 +465,9 @@ safe_pos_rem(X, Y) -> X rem Y.
 
 -spec '/='(any(), any()) -> boolean().
 '/='(X, Y) when is_integer(X), is_float(Y) ->
-  float(X) =/= Y;
+  erlang:float(X) =/= Y;
 '/='(X, Y) when is_float(X), is_integer(Y) ->
-  X =/= float(Y);
+  X =/= erlang:float(Y);
 '/='(X, Y) ->
   X =/= Y.
 
@@ -522,9 +536,9 @@ lt_list([X|Xs], [Y|Ys]) ->
 '<'(X, Y) when is_integer(X), is_integer(Y) ->
   lt_int(X, Y);
 '<'(X, Y) when is_integer(X), is_float(Y) ->
-  lt_float(float(X), Y);
+  lt_float(erlang:float(X), Y);
 '<'(X, Y) when is_float(X), is_integer(Y) ->
-  lt_float(X, float(Y));
+  lt_float(X, erlang:float(Y));
 '<'(X, Y) when is_float(X), is_float(Y) ->
   lt_float(X, Y);
 '<'(X, _Y) when is_number(X) ->
@@ -607,9 +621,9 @@ lt_list([X|Xs], [Y|Ys]) ->
 '>'(X, Y) when is_integer(X), is_integer(Y) ->
   lt_int(Y, X);
 '>'(X, Y) when is_integer(X), is_float(Y) ->
-  lt_float(Y, float(X));
+  lt_float(Y, erlang:float(X));
 '>'(X, Y) when is_float(X), is_integer(Y) ->
-  lt_float(float(Y), X);
+  lt_float(erlang:float(Y), X);
 '>'(X, Y) when is_float(X), is_float(Y) ->
   lt_float(Y, X);
 '>'(X, _Y) when is_number(X) ->

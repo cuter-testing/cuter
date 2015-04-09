@@ -18,6 +18,7 @@ simulate_behaviour(erlang, 'andalso',    2) -> {ok, {cuter_erlang, 'andalso',   
 simulate_behaviour(erlang, atom_to_list, 1) -> {ok, {cuter_erlang, atom_to_list, 1}};
 simulate_behaviour(erlang, 'div',        2) -> {ok, {cuter_erlang, 'div',        2}};
 simulate_behaviour(erlang, element,      2) -> {ok, {cuter_erlang, element,      2}};
+simulate_behaviour(erlang, float,        1) -> {ok, {cuter_erlang, float,        1}};
 simulate_behaviour(erlang, length,       1) -> {ok, {cuter_erlang, length,       1}};
 simulate_behaviour(erlang, make_tuple,   2) -> {ok, {cuter_erlang, make_tuple,   2}};
 simulate_behaviour(erlang, max,          2) -> {ok, {cuter_erlang, max,          2}};
