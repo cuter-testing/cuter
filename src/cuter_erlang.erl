@@ -154,9 +154,8 @@ atom_to_list(X, Acc) ->
 %% Ensure that both operands are numbers.
 %%
 
--spec '+'(any(), any()) -> number() | none().
+-spec '+'(number(), number()) -> number().
 '+'(X, Y) when is_number(X), is_number(Y) -> ?MODULE:safe_plus(X, Y).
-%% TODO Maybe throw badarith for non-numbers
 
 -spec safe_plus(number(), number()) -> number().
 safe_plus(X, Y) -> X + Y.
@@ -167,9 +166,8 @@ safe_plus(X, Y) -> X + Y.
 %% Ensure that both operands are numbers.
 %%
 
--spec '-'(any(), any()) -> number() | none().
+-spec '-'(number(), number()) -> number().
 '-'(X, Y) when is_number(X), is_number(Y) -> ?MODULE:safe_minus(X, Y).
-%% TODO Maybe throw badarith for non-numbers
 
 -spec safe_minus(number(), number()) -> number().
 safe_minus(X, Y) -> X - Y.
@@ -182,8 +180,6 @@ safe_minus(X, Y) -> X - Y.
 
 -spec '*'(number(), number()) -> number().
 '*'(X, Y) when is_number(X), is_number(Y) -> ?MODULE:safe_times(X, Y).
-%% TODO Maybe throw badarith for non-numbers
-
 
 -spec safe_times(number(), number()) -> number().
 safe_times(X, Y) -> X * Y.
@@ -197,7 +193,6 @@ safe_times(X, Y) -> X * Y.
 
 -spec '/'(number(), number()) -> number().
 '/'(X, Y) when is_number(X), is_number(Y), Y /= 0 -> ?MODULE:safe_rdiv(X, Y).
-%% TODO Maybe throw badarith for non-numbers
 
 -spec safe_rdiv(number(), number()) -> number().
 safe_rdiv(X, Y) -> X / Y.
