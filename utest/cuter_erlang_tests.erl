@@ -11,8 +11,7 @@
 -spec props_test_() -> any().
 props_test_() ->
   Props = [
-    {"erlang:atom_to_list/1 => cuter_erlang:atom_to_list/1", prop_atom_to_list(), 1000}
-  , {"erlang:'<'/2 => cuter_erlang:'<'/2", prop_lt(), 2000}
+    {"erlang:'<'/2 => cuter_erlang:'<'/2", prop_lt(), 2000}
   , {"erlang:'=<'/2 => cuter_erlang:'=<'/2", prop_lteq(), 2000}
   , {"erlang:'>'/2 => cuter_erlang:'>'/2", prop_gt(), 2000}
   , {"erlang:'>='/2 => cuter_erlang:'>='/2", prop_gteq(), 2000}
@@ -22,10 +21,6 @@ props_test_() ->
   , {"lists:member/2 => cuter_erlang:member/2", prop_lmember(), 1000}
   ],
   [{Descr, {timeout, 10000, ?_assert(proper:quickcheck(Prop, [{to_file, user}, {numtests, N}]))}} || {Descr, Prop, N} <- Props].
-
--spec prop_atom_to_list() -> proper:outer_test().
-prop_atom_to_list() ->
-  ?FORALL(X, atom(), erlang:atom_to_list(X) =:= cuter_erlang:atom_to_list(X)).
 
 -spec prop_lt() -> proper:outer_test().
 prop_lt() ->
@@ -71,6 +66,7 @@ reversible_bifs_test_() ->
   , {"erlang:float/1 => cuter_erlang:float/1", prop_float(), 1000}
   , {"erlang:list_to_tuple/1 => cuter_erlang:list_to_tuple/1", prop_list_to_tuple(), 1000}
   , {"erlang:tuple_to_list/1 => cuter_erlang:tuple_to_list/1", prop_tuple_to_list(), 1000}
+  , {"erlang:atom_to_list/1 => cuter_erlang:atom_to_list/1", prop_atom_to_list(), 1000}
   ],
   [{Descr, {timeout, 10000, ?_assert(proper:quickcheck(Prop, [{to_file, user}, {numtests, N}]))}} || {Descr, Prop, N} <- Props].
 
@@ -112,3 +108,7 @@ prop_list_to_tuple() ->
 -spec prop_tuple_to_list() -> proper:outer_test().
 prop_tuple_to_list() ->
   ?FORALL(X, tuple(), tuple_to_list(X) =:= cuter_erlang:tuple_to_list(X)).
+
+-spec prop_atom_to_list() -> proper:outer_test().
+prop_atom_to_list() ->
+  ?FORALL(X, atom(), atom_to_list(X) =:= cuter_erlang:atom_to_list(X)).

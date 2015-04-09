@@ -192,8 +192,8 @@
   dict:from_list([ %% Simulated built-in operations
                    { {cuter_erlang, atom_to_list_bogus, 1}, ?OP_BOGUS         }
                  , { {cuter_erlang, is_atom_nil,        1}, ?OP_ATOM_NIL      }
-                 , { {cuter_erlang, atom_head,          1}, ?OP_ATOM_HEAD     }
-                 , { {cuter_erlang, atom_tail,          1}, ?OP_ATOM_TAIL     }
+                 , { {cuter_erlang, safe_atom_head,     1}, ?OP_ATOM_HEAD     }
+                 , { {cuter_erlang, safe_atom_tail,     1}, ?OP_ATOM_TAIL     }
                  , { {cuter_erlang, safe_pos_div,       2}, ?OP_IDIV_NAT      }
                  , { {cuter_erlang, safe_pos_rem,       2}, ?OP_REM_NAT       }
                  , { {cuter_erlang, lt_int,             2}, ?OP_LT_INT        }
@@ -228,6 +228,5 @@
 
 %% The set of all the built-in operations that the solver can try to reverse.
 -define (REVERSIBLE_OPERATIONS,
-  gb_sets:from_list([ ?OP_ATOM_HEAD, ?OP_ATOM_TAIL
-                    , ?OP_HD, ?OP_TL
+  gb_sets:from_list([ ?OP_HD, ?OP_TL
                     ])).

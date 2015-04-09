@@ -5,7 +5,7 @@
 -export([ %% Bogus built-in operations
           atom_to_list_bogus/1
           %% Built-in operations
-        , is_atom_nil/1, atom_head/1, atom_tail/1
+        , is_atom_nil/1, safe_atom_head/1, safe_atom_tail/1
         , lt_int/2, lt_float/2, unsupported_lt/2
         , safe_pos_div/2, safe_pos_rem/2
         , safe_plus/2, safe_minus/2, safe_times/2, safe_rdiv/2
@@ -124,14 +124,14 @@ atom_to_list_bogus(X) ->
 is_atom_nil([]) -> true;
 is_atom_nil(_)  -> false.
 
--spec atom_head(string()) -> integer().
-atom_head([X|_]) -> X.
+-spec safe_atom_head(nonempty_string()) -> integer().
+safe_atom_head([X|_]) -> X.
 
--spec atom_tail(string()) -> string().
-atom_tail([_|Xs]) -> Xs.
+-spec safe_atom_tail(nonempty_string()) -> string().
+safe_atom_tail([_|Xs]) -> Xs.
 
 -spec atom_to_list(atom()) -> string().
-atom_to_list(X) ->
+atom_to_list(X) when is_atom(X) ->
   XX = atom_to_list_bogus(X),
   atom_to_list(XX, []).
 
@@ -141,8 +141,8 @@ atom_to_list(X, Acc) ->
     true ->
       lists:reverse(Acc);
     false ->
-      H = atom_head(X),
-      T = atom_tail(X),
+      H = safe_atom_head(X),
+      T = safe_atom_tail(X),
       atom_to_list(T, [H|Acc])
   end.
 
