@@ -8,7 +8,7 @@
         , is_atom_nil/1, atom_head/1, atom_tail/1
         , lt_int/2, lt_float/2, unsupported_lt/2
         , pos_div/2, pos_rem/2
-        , safe_plus/2, safe_minus/2
+        , safe_plus/2, safe_minus/2, safe_times/2
           %% Overriding functions
         , abs/1
         , atom_to_list/1
@@ -20,7 +20,7 @@
         , max/2, min/2
         , '=='/2, '/='/2
         , '<'/2, '=<'/2, '>'/2, '>='/2
-        , '+'/2, '-'/2
+        , '+'/2, '-'/2, '*'/2
         , '++'/2, '--'/2, reverse/2, member/2, keyfind/3
         ]).
 
@@ -173,6 +173,20 @@ safe_plus(X, Y) -> X + Y.
 
 -spec safe_minus(number(), number()) -> number().
 safe_minus(X, Y) -> X - Y.
+
+%%
+%% Simulate erlang:'*'/2
+%%
+%% Ensure that both operands are numbers.
+%%
+
+-spec '*'(number(), number()) -> number().
+'*'(X, Y) when is_number(X), is_number(Y) -> ?MODULE:safe_times(X, Y).
+%% TODO Maybe throw badarith for non-numbers
+
+
+-spec safe_times(number(), number()) -> number().
+safe_times(X, Y) -> X * Y.
 
 %%
 %% Simulate erlang:abs/1

@@ -470,19 +470,17 @@ erlang_times({_Dir, Fname, Python}) ->
   As = [0, 0.0],  % Two arguments (int and float)
   Mapping = create_logfile(Fname, As, fun erlang_times_logs/2),
   {ok, [P1, P2]} = cuter_solver:solve(Python, Mapping, Fname, 42),
-  {ok, [P1_RV, P2_RV]} = cuter_solver:solve(Python, Mapping, Fname, 1),
   [ {"Multiplting integers", ?_assertEqual(20, P1)}
   , {"Multiplting integers and floats", ?_assertEqual(2.22, P2)}
-  , {"Make it throw an exception", ?_assertError(badarith, P1_RV * P2_RV)}
   ].
 
 erlang_times_logs(Fd, SAs=[P1, P2]) ->
   cuter_log:log_symb_params(Fd, SAs),
   X = cuter_symbolic:fresh_symbolic_var(),
   Y = cuter_symbolic:fresh_symbolic_var(),
-  cuter_log:log_mfa(Fd, {erlang, '*', 2}, [P1, 2], X, cuter_cerl:empty_tag()),
+  cuter_log:log_mfa(Fd, {cuter_erlang, safe_times, 2}, [P1, 2], X, cuter_cerl:empty_tag()),
   cuter_log:log_equal(Fd, true, X, 40, cuter_cerl:empty_tag()),
-  cuter_log:log_mfa(Fd, {erlang, '*', 2}, [P1, P2], Y, cuter_cerl:empty_tag()),
+  cuter_log:log_mfa(Fd, {cuter_erlang, safe_times, 2}, [P1, P2], Y, cuter_cerl:empty_tag()),
   cuter_log:log_equal(Fd, true, Y, 44.4, cuter_cerl:empty_tag()).
 
 %% Real division.
