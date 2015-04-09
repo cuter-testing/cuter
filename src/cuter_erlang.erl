@@ -8,7 +8,7 @@
         , is_atom_nil/1, atom_head/1, atom_tail/1
         , lt_int/2, lt_float/2, unsupported_lt/2
         , pos_div/2, pos_rem/2
-        , safe_plus/2, safe_minus/2, safe_times/2
+        , safe_plus/2, safe_minus/2, safe_times/2, safe_rdiv/2
           %% Overriding functions
         , abs/1
         , atom_to_list/1
@@ -20,7 +20,7 @@
         , max/2, min/2
         , '=='/2, '/='/2
         , '<'/2, '=<'/2, '>'/2, '>='/2
-        , '+'/2, '-'/2, '*'/2
+        , '+'/2, '-'/2, '*'/2, '/'/2
         , '++'/2, '--'/2, reverse/2, member/2, keyfind/3
         ]).
 
@@ -187,6 +187,20 @@ safe_minus(X, Y) -> X - Y.
 
 -spec safe_times(number(), number()) -> number().
 safe_times(X, Y) -> X * Y.
+
+%%
+%% Simulate erlang:'/'/2
+%%
+%% Ensure that both operands are numbers and that the denominator
+%% is not zero.
+%%
+
+-spec '/'(number(), number()) -> number().
+'/'(X, Y) when is_number(X), is_number(Y), Y /= 0 -> ?MODULE:safe_rdiv(X, Y).
+%% TODO Maybe throw badarith for non-numbers
+
+-spec safe_rdiv(number(), number()) -> number().
+safe_rdiv(X, Y) -> X / Y.
 
 %%
 %% Simulate erlang:abs/1
