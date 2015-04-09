@@ -175,7 +175,7 @@ abs(X) when is_integer(X) ->
     true  -> -X
   end;
 abs(X) when is_float(X) ->
-  case ?MODULE:lt_float(X, 0) of
+  case ?MODULE:lt_float(X, 0.0) of
     false -> X;
     true  -> -X
   end.

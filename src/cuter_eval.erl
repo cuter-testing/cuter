@@ -495,27 +495,26 @@ eval_expr({c_case, _Anno, Arg, Clauses}, M, Cenv, Senv, Servers, Fd) ->
   eval_expr(Body, M, Ce, Se, Servers, Fd);
 
 %% c_catch
-%% Commented code if the proper semantics of catch
-%% However, we want exceptions to propagate (like try-catch)
-%eval_expr({c_catch, _Anno, Body}, M, Cenv, Senv, Servers, Fd) ->
-%  try
-%    eval_expr(Body, M, Cenv, Senv, Servers, Fd)
-%  catch
-%    throw:Throw ->
-%      unzip_one(Throw);
-%    exit:Exit ->
-%      {Cv, Sv} = unzip_one(Exit),
-%      {{'EXIT', Cv}, {'EXIT', Sv}};
-%    error:Error ->
-%      %% CAUTION! Stacktrace info is not valid
-%      %% It refers to the interpreter process's stacktrace
-%      %% Used for internal debugging
-%      {Cv, Sv} = unzip_one(Error),
-%      Stacktrace = erlang:get_stacktrace(),
-%      {{'EXIT', {Cv, Stacktrace}}, {'EXIT', {Sv, Stacktrace}}}
-%  end;
+%% Commented code: allow the exceptions to propagate
 eval_expr({c_catch, _Anno, Body}, M, Cenv, Senv, Servers, Fd) ->
-  eval_expr(Body, M, Cenv, Senv, Servers, Fd);
+  try
+    eval_expr(Body, M, Cenv, Senv, Servers, Fd)
+  catch
+    throw:Throw ->
+      unzip_one(Throw);
+    exit:Exit ->
+      {Cv, Sv} = unzip_one(Exit),
+      {{'EXIT', Cv}, {'EXIT', Sv}};
+    error:Error ->
+      %% CAUTION! Stacktrace info is not valid
+      %% It refers to the interpreter process's stacktrace
+      %% Used for internal debugging
+      {Cv, Sv} = unzip_one(Error),
+      Stacktrace = erlang:get_stacktrace(),
+      {{'EXIT', {Cv, Stacktrace}}, {'EXIT', {Sv, Stacktrace}}}
+  end;
+%eval_expr({c_catch, _Anno, Body}, M, Cenv, Senv, Servers, Fd) ->
+%  eval_expr(Body, M, Cenv, Senv, Servers, Fd);
 
 %% c_cons
 eval_expr({c_cons, _Anno, Hd, Tl}, M, Cenv, Senv, Servers, Fd) ->
@@ -612,49 +611,48 @@ eval_expr({c_seq, _Anno, Arg, Body}, M, Cenv, Senv, Servers, Fd) ->
   eval_expr(Body, M, Cenv, Senv, Servers, Fd);
 
 %% c_try
-%% Commented code if the proper semantics of try-catch
-%% However, we want exceptions to propagate
-%eval_expr({c_try, _Anno, Arg, Vars, Body, Evars, Handler}, M, Cenv, Senv, Servers, Fd) ->
-%  try
-%    Deg = length(Vars),
-%    {A_c, A_s} = eval_expr(Arg, M, Cenv, Senv, Servers, Fd),
-%    case Deg of
-%      1 ->
-%        CAs = [A_c],
-%        SAs = [A_s];
-%      _ ->
-%        {valuelist, CAs, Deg} = A_c,
-%        {valuelist, SAs, Deg} = A_s
-%    end,
-%    Ce = cuter_env:bind_parameters(CAs, Vars, Cenv),
-%    Se = cuter_env:bind_parameters(SAs, Vars, Senv),
-%    eval_expr(Body, M, Ce, Se, Servers, Fd)
-%  catch
-%    Class:Reason ->
-%      {Cv, Sv} = unzip_one(Reason),
-%      {Cs, Ss} = 
-%        case length(Evars) of
-%          3 -> {[Class, Cv, Class], [Class, Sv, Class]};
-%          2 -> {[Class, Cv], [Class, Sv]}
-%        end,
-%      ECe = cuter_env:bind_parameters(Cs, Evars, Cenv),
-%      ESe = cuter_env:bind_parameters(Ss, Evars, Senv),
-%      eval_expr(Handler, M, ECe, ESe, Servers, Fd)
-%  end;
-eval_expr({c_try, _Anno, Arg, Vars, Body, _Evars, _Handler}, M, Cenv, Senv, Servers, Fd) ->
-  Deg = length(Vars),
-  {A_c, A_s} = eval_expr(Arg, M, Cenv, Senv, Servers, Fd),
-  case Deg of
-    1 ->
-      CAs = [A_c],
-      SAs = [A_s];
-    _ ->
-      {valuelist, CAs, Deg} = A_c,
-      {valuelist, SAs, Deg} = A_s
-  end,
-  Ce = cuter_env:bind_parameters(CAs, Vars, Cenv),
-  Se = cuter_env:bind_parameters(SAs, Vars, Senv),
-  eval_expr(Body, M, Ce, Se, Servers, Fd);
+%% Commented code: allow the exceptions to propagate
+eval_expr({c_try, _Anno, Arg, Vars, Body, Evars, Handler}, M, Cenv, Senv, Servers, Fd) ->
+  try
+    Deg = length(Vars),
+    {A_c, A_s} = eval_expr(Arg, M, Cenv, Senv, Servers, Fd),
+    case Deg of
+      1 ->
+        CAs = [A_c],
+        SAs = [A_s];
+      _ ->
+        {valuelist, CAs, Deg} = A_c,
+        {valuelist, SAs, Deg} = A_s
+    end,
+    Ce = cuter_env:bind_parameters(CAs, Vars, Cenv),
+    Se = cuter_env:bind_parameters(SAs, Vars, Senv),
+    eval_expr(Body, M, Ce, Se, Servers, Fd)
+  catch
+    Class:Reason ->
+      {Cv, Sv} = unzip_one(Reason),
+      {Cs, Ss} =
+        case length(Evars) of
+          3 -> {[Class, Cv, Class], [Class, Sv, Class]};
+          2 -> {[Class, Cv], [Class, Sv]}
+        end,
+      ECe = cuter_env:bind_parameters(Cs, Evars, Cenv),
+      ESe = cuter_env:bind_parameters(Ss, Evars, Senv),
+      eval_expr(Handler, M, ECe, ESe, Servers, Fd)
+  end;
+%eval_expr({c_try, _Anno, Arg, Vars, Body, _Evars, _Handler}, M, Cenv, Senv, Servers, Fd) ->
+%  Deg = length(Vars),
+%  {A_c, A_s} = eval_expr(Arg, M, Cenv, Senv, Servers, Fd),
+%  case Deg of
+%    1 ->
+%      CAs = [A_c],
+%      SAs = [A_s];
+%    _ ->
+%      {valuelist, CAs, Deg} = A_c,
+%      {valuelist, SAs, Deg} = A_s
+%  end,
+%  Ce = cuter_env:bind_parameters(CAs, Vars, Cenv),
+%  Se = cuter_env:bind_parameters(SAs, Vars, Senv),
+%  eval_expr(Body, M, Ce, Se, Servers, Fd);
 
 %% c_tuple
 eval_expr({c_tuple, _Anno, Es}, M, Cenv, Senv, Servers, Fd) ->
