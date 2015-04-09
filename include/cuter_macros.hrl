@@ -198,7 +198,7 @@
                  , { {cuter_erlang, pos_rem,            2}, ?OP_REM_NAT   }
                  , { {cuter_erlang, lt_int,             2}, ?OP_LT_INT    }
                  , { {cuter_erlang, lt_float,           2}, ?OP_LT_FLOAT  }
-                 , { {cuter_erlang, safe_add,           2}, ?OP_PLUS      }
+                 , { {cuter_erlang, safe_plus,          2}, ?OP_PLUS      }
                    %% Actual erlang BIFs
                  , { {erlang, hd,            1}, ?OP_HD            }
                  , { {erlang, tl,            1}, ?OP_TL            }
@@ -230,6 +230,6 @@
 -define (REVERSIBLE_OPERATIONS,
   gb_sets:from_list([ ?OP_ATOM_HEAD, ?OP_ATOM_TAIL
                     , ?OP_HD, ?OP_TL
-                    , ?OP_PLUS, ?OP_MINUS, ?OP_TIMES, ?OP_RDIV, ?OP_IDIV_NAT, ?OP_REM_NAT
+                    , ?OP_MINUS, ?OP_TIMES, ?OP_RDIV, ?OP_IDIV_NAT, ?OP_REM_NAT
                     , ?OP_FLOAT, ?OP_LIST_TO_TUPLE, ?OP_TUPLE_TO_LIST
                     ])).
