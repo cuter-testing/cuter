@@ -1,4 +1,4 @@
-.PHONY: depend dialyze clean cleandep distclean all
+.PHONY: depend dialyzer clean cleandep distclean all
 
 ###----------------------------------------------------------------------
 ### Orientation information
@@ -79,13 +79,13 @@ vpath %.erl $(ERL_DIRS)
 
 vpath %.hrl $(INCLUDE)
 
-default: $(TARGETS) dialyze
+default: $(TARGETS)
 
 fast: cuter_target
 
 suite: utest_target
 
-all: default utest
+all: default utest dialyzer
 
 cuter_target: $(SRC_MODULES:%=$(EBIN)/%.beam)
 
@@ -97,7 +97,7 @@ $(EBIN)/%.beam: %.erl
 utest: $(TARGETS)
 	@(./runtests.py $(EBIN) $(MECK))
 
-dialyze: $(TARGETS)
+dialyzer: $(TARGETS)
 	dialyzer -n -nn -Wunmatched_returns $(EBIN)/*.beam
 
 -include .depend
