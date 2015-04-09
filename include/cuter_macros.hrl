@@ -230,6 +230,6 @@
 -define (REVERSIBLE_OPERATIONS,
   gb_sets:from_list([ ?OP_ATOM_HEAD, ?OP_ATOM_TAIL
                     , ?OP_HD, ?OP_TL
-                    , ?OP_IDIV_NAT, ?OP_REM_NAT
+                    , ?OP_REM_NAT
                     , ?OP_FLOAT, ?OP_LIST_TO_TUPLE, ?OP_TUPLE_TO_LIST
                     ])).

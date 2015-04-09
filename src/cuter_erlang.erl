@@ -234,17 +234,17 @@ abs(X) when is_float(X) ->
 %% then we set the proper sign.
 %%
 
--spec pos_div(non_neg_integer(), non_neg_integer()) -> non_neg_integer().
+-spec pos_div(non_neg_integer(), pos_integer()) -> non_neg_integer().
 pos_div(X, Y) -> X div Y.
 
 -spec 'div'(integer(), integer()) -> integer().
-'div'(X, Y) when is_integer(X), is_integer(Y), X >= 0, Y >= 0 ->
+'div'(X, Y) when is_integer(X), is_integer(Y), X >= 0, Y > 0 ->
   pos_div(X, Y);
 'div'(X, Y) when is_integer(X), is_integer(Y), X < 0, Y < 0 ->
   pos_div(-X, -Y);
 'div'(X, Y) when is_integer(X), is_integer(Y), X >= 0, Y < 0 ->
   - pos_div(X, -Y);
-'div'(X, Y) when is_integer(X), is_integer(Y), X < 0, Y >= 0 ->
+'div'(X, Y) when is_integer(X), is_integer(Y), X < 0, Y > 0 ->
   - pos_div(-X, Y).
 
 %%
