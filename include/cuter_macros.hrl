@@ -194,7 +194,7 @@
                  , { {cuter_erlang, is_atom_nil,        1}, ?OP_ATOM_NIL  }
                  , { {cuter_erlang, atom_head,          1}, ?OP_ATOM_HEAD }
                  , { {cuter_erlang, atom_tail,          1}, ?OP_ATOM_TAIL }
-                 , { {cuter_erlang, pos_div,            2}, ?OP_IDIV_NAT  }
+                 , { {cuter_erlang, safe_pos_div,       2}, ?OP_IDIV_NAT  }
                  , { {cuter_erlang, pos_rem,            2}, ?OP_REM_NAT   }
                  , { {cuter_erlang, lt_int,             2}, ?OP_LT_INT    }
                  , { {cuter_erlang, lt_float,           2}, ?OP_LT_FLOAT  }

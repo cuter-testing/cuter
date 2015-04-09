@@ -516,9 +516,9 @@ erlang_posdiv_logs(Fd, SAs=[P1, P2]) ->
   cuter_log:log_symb_params(Fd, SAs),
   X = cuter_symbolic:fresh_symbolic_var(),
   Y = cuter_symbolic:fresh_symbolic_var(),
-  cuter_log:log_mfa(Fd, {cuter_erlang, pos_div, 2}, [P1, 4], X, cuter_cerl:empty_tag()),
+  cuter_log:log_mfa(Fd, {cuter_erlang, safe_pos_div, 2}, [P1, 4], X, cuter_cerl:empty_tag()),
   cuter_log:log_equal(Fd, true, X, 2, cuter_cerl:empty_tag()),
-  cuter_log:log_mfa(Fd, {cuter_erlang, pos_div, 2}, [P2, P1], Y, cuter_cerl:empty_tag()),
+  cuter_log:log_mfa(Fd, {cuter_erlang, safe_pos_div, 2}, [P2, P1], Y, cuter_cerl:empty_tag()),
   cuter_log:log_equal(Fd, true, Y, 3, cuter_cerl:empty_tag()).
 
 %% Remainder of integer division of natural numbers

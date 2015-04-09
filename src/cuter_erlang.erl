@@ -7,7 +7,7 @@
           %% Built-in operations
         , is_atom_nil/1, atom_head/1, atom_tail/1
         , lt_int/2, lt_float/2, unsupported_lt/2
-        , pos_div/2, pos_rem/2
+        , safe_pos_div/2, pos_rem/2
         , safe_plus/2, safe_minus/2, safe_times/2, safe_rdiv/2
           %% Overriding functions
         , abs/1
@@ -229,23 +229,23 @@ abs(X) when is_float(X) ->
 %%  12345 = -293 * -42 + 39
 %% -12345 =  293 * -42 - 39
 %%
-%% In order to be consistent with Erlang, we call the pos_div/2 function that
-%% returns the quotient of the integer division of two natural numbers and
-%% then we set the proper sign.
+%% In order to be consistent with Erlang, we call the safe_pos_div/2 function that
+%% returns the quotient of the integer division of two natural numbers and then we
+%% set the proper sign.
 %%
 
--spec pos_div(non_neg_integer(), pos_integer()) -> non_neg_integer().
-pos_div(X, Y) -> X div Y.
+-spec safe_pos_div(non_neg_integer(), pos_integer()) -> non_neg_integer().
+safe_pos_div(X, Y) -> X div Y.
 
 -spec 'div'(integer(), integer()) -> integer().
 'div'(X, Y) when is_integer(X), is_integer(Y), X >= 0, Y > 0 ->
-  pos_div(X, Y);
+  safe_pos_div(X, Y);
 'div'(X, Y) when is_integer(X), is_integer(Y), X < 0, Y < 0 ->
-  pos_div(-X, -Y);
+  safe_pos_div(-X, -Y);
 'div'(X, Y) when is_integer(X), is_integer(Y), X >= 0, Y < 0 ->
-  - pos_div(X, -Y);
+  - safe_pos_div(X, -Y);
 'div'(X, Y) when is_integer(X), is_integer(Y), X < 0, Y > 0 ->
-  - pos_div(-X, Y).
+  - safe_pos_div(-X, Y).
 
 %%
 %% Simulate erlang:'rem'/2
