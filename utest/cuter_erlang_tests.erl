@@ -69,6 +69,7 @@ reversible_bifs_test_() ->
   , {"erlang:div/2 => cuter_erlang:div/2", prop_idiv(), 1000}
   , {"erlang:'rem'/2 => cuter_erlang:'rem'/2", prop_rem(), 1000}
   , {"erlang:float/1 => cuter_erlang:float/1", prop_float(), 1000}
+  , {"erlang:list_to_tuple/1 => cuter_erlang:list_to_tuple/1", prop_list_to_tuple(), 1000}
   ],
   [{Descr, {timeout, 10000, ?_assert(proper:quickcheck(Prop, [{to_file, user}, {numtests, N}]))}} || {Descr, Prop, N} <- Props].
 
@@ -102,3 +103,7 @@ prop_rem() ->
 -spec prop_float() -> proper:outer_test().
 prop_float() ->
   ?FORALL(X, number(), float(X) =:= cuter_erlang:float(X)).
+
+-spec prop_list_to_tuple() -> proper:outer_test().
+prop_list_to_tuple() ->
+  ?FORALL(X, list(), list_to_tuple(X) =:= cuter_erlang:list_to_tuple(X)).

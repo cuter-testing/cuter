@@ -344,7 +344,6 @@ class ErlangZ3:
       cc.OP_TL: self.tl_toZ3_RV,
       cc.OP_ATOM_HEAD: self.atom_head_toZ3_RV,
       cc.OP_ATOM_TAIL: self.atom_tail_toZ3_RV,
-      cc.OP_LIST_TO_TUPLE: self.list_to_tuple_toZ3_RV,
       cc.OP_TUPLE_TO_LIST: self.tuple_to_list_toZ3_RV,
     }
     
@@ -1077,13 +1076,6 @@ class ErlangZ3:
     t1 = self.term_toZ3(term1)
     self.axs.append(T.is_lst(t1))
     self.env.bind(s, T.tpl(T.lval(t1)))
-  
-  # (Reversed)
-  def list_to_tuple_toZ3_RV(self, term, term1):
-    T = self.Term
-    s = term["s"]
-    t1 = self.term_toZ3(term1)
-    self.axs.append(Not(T.is_lst(t1)))
   
   ## Convert a tuple to a list
   

@@ -705,15 +705,13 @@ lst_to_tpl({_Dir, Fname, Python}) ->
   As = [0],
   Mapping = create_logfile(Fname, As, fun lst_to_tpl_logs/2),
   {ok, [P1]} = cuter_solver:solve(Python, Mapping, Fname, 42),
-  {ok, [P1_RV]} = cuter_solver:solve(Python, Mapping, Fname, 1),
   [ {"Convert a list to tuple", ?_assertEqual([ok, 42], P1)}
-  , {"Make it throw an exception", ?_assertError(badarg, list_to_tuple(P1_RV))}
   ].
 
 lst_to_tpl_logs(Fd, SAs=[P1]) ->
   cuter_log:log_symb_params(Fd, SAs),
   X = cuter_symbolic:fresh_symbolic_var(),
-  cuter_log:log_mfa(Fd, {erlang, list_to_tuple, 1}, [P1], X, cuter_cerl:empty_tag()),
+  cuter_log:log_mfa(Fd, {cuter_erlang, safe_list_to_tuple, 1}, [P1], X, cuter_cerl:empty_tag()),
   cuter_log:log_equal(Fd, true, X, {ok, 42}, cuter_cerl:empty_tag()).
 
 %% Tuple to list

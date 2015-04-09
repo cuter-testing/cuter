@@ -9,11 +9,11 @@
         , lt_int/2, lt_float/2, unsupported_lt/2
         , safe_pos_div/2, safe_pos_rem/2
         , safe_plus/2, safe_minus/2, safe_times/2, safe_rdiv/2
-        , safe_float/1
+        , safe_float/1, safe_list_to_tuple/1
           %% Overriding functions
         , abs/1
         , float/1
-        , atom_to_list/1
+        , atom_to_list/1, list_to_tuple/1
         , 'and'/2, 'andalso'/2, 'not'/1, 'or'/2, 'orelse'/2, 'xor'/2
         , 'div'/2, 'rem'/2
         , element/2, setelement/3
@@ -95,7 +95,7 @@ make_tuple(N, X) when is_integer(N) ->
     false -> create_tuple(N, X, [])
   end.
 
-create_tuple(0, _, Acc) -> list_to_tuple(Acc);
+create_tuple(0, _, Acc) -> erlang:list_to_tuple(Acc);
 create_tuple(N, X, Acc) -> create_tuple(N-1, X, [X|Acc]).
 
 %% ----------------------------------------------------------------------------
@@ -157,6 +157,18 @@ float(X) when is_number(X) -> safe_float(X).
 
 -spec safe_float(number()) -> float().
 safe_float(X) -> erlang:float(X).
+
+%%
+%% Simulate erlang:list_to_tuple/1
+%%
+%% Ensure that the argument is a list.
+%%
+
+-spec list_to_tuple(list()) -> tuple().
+list_to_tuple(X) when is_list(X) -> safe_list_to_tuple(X).
+
+-spec safe_list_to_tuple(list()) -> tuple().
+safe_list_to_tuple(X) -> erlang:list_to_tuple(X).
 
 %% ----------------------------------------------------------------------------
 %% ARITHMETIC OPERATIONS

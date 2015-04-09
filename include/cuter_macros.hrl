@@ -190,19 +190,20 @@
 %% Maps MFAs to their JSON Opcodes
 -define(OPCODE_MAPPING,
   dict:from_list([ %% Simulated built-in operations
-                   { {cuter_erlang, atom_to_list_bogus, 1}, ?OP_BOGUS     }
-                 , { {cuter_erlang, is_atom_nil,        1}, ?OP_ATOM_NIL  }
-                 , { {cuter_erlang, atom_head,          1}, ?OP_ATOM_HEAD }
-                 , { {cuter_erlang, atom_tail,          1}, ?OP_ATOM_TAIL }
-                 , { {cuter_erlang, safe_pos_div,       2}, ?OP_IDIV_NAT  }
-                 , { {cuter_erlang, safe_pos_rem,       2}, ?OP_REM_NAT   }
-                 , { {cuter_erlang, lt_int,             2}, ?OP_LT_INT    }
-                 , { {cuter_erlang, lt_float,           2}, ?OP_LT_FLOAT  }
-                 , { {cuter_erlang, safe_plus,          2}, ?OP_PLUS      }
-                 , { {cuter_erlang, safe_minus,         2}, ?OP_MINUS     }
-                 , { {cuter_erlang, safe_times,         2}, ?OP_TIMES     }
-                 , { {cuter_erlang, safe_rdiv,          2}, ?OP_RDIV      }
-                 , { {cuter_erlang, safe_float,         1}, ?OP_FLOAT     }
+                   { {cuter_erlang, atom_to_list_bogus, 1}, ?OP_BOGUS         }
+                 , { {cuter_erlang, is_atom_nil,        1}, ?OP_ATOM_NIL      }
+                 , { {cuter_erlang, atom_head,          1}, ?OP_ATOM_HEAD     }
+                 , { {cuter_erlang, atom_tail,          1}, ?OP_ATOM_TAIL     }
+                 , { {cuter_erlang, safe_pos_div,       2}, ?OP_IDIV_NAT      }
+                 , { {cuter_erlang, safe_pos_rem,       2}, ?OP_REM_NAT       }
+                 , { {cuter_erlang, lt_int,             2}, ?OP_LT_INT        }
+                 , { {cuter_erlang, lt_float,           2}, ?OP_LT_FLOAT      }
+                 , { {cuter_erlang, safe_plus,          2}, ?OP_PLUS          }
+                 , { {cuter_erlang, safe_minus,         2}, ?OP_MINUS         }
+                 , { {cuter_erlang, safe_times,         2}, ?OP_TIMES         }
+                 , { {cuter_erlang, safe_rdiv,          2}, ?OP_RDIV          }
+                 , { {cuter_erlang, safe_float,         1}, ?OP_FLOAT         }
+                 , { {cuter_erlang, safe_list_to_tuple, 1}, ?OP_LIST_TO_TUPLE }
                    %% Actual erlang BIFs
                  , { {erlang, hd,            1}, ?OP_HD            }
                  , { {erlang, tl,            1}, ?OP_TL            }
@@ -216,7 +217,6 @@
                  , { {erlang, '-',           1}, ?OP_UNARY         }
                  , { {erlang, '=:=',         2}, ?OP_EQUAL         }
                  , { {erlang, '=/=',         2}, ?OP_UNEQUAL       }
-                 , { {erlang, list_to_tuple, 1}, ?OP_LIST_TO_TUPLE }
                  , { {erlang, tuple_to_list, 1}, ?OP_TUPLE_TO_LIST }
                  ])).
 
@@ -230,5 +230,5 @@
 -define (REVERSIBLE_OPERATIONS,
   gb_sets:from_list([ ?OP_ATOM_HEAD, ?OP_ATOM_TAIL
                     , ?OP_HD, ?OP_TL
-                    , ?OP_LIST_TO_TUPLE, ?OP_TUPLE_TO_LIST
+                    , ?OP_TUPLE_TO_LIST
                     ])).
