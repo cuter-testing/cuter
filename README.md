@@ -51,7 +51,7 @@ and [meck](https://github.com/eproxus/meck). You can install them independently 
 Installing
 ----------
 
-* Download Cuter's sources or clone this repository:
+* Download CutEr's sources or clone this repository:
 
         git clone https://github.com/aggelgian/cuter.git
 
@@ -99,10 +99,12 @@ We run CutEr:
 
     erl -noshell -eval "cuter:run(foo, bar, [ [1,2,3], [4,5,6,7] ], 20)" -s init stop
 
+and it reports a list of inputs that lead to runtime errors, for example `[1,2,3], []`.
+
 To sum up, `cuter:run/4` is called as `cuter:run(M, F, As, Dmax)` where
 
 * `M` is the module
 * `F` is the function
-* `As` is the list of arguments of the seed input
+* `As` is the list of arguments of the seed input (indirectly denotes the arity of `F`)
 * `Dmax` is the maximun depth of the search
 
