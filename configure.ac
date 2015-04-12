@@ -93,7 +93,7 @@ fi
 rm -f test_z3.py
 
 if test "$HAS_Z3" = "0"; then 
-   AC_MSG_ERROR([You need Z3 and Z3Py. Please download Z3 at http://z3.codeplex.com])
+   AC_MSG_ERROR([You need Z3 and Z3Py. Please download Z3 at https://github.com/Z3Prover/z3 and follow the instructions.])
 fi
 
 ###############################################
