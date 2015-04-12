@@ -57,9 +57,9 @@ Installing
         autoconf
         ./configure
         make depend
-        make fast
+        make
 
-* Optionally run the unit tests with `make utest` and run Dialyzer with `make dialyzer`
+* Optionally build and run the unit tests with `make utest` and run Dialyzer with `make dialyzer`
 
 * Add CutEr's base directory to your Erlang library path by updating the `ERL_LIBS` environment variable. Just add
 

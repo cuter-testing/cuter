@@ -193,5 +193,5 @@ Proper:             $HAS_PROPER_MSG
 
 To build CutEr, execute:
   make depend
-  make fast
+  make
 EOF

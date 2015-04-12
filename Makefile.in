@@ -1,4 +1,4 @@
-.PHONY: depend dialyzer clean cleandep distclean all
+.PHONY: depend dialyzer clean cleandep distclean all utest suite
 
 ###----------------------------------------------------------------------
 ### Orientation information
@@ -79,13 +79,11 @@ vpath %.erl $(ERL_DIRS)
 
 vpath %.hrl $(INCLUDE)
 
-default: $(TARGETS)
-
-fast: cuter_target
+default: cuter_target
 
 suite: utest_target
 
-all: default utest dialyzer
+all: $(TARGETS) utest dialyzer
 
 cuter_target: $(SRC_MODULES:%=$(EBIN)/%.beam)
 
@@ -105,7 +103,7 @@ dialyzer: $(TARGETS)
 depend: cleandep $(SRC_MODULES:%=%.dep) $(HRL_FILES:%=%.hrl)
 	@echo ""
 	@echo "To build CutEr, execute:"
-	@echo "  make fast"
+	@echo "  make"
 
 %.dep: %.erl
 	$(ERLC) $(ERLC_INCLUDE) -M -MT $(patsubst $(SRC)/%.erl,$(EBIN)/%.beam,$<) $< >> .depend
