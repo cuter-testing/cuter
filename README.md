@@ -32,15 +32,12 @@ In order to use the tool, you need the following programs:
 
 3. **Z3 Theorem Prover**
 
-  Download the latest [Z3 stable distribution](http://z3.codeplex.com/) or clone the master branch of the source git repository:
+  Download the latest [Z3 stable distribution](https://github.com/Z3Prover/z3) or clone the master branch of the source git repository:
 
-        git clone https://git01.codeplex.com/z3
+        git clone https://github.com/Z3Prover/z3.git
 
-  To install Z3, follow the instructions in the [README file](http://z3.codeplex.com/SourceControl/latest#README).
+  To install Z3, follow the instructions in the [README file](https://github.com/Z3Prover/z3/blob/master/README).
   Also, make sure that Z3Py (Python Interface) is installed.
-
-  If you get an error while cloning the Z3 repo, check this [guide](http://z3.codeplex.com/wikipage?title=Git%20HTTPS%20cloning%20errors)
-  on how to overcome HTTPS cloning errors.
 
 **[Optional]** If you want to run the full test suite of CutEr, you will also need [PropEr](https://github.com/manopapad/proper)
 and [meck](https://github.com/eproxus/meck). You can install them independently or go to CutEr's base directory and run:
