@@ -87,11 +87,11 @@ Go to the directory of the source file and compile it with debug information:
     erlc +debug_info foo.erl
 
 In order to test `foo:bar/2` with CutEr, you will need a well-formed input that will act as a seed.
-Let that be `foo:bar([], [1])`.
+Let that be `foo:bar([1], [2])`.
 
 CutEr can be invoked by calling the `cuter:run/3` function, that is:
 
-    erl -noshell -eval "cuter:run(foo, bar, [ [], [1,2] ])" -s init stop
+    erl -noshell -eval "cuter:run(foo, bar, [[1], [2]])" -s init stop
 
 and it reports a list of inputs that lead to runtime errors, for example `[1.0,2.0,0.0], [0,1]`.
 
@@ -100,3 +100,7 @@ To sum up, `cuter:run/3` is called as `cuter:run(M, F, As)` where
 * `M` is the module
 * `F` is the function
 * `As` is the list of arguments of the seed input (indirectly denotes the arity of `F`)
+
+CutEr provides more API functions that also come with options that control the concolic execution of Erlang programs.
+These will be explained in a set of forthcoming tutorials.  In the meantime, you can find out about them by browsing
+the source code of CutEr.  Have fun with the tool!
