@@ -16,8 +16,8 @@ In order to use the tool, you need the following programs:
 
 1. **Erlang/OTP**
 
-  Using a pre built package or binaries will not suffice if the library's modules have not been compiler with debug information.
-  In which case, you will need to build and install Erlang/OTP form source.
+  Using a pre built package or binaries will not suffice if the library's modules have not been compiled with debug information.
+  In which case, you will need to build and install Erlang/OTP from source.
 
   Download the latest [Erlang/OTP source code](http://www.erlang.org/download.html) or clone the Erlang/OTP github repository:
 
