@@ -110,22 +110,17 @@ handle_call({seed_execution, Info}, _From, S=#sts{queue = Q, info = I}) ->
   %% Add the next command to be reversed and remove the stored modules
   ExecInfo = Info#{nextRvs => 1, stored_mods => removed},
   ets:insert(I, {Rf, ExecInfo}),   % Store the extended info
-  cuter_pp:seed_execution(Rf, ExecInfo),
   {reply, ok, S#sts{queue = Q1, stored_mods = StoredMods, tags_added_no = TagsCnt}};
 %% Ask for a new input to execute
 handle_call(request_input, _From, S=#sts{queue = Q, info = I, python = P, depth = D, stored_mods = SMs, tags_added_no = TagsN}) ->
-  cuter_pp:request_input(Q, I),
   case generate_new_testcase(Q, I, P, D) of
     empty ->
-      cuter_pp:request_input_empty(I),
       {reply, empty, S};
     {ok, Rf, Inp, Q1} ->
-      cuter_pp:request_input_success(Rf, Inp, Q1, I),
       {reply, {Rf, Inp, SMs, TagsN}, S#sts{queue = Q1}}
   end;
 %% Store the information of a concolic execution
 handle_call({store_execution, Rf, Info}, _From, S=#sts{queue = Q, info = I, waiting = _W, stored_mods = SMs}) ->
-  cuter_pp:store_execution(Rf, Info, Q, I),
   %% Update the stored code of modules
   StoredMods = maps:get(stored_mods, Info),
   NewSMs = orddict:merge(fun(_K, V1, _V2) -> V1 end, SMs, StoredMods),
@@ -139,13 +134,11 @@ handle_call({store_execution, Rf, Info}, _From, S=#sts{queue = Q, info = I, wait
     true ->
       cuter_lib:clear_and_delete_dir(maps:get(dir, Info)),
       ets:delete(I, Rf),
-      cuter_pp:store_execution_fail(N, Ln, I),
       {reply, ok, S#sts{stored_mods = NewSMs, tags_added_no = TagsCnt}};
     false ->
       ExecInfo = Info#{nextRvs => N},
       ets:insert(I, {Rf, ExecInfo}),  % Replaces the old information
       Q1 = queue:in(Rf, Q),
-      cuter_pp:store_execution_success(N, Ln, Q, I),
       {reply, ok, S#sts{queue = Q1, stored_mods = NewSMs, tags_added_no = TagsCnt}}
   end.
 
@@ -166,7 +159,6 @@ generate_new_testcase(Q, Info, Python, Depth) ->
     {empty, Q} ->
       empty;
     {{value, Rf}, Q1} ->
-      cuter_pp:dequeued_handle(Rf),
       expand_state(Q1, Rf, Info, Python, Depth)
   end.
 
@@ -178,14 +170,11 @@ expand_state(Q, Rf, I, Python, Depth) ->
   Fname = maps:get(traceFile, Info),
   Mapping = maps:get(mappings, Info),
   N = maps:get(nextRvs, Info),
-  cuter_pp:attempting_to_reverse(N, Fname),
   case cuter_solver:solve(Python, Mapping, Fname, N) of
     error ->
-      cuter_pp:solving_failed(),
       Q1 = requeue_state(Q, Rf, Info, I, Depth),
       generate_new_testcase(Q1, I, Python, Depth);
     {ok, Inp} ->
-      cuter_pp:solving_succeeded(Inp),
       R = make_ref(),
       PartialInfo = #{nextRvs => N+1},
       ets:insert(I, {R, PartialInfo}),
@@ -202,12 +191,10 @@ requeue_state(Q, Rf, Info, I, Depth) ->
   X = N + 1,
   case X > L orelse X > Depth of
     true ->
-      cuter_pp:requeue_failure(Rf, X, L, Depth),
       DataDir = maps:get(dir, Info),
       cuter_lib:clear_and_delete_dir(DataDir),
       Q;
     false ->
-      cuter_pp:requeue_success(Rf, X, L, Depth),
       ets:insert(I, {Rf, Info#{nextRvs := X}}),  % Replace the old information
       queue:in(Rf, Q)
   end.
