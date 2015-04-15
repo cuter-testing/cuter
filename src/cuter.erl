@@ -2,7 +2,7 @@
 %%------------------------------------------------------------------------------
 -module(cuter).
 
--export([run/4, run/5, run/6, run_once/4, run_once/5]).
+-export([run/3, run/4, run/5, run/6, run_once/4, run_once/5]).
 
 -include("include/cuter_macros.hrl").
 
@@ -27,6 +27,10 @@ run_once(M, F, As, Depth) ->
 run_once(M, F, As, Depth, BaseDir) ->
   Conf = initialize_app(M, F, As, Depth, BaseDir, default_scheduling()),
   run_seed_execution(Conf, As, false).
+
+-spec run(module(), atom(), [any()]) -> ok.
+run(M, F, As) ->
+  run(M, F, As, ?DEFAULT_DEPTH).
 
 -spec run(module(), atom(), [any()], pos_integer()) -> ok.
 run(M, F, As, Depth) ->

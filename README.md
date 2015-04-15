@@ -87,21 +87,16 @@ Go to the directory of the source file and compile it:
     erlc foo.erl
 
 In order to test `foo:bar/2` with CutEr, you will need a well-formed input that will act as a seed.
-Let that be `foo:bar([1,2,3], [4,5,6,7])`.
+Let that be `foo:bar([], [1])`.
 
-CutEr is invoked by calling the `cuter:run/4` function, which requires a maximum depth `Dmax` of constraints to limit
-the search space. Let's set `Dmax = 20`.
+CutEr can be invoked by calling the `cuter:run/3` function, that is:
 
-We run CutEr:
+    erl -noshell -eval "cuter:run(foo, bar, [ [], [1,2] ])" -s init stop
 
-    erl -noshell -eval "cuter:run(foo, bar, [ [1,2,3], [4,5,6,7] ], 20)" -s init stop
+and it reports a list of inputs that lead to runtime errors, for example `[1.0,2.0,0.0], [0,1]`.
 
-and it reports a list of inputs that lead to runtime errors, for example `[1,2,3], []`.
-
-To sum up, `cuter:run/4` is called as `cuter:run(M, F, As, Dmax)` where
+To sum up, `cuter:run/3` is called as `cuter:run(M, F, As)` where
 
 * `M` is the module
 * `F` is the function
 * `As` is the list of arguments of the seed input (indirectly denotes the arity of `F`)
-* `Dmax` is the maximun depth of the search
-

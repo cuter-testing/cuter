@@ -47,7 +47,7 @@
 -define(EXECUTION_COUNTER_PREFIX, '__exec_counter').
 
 %%====================================================================
-%% Flags
+%% Flags & Default Values
 %%====================================================================
 
 -define(LOGGING_FLAG, ok).
@@ -59,6 +59,8 @@
 %%-define(VERBOSE_MERGING, ok).
 %%-define(VERBOSE_REPORTING, ok).
 -define(USE_SPECS, ok).
+
+-define(DEFAULT_DEPTH, 25).
 
 %%====================================================================
 %% Solver Responses
