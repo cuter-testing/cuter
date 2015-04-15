@@ -52,14 +52,12 @@ loop(Conf, Lmt) ->
   case cuter_scheduler_maxcover:request_input(maps:get(scheduler, Conf)) of
     empty -> stop(Conf);
     {Ref, As, StoredMods, TagsN} ->
-      io:format("GOT ~p~n", [As]),
       No = maps:get(no, Conf) + 1,
       Conf_n = Conf#{no := No, stored_mods := StoredMods, tags_added_no := TagsN},
       case concolic_execute(Conf_n, As) of
         cuter_error ->
           stop(Conf);
         Info ->
-          io:format("RUN OK~n"),
           ok = cuter_scheduler_maxcover:store_execution(maps:get(scheduler, Conf), Ref, Info),
           loop(Conf_n, tick(Lmt))
       end
