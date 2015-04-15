@@ -43,7 +43,7 @@
 %% exstatus :: execution_status()
 %%   Stores the status of the concolic execution
 
--record(state, {
+-record(sts, {
   super         :: pid(),
   logdir        :: nonempty_string(),
   depth         :: integer(),
@@ -56,7 +56,7 @@
   stored_mods   :: cuter_analyzer:stored_modules(),
   tags_added_no :: integer()
 }).
--type state() :: #state{}.
+-type state() :: #sts{}.
 
 %% ============================================================================
 %% External exports (Public API)
@@ -117,7 +117,7 @@ init([M, F, As, LogDir, Depth, StoredMods, TagsN, Super]) ->
   MonitorServer = cuter_monitor:start(LogDir, self(), Depth, Prefix),
   Servers = #svs{code = CodeServer, monitor = MonitorServer},
   Ipid = cuter_eval:i(M, F, As, Servers),
-  InitState = #state{
+  InitState = #sts{
     super = Super,
     logdir = LogDir,
     depth = Depth,
@@ -133,11 +133,8 @@ init([M, F, As, LogDir, Depth, StoredMods, TagsN, Super]) ->
 
 %% gen_server callback : terminate/2
 -spec terminate(any(), state()) -> ok.
-terminate(_Reason, State) ->
-  Super = State#state.super,
-  Info = State#state.info,
-  Exstatus = State#state.exstatus,
-  Super ! {self(), Exstatus, Info},
+terminate(_Reason, #sts{super = Super, info = Info, exstatus = ExStatus}) ->
+  Super ! {self(), ExStatus, Info},
   ok.
 
 %% gen_server callback : code_change/3
@@ -153,83 +150,70 @@ code_change(_OldVsn, State, _Extra) ->
                ; ({code_logs, logs()}, {pid(), any()}, state()) -> {reply, ok, state()}
                ; ({monitor_logs, logs()}, {pid(), any()}, state()) -> {reply, ok, state()}.
 %% Log the result of the first spawned process
-handle_call({int_return, Return}, {From, _FromTag}, State) ->
-  Ipid = State#state.int,
-  Info = State#state.info,
+handle_call({int_return, Return}, {From, _FromTag}, S=#sts{int = Ipid, info = Info, exstatus = ExStatus}) ->
   case Ipid =:= {From, running} of %% Ipid is always a local process
     false ->
-      {reply, mismatch, State};
+      {reply, mismatch, S};
     true ->
       NInfo = orddict:append(node(), {result, Return}, Info),
-      case State#state.exstatus of 
+      case ExStatus of 
         undefined ->
-          ExStatus = {success, Return},
-          {reply, ok, State#state{info = NInfo, int = exited, exstatus = ExStatus}};
+          {reply, ok, S#sts{info = NInfo, int = exited, exstatus = {success, Return}}};
         _ ->
-          {reply, ok, State#state{info = NInfo, int = exited}}
+          {reply, ok, S#sts{info = NInfo, int = exited}}
       end
   end;
 %% Log the mapping of concrete to symbolic values
-handle_call({mapping, Mapping}, {From, _FromTag}, State) ->
-  case State#state.int =:= {From, running} of
+handle_call({mapping, Mapping}, {From, _FromTag}, S=#sts{int = Ipid, info = Info}) ->
+  case Ipid =:= {From, running} of
     true ->
-      Info = orddict:append(node(), {mapping, Mapping}, State#state.info),
-      {reply, ok, State#state{info = Info}};
+      NInfo = orddict:append(node(), {mapping, Mapping}, Info),
+      {reply, ok, S#sts{info = NInfo}};
     false ->
-      {reply, mismatch, State}
+      {reply, mismatch, S}
   end;
 %% Log a runtime error
-handle_call({error_report, Who, Error}, {From, _FromTag}, State) ->
-  Cs = State#state.cpids,
-  Ms = State#state.mpids,
+handle_call({error_report, Who, Error}, {From, _FromTag}, S=#sts{cpids = Cs, mpids = Ms, info = Info}) ->
   {Node, From} = NF = lists:keyfind(From, 2, Ms),  %% Process will never be registered
   %% Store Runtime Error's Info
-  Info = orddict:append(Node, {runtime_error, {Node, Who, Error}}, State#state.info),
+  NInfo = orddict:append(Node, {runtime_error, {Node, Who, Error}}, Info),
   %% Shutdown execution tree
   force_terminate(Cs, Ms -- [NF]),
   ExStatus = {runtime_error, Node, Who, Error},
-  {reply, ok, State#state{info = Info, exstatus = ExStatus}};
+  {reply, ok, S#sts{info = NInfo, exstatus = ExStatus}};
 %% A request for the servers of a specific node
-handle_call({node_servers, Node}, {_From, _FromTag}, State) ->
-  Cs = State#state.cpids,
-  Ms = State#state.mpids,
+handle_call({node_servers, Node}, {_From, _FromTag}, S=#sts{cpids = Cs, mpids = Ms, logdir = LogDir, depth = Depth, prefix = Prefix,
+                                                            stored_mods = StoredMods, tags_added_no = TagsN, info = I}) ->
   case node_monitored(Node, Cs, Ms) of
     {true, Servers} ->
       %% Servers are already up on the Node
-      {reply, Servers, State};
+      {reply, Servers, S};
     false ->
       %% No servers up on the Node / need to spawn them
-      LogDir = State#state.logdir,
-      Depth = State#state.depth,
-      Prefix = State#state.prefix,
-      StoredMods = State#state.stored_mods,
-      TagsN = State#state.tags_added_no,
       case spawn_remote_servers(Node, self(), LogDir, Depth, Prefix, StoredMods, TagsN) of
         error ->
           %% Error while spawning servers so shutdown processes and
           %% terminate immediately with internal error
           force_terminate(Cs, Ms),
           Error = internal_error(iserver, spawn_remote_servers),
-          {stop, error, normal, State#state{exstatus = Error}};
+          {stop, error, normal, S#sts{exstatus = Error}};
         {ok, Servers = Servers} ->
           NCs = [{Node, Servers#svs.code} | Cs],
           NMs = [{Node, Servers#svs.monitor} | Ms],
-          Info = orddict:store(Node, [], State#state.info),
-          {reply, Servers, State#state{cpids = NCs, mpids = NMs, info = Info}}
+          Info = orddict:store(Node, [], I),
+          {reply, Servers, S#sts{cpids = NCs, mpids = NMs, info = Info}}
       end
   end;
 %% Store the logs of a code server
-handle_call({code_logs, Logs}, {From, _FromTag}, State) ->
-  Cs = State#state.cpids,
+handle_call({code_logs, Logs}, {From, _FromTag}, S=#sts{cpids = Cs, info = Info}) ->
   {Node, From} = lists:keyfind(From, 2, Cs),  %% Process will never be registered
-  Info = orddict:append(Node, {code_logs, Logs}, State#state.info),
-  {reply, ok, State#state{info = Info}};
+  NInfo = orddict:append(Node, {code_logs, Logs}, Info),
+  {reply, ok, S#sts{info = NInfo}};
 %% Store the logs of a monitor server
-handle_call({monitor_logs, Logs}, {From, _FromTag}, State) ->
-  Ms = State#state.mpids,
+handle_call({monitor_logs, Logs}, {From, _FromTag}, S=#sts{mpids = Ms, info = Info}) ->
   {Node, From} = lists:keyfind(From, 2, Ms),  %% Process will never be registered
-  Info = orddict:append(Node, {monitor_logs, Logs}, State#state.info),
-  {reply, ok, State#state{info = Info}}.
+  NInfo = orddict:append(Node, {monitor_logs, Logs}, Info),
+  {reply, ok, S#sts{info = NInfo}}.
 
 %% gen_server callback : handle_cast/2
 -spec handle_cast(any(), state()) -> {noreply, state()}.
@@ -239,15 +223,13 @@ handle_cast(_Msg, State) ->
 %% gen_server callback : handle_info/2
 -spec handle_info({'EXIT', pid(), normal}, state()) -> {stop, normal, state()} | {noreply, state()}.
 %% When a code server or monitor server have exited normally
-handle_info({'EXIT', Who, normal}, State) ->
-  Cs = State#state.cpids,
-  Ms = State#state.mpids,
+handle_info({'EXIT', Who, normal}, S=#sts{cpids = Cs, mpids = Ms}) ->
   case locate(Who, Cs, Ms) of
-    false -> {noreply, State};
+    false -> {noreply, S};
     {true, codeserver, Node} ->
       %% A code server exited
       NCs = Cs -- [{Node, Who}],
-      NState = State#state{cpids = NCs},
+      NState = S#sts{cpids = NCs},
       case execution_completed(NState) of
         true  -> {stop, normal, NState};
         false -> {noreply, NState}
@@ -255,7 +237,7 @@ handle_info({'EXIT', Who, normal}, State) ->
     {true, monitorserver, Node} ->
       %% A monitor server exited
       NMs = Ms -- [{Node, Who}],
-      NState = State#state{mpids = NMs},
+      NState = S#sts{mpids = NMs},
       case execution_completed(NState) of
         true ->
           %% If all processes have finished then terminate
@@ -268,20 +250,17 @@ handle_info({'EXIT', Who, normal}, State) ->
       end
   end;
 %% When a CodeServer or TraceServer have exited with exceptions
-handle_info({'EXIT', Who, Reason}, State) ->
-  Cs = State#state.cpids,
-  Ms = State#state.mpids,
-  Info = State#state.info,
+handle_info({'EXIT', Who, Reason}, S=#sts{cpids = Cs, mpids = Ms, info = Info}) ->
   %% locate the server that exited and shutdown the execution tree
   case locate(Who, Cs, Ms) of
     false ->
-      {noreply, State};
+      {noreply, S};
     {true, codeserver, Node} ->
       NCs = Cs -- [{Node, Who}],
       force_terminate(NCs, Ms),
       NInfo = orddict:append(Node, {codeserver_error, Reason}, Info),
       Exstatus = {internal_error, codeserver, Node, Reason},
-      NState = State#state{cpids = NCs, info = NInfo, exstatus = Exstatus},
+      NState = S#sts{cpids = NCs, info = NInfo, exstatus = Exstatus},
       case execution_completed(NState) of
         true  -> {stop, normal, NState};
         false -> {noreply, NState}
@@ -291,7 +270,7 @@ handle_info({'EXIT', Who, Reason}, State) ->
       force_terminate(Cs, NMs),
       NInfo = orddict:append(Node, {monitorserver_error, Reason}, Info),
       Exstatus = {internal_error, monitorserver, Node, Reason},
-      NState = State#state{mpids = NMs, info = NInfo, exstatus = Exstatus},
+      NState = S#sts{mpids = NMs, info = NInfo, exstatus = Exstatus},
       case execution_completed(NState) of
         true  -> {stop, normal, NState};
         false -> {noreply, NState}
@@ -353,7 +332,7 @@ locate(Who, Cs, Ms) ->
 
 %% Determine whether the concolic execution has ended or not
 -spec execution_completed(state()) -> boolean().
-execution_completed(#state{cpids = Cs, mpids = Ts}) ->
+execution_completed(#sts{cpids = Cs, mpids = Ts}) ->
   case {Cs, Ts} of
     {[], []} -> true;
     _ -> false
