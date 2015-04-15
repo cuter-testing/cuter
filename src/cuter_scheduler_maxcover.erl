@@ -4,9 +4,8 @@
 -behaviour(gen_server).
 
 -export([ %% external API
-          start/2
+          start/3
         , stop/1
-        , seed_execution/2
         , request_input/1
         , store_execution/3
           %% gen_server callbacks
@@ -32,12 +31,12 @@
                                                , input => undefined}).  %% TODO Populate this field
 %% gen_server state datatype
 -record(sts, {
-    tags_queue = none  :: cuter_minheap:minheap() | none
+    tags_queue         :: cuter_minheap:minheap()
   , inputs_queue       :: inp_queue()
   , info               :: exec_info()
   , python             :: string()
   , depth              :: integer()
-  , stored_mods = none :: cuter_analyzer:stored_modules() | none
+  , stored_mods        :: cuter_analyzer:stored_modules()
   , tags_added_no = 0  :: integer()
   , visited_tags       :: cuter_analyzer:visited_tags()
   , running            :: dict:dict(exec_handle(), input())
@@ -48,15 +47,14 @@
 -type from()  :: {pid(), reference()}.
 
 
-
 %% ============================================================================
 %% External API
 %% ============================================================================
 
 %% Start the Scheduler
--spec start(string(), integer()) -> pid().
-start(Python, Depth) ->
-  case gen_server:start_link(?MODULE, [Python, Depth], []) of
+-spec start(string(), integer(), [input()]) -> pid().
+start(Python, Depth, SeedInput) ->
+  case gen_server:start_link(?MODULE, [Python, Depth, SeedInput], []) of
     {ok, Scheduler} -> Scheduler;
     {error, R} -> exit({scheduler_start, R})
   end.
@@ -65,12 +63,6 @@ start(Python, Depth) ->
 -spec stop(pid()) -> ok.
 stop(Scheduler) ->
   gen_server:cast(Scheduler, stop).
-
-%% Store the information of the 1st concolic execution
-%% (that will be used as a guide)
--spec seed_execution(pid(), cuter_analyzer:info()) -> ok.
-seed_execution(Scheduler, Info) ->
-  gen_server:call(Scheduler, {seed_execution, Info}).
 
 %% Request a new Input vertex for concolic execution
 -spec request_input(pid()) -> {exec_handle(), [any()], cuter_analyzer:stored_modules(), integer()} | empty.
@@ -87,11 +79,14 @@ store_execution(Scheduler, Handle, Info) ->
 %% ============================================================================
 
 %% init/1
--spec init([string() | integer(), ...]) -> {ok, state()}.
-init([Python, Depth]) ->
+-spec init([string() | integer() | input(), ...]) -> {ok, state()}.
+init([Python, Depth, SeedInput]) ->
   _ = set_execution_counter(0),
+  TagsQueue = cuter_minheap:new(fun erlang:'<'/2),
+  InpQueue = queue:in({1, SeedInput}, queue:new()),
   {ok, #sts{info = dict:new(), python = Python, depth = Depth, visited_tags = gb_sets:new(),
-            running = dict:new(), first_operation = dict:new(), erroneous = [], inputs_queue = queue:new()}}.
+            stored_mods = orddict:new(), running = dict:new(), first_operation = dict:new(),
+            erroneous = [], inputs_queue = InpQueue, tags_queue = TagsQueue}}.
 
 %% terminate/2
 -spec terminate(any(), state()) -> ok.
@@ -114,26 +109,8 @@ handle_info(Msg, State) ->
   {noreply, State}.
 
 %% handle_call/3
--spec handle_call({seed_execution, cuter_analyzer:info()}, from(), state()) -> {reply, ok, state()}
-               ; (request_input, from(), state()) -> {reply, (empty | {exec_handle(), input(), cuter_analyzer:stored_modules(), integer()}), state()}
+-spec handle_call(request_input, from(), state()) -> {reply, (empty | {exec_handle(), input(), cuter_analyzer:stored_modules(), integer()}), state()}
                ; ({store_execution, exec_handle(), cuter_analyzer:info()}, from(), state()) -> {reply, ok, state}.
-
-%% Store the information of the first concolic execution
-handle_call({seed_execution, Info}, _From, S=#sts{info = AllInfo, depth = Depth}) ->
-  Handle = fresh_execution_handle(),  %% A handle for an execution
-  %% Generate the information of the execution
-  I = #{ traceFile => maps:get(traceFile, Info)
-       , dataDir => maps:get(dir, Info)
-       , mappings => maps:get(mappings, Info)},
-  %% Initialize the queue
-  Rvs = maps:get(reversible, Info),
-  Visited = maps:get(tags, Info),
-  Items = generate_queue_items(Rvs, Handle, Visited, 0, Depth),
-  {reply, ok, S#sts{ tags_queue = cuter_minheap:from_list(fun erlang:'<'/2, Items)
-                   , info = dict:store(Handle, I, AllInfo)
-                   , stored_mods = maps:get(stored_mods, Info)      %% Code of loaded modules
-                   , tags_added_no = maps:get(tags_added_no, Info)  %% Number of added tags
-                   , visited_tags = Visited}};
 
 %% Ask for a new input to execute
 handle_call(request_input, _From, S=#sts{tags_queue = TQ, info = AllInfo, python = P, stored_mods = SMs, visited_tags = Vs, tags_added_no = TagsN,
