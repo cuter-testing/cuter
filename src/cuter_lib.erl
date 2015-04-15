@@ -5,8 +5,8 @@
 -include("include/cuter_macros.hrl").
 
 %% external exports
--export([get_tmp_dir/1, get_data_dir/2, get_trace_dir/1, get_core_dir/1,
-         get_merged_tracefile/1, get_codeserver_dir/1, get_monitor_dir/1, logfile_name/2,
+-export([get_tmp_dir/1, get_data_dir/2, get_trace_dir/1,
+         get_merged_tracefile/1, get_monitor_dir/1, logfile_name/2,
          clear_and_delete_dir/1, clear_and_delete_dir/2, list_dir/1, unique_string/0,
          ensure_port_or_pid/1]).
 
@@ -49,17 +49,6 @@ get_trace_dir(BaseDir) ->
 get_monitor_dir(BaseDir) ->
   U = cuter_lib:unique_string(),
   filename:absname("trace-" ++ U, BaseDir).
-
-%% The directory for all the Core Erlang files
--spec get_core_dir(file:filename_all()) -> file:filename_all().
-get_core_dir(BaseDir) ->
-  filename:absname("core", BaseDir).
-
-%% The directory for the Core Erlang files of a specific code server
--spec get_codeserver_dir(file:filename_all()) -> file:filename_all().
-get_codeserver_dir(BaseDir) ->
-  U = cuter_lib:unique_string(),
-  filename:absname("codeserver-" ++ U, BaseDir).
 
 %% The file that will hold the merged traces of an execution
 -spec get_merged_tracefile(file:filename_all()) -> file:filename_all().

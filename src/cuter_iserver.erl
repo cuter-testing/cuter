@@ -6,7 +6,7 @@
 -include("include/cuter_macros.hrl").
 
 %% external exports
--export([start/8, node_servers/2, int_return/2, send_error_report/3, code_logs/2, monitor_logs/2, send_mapping/2]).
+-export([start/7, node_servers/2, int_return/2, send_error_report/3, code_logs/2, monitor_logs/2, send_mapping/2]).
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_info/2, handle_call/3, handle_cast/2]).
 
@@ -23,9 +23,6 @@
 %%
 %% super :: pid()
 %%   The coordinator process that spawned the monitor server.
-%% coredir :: nonempty_string()
-%%   Directory to store .core files.
-%%   Intended for the code server.
 %% logdir :: nonempty_string()
 %%   Directory to store log files.
 %%   Intended for the monitor server.
@@ -48,7 +45,6 @@
 
 -record(state, {
   super         :: pid(),
-  coredir       :: nonempty_string(),
   logdir        :: nonempty_string(),
   depth         :: integer(),
   prefix        :: nonempty_string(),
@@ -67,10 +63,10 @@
 %% ============================================================================
 
 %% Start the interpreter server
--spec start(module(), atom(), [any()], nonempty_string(), nonempty_string(), pos_integer(), cuter_analyzer:stored_modules(), integer()) ->
+-spec start(module(), atom(), [any()], nonempty_string(), pos_integer(), cuter_analyzer:stored_modules(), integer()) ->
               {ok, state()} | execution_status().
-start(M, F, As, CoreDir, LogDir, Depth, StoredMods, TagsN) ->
-  Args = [M, F, As, CoreDir, LogDir, Depth, StoredMods, TagsN, self()],
+start(M, F, As, LogDir, Depth, StoredMods, TagsN) ->
+  Args = [M, F, As, LogDir, Depth, StoredMods, TagsN, self()],
   case gen_server:start(?MODULE, Args, []) of
     {ok, IServer} -> IServer;
     {error, Reason} -> internal_error(iserver, Reason)
@@ -112,18 +108,17 @@ send_mapping(IServer, Mapping) ->
 
 %% gen_server callback : init/1
 -spec init([module() | atom() | [any()] | nonempty_string() | integer() | cuter_analyzer:stored_modules(), ...]) -> {ok, state()}.
-init([M, F, As, CoreDir, LogDir, Depth, StoredMods, TagsN, Super]) ->
+init([M, F, As, LogDir, Depth, StoredMods, TagsN, Super]) ->
   link(Super),
   process_flag(trap_exit, true),
   Node = node(),
   Prefix = cuter_lib:unique_string() ++ "_",
-  CodeServer = cuter_codeserver:start(CoreDir, self(), StoredMods, TagsN),
+  CodeServer = cuter_codeserver:start(self(), StoredMods, TagsN),
   MonitorServer = cuter_monitor:start(LogDir, self(), Depth, Prefix),
   Servers = #svs{code = CodeServer, monitor = MonitorServer},
   Ipid = cuter_eval:i(M, F, As, Servers),
   InitState = #state{
     super = Super,
-    coredir = CoreDir,
     logdir = LogDir,
     depth = Depth,
     prefix = Prefix,
@@ -141,9 +136,7 @@ init([M, F, As, CoreDir, LogDir, Depth, StoredMods, TagsN, Super]) ->
 terminate(_Reason, State) ->
   Super = State#state.super,
   Info = State#state.info,
-  CoreDir = State#state.coredir,
   Exstatus = State#state.exstatus,
-  cuter_lib:clear_and_delete_dir(CoreDir),
   Super ! {self(), Exstatus, Info},
   ok.
 
@@ -206,13 +199,12 @@ handle_call({node_servers, Node}, {_From, _FromTag}, State) ->
       {reply, Servers, State};
     false ->
       %% No servers up on the Node / need to spawn them
-      CoreDir = State#state.coredir,
       LogDir = State#state.logdir,
       Depth = State#state.depth,
       Prefix = State#state.prefix,
       StoredMods = State#state.stored_mods,
       TagsN = State#state.tags_added_no,
-      case spawn_remote_servers(Node, self(), CoreDir, LogDir, Depth, Prefix, StoredMods, TagsN) of
+      case spawn_remote_servers(Node, self(), LogDir, Depth, Prefix, StoredMods, TagsN) of
         error ->
           %% Error while spawning servers so shutdown processes and
           %% terminate immediately with internal error
@@ -323,13 +315,13 @@ node_monitored(Node, Cs, Ms) ->
   end.
 
 %% Spawn a code server and a monitor server at a remote node
--spec spawn_remote_servers(node(), pid(), nonempty_string(), nonempty_string(), pos_integer(), nonempty_string(), cuter_analyzer:stored_modules(), integer()) ->
+-spec spawn_remote_servers(node(), pid(), nonempty_string(), pos_integer(), nonempty_string(), cuter_analyzer:stored_modules(), integer()) ->
         {ok, servers()} | error.
-spawn_remote_servers(Node, Super, CoreDir, LogDir, Depth, Prefix, StoredMods, TagsN) ->
+spawn_remote_servers(Node, Super, LogDir, Depth, Prefix, StoredMods, TagsN) ->
   Me = self(),
   Setup = fun() ->
     process_flag(trap_exit, true),
-    CodeServer = cuter_codeserver:start(CoreDir, Super, StoredMods, TagsN),
+    CodeServer = cuter_codeserver:start(Super, StoredMods, TagsN),
     MonitorServer = cuter_monitor:start(LogDir, Super, Depth, Prefix),
     Me ! {self(), #svs{code = CodeServer, monitor = MonitorServer}}
   end,

@@ -4,7 +4,7 @@
 -behaviour(gen_server).
 
 %% external exports
--export([start/4, stop/1, load/2, unsupported_mfa/2, retrieve_spec/2, visit_tag/2]).
+-export([start/3, stop/1, load/2, unsupported_mfa/2, retrieve_spec/2, visit_tag/2]).
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_info/2, handle_call/3, handle_cast/2]).
 %% counter of branches
@@ -24,8 +24,6 @@
 %% db :: ets:tid()
 %%   Acts as a reference table for looking up the ETS table that holds a module's extracted code.
 %%   It stores tuples {Module :: module(), ModuleDb :: ets:tid()}.
-%% dir :: nonempty_string()
-%%   The directory where the generated .core files are stored
 %% waiting :: orddict()
 %%   The processes that await a response and their requests.
 %%   Each element in the dictionary is {{Request :: atom(), Info :: tuple()}, Process :: pid()}
@@ -35,7 +33,6 @@
 -record(state, {
   super                          :: pid(),
   db                             :: ets:tab(),
-  dir                            :: nonempty_string(),
   waiting = orddict:new()        :: [{{atom(), tuple()}, pid()}],
   workers = []                   :: [pid()],
   unsupported_mfas = sets:new()  :: sets:set(),
@@ -48,9 +45,9 @@
 %% ============================================================================
 
 %% Start a CodeServer
--spec start(nonempty_string(), pid(), cuter_analyzer:stored_modules(), integer()) -> pid().
-start(CoreDir, Super, StoredMods, TagsN) ->
-  case gen_server:start(?MODULE, [CoreDir, Super, StoredMods, TagsN], []) of
+-spec start(pid(), cuter_analyzer:stored_modules(), integer()) -> pid().
+start(Super, StoredMods, TagsN) ->
+  case gen_server:start(?MODULE, [Super, StoredMods, TagsN], []) of
     {ok, CodeServer} -> CodeServer;
     {error, Reason}  -> exit({codeserver_start, Reason})
   end.
@@ -89,14 +86,13 @@ visit_tag(CodeServer, Tag) ->
 %% ============================================================================
 
 %% gen_server callback : init/1
--spec init([nonempty_string() | pid() | cuter_analyzer:stored_modules() | integer(), ...]) -> {ok, state()}.
-init([Dir, Super, StoredMods, TagsN]) when is_list(Dir) ->
+-spec init([pid() | cuter_analyzer:stored_modules() | integer(), ...]) -> {ok, state()}.
+init([Super, StoredMods, TagsN]) ->
   link(Super),
   Db = ets:new(?MODULE, [ordered_set, protected]),
   populate_db_with_mods(Db, StoredMods),
-  CoreDir = cuter_lib:get_codeserver_dir(Dir),
   set_branch_counter(TagsN), %% Initialize the counter for the branch enumeration.
-  {ok, #state{db = Db, dir = CoreDir, super = Super}}.
+  {ok, #state{db = Db, super = Super}}.
 
 %% gen_server callback : terminate/2
 -spec terminate(term(), state()) -> ok.
@@ -114,7 +110,6 @@ terminate(_Reason, State) ->
          , {tags_added_no, Cnt}
          ],
   ets:delete(Db),
-  cuter_lib:clear_and_delete_dir(State#state.dir),    % Clean up .core files directory
   ok = cuter_iserver:code_logs(Super, Logs),          % Send logs to the supervisor
   ok.
 

@@ -97,6 +97,7 @@ cleanup({Dir, _Fname, _Python}) ->
 
 -spec create_logfile(file:name(), [any()], fun((file:io_device(), [cuter_symbolic:symbolic()]) -> ok)) -> [cuter_symbolic:mapping()].
 create_logfile(Fname, As, CreateLogs) ->
+  ok = filelib:ensure_dir(Fname),
   {ok, Fd} = cuter_log:open_file(Fname, write),  % Create the logfile
   {SAs, Mapping} = cuter_symbolic:abstract(As),  % Abstract the input
   ok = CreateLogs(Fd, SAs),                      % Add the logs
@@ -201,7 +202,7 @@ empty_list({_Dir, Fname, Python}) ->
   {ok, [SolNormal]} = cuter_solver:solve(Python, Mapping, Fname, 42),
   {ok, [SolRev]} = cuter_solver:solve(Python, Mapping, Fname, 1),
   [ {"Result for Empty List", ?_assertMatch([], SolNormal)}
-  , {"Result for Empty List Reversed", ?_assertNotMatch([], SolRev)}
+  , {"Result for Empty List Reversed", ?_assertMatch([_|_], SolRev)}
   ].
 
 empty_list_logs(Fd, SAs=[P1]) ->
@@ -214,7 +215,7 @@ not_a_list({_Dir, Fname, Python}) ->
   {ok, [SolNormal]} = cuter_solver:solve(Python, Mapping, Fname, 42),
   {ok, [SolRev]} = cuter_solver:solve(Python, Mapping, Fname, 1),
   [ {"Result for Not a List", ?_assertNotMatch(X when is_list(X), SolNormal)}
-  , {"Result for Not a List Reversed", ?_assertMatch(X when is_list(X), SolRev)}
+  , {"Result for Not a List Reversed", ?_assertMatch([_|_], SolRev)}
   ].
 
 not_a_list_logs(Fd, SAs=[P1]) ->
@@ -244,7 +245,7 @@ tuple_not_sz({_Dir, Fname, Python}) ->
   {ok, [SolNormal]} = cuter_solver:solve(Python, Mapping, Fname, 42),
   {ok, [SolRev]} = cuter_solver:solve(Python, Mapping, Fname, 1),
   [ {"Result for Tuple of Not Size N", ?_assertMatch(X when is_tuple(X) andalso tuple_size(X) =/= 2, SolNormal)}
-  , {"Result for Tuple of Not Size N Reversed", ?_assertNotMatch({_,_}, SolRev)}
+  , {"Result for Tuple of Not Size N Reversed", ?_assertMatch({_,_}, SolRev)}
   ].
 
 tuple_not_sz_logs(Fd, SAs=[P1]) ->
@@ -257,7 +258,7 @@ not_a_tuple({_Dir, Fname, Python}) ->
   {ok, [SolNormal]} = cuter_solver:solve(Python, Mapping, Fname, 42),
   {ok, [SolRev]} = cuter_solver:solve(Python, Mapping, Fname, 1),
   [ {"Result for Not a Tuple", ?_assertNotMatch(X when is_tuple(X), SolNormal)}
-  , {"Result for Not a Tuple Reversed", ?_assertMatch(X when is_tuple(X), SolRev)}
+  , {"Result for Not a Tuple Reversed", ?_assertMatch({_,_}, SolRev)}
   ].
 
 not_a_tuple_logs(Fd, SAs=[P1]) ->

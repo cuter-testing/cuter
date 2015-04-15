@@ -23,7 +23,7 @@ run(F, As) -> run(?MODULE, F, As).
 run(M, F, As) ->
   process_flag(trap_exit, true),
   Dir = cuter_tests_lib:setup_dir(),
-  Server = cuter_iserver:start(M, F, As, Dir, Dir, ?TRACE_DEPTH, orddict:new(), 0),
+  Server = cuter_iserver:start(M, F, As, Dir, ?TRACE_DEPTH, orddict:new(), 0),
   R = 
     receive
       {Server, ExStatus, Result} -> {Server, ExStatus, Result}
@@ -61,7 +61,7 @@ eval_cerl_test_() ->
   [{"Basic Cerl Evaluation: " ++ C, {setup, Setup(I), Cleanup, Inst}} || {C, I} <- Is].
 
 eval_cerl({F, As, Result, Dir}) ->
-  Server = cuter_iserver:start(?MODULE, F, As, Dir, Dir, ?TRACE_DEPTH, orddict:new(), 0),
+  Server = cuter_iserver:start(?MODULE, F, As, Dir, ?TRACE_DEPTH, orddict:new(), 0),
   R = execution_result(Server),
   ok = wait_for_iserver(Server),
   [{atom_to_list(F), ?_assertMatch({success, {Result, _}}, R)}].

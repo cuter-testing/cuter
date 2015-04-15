@@ -10,10 +10,7 @@
 -spec setup_dir() -> file:filename_all().
 setup_dir() ->
   {ok, CWD} = file:get_cwd(),
-  TmpDir = cuter_lib:get_tmp_dir(CWD),
-  CoreDir = cuter_lib:get_core_dir(TmpDir),
-  ok = filelib:ensure_dir(CoreDir),
-  TmpDir.
+  cuter_lib:get_tmp_dir(CWD).
 
 -spec get_python_command() -> string().
 get_python_command() ->

@@ -16,7 +16,7 @@ just_load_test_() ->
   Inst = fun just_load/1,
   [{"Load Module: " ++ atom_to_list(M), {setup, Setup(M), Cleanup, Inst}} || M <- ?MODS_LIST].
 
-just_load({_Dir, M, MDb}) ->
+just_load({M, MDb}) ->
   TagGen = fun() -> {?BRANCH_TAG_PREFIX, 42} end,
   R = cuter_cerl:load(M, MDb, TagGen),
   Ns = ets:lookup(MDb, name),
@@ -31,7 +31,7 @@ load_exports_test_() ->
   Inst = fun load_exports/1,
   [{"Validate exported funs: " ++ atom_to_list(M), {setup, Setup(M), Cleanup, Inst}} || M <- ?MODS_LIST].
   
-load_exports({_Dir, M, MDb}) ->
+load_exports({M, MDb}) ->
   TagGen = fun() -> {?BRANCH_TAG_PREFIX, 42} end,
   _ = cuter_cerl:load(M, MDb, TagGen),
   Exp = lists:sort(M:module_info(exports)),
@@ -45,11 +45,9 @@ load_exports({_Dir, M, MDb}) ->
 %%====================================================================
 
 setup(M) ->
-  Dir = cuter_tests_lib:setup_dir(),
   MDb = ets:new(M, [ordered_set, protected]),
-  {Dir, M, MDb}.
+  {M, MDb}.
 
-cleanup({Dir, _M, MDb}) ->
-  ets:delete(MDb),
-  cuter_lib:clear_and_delete_dir(Dir).
+cleanup({_M, MDb}) ->
+  ets:delete(MDb).
 

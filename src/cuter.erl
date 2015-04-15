@@ -121,14 +121,13 @@ concolic_execute(Conf, Input) ->
   cuter_pp:input(Input),
   BaseDir = maps:get(dataDir, Conf),
   DataDir = cuter_lib:get_data_dir(BaseDir, maps:get(no, Conf)),
-  CoreDir = cuter_lib:get_core_dir(DataDir),    % Directory to store Core Erlang files
   TraceDir = cuter_lib:get_trace_dir(DataDir),  % Directory to store process traces
   M = maps:get(mod, Conf),
   F = maps:get(func, Conf),
   Depth = maps:get(depth, Conf),
   StoredMods = maps:get(stored_mods, Conf),
   TagsN = maps:get(tags_added_no, Conf),
-  IServer = cuter_iserver:start(M, F, Input, CoreDir, TraceDir, Depth, StoredMods, TagsN),
+  IServer = cuter_iserver:start(M, F, Input, TraceDir, Depth, StoredMods, TagsN),
   retrieve_info(IServer, DataDir).
 
 -spec retrieve_info(pid(), file:filename_all()) -> cuter_analyzer:info() | cuter_error.
