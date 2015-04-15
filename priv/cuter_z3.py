@@ -441,14 +441,18 @@ class ErlangZ3:
     t = self.term_toZ3(term)
     xs = [
       self.Term.is_lst(t),
-      self.List.is_nil(self.Term.lval(t))
+      self.List.is_cons(self.Term.lval(t))
     ]
-    self.axs.append(Not(And(*xs)))
+    self.axs.append(And(*xs))
   
-  # Not a List
+  # Not a List (Reversed)
   def list_not_lst_toZ3_RV(self, term):
     t = self.term_toZ3(term)
-    self.axs.append(self.Term.is_lst(t))
+    xs = [
+      self.Term.is_lst(t),
+      self.List.is_cons(self.Term.lval(t))
+    ]
+    self.axs.append(And(*xs))
   
   # Tuple of Size N (Reversed)
   def tuple_sz_toZ3_RV(self, term, num):
@@ -468,22 +472,24 @@ class ErlangZ3:
     t = self.term_toZ3(term)
     nTerm = self.term_toZ3(num)
     n = int(str(simplify(self.Term.ival(nTerm)))) # Expect num to represent an Integer
-    ax1 = self.Term.is_tpl(t)
-    xs = []
+    self.axs.append(self.Term.is_tpl(t))
     t = self.Term.tval(t)
     for i in range(0, n):
-      xs.append(self.List.is_cons(t))
+      self.axs.append(self.List.is_cons(t))
       t = self.List.tl(t)
-    xs.append(t == self.List.nil)
-    self.axs.append(Not(And(
-      Not(And(*xs)),
-      ax1
-    )))
+    self.axs.append(t == self.List.nil)
   
   # Not a Tuple (Reversed)
   def tuple_not_tpl_toZ3_RV(self, term, num):
     t = self.term_toZ3(term)
+    nTerm = self.term_toZ3(num)
+    n = int(str(simplify(self.Term.ival(nTerm)))) # Expect num to represent an Integer
     self.axs.append(self.Term.is_tpl(t))
+    t = self.Term.tval(t)
+    for i in range(0, n):
+      self.axs.append(self.List.is_cons(t))
+      t = self.List.tl(t)
+    self.axs.append(t == self.List.nil)
   
   # ----------------------------------------------------------------------
   # Define Type Specs
