@@ -22,6 +22,8 @@
 
 -type input() :: [any()].
 -type item()  :: {boolean(), integer(), cuter_cerl:tagID(), exec_handle()}.
+-type inp_queue_item() :: {integer(), input()}.
+-type inp_queue() :: queue:queue(inp_queue_item()).
 -type erroneous_inputs() :: [input()].
 -type exec_handle() :: string().
 -type exec_info() :: dict:dict(exec_handle(), #{ traceFile => file:name()
@@ -31,6 +33,7 @@
 %% gen_server state datatype
 -record(sts, {
     tags_queue = none  :: cuter_minheap:minheap() | none
+  , inputs_queue       :: inp_queue()
   , info               :: exec_info()
   , python             :: string()
   , depth              :: integer()
@@ -88,7 +91,7 @@ store_execution(Scheduler, Handle, Info) ->
 init([Python, Depth]) ->
   _ = set_execution_counter(0),
   {ok, #sts{info = dict:new(), python = Python, depth = Depth, visited_tags = gb_sets:new(),
-            running = dict:new(), first_operation = dict:new(), erroneous = []}}.
+            running = dict:new(), first_operation = dict:new(), erroneous = [], inputs_queue = queue:new()}}.
 
 %% terminate/2
 -spec terminate(any(), state()) -> ok.
@@ -134,12 +137,13 @@ handle_call({seed_execution, Info}, _From, S=#sts{info = AllInfo, depth = Depth}
 
 %% Ask for a new input to execute
 handle_call(request_input, _From, S=#sts{tags_queue = TQ, info = AllInfo, python = P, stored_mods = SMs, visited_tags = Vs, tags_added_no = TagsN,
-                                         running = Rn, first_operation = FOp}) ->
-  case generate_new_input(TQ, P, AllInfo, Vs) of
+                                         running = Rn, first_operation = FOp, inputs_queue = IQ}) ->
+  case find_new_input(TQ, IQ, P, AllInfo, Vs) of
     empty -> {reply, empty, S};
-    {ok, Handle, Input, NAllowed} ->
+    {ok, Handle, Input, NAllowed, Rem} ->
       {reply, {Handle, Input, SMs, TagsN}, S#sts{ running = dict:store(Handle, Input, Rn)
-                                                , first_operation = dict:store(Handle, NAllowed, FOp)}}
+                                                , first_operation = dict:store(Handle, NAllowed, FOp)
+                                                , inputs_queue = Rem}}
   end;
 
 %% Store the information of a concolic execution
@@ -178,6 +182,22 @@ handle_cast(stop, State) ->
 %% ============================================================================
 %% Generate new input
 %% ============================================================================
+
+-spec find_new_input(cuter_minheap:minheap(), inp_queue(), string(), exec_info(), cuter_analyzer:visited_tags()) ->
+        {ok, exec_handle(), input(), integer(), inp_queue()} | empty.
+find_new_input(TagsQueue, InpQueue, Python, Info, Visited) ->
+  case queue:out(InpQueue) of
+    %% Search in the inputs queue.
+    {{value, {N, Input}}, RemInpQueue} ->
+      H = fresh_execution_handle(),
+      {ok, H, Input, N, RemInpQueue};
+    %% Reverse a constraint and generate a new input.
+    {empty, InpQueue} ->
+      case generate_new_input(TagsQueue, Python, Info, Visited) of
+        empty -> empty;
+        {ok, H, Input, N} -> {ok, H, Input, N, InpQueue}
+      end
+  end.
 
 -spec generate_new_input(cuter_minheap:minheap(), string(), exec_info(), cuter_analyzer:visited_tags()) ->
         {ok, exec_handle(), input(), integer()} | empty.
