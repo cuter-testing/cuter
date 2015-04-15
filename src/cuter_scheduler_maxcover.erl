@@ -9,7 +9,7 @@
         , seed_execution/2
         , request_input/1
         , store_execution/3
-        %% gen_server callbacks
+          %% gen_server callbacks
         , init/1
         , terminate/2
         , code_change/3
@@ -30,7 +30,7 @@
                                                , input => undefined}).  %% TODO Populate this field
 %% gen_server state datatype
 -record(sts, {
-    queue = none       :: cuter_minheap:minheap() | none
+    tags_queue = none  :: cuter_minheap:minheap() | none
   , info               :: exec_info()
   , python             :: string()
   , depth              :: integer()
@@ -92,9 +92,9 @@ init([Python, Depth]) ->
 
 %% terminate/2
 -spec terminate(any(), state()) -> ok.
-terminate(_Reason, #sts{queue = Queue, erroneous = Err}) ->
+terminate(_Reason, #sts{tags_queue = TQ, erroneous = Err}) ->
   cuter_pp:report_erroneous(lists:reverse(Err)),
-  cuter_minheap:delete(Queue),
+  cuter_minheap:delete(TQ),
   %% TODO clear dirs
   ok.
 
@@ -126,16 +126,16 @@ handle_call({seed_execution, Info}, _From, S=#sts{info = AllInfo, depth = Depth}
   Rvs = maps:get(reversible, Info),
   Visited = maps:get(tags, Info),
   Items = generate_queue_items(Rvs, Handle, Visited, 0, Depth),
-  {reply, ok, S#sts{ queue = cuter_minheap:from_list(fun erlang:'<'/2, Items)
+  {reply, ok, S#sts{ tags_queue = cuter_minheap:from_list(fun erlang:'<'/2, Items)
                    , info = dict:store(Handle, I, AllInfo)
                    , stored_mods = maps:get(stored_mods, Info)      %% Code of loaded modules
                    , tags_added_no = maps:get(tags_added_no, Info)  %% Number of added tags
                    , visited_tags = Visited}};
 
 %% Ask for a new input to execute
-handle_call(request_input, _From, S=#sts{queue = Q, info = AllInfo, python = P, stored_mods = SMs, visited_tags = Vs, tags_added_no = TagsN, running = Rn,
-                                         first_operation = FOp}) ->
-  case generate_new_input(Q, P, AllInfo, Vs) of
+handle_call(request_input, _From, S=#sts{tags_queue = TQ, info = AllInfo, python = P, stored_mods = SMs, visited_tags = Vs, tags_added_no = TagsN,
+                                         running = Rn, first_operation = FOp}) ->
+  case generate_new_input(TQ, P, AllInfo, Vs) of
     empty -> {reply, empty, S};
     {ok, Handle, Input, NAllowed} ->
       {reply, {Handle, Input, SMs, TagsN}, S#sts{ running = dict:store(Handle, Input, Rn)
@@ -143,8 +143,8 @@ handle_call(request_input, _From, S=#sts{queue = Q, info = AllInfo, python = P, 
   end;
 
 %% Store the information of a concolic execution
-handle_call({store_execution, Handle, Info}, _From, S=#sts{queue = Queue, info = AllInfo, stored_mods = SMs, visited_tags = Vs, depth = Depth, running = Rn,
-                                                           first_operation = FOp, erroneous = Err}) ->
+handle_call({store_execution, Handle, Info}, _From, S=#sts{tags_queue = TQ, info = AllInfo, stored_mods = SMs, visited_tags = Vs, depth = Depth,
+                                                           running = Rn, first_operation = FOp, erroneous = Err}) ->
   %% Generate the information of the execution
   I = #{ traceFile => maps:get(traceFile, Info)
        , dataDir => maps:get(dir, Info)
@@ -160,7 +160,7 @@ handle_call({store_execution, Handle, Info}, _From, S=#sts{queue = Queue, info =
   N = dict:fetch(Handle, FOp),
   Rvs = maps:get(reversible, Info),
   Items = generate_queue_items(Rvs, Handle, Visited, N, Depth),
-  lists:foreach(fun(Item) -> cuter_minheap:insert(Item, Queue) end, Items),
+  lists:foreach(fun(Item) -> cuter_minheap:insert(Item, TQ) end, Items),
   {reply, ok, S#sts{ info = dict:store(Handle, I, AllInfo)
                    , stored_mods = StoredMods
                    , tags_added_no = maps:get(tags_added_no, Info)  %% Number of added tags
