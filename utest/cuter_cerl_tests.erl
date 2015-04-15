@@ -16,9 +16,9 @@ just_load_test_() ->
   Inst = fun just_load/1,
   [{"Load Module: " ++ atom_to_list(M), {setup, Setup(M), Cleanup, Inst}} || M <- ?MODS_LIST].
 
-just_load({Dir, M, MDb}) ->
+just_load({_Dir, M, MDb}) ->
   TagGen = fun() -> {?BRANCH_TAG_PREFIX, 42} end,
-  R = cuter_cerl:load(M, MDb, Dir, TagGen),
+  R = cuter_cerl:load(M, MDb, TagGen),
   Ns = ets:lookup(MDb, name),
   [{"successful loading", ?_assertEqual({ok, M}, R)},
    {"retrieve module's name", ?_assertEqual([{name, M}], Ns)}].
@@ -31,9 +31,9 @@ load_exports_test_() ->
   Inst = fun load_exports/1,
   [{"Validate exported funs: " ++ atom_to_list(M), {setup, Setup(M), Cleanup, Inst}} || M <- ?MODS_LIST].
   
-load_exports({Dir, M, MDb}) ->
+load_exports({_Dir, M, MDb}) ->
   TagGen = fun() -> {?BRANCH_TAG_PREFIX, 42} end,
-  _ = cuter_cerl:load(M, MDb, Dir, TagGen),
+  _ = cuter_cerl:load(M, MDb, TagGen),
   Exp = lists:sort(M:module_info(exports)),
   MExp = lists:map(fun({F,A}) -> {M, F, A} end, Exp),
   Ns = lists:sort(ets:lookup(MDb, exported)),

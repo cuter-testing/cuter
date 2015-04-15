@@ -202,10 +202,10 @@ try_load(M, State) ->
 
 %% Load a module's code
 -spec load_mod(module(), state()) -> {ok, ets:tid()} | cuter_cerl:compile_error().
-load_mod(M, #state{db = Db, dir = Dir}) ->
+load_mod(M, #state{db = Db}) ->
   MDb = ets:new(M, [ordered_set, protected]),  %% Create an ETS table to store the code of the module
   ets:insert(Db, {M, MDb}),                    %% Store the tid of the ETS table
-  Reply = cuter_cerl:load(M, MDb, Dir, fun generate_tag/0),        %% Load the code of the module
+  Reply = cuter_cerl:load(M, MDb, fun generate_tag/0),        %% Load the code of the module
   case Reply of
     {ok, M} -> {ok, MDb};
     _ -> Reply

@@ -16,8 +16,8 @@ In order to use the tool, you need the following programs:
 
 1. **Erlang/OTP**
 
-  Using a pre built package or binaries will not suffice. If your code calls any function from the Erlang's library modules,
-  then CutEr will try to access the source code of these modules. You will need to build and install Erlang/OTP form source.
+  Using a pre built package or binaries will not suffice if the library's modules have not been compiler with debug information.
+  In which case, you will need to build and install Erlang/OTP form source.
 
   Download the latest [Erlang/OTP source code](http://www.erlang.org/download.html) or clone the Erlang/OTP github repository:
 
@@ -82,9 +82,9 @@ bar([], Ys) -> lists:sum(Ys);
 bar([X|Xs], [Y|Ys]) -> X * Y + bar(Xs, Ys).
 ```
 
-Go to the directory of the source file and compile it:
+Go to the directory of the source file and compile it with debug information:
 
-    erlc foo.erl
+    erlc +debug_info foo.erl
 
 In order to test `foo:bar/2` with CutEr, you will need a well-formed input that will act as a seed.
 Let that be `foo:bar([], [1])`.

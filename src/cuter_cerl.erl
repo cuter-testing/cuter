@@ -3,7 +3,7 @@
 -module(cuter_cerl).
 
 %% External exports
--export([load/4, retrieve_spec/2, get_tags/1, id_of_tag/1, tag_from_id/1, empty_tag/0]).
+-export([load/3, retrieve_spec/2, get_tags/1, id_of_tag/1, tag_from_id/1, empty_tag/0]).
 
 %% Will be using the records representation of the Core Erlang Abstract Syntax Tree
 %% as they are defined in core_parse.hrl
@@ -14,7 +14,7 @@
               tagID/0, tag/0, tag_generator/0]).
 
 -type info()          :: anno | attributes | exports | name.
--type compile_error() :: {error, {loaded_ret_atoms(), module()}} 
+-type compile_error() :: {error, {loaded_ret_atoms() | loaded_ret_atoms(), module()}} 
                        | {runtime_error, {compile, {atom(), term()}}}.
 
 -type tagID() :: integer().
@@ -40,14 +40,15 @@
 %%====================================================================
 %% External exports
 %%====================================================================
--spec load(module(), ets:tid(), nonempty_string(), tag_generator()) -> {ok, module()} | compile_error().
-load(Mod, Db, Dir, TagGen) ->
-  try store_module(Mod, Db, Dir, TagGen) of
+-spec load(module(), ets:tid(), tag_generator()) -> {ok, module()} | compile_error().
+load(Mod, Db, TagGen) ->
+  try store_module(Mod, Db, TagGen) of
     ok -> {ok, Mod}
   catch
     throw:non_existing      -> {error, {non_existing, Mod}};
     throw:preloaded         -> {error, {preloaded, Mod}};
     throw:cover_compiled    -> {error, {cover_compiled, Mod}};
+    throw:missing_ac        -> {error, {missing_abstract_code, Mod}};
     throw:{compile, Errors} -> {runtime_error, {compile, {Mod, Errors}}}
   end.
 
@@ -79,11 +80,9 @@ locate_spec([_|Attrs], FA) ->
 %% exported             [{M :: module(), Fun :: atom(), Arity :: non_neg_integer()}]  
 %% attributes           Attrs :: [{cerl(), cerl()}]
 %% {M, Fun, Arity}      {Def :: #c_fun{}, Exported :: boolean()}
--spec store_module(module(), ets:tid(), nonempty_string(), tag_generator()) -> ok.
-store_module(M, Db, Dir, TagGen) ->
-  Core = compile_core(M, Dir),          %% Compile the module to Core Erlang
-  {ok, Tokens, _} = scan_file(Core),    %% Build Core Erlang Abstract Syntax Tree
-  {ok, AST} = core_parse:parse(Tokens), %% Store Module in the Db
+-spec store_module(module(), ets:tid(), tag_generator()) -> ok.
+store_module(M, Db, TagGen) ->
+  AST = get_core_ast(M),  %% Get the module's Core Erlang AST.
   store_module_info(anno, M, AST, Db),
   store_module_info(name, M, AST, Db),
   store_module_info(exports, M, AST, Db),
@@ -91,41 +90,39 @@ store_module(M, Db, Dir, TagGen) ->
   store_module_funs(M, AST, Db, TagGen),
   ok.
 
-%% Core Erlang Scanner
--spec scan_file(file:filename()) -> term().
-scan_file(File) ->
-  {ok, FileContents} = file:read_file(File),
-  Data = binary_to_list(FileContents),
-  core_scan:string(Data).
-
-%% Compile the module source to Core Erlang
--spec compile_core(module(), nonempty_string()) -> file:filename().
-compile_core(M, Dir) ->
-  FileName = filename:absname(atom_to_list(M) ++ ".core", Dir),
-  ok = filelib:ensure_dir(FileName),
-  {ok, BeamPath} = ensure_mod_loaded(M),
-  {ok, {_, [{compile_info, Info}]}} = beam_lib:chunks(BeamPath, [compile_info]),
-  Source = proplists:get_value(source, Info),
-  Includes = proplists:lookup_all(i, proplists:get_value(options, Info)),
-  Macros = proplists:lookup_all(d, proplists:get_value(options, Info)),
-  CompInfo = [to_core, return_errors, {outdir, Dir}] ++ Includes ++ Macros,
-  CompRet = compile:file(Source, CompInfo),
-  case CompRet of
-    {ok, M} -> FileName;
-    Errors  -> erlang:throw({compile, Errors})
+%% Gets the Core Erlang AST of a module.
+-spec get_core_ast(module()) -> cerl:cerl().
+get_core_ast(M) ->
+  {ok, BeamPath} = mod_beam_path(M),
+  {ok, AbstractCode} = extract_abstract_code(M, BeamPath),
+  case compile:forms(AbstractCode, [to_core]) of
+    {ok, M, AST} -> AST;
+    {ok, M, AST, _Warns} -> AST;
+    Errors -> erlang:throw({compile, Errors})
   end.
   
-%% Ensure the module beam code is loaded
-%% and return the path it is located
--spec ensure_mod_loaded(module()) -> {ok, file:filename()} | no_return().
-ensure_mod_loaded(M) ->
+%% Gets the path of the module's beam file, if such one exists.
+-spec mod_beam_path(module()) -> {ok, file:filename()} | no_return().
+mod_beam_path(M) ->
   case code:which(M) of
     non_existing   -> erlang:throw(non_existing);
     preloaded      -> erlang:throw(preloaded);
     cover_compiled -> erlang:throw(cover_compiled);
     Path -> {ok, Path}
   end.
-  
+
+%% Gets the abstract code from a module's beam file, if possible.
+-spec extract_abstract_code(module(), file:name()) -> {ok, list()}.
+extract_abstract_code(Mod, Beam) ->
+  case beam_lib:chunks(Beam, [abstract_code]) of
+    {error, beam_lib, _} ->
+      erlang:throw(missing_ac);
+    {ok, {Mod, [{abstract_code, no_abstract_code}]}} ->
+      erlang:throw(missing_ac);
+    {ok, {Mod, [{abstract_code, {_, AbstractCode}}]}} ->
+      {ok, AbstractCode}
+  end.
+
 %% Store Module Information
 -spec store_module_info(info(), module(), cerl:cerl(), ets:tab()) -> ok.
 store_module_info(anno, _M, AST, Db) ->
