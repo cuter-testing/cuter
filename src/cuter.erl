@@ -4,6 +4,8 @@
 
 -export([run/3, run/4, run/5, run_once/4, run_once/5]).
 
+-export_type([input/0, erroneous_inputs/0]).
+
 -include("include/cuter_macros.hrl").
 
 -type loop_limit() :: integer() | inf.
@@ -16,32 +18,35 @@
                            stored_mods => cuter_analyzer:stored_modules(),
                            tags_added_no => integer()}.
 
+-type input() :: [any()].
+-type erroneous_inputs() :: [input()].
 
--spec run_once(module(), atom(), [any()], pos_integer()) -> ok.
+
+-spec run_once(module(), atom(), input(), pos_integer()) -> erroneous_inputs().
 run_once(M, F, As, Depth) ->
   {ok, CWD} = file:get_cwd(),
   run_once(M, F, As, Depth, CWD).
 
--spec run_once(module(), atom(), [any()], pos_integer(), file:filename_all()) -> ok.
+-spec run_once(module(), atom(), input(), pos_integer(), file:filename_all()) -> erroneous_inputs().
 run_once(M, F, As, Depth, BaseDir) ->
   Conf = initialize_app(M, F, As, Depth, BaseDir),
   loop(Conf, 1).
 
--spec run(module(), atom(), [any()]) -> ok.
+-spec run(module(), atom(), input()) -> erroneous_inputs().
 run(M, F, As) ->
   run(M, F, As, ?DEFAULT_DEPTH).
 
--spec run(module(), atom(), [any()], pos_integer()) -> ok.
+-spec run(module(), atom(), input(), pos_integer()) -> erroneous_inputs().
 run(M, F, As, Depth) ->
   {ok, CWD} = file:get_cwd(),
   run(M, F, As, Depth, CWD).
 
--spec run(module(), atom(), [any()], pos_integer(), file:filename_all()) -> ok.
+-spec run(module(), atom(), input(), pos_integer(), file:filename_all()) -> erroneous_inputs().
 run(M, F, As, Depth, BaseDir) ->
   Conf = initialize_app(M, F, As, Depth, BaseDir),
   loop(Conf, inf).
 
--spec loop(configuration(), loop_limit()) -> ok.
+-spec loop(configuration(), loop_limit()) -> erroneous_inputs().
 loop(Conf, 0) -> stop(Conf);
 loop(Conf, Lmt) ->
   case cuter_scheduler_maxcover:request_input(maps:get(scheduler, Conf)) of
@@ -64,7 +69,7 @@ loop(Conf, Lmt) ->
 tick(inf) -> inf;
 tick(N) when is_integer(N) -> N - 1.
 
--spec initialize_app(module(), atom(), [any()], pos_integer(), file:filename_all()) -> configuration().
+-spec initialize_app(module(), atom(), input(), pos_integer(), file:filename_all()) -> configuration().
 initialize_app(M, F, As, Depth, BaseDir) ->
   process_flag(trap_exit, true),
   error_logger:tty(false),  %% Disable error_logger
@@ -79,16 +84,18 @@ initialize_app(M, F, As, Depth, BaseDir) ->
     stored_mods => orddict:new(),
     tags_added_no => 0}.
 
--spec stop(configuration()) -> ok.
+-spec stop(configuration()) -> erroneous_inputs().
 stop(Conf) ->
-  cuter_scheduler_maxcover:stop(maps:get(scheduler, Conf)),
-  cuter_lib:clear_and_delete_dir(maps:get(dataDir, Conf)).
+  Erroneous = cuter_scheduler_maxcover:stop(maps:get(scheduler, Conf)),
+  cuter_pp:report_erroneous(Erroneous),
+  cuter_lib:clear_and_delete_dir(maps:get(dataDir, Conf)),
+  Erroneous.
 
 %% ------------------------------------------------------------------
 %% Concolic Execution
 %% ------------------------------------------------------------------
 
--spec concolic_execute(configuration(), [any()]) -> cuter_analyzer:info() | cuter_error.
+-spec concolic_execute(configuration(), input()) -> cuter_analyzer:info() | cuter_error.
 concolic_execute(Conf, Input) ->
   cuter_pp:input(Input),
   BaseDir = maps:get(dataDir, Conf),

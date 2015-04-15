@@ -19,11 +19,9 @@
 
 -include("include/cuter_macros.hrl").
 
--type input() :: [any()].
 -type item()  :: {boolean(), integer(), cuter_cerl:tagID(), exec_handle()}.
--type inp_queue_item() :: {integer(), input()}.
+-type inp_queue_item() :: {integer(), cuter:input()}.
 -type inp_queue() :: queue:queue(inp_queue_item()).
--type erroneous_inputs() :: [input()].
 -type exec_handle() :: string().
 -type exec_info() :: dict:dict(exec_handle(), #{ traceFile => file:name()
                                                , dataDir => file:filename_all()
@@ -39,9 +37,9 @@
   , stored_mods        :: cuter_analyzer:stored_modules()
   , tags_added_no = 0  :: integer()
   , visited_tags       :: cuter_analyzer:visited_tags()
-  , running            :: dict:dict(exec_handle(), input())
+  , running            :: dict:dict(exec_handle(), cuter:input())
   , first_operation    :: dict:dict(exec_handle(), integer())
-  , erroneous          :: erroneous_inputs()
+  , erroneous          :: cuter:erroneous_inputs()
 }).
 -type state() :: #sts{}.
 -type from()  :: {pid(), reference()}.
@@ -52,7 +50,7 @@
 %% ============================================================================
 
 %% Start the Scheduler
--spec start(string(), integer(), [input()]) -> pid().
+-spec start(string(), integer(), [cuter:input()]) -> pid().
 start(Python, Depth, SeedInput) ->
   case gen_server:start_link(?MODULE, [Python, Depth, SeedInput], []) of
     {ok, Scheduler} -> Scheduler;
@@ -60,12 +58,12 @@ start(Python, Depth, SeedInput) ->
   end.
 
 %% Stop the Scheduler
--spec stop(pid()) -> ok.
+-spec stop(pid()) -> cuter:erroneous_inputs().
 stop(Scheduler) ->
-  gen_server:cast(Scheduler, stop).
+  gen_server:call(Scheduler, stop).
 
 %% Request a new Input vertex for concolic execution
--spec request_input(pid()) -> {exec_handle(), [any()], cuter_analyzer:stored_modules(), integer()} | empty.
+-spec request_input(pid()) -> {exec_handle(), cuter:input(), cuter_analyzer:stored_modules(), integer()} | empty.
 request_input(Scheduler) ->
   gen_server:call(Scheduler, request_input, 500000).
 
@@ -79,7 +77,7 @@ store_execution(Scheduler, Handle, Info) ->
 %% ============================================================================
 
 %% init/1
--spec init([string() | integer() | input(), ...]) -> {ok, state()}.
+-spec init([string() | integer() | cuter:input(), ...]) -> {ok, state()}.
 init([Python, Depth, SeedInput]) ->
   _ = set_execution_counter(0),
   TagsQueue = cuter_minheap:new(fun erlang:'<'/2),
@@ -90,8 +88,7 @@ init([Python, Depth, SeedInput]) ->
 
 %% terminate/2
 -spec terminate(any(), state()) -> ok.
-terminate(_Reason, #sts{tags_queue = TQ, erroneous = Err}) ->
-  cuter_pp:report_erroneous(lists:reverse(Err)),
+terminate(_Reason, #sts{tags_queue = TQ}) ->
   cuter_minheap:delete(TQ),
   %% TODO clear dirs
   ok.
@@ -109,8 +106,9 @@ handle_info(Msg, State) ->
   {noreply, State}.
 
 %% handle_call/3
--spec handle_call(request_input, from(), state()) -> {reply, (empty | {exec_handle(), input(), cuter_analyzer:stored_modules(), integer()}), state()}
-               ; ({store_execution, exec_handle(), cuter_analyzer:info()}, from(), state()) -> {reply, ok, state}.
+-spec handle_call(request_input, from(), state()) -> {reply, (empty | {exec_handle(), cuter:input(), cuter_analyzer:stored_modules(), integer()}), state()}
+               ; ({store_execution, exec_handle(), cuter_analyzer:info()}, from(), state()) -> {reply, ok, state}
+               ; (stop, from(), state()) -> {stop, normal, cuter:erroneous_inputs(), state()}.
 
 %% Ask for a new input to execute
 handle_call(request_input, _From, S=#sts{tags_queue = TQ, info = AllInfo, python = P, stored_mods = SMs, visited_tags = Vs, tags_added_no = TagsN,
@@ -148,12 +146,18 @@ handle_call({store_execution, Handle, Info}, _From, S=#sts{tags_queue = TQ, info
                    , visited_tags = Visited
                    , running = dict:erase(Handle, Rn)  %% Remove the handle from the running set
                    , first_operation = dict:erase(Handle, FOp)
-                   , erroneous = NErr}}.
+                   , erroneous = NErr}};
+
+%% Stops the server.
+handle_call(stop, _From, S=#sts{erroneous = Err}) ->
+  {stop, normal, lists:reverse(Err), S}.
 
 %% handle_cast/2
--spec handle_cast(stop, state()) -> {stop, normal, state()}.
-handle_cast(stop, State) ->
-  {stop, normal, State}.
+-spec handle_cast(any(), state()) -> {noreply, state()}.
+handle_cast(Msg, State) ->
+  %% Just outputting unexpected messages for now
+  io:format("[~s]: Unexpected message ~p~n", [?MODULE, Msg]),
+  {noreply, State}.
 
 
 %% ============================================================================
@@ -161,7 +165,7 @@ handle_cast(stop, State) ->
 %% ============================================================================
 
 -spec find_new_input(cuter_minheap:minheap(), inp_queue(), string(), exec_info(), cuter_analyzer:visited_tags()) ->
-        {ok, exec_handle(), input(), integer(), inp_queue()} | empty.
+        {ok, exec_handle(), cuter:input(), integer(), inp_queue()} | empty.
 find_new_input(TagsQueue, InpQueue, Python, Info, Visited) ->
   case queue:out(InpQueue) of
     %% Search in the inputs queue.
@@ -177,7 +181,7 @@ find_new_input(TagsQueue, InpQueue, Python, Info, Visited) ->
   end.
 
 -spec generate_new_input(cuter_minheap:minheap(), string(), exec_info(), cuter_analyzer:visited_tags()) ->
-        {ok, exec_handle(), input(), integer()} | empty.
+        {ok, exec_handle(), cuter:input(), integer()} | empty.
 generate_new_input(Queue, Python, Info, Visited) ->
   case locate_next_reversible(Queue, Visited) of
     empty -> empty;
@@ -261,6 +265,6 @@ maybe_item({Id, TagID}, Handle, Visited, N, Depth) ->
 %% Erroenous inputs
 %% ============================================================================
 
--spec update_erroneous(boolean(), input(), erroneous_inputs()) -> erroneous_inputs().
+-spec update_erroneous(boolean(), cuter:input(), cuter:erroneous_inputs()) -> cuter:erroneous_inputs().
 update_erroneous(false, _Input, Erroneous) -> Erroneous;
 update_erroneous(true, Input, Erroneous) -> [Input | Erroneous].

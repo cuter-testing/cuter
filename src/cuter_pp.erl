@@ -163,7 +163,7 @@ divider(Divider) ->
 %% Verbose Scheduling
 %%
 
--spec report_erroneous([list(any())]) -> ok.
+-spec report_erroneous(cuter:erroneous_inputs()) -> ok.
 report_erroneous([]) ->
   divider("-"),
   io:format("NO RUNTIME ERRORS OCCURED~n");
