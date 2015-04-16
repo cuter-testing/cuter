@@ -1,7 +1,7 @@
 CutEr
-==============
+=====
 
-This is the source tree for CutEr a concolic unit testing tool for Erlang.
+This is the source tree for CutEr, a concolic unit testing tool for Erlang.
 
 ***CAUTION: This tool is still under heavy development (and not yet released!)***
 
@@ -16,14 +16,14 @@ In order to use the tool, you need the following programs:
 
 1. **Erlang/OTP**
 
-  Using a pre built package or binaries will not suffice if the library's modules have not been compiled with debug information.
-  In which case, you will need to build and install Erlang/OTP from source.
+  Note that using a pre-built package or binaries will not suffice if the library's modules have not been compiled with debug information.
+  In that case, you will need to build and install Erlang/OTP from source.
 
   Download the latest [Erlang/OTP source code](http://www.erlang.org/download.html) or clone the Erlang/OTP github repository:
 
         git clone https://github.com/erlang/otp.git
 
-  Then, follow the instructions in [INSTALL.md](https://github.com/erlang/otp/blob/maint/HOWTO/INSTALL.md) on building and
+  Then follow the instructions in [INSTALL.md](https://github.com/erlang/otp/blob/maint/HOWTO/INSTALL.md) on building and
   installing Erlang/OTP.
 
 2. **Python 2.x**
