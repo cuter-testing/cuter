@@ -956,12 +956,12 @@ pattern_match({c_literal, Anno, LitVal}, _Bitinfo, _Mode, Cv, Sv, CMaps, SMaps, 
     true ->
       %% CONSTRAINT: Sv =:= Litval
       visit_tag(Servers#svs.code, Tags#tags.this),
-      cuter_log:log_equal(Fd, true, LitVal, Sv, Tags#tags.next),
+      log_literal_match_success(Fd, LitVal, Sv, Tags#tags.next),
       {true, {CMaps, SMaps}};
     false ->
       %% CONSTRAINT: Sv =/= Litval
       visit_tag(Servers#svs.code, Tags#tags.next),
-      cuter_log:log_equal(Fd, false, LitVal, Sv, Tags#tags.this),
+      log_literal_match_failure(Fd, LitVal, Sv, Tags#tags.this),
       false
   end;
 
@@ -1576,3 +1576,43 @@ visit_tag(CodeServer, Tag) ->
       put(?VISITED_TAGS_PREFIX, gb_sets:insert(TagID, TagIDs)),
       ok
   end.
+
+%% --------------------------------------------------------
+%% Logs the matching of literals.
+%% --------------------------------------------------------
+
+%% Creates appropriate logs when a matching with a literal succeeded.
+log_literal_match_success(Fd, Lit, Sv, Tag) ->
+  case cuter_symbolic:is_symbolic(Sv) of
+    true  -> cuter_log:log_equal(Fd, true, Lit, Sv, Tag);
+    false -> log_literal_match_success_rec(Fd, Lit, Sv, Tag)
+  end.
+
+log_literal_match_success_rec(Fd, [X|Xs], [Y|Ys], Tag) ->
+  log_literal_match_success(Fd, X, Y, Tag),
+  log_literal_match_success(Fd, Xs, Ys, Tag);
+log_literal_match_success_rec(Fd, Lit, Sv, Tag) when is_tuple(Lit), is_tuple(Sv) ->
+  Xs = erlang:tuple_to_list(Lit),
+  Ys = erlang:tuple_to_list(Sv),
+  log_literal_match_success(Fd, Xs, Ys, Tag);
+log_literal_match_success_rec(Fd, Lit, Sv, Tag) ->
+  cuter_log:log_equal(Fd, true, Lit, Sv, Tag).
+
+%% Creates appropriate logs when a matching with a literal failed.
+log_literal_match_failure(Fd, Lit, Sv, Tag) ->
+  case cuter_symbolic:is_symbolic(Sv) of
+    true  -> cuter_log:log_equal(Fd, false, Lit, Sv, Tag);
+    false -> log_literal_match_failure_rec(Fd, Lit, Sv, Tag)
+  end.
+
+log_literal_match_failure_rec(Fd, [X|Xs], [X|Ys], Tag) ->
+  log_literal_match_failure(Fd, Xs, Ys, Tag);
+log_literal_match_failure_rec(Fd, [X|Xs], [Y|Ys], Tag) ->
+  log_literal_match_failure(Fd, X, Y, Tag),
+  log_literal_match_failure(Fd, Xs, Ys, Tag);
+log_literal_match_failure_rec(Fd, Lit, Sv, Tag) when is_tuple(Lit), is_tuple(Sv) ->
+  Xs = erlang:tuple_to_list(Lit),
+  Ys = erlang:tuple_to_list(Sv),
+  log_literal_match_failure(Fd, Xs, Ys, Tag);
+log_literal_match_failure_rec(Fd, Lit, Sv, Tag) ->
+  cuter_log:log_equal(Fd, false, Lit, Sv, Tag).
