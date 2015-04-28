@@ -9,19 +9,19 @@
 -export_type([goal/0]).
 
 -record(sts, {
-  currFd       :: file:io_device(),
+  currFd       :: file:io_device() | 'undefined',
   openFds      :: ets:tab(),
   pendingFiles :: [file:filename_all()],
   waitingFds   :: queue:queue(),
   logFd        :: file:io_device(),
   seenRefs     :: ets:tab(),
-  goalRef      :: goal() | none,
+  goalRef      :: goal() | 'none',
   dirs         :: [cuter_analyzer:node_trace()]
 }).
 -type state() :: #sts{}.
 -type goal()  :: {integer(), string()}.
 
--type validation() :: ok | {error, binary()}.
+-type validation() :: 'ok' | {'error', binary()}.
 -type known_set()  :: gb_sets:set().
 
 %% Merge the traces of an execution into one file.

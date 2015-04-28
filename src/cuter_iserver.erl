@@ -14,8 +14,9 @@
 
 %% Internal type declarations
 -type ann_pid() :: {node(), pid()}.
+-type server()  :: 'codeserver' | 'monitorserver' | 'iserver'.
 -type execution_status() :: {success, cuter_eval:result()} 
-                          | {internal_error, (codeserver | monitorserver | iserver), node(), any()}
+                          | {internal_error, server(), node(), any()}
                           | {runtime_error, node(), pid(), cuter_eval:result()}.
 
 %% Server's state
@@ -51,8 +52,8 @@
   cpids         :: orddict:orddict(), %% [{node(), pid()}]
   mpids         :: orddict:orddict(), %% [{node(), pid()}]
   info          :: orddict:orddict(), %% [{node(), list()}]
-  int           :: {pid(), running} | exited,
-  exstatus      :: execution_status(),
+  int           :: {pid(), 'running'} | 'exited',
+  exstatus      :: execution_status() | 'undefined',
   stored_mods   :: cuter_analyzer:stored_modules(),
   tags_added_no :: integer()
 }).
