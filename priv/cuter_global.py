@@ -15,6 +15,6 @@ def init():
   
   __TTY__ = "tty" in sys.argv
   __RUN__ = True
-  __LISTS_INTERP__ = LISTS_EXPAND
+  __LISTS_INTERP__ = LISTS_NO_PATS
   __WPATS__ = True
 
