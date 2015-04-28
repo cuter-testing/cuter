@@ -11,12 +11,11 @@ import cuter_common as cc
 
 ## Main Program
 
-try:
-  cglb.init()
-  
-  erlport = cp.ErlangPort() # Initialize the communication with Erlang
-  erlz3 = cz3.ErlangZ3()    # Initialize the Z3 interface
+cglb.init()
+erlport = cp.ErlangPort() # Initialize the communication with Erlang
+erlz3 = cz3.ErlangZ3()    # Initialize the Z3 interface
 
+try:
   while cglb.__RUN__:
     data = erlport.receive()
     erlport.send(str(data)) # Just print back the command
