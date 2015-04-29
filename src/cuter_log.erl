@@ -10,6 +10,7 @@
   , log_equal/5
   , log_guard/4
   , log_list/4
+  , log_make_tuple/3
   , log_mfa/5
   , log_message_consumed/3
   , log_message_received/3
@@ -100,6 +101,14 @@ log_unfold_symbolic(Fd, break_tuple, Sv, Vs) ->
   log(Fd, ?OP_UNFOLD_TUPLE, ?EMPTY_TAG_ID, [Sv | Vs]);
 log_unfold_symbolic(Fd, break_list, Sv, Vs) ->
   log(Fd, ?OP_UNFOLD_LIST, ?EMPTY_TAG_ID, [Sv | Vs]).
+
+%% ------------------------------------------------------------------
+%% Logs the creation of a tuple.
+%% ------------------------------------------------------------------
+
+-spec log_make_tuple(file:io_device(), cuter_symbolic:symbolic(), [any()]) -> ok.
+log_make_tuple(Fd, Sv, Xs) ->
+  log(Fd, ?OP_TCONS, ?EMPTY_TAG_ID, [Sv | Xs]).
 
 %% ------------------------------------------------------------------
 %% Log Constraints

@@ -325,6 +325,8 @@ class ErlangZ3:
       cc.OP_TUPLE_TO_LIST: self.tuple_to_list_toZ3,
       cc.OP_LT_INT: self.lt_integers_toZ3,
       cc.OP_LT_FLOAT: self.lt_floats_toZ3,
+      cc.OP_CONS: self.cons_toZ3,
+      cc.OP_TCONS: self.tcons_toZ3,
     }
     
     opts_rev = {
@@ -717,6 +719,18 @@ class ErlangZ3:
     self.axs.append(t == self.List.nil)
   
   # ----------------------------------------------------------------------
+  # Operations on tuples
+  # ----------------------------------------------------------------------
+  
+  def tcons_toZ3(self, *terms):
+    T, L = self.Term, self.List
+    s, ts = terms[0]["s"], map(self.term_toZ3, terms[1:])
+    t = L.nil
+    for x in reversed(ts):
+      t = L.cons(x, t)
+    self.env.bind(s, T.tpl(t))
+  
+  # ----------------------------------------------------------------------
   # Operations on lists
   # ----------------------------------------------------------------------
   
@@ -757,6 +771,17 @@ class ErlangZ3:
       self.Term.is_lst(t2) == False,
       And(self.Term.is_lst(t2), self.List.is_nil(self.Term.lval(t2)))
     ))
+  
+  ### Simulate the cons operation ###
+  
+  def cons_toZ3(self, term, term1, term2):
+    T = self.Term
+    L = self.List
+    s = term["s"]
+    t1 = self.term_toZ3(term1)
+    t2 = self.term_toZ3(term2)
+    self.axs.append(T.is_lst(t2))
+    self.env.bind(s, T.lst(L.cons(t1, T.lval(t2))))
   
   # ----------------------------------------------------------------------
   # Query types

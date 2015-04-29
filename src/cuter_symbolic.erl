@@ -5,7 +5,7 @@
 -export([
   fresh_symbolic_var/0, abstract/1, evaluate_mfa/6, generate_new_input/2,
   is_symbolic/1, serialize/1, deserialize/1, is_supported_mfa/1,
-  ensure_list/3, tpl_to_list/3, head/2, tail/2,
+  ensure_list/3, tpl_to_list/3, head/2, tail/2, cons/4, make_tuple/3,
   append_segments/3, make_bitstring/4, match_bitstring_const/5, match_bitstring_var/5
 ]).
 
@@ -120,6 +120,15 @@ head(Sv, Fd) -> evaluate_supported_mfa({erlang, hd, 1}, [Sv], cuter_cerl:empty_t
 tail(Sv, _Fd) when is_list(Sv) -> erlang:tl(Sv);
 tail(Sv, Fd) -> evaluate_supported_mfa({erlang, tl, 1}, [Sv], cuter_cerl:empty_tag(), Fd).
 
+%% Returns the cons of two terms. Either can be a symbolic value.
+%% (Used when creating lists).
+-spec cons(maybe_s(any()), maybe_s([any()]), list(), file:io_device()) -> maybe_s([list()]).
+cons(V1, V2, Cv, Fd) ->
+  case is_symbolic(V1) orelse is_symbolic(V2) of
+    false -> Cv;
+    true ->  evaluate_supported_mfa({bogus_erlang, cons, 2}, [V1, V2], cuter_cerl:empty_tag(), Fd)
+  end.
+
 %% Create a list of N elements from a symbolic variable
 %% that represents a list or a tuple with size N
 -spec break_term(break_tuple | break_list, symbolic(), pos_integer(), file:io_device()) -> [symbolic()].
@@ -127,6 +136,18 @@ break_term(M, Sv, N, Fd) when M =:= break_tuple; M =:= break_list ->
   Vs = [fresh_symbolic_var() || _ <- lists:seq(1, N)],
   cuter_log:log_unfold_symbolic(Fd, M, Sv, Vs),
   Vs.
+
+%% Creates a tuple.
+%% (Used when creating tuples).
+-spec make_tuple([maybe_s(any())], tuple(), file:io_device()) -> maybe_s(tuple()).
+make_tuple(Xs, Cv, Fd) ->
+  case lists:any(fun is_symbolic/1, Xs) of
+    false -> Cv;
+    true ->
+      Sv = fresh_symbolic_var(),
+      cuter_log:log_make_tuple(Fd, Sv, Xs),
+      Sv
+  end.
 
 %% =============================================================
 %% Symbolic representation of binaries and binary operations

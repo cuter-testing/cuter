@@ -87,6 +87,8 @@ OP_LIST_TO_TUPLE = 52
 OP_TUPLE_TO_LIST = 53
 OP_LT_INT = 54
 OP_LT_FLOAT = 55
+OP_CONS = 56
+OP_TCONS = 57
 
 def is_constraint_kind(tp):
   return tp == CONSTRAINT_TRUE or tp == CONSTRAINT_FALSE

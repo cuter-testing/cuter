@@ -183,6 +183,9 @@
 %% Operations on lists.
 -define(OP_HD, 25).
 -define(OP_TL, 26).
+-define(OP_CONS, 56).
+%% Operations on tuples.
+-define(OP_TCONS, 57).
 %% Comparisons.
 -define(OP_EQUAL, 41).
 -define(OP_UNEQUAL, 42).
@@ -207,6 +210,7 @@
                  , { {cuter_erlang, safe_float,         1}, ?OP_FLOAT         }
                  , { {cuter_erlang, safe_list_to_tuple, 1}, ?OP_LIST_TO_TUPLE }
                  , { {cuter_erlang, safe_tuple_to_list, 1}, ?OP_TUPLE_TO_LIST }
+                 , { {bogus_erlang, cons,               2}, ?OP_CONS          }
                    %% Actual erlang BIFs
                  , { {erlang, hd,            1}, ?OP_HD            }
                  , { {erlang, tl,            1}, ?OP_TL            }

@@ -520,7 +520,9 @@ eval_expr({c_catch, _Anno, Body}, M, Cenv, Senv, Servers, Fd) ->
 eval_expr({c_cons, _Anno, Hd, Tl}, M, Cenv, Senv, Servers, Fd) ->
   {Hd_c, Hd_s} = eval_expr(Hd, M, Cenv, Senv, Servers, Fd),
   {Tl_c, Tl_s} = eval_expr(Tl, M, Cenv, Senv, Servers, Fd),
-  {[Hd_c | Tl_c], [Hd_s | Tl_s]};
+  Cv = [Hd_c | Tl_c],
+  Sv = cuter_symbolic:cons(Hd_s, Tl_s, Cv, Fd),
+  {Cv, Sv};
 
 %% c_fun
 eval_expr({c_fun, _Anno, Vars, Body}, M, Cenv, Senv, Servers, Fd) ->
@@ -658,7 +660,9 @@ eval_expr({c_try, _Anno, Arg, Vars, Body, Evars, Handler}, M, Cenv, Senv, Server
 eval_expr({c_tuple, _Anno, Es}, M, Cenv, Senv, Servers, Fd) ->
   Zes = [eval_expr(E, M, Cenv, Senv, Servers, Fd) || E <- Es],
   {Es_c, Es_s} = lists:unzip(Zes),
-  {list_to_tuple(Es_c), list_to_tuple(Es_s)};
+  Cv = list_to_tuple(Es_c),
+  Sv = cuter_symbolic:make_tuple(Es_s, Cv, Fd),
+  {Cv, Sv};
 
 %% c_values
 eval_expr({c_values, _Anno, Es}, M, Cenv, Senv, Servers, Fd) ->
