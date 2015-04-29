@@ -65,7 +65,7 @@ stop(Scheduler) ->
 %% Request a new Input vertex for concolic execution
 -spec request_input(pid()) -> {exec_handle(), cuter:input(), cuter_analyzer:stored_modules(), integer()} | empty.
 request_input(Scheduler) ->
-  gen_server:call(Scheduler, request_input, 500000).
+  gen_server:call(Scheduler, request_input, infinity).
 
 %% Store the information of a concolic execution
 -spec store_execution(pid(), exec_handle(), cuter_analyzer:info()) -> ok.
