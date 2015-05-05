@@ -44,6 +44,7 @@ mfa(M, F, Ar) -> io:format("Testing ~p:~p/~p ...~n", [M, F, Ar]).
 
 -spec input([any()]) -> ok.
 input(As) when is_list(As) ->
+  io:format("~n"),
   divider("="),
   io:format("INPUT~n"),
   input_parameters(As).
