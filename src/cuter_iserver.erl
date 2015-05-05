@@ -135,7 +135,8 @@ init([M, F, As, LogDir, Depth, StoredMods, TagsN, Super]) ->
 %% gen_server callback : terminate/2
 -spec terminate(any(), state()) -> ok.
 terminate(_Reason, #sts{super = Super, info = Info, exstatus = ExStatus}) ->
-  Super ! {self(), ExStatus, Info},
+  OrderedInfo = orddict:map(fun(_, Vs) -> orddict:from_list(Vs) end, Info),
+  Super ! {self(), ExStatus, OrderedInfo},
   ok.
 
 %% gen_server callback : code_change/3

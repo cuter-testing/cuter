@@ -11,12 +11,15 @@
 -type loop_limit() :: integer() | inf.
 -type configuration() :: #{mod => module(),
                            func => atom(),
-                           dataDir => file:filename_all(),
+                           dataDir => file:filename(),
                            depth => pos_integer(),
                            no => integer(),
                            scheduler => pid(),
                            stored_mods => cuter_analyzer:stored_modules(),
                            tags_added_no => integer()}.
+
+-type option() :: {basedir, file:filename()}
+                | verbose_execution_info.
 
 -type input() :: [any()].
 -type erroneous_inputs() :: [input()].
@@ -24,12 +27,11 @@
 
 -spec run_once(module(), atom(), input(), pos_integer()) -> erroneous_inputs().
 run_once(M, F, As, Depth) ->
-  {ok, CWD} = file:get_cwd(),
-  run_once(M, F, As, Depth, CWD).
+  run_once(M, F, As, Depth, []).
 
--spec run_once(module(), atom(), input(), pos_integer(), file:filename_all()) -> erroneous_inputs().
-run_once(M, F, As, Depth, BaseDir) ->
-  Conf = initialize_app(M, F, As, Depth, BaseDir),
+-spec run_once(module(), atom(), input(), pos_integer(), [option()]) -> erroneous_inputs().
+run_once(M, F, As, Depth, Options) ->
+  Conf = initialize_app(M, F, As, Depth, Options),
   loop(Conf, 1).
 
 -spec run(module(), atom(), input()) -> erroneous_inputs().
@@ -38,12 +40,11 @@ run(M, F, As) ->
 
 -spec run(module(), atom(), input(), pos_integer()) -> erroneous_inputs().
 run(M, F, As, Depth) ->
-  {ok, CWD} = file:get_cwd(),
-  run(M, F, As, Depth, CWD).
+  run(M, F, As, Depth, []).
 
--spec run(module(), atom(), input(), pos_integer(), file:filename_all()) -> erroneous_inputs().
-run(M, F, As, Depth, BaseDir) ->
-  Conf = initialize_app(M, F, As, Depth, BaseDir),
+-spec run(module(), atom(), input(), pos_integer(), [option()]) -> erroneous_inputs().
+run(M, F, As, Depth, Options) ->
+  Conf = initialize_app(M, F, As, Depth, Options),
   loop(Conf, inf).
 
 -spec loop(configuration(), loop_limit()) -> erroneous_inputs().
@@ -67,12 +68,13 @@ loop(Conf, Lmt) ->
 tick(inf) -> inf;
 tick(N) when is_integer(N) -> N - 1.
 
--spec initialize_app(module(), atom(), input(), pos_integer(), file:filename_all()) -> configuration().
-initialize_app(M, F, As, Depth, BaseDir) ->
+-spec initialize_app(module(), atom(), input(), pos_integer(), [option()]) -> configuration().
+initialize_app(M, F, As, Depth, Options) ->
+  BaseDir = set_basedir(Options),
   process_flag(trap_exit, true),
   error_logger:tty(false),  %% Disable error_logger
   SchedPid = cuter_scheduler_maxcover:start(?PYTHON_CALL, Depth, As),
-  ok = cuter_pp:start(),
+  ok = cuter_pp:start(set_reporting_level(Options)),
   cuter_pp:mfa({M, F, length(As)}),
   #{mod => M,
     func => F,
@@ -86,9 +88,23 @@ initialize_app(M, F, As, Depth, BaseDir) ->
 -spec stop(configuration()) -> erroneous_inputs().
 stop(Conf) ->
   Erroneous = cuter_scheduler_maxcover:stop(maps:get(scheduler, Conf)),
-  cuter_pp:report_erroneous(Erroneous),
+  cuter_pp:errors_found(Erroneous),
   cuter_lib:clear_and_delete_dir(maps:get(dataDir, Conf)),
   Erroneous.
+
+%% Set app parameters.
+-spec set_basedir([option()]) -> file:filename().
+set_basedir([]) -> {ok, CWD} = file:get_cwd(), CWD;
+set_basedir([{basedir, BaseDir}|_]) -> BaseDir;
+set_basedir([_|Rest]) -> set_basedir(Rest).
+
+-spec set_reporting_level([option()]) -> map().
+set_reporting_level(Options) ->
+  Default = #{
+    verbose_execution_info => false
+  },
+  SetFlags = lists:filter(fun(X) -> maps:is_key(X, Default) end, Options),
+  lists:foldl(fun(X, Acc) -> maps:update(X, true, Acc) end, Default, SetFlags).
 
 %% ------------------------------------------------------------------
 %% Concolic Execution
@@ -108,7 +124,7 @@ concolic_execute(Conf, Ref, Input) ->
   IServer = cuter_iserver:start(M, F, Input, TraceDir, Depth, StoredMods, TagsN),
   retrieve_info(IServer, Ref, DataDir).
 
--spec retrieve_info(pid(), cuter_scheduler_maxcover:exec_handle(), file:filename_all()) -> cuter_analyzer:info() | cuter_error.
+-spec retrieve_info(pid(), cuter_scheduler_maxcover:exec_handle(), file:filename()) -> cuter_analyzer:info() | cuter_error.
 retrieve_info(IServer, Ref, DataDir) ->
   case wait_for_execution(IServer) of
     {ok, ExStatus, Info} ->

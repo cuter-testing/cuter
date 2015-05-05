@@ -110,7 +110,7 @@ terminate(_Reason, State) ->
          , {tags_added_no, Cnt}
          ],
   ets:delete(Db),
-  ok = cuter_iserver:code_logs(Super, Logs),          % Send logs to the supervisor
+  ok = cuter_iserver:code_logs(Super, orddict:from_list(Logs)),  % Send logs to the supervisor
   ok.
 
 %% gen_server callback : code_change/3

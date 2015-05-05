@@ -194,7 +194,7 @@ generate_new_input(Queue, Python, Info, Visited) ->
 %      io:format("[sched] Attempting ~w in ~p~n", [N, File]),
       case cuter_solver:solve(Python, Ms, File, N) of
         error ->
-          io:format("."),
+          cuter_pp:solving_failed_notify(),
           generate_new_input(Queue, Python, Info, Visited);
         {ok, Input} ->
           H = fresh_execution_handle(),
