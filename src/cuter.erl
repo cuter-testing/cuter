@@ -54,7 +54,7 @@ loop(Conf, Lmt) ->
     {Ref, As, StoredMods, TagsN} ->
       No = maps:get(no, Conf) + 1,
       Conf_n = Conf#{no := No, stored_mods := StoredMods, tags_added_no := TagsN},
-      case concolic_execute(Conf_n, As) of
+      case concolic_execute(Conf_n, Ref, As) of
         cuter_error ->
           stop(Conf);
         Info ->
@@ -71,8 +71,9 @@ tick(N) when is_integer(N) -> N - 1.
 initialize_app(M, F, As, Depth, BaseDir) ->
   process_flag(trap_exit, true),
   error_logger:tty(false),  %% Disable error_logger
-  cuter_pp:mfa(M, F, length(As)),
   SchedPid = cuter_scheduler_maxcover:start(?PYTHON_CALL, Depth, As),
+  ok = cuter_pp:start(),
+  cuter_pp:mfa({M, F, length(As)}),
   #{mod => M,
     func => F,
     no => 1,
@@ -93,9 +94,9 @@ stop(Conf) ->
 %% Concolic Execution
 %% ------------------------------------------------------------------
 
--spec concolic_execute(configuration(), input()) -> cuter_analyzer:info() | cuter_error.
-concolic_execute(Conf, Input) ->
-  cuter_pp:input(Input),
+-spec concolic_execute(configuration(), cuter_scheduler_maxcover:exec_handle(), input()) -> cuter_analyzer:info() | cuter_error.
+concolic_execute(Conf, Ref, Input) ->
+  cuter_pp:input(Ref, Input),
   BaseDir = maps:get(dataDir, Conf),
   DataDir = cuter_lib:get_data_dir(BaseDir, maps:get(no, Conf)),
   TraceDir = cuter_lib:get_trace_dir(DataDir),  % Directory to store process traces
@@ -105,14 +106,14 @@ concolic_execute(Conf, Input) ->
   StoredMods = maps:get(stored_mods, Conf),
   TagsN = maps:get(tags_added_no, Conf),
   IServer = cuter_iserver:start(M, F, Input, TraceDir, Depth, StoredMods, TagsN),
-  retrieve_info(IServer, DataDir).
+  retrieve_info(IServer, Ref, DataDir).
 
--spec retrieve_info(pid(), file:filename_all()) -> cuter_analyzer:info() | cuter_error.
-retrieve_info(IServer, DataDir) ->
+-spec retrieve_info(pid(), cuter_scheduler_maxcover:exec_handle(), file:filename_all()) -> cuter_analyzer:info() | cuter_error.
+retrieve_info(IServer, Ref, DataDir) ->
   case wait_for_execution(IServer) of
     {ok, ExStatus, Info} ->
-      cuter_pp:exec_status(ExStatus),
-      cuter_pp:exec_info(Info),
+      cuter_pp:execution_status(Ref, ExStatus),
+      cuter_pp:execution_info(Ref, Info),
       case cuter_analyzer:get_result(ExStatus) of
         internal_error -> cuter_error;
         ExResult ->
@@ -126,11 +127,15 @@ retrieve_info(IServer, DataDir) ->
             stored_mods => cuter_analyzer:get_stored_modules(Info),
             tags_added_no => cuter_analyzer:get_no_of_tags_added(Info)
           },
-          cuter_analyzer:process_raw_execution_info(RawInfo)
+          AnalyzedInfo = cuter_analyzer:process_raw_execution_info(RawInfo),
+          cuter_pp:path_vertex(Ref, maps:get(path_vertex, AnalyzedInfo)),
+          cuter_pp:flush(Ref),
+          AnalyzedInfo
       end;
     {error, Why} ->
       R = {internal_error, iserver, node(), Why},
-      cuter_pp:exec_status(R),
+      cuter_pp:execution_status(Ref, R),
+      cuter_pp:flush(Ref),
       cuter_error
   end.
 

@@ -38,6 +38,7 @@
                   dir => file:filename_all(),
                   tags => visited_tags(),
                   stored_mods => stored_modules(),
+                  path_vertex => path_vertex(),
                   tags_added_no => integer()}.
 
 
@@ -114,7 +115,6 @@ process_raw_execution_info(Info) ->
   cuter_merger:merge_traces(Info, MergedTraceFile),
   cuter_lib:clear_and_delete_dir(maps:get(dir, Info), MergedTraceFile),
   PathVertex = cuter_log:path_vertex(MergedTraceFile),
-  cuter_pp:path_vertex(PathVertex),
   Rvs = cuter_log:locate_reversible(MergedTraceFile),
   RvsCnt = length(Rvs),
 %%  cuter_pp:reversible_operations(RvsCnt),
@@ -126,6 +126,7 @@ process_raw_execution_info(Info) ->
     reversible => Rvs,
     tags => maps:get(tags, Info),
     stored_mods => maps:get(stored_mods, Info),
+    path_vertex => PathVertex,
     tags_added_no => maps:get(tags_added_no, Info)}.
 
 

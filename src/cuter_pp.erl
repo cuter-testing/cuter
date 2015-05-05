@@ -1,17 +1,18 @@
 %% -*- erlang-indent-level: 2 -*-
 %%------------------------------------------------------------------------------
 -module(cuter_pp).
+-behaviour(gen_server).
 
 -include("include/cuter_macros.hrl").
 
--export([ mfa/3
-        , input/1
-        , exec_status/1
-        , exec_info/1
-        , path_vertex/1
-        , reversible_operations/1
-        %% Verbose reporting
-        , error_retrieving_spec/2
+%% gen_server callbacks
+-export([init/1, terminate/2, code_change/3, handle_info/2, handle_call/3, handle_cast/2]).
+-export([start/0, stop/0]).
+
+%% Report information about a given concolic execution.
+-export([mfa/1, input/2, error_retrieving_spec/2, execution_status/2, execution_info/2, path_vertex/2, flush/1]).
+
+-export([ reversible_operations/1
         %% Verbose Scheduling
         , report_erroneous/1
         %% Verbose File/Folder Deletion
@@ -39,8 +40,150 @@
         , open_pending_file/1
        ]).
 
--spec mfa(atom(), atom(), integer()) -> ok.
-mfa(M, F, Ar) -> io:format("Testing ~p:~p/~p ...~n", [M, F, Ar]).
+-record(sts, {
+  super :: pid(),
+  info  :: dict:dict(cuter_scheduler_maxcover:exec_handle(), orddict:orddict())
+}).
+-type state() :: #sts{}.
+
+%% ============================================================================
+%% Eternal API
+%% ============================================================================
+
+%% Starts the server.
+-spec start() -> ok.
+start() ->
+  case gen_server:start({local, ?PRETTY_PRINTER}, ?MODULE, [self()], []) of
+    {ok, _Pid} -> ok;
+    {error, Reason} -> exit({failed_to_start_ppserver, Reason})
+  end.
+
+%% Stops the server.
+-spec stop() -> ok.
+stop() ->
+  gen_server:cast(?PRETTY_PRINTER, {stop, self()}).
+
+%% The MFA that will be tested.
+-spec mfa(mfa()) -> ok.
+mfa(MFA) ->
+  gen_server:call(?PRETTY_PRINTER, {mfa, MFA}).
+
+%% The input that will be tested.
+-spec input(cuter_scheduler_maxcover:exec_handle(), cuter:input()) -> ok.
+input(Ref, As) ->
+  gen_server:call(?PRETTY_PRINTER, {input, Ref, As}).
+
+%% Error while retrieving the spec for the MFA.
+-spec error_retrieving_spec(mfa(), any()) -> ok.
+error_retrieving_spec(MFA, Error) ->
+  gen_server:call(?PRETTY_PRINTER, {error_retrieving_spec, MFA, Error}).
+
+%% The result status of the given concolic execution.
+-spec execution_status(cuter_scheduler_maxcover:exec_handle(), cuter_iserver:execution_status()) -> ok.
+execution_status(Ref, Status) ->
+  gen_server:call(?PRETTY_PRINTER, {execution_status, Ref, Status}).
+
+%% The information of the given concolic execution.
+-spec execution_info(cuter_scheduler_maxcover:exec_handle(), orddict:orddict()) -> ok.
+execution_info(Ref, Info) ->
+  gen_server:call(?PRETTY_PRINTER, {execution_info, Ref, Info}).
+
+%% The path vertex of the given concolic execution.
+-spec path_vertex(cuter_scheduler_maxcover:exec_handle(), cuter_analyzer:path_vertex()) -> ok.
+path_vertex(Ref, Vertex) ->
+  gen_server:call(?PRETTY_PRINTER, {path_vertex, Ref, Vertex}).
+
+%% Display the information of the given concolic execution.
+-spec flush(cuter_scheduler_maxcover:exec_handle()) -> ok.
+flush(Ref) ->
+  gen_server:call(?PRETTY_PRINTER, {flush, Ref}).
+
+%% ============================================================================
+%% gen_server callbacks (Server Implementation)
+%% ============================================================================
+
+%% gen_server callback : init/1
+-spec init([pid(), ...]) -> {ok, state()}.
+init([Super]) ->
+%  process_flag(trap_exit, true),
+  link(Super),
+  {ok, #sts{super = Super, info = dict:new()}}.
+
+%% gen_server callback : terminate/2
+-spec terminate(term(), state()) -> ok.
+terminate(_Reason, _State) ->
+  ok.
+
+%% gen_server callback : code_change/3
+-spec code_change(any(), state(), any()) -> {ok, state()}.
+code_change(_OldVsn, State, _Extra) ->
+  {ok, State}.  %% No change planned.
+
+%% gen_server callback : handle_call/3
+-spec handle_call(any(), {pid(), reference()}, state()) -> {reply, ok, state()}.
+
+
+%% A new input to be tested.
+handle_call({input, Ref, Input}, _From, State=#sts{info = Info}) ->
+  Data = orddict:store(input, Input, orddict:new()),
+  {reply, ok, State#sts{info = dict:store(Ref, Data, Info)}};
+%% The MFA to be tested.
+handle_call({mfa, {M, F, Ar}}, _From, State) ->
+  io:format("Testing ~p:~p/~p ...~n", [M, F, Ar]),
+  {reply, ok, State};
+%% The status of the given concolic execution.
+handle_call({execution_status, Ref, Status}, _From, State=#sts{info = Info}) ->
+  Update = fun(Curr) -> orddict:store(execution_status, Status, Curr) end,
+  {reply, ok, State#sts{info = dict:update(Ref, Update, Info)}};
+%% Error retrieving the spec of the MFA.
+handle_call({error_retrieving_spec, MFA, _Error}, _From, State) ->
+  case get(spec_error) of
+    yes -> {reply, ok, State};
+    undefined ->
+      put(spec_error, yes),
+      io:format("WARNING: ~p does not have a spec or it is not currently supported!~n", [MFA]),
+      {reply, ok, State}
+  end;
+%% The information of the given concolic execution.
+handle_call({execution_info, Ref, ExecInfo}, _From, State=#sts{info = Info}) ->
+  Update = fun(Curr) -> orddict:store(execution_info, ExecInfo, Curr) end,
+  {reply, ok, State#sts{info = dict:update(Ref, Update, Info)}};
+%% The path vertex of the given concolic execution.
+handle_call({path_vertex, Ref, Vertex}, _From, State=#sts{info = Info}) ->
+  Update = fun(Curr) -> orddict:store(path_vertex, Vertex, Curr) end,
+  {reply, ok, State#sts{info = dict:update(Ref, Update, Info)}};
+%% Display the information of the given concolic execution.
+handle_call({flush, Ref}, _From, State=#sts{info = Info}) ->
+  print_execution_info(dict:fetch(Ref, Info)),
+  {reply, ok, State#sts{info = dict:erase(Ref, Info)}}.
+
+
+%% gen_server callback : handle_cast/2
+-spec handle_cast(any(), state()) -> {stop, normal, state()} | {noreply, state()}.
+%% Stops the server.
+handle_cast({stop, FromWho}, State=#sts{super = Super}) ->
+  case FromWho =:= Super of
+    true  -> {stop, normal, State};
+    false -> {noreply, State}
+  end.
+
+%% gen_server callback : handle_info/2
+%% Msg when a monitored process exited normally
+-spec handle_info(any(), state()) -> {noreply, state()}.
+handle_info(_What, State) ->
+  {noreply, State}.
+
+%% ============================================================================
+%% Internal functions
+%% ============================================================================
+
+-spec print_execution_info(orddict:orddict()) -> ok.
+print_execution_info(Info) ->
+  input(orddict:fetch(input, Info)),
+  exec_status(orddict:fetch(execution_status, Info)),
+  exec_info(orddict:fetch(execution_info, Info)),
+  path_vertex(orddict:fetch(path_vertex, Info)).
+
 
 -spec input([any()]) -> ok.
 input(As) when is_list(As) ->
@@ -345,16 +488,4 @@ achieve_goal(_Goal, _NextGoal) -> ok.
 open_pending_file(File) -> io:format("[MERGE] Opening from pending ~p~n", [File]).
 -else.
 open_pending_file(_File) -> ok.
--endif.
-
-%%
-%% Verbose Reporting
-%%
-
-%% Reports an error while retrieving the spec of an MFA.
--spec error_retrieving_spec(mfa(), any()) -> ok.
--ifdef(VERBOSE_REPORTING).
-error_retrieving_spec(MFA, Error) -> io:format("[SPEC] Spec for ~p not found.~n  Error: ~p~n", [MFA, Error]).
--else.
-error_retrieving_spec(MFA, _Error) -> io:format("[SPEC] Spec for ~p not found.~n", [MFA]).
 -endif.

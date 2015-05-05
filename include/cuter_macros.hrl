@@ -61,6 +61,7 @@
 -define(USE_SPECS, ok).
 
 -define(DEFAULT_DEPTH, 25).
+-define(PRETTY_PRINTER, pretty_printer).
 
 %%====================================================================
 %% Solver Responses

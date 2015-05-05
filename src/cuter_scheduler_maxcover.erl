@@ -19,6 +19,8 @@
 
 -include("include/cuter_macros.hrl").
 
+-export_type([exec_handle/0]).
+
 -type item()  :: {boolean(), integer(), cuter_cerl:tagID(), exec_handle()}.
 -type inp_queue_item() :: {integer(), cuter:input()}.
 -type inp_queue() :: queue:queue(inp_queue_item()).
