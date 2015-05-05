@@ -166,9 +166,11 @@ divider(Divider) ->
 
 -spec report_erroneous(cuter:erroneous_inputs()) -> ok.
 report_erroneous([]) ->
+  io:format("~n"),
   divider("-"),
   io:format("NO RUNTIME ERRORS OCCURED~n");
 report_erroneous(Err) ->
+  io:format("~n"),
   divider("-"),
   io:format("INPUTS THAT LEAD TO RUNTIME ERRORS~n"),
   report_erroneous_loop(Err, 1).
