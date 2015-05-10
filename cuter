@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+
+## The arguments are as follows:
+## M=$1
+## F=$2
+## ARGS=$3
+## DEPTH=$4 (optional)
+
+DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+
+if [ $# -ge 3 ]; then
+    export ERL_LIBS=${DIR}:${ERL_LIBS}
+
+    beamfile=$1.beam
+    if [ ! -f $beamfile ]; then
+	echo "File " "$beamfile" " does not exist... creating it"
+	erlc +debug_info $1.erl
+    fi
+
+    if [ "$4" != "" ]; then
+	erl -noshell -eval "cuter:run($1, $2, $3, $4)" -s init stop
+    else
+	erl -noshell -eval "cuter:run($1, $2, $3)" -s init stop
+    fi
+else
+    echo "Usage: cuter M F '[A1,...,An]' Depth"
+fi
