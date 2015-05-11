@@ -173,7 +173,7 @@ handle_call({flush, Ref}, _From, State=#sts{pplevel = PpLevel, info = Info, nl =
   {reply, ok, State#sts{info = dict:erase(Ref, Info), nl = false}};
 %% Print a character to show that solving failed to product an output.
 handle_call(solving_failed_notify, _From, State) ->
-  io:format("."),
+  io:format("x"),
   {reply, ok, State#sts{nl = true}};
 %% Report the errors that were found.
 handle_call({errors_found, Errors}, _From, State=#sts{nl = Nl, mfa = MFA}) ->
@@ -210,7 +210,8 @@ pp_execution_info(Info, MFA, false) ->
   pp_input(orddict:fetch(input, Info), MFA, false),
   pp_execution_status(orddict:fetch(execution_status, Info), false),
   pp_path_vertex(orddict:fetch(path_vertex, Info), false),
-  pp_execution_logs(orddict:fetch(execution_info, Info), false);
+  pp_execution_logs(orddict:fetch(execution_info, Info), false),
+  io:format("~n");
 pp_execution_info(Info, MFA, true) ->
   pp_input(orddict:fetch(input, Info), MFA, true),
   pp_execution_status(orddict:fetch(execution_status, Info), true),
@@ -219,7 +220,7 @@ pp_execution_info(Info, MFA, true) ->
 
 -spec pp_execution_status(cuter_iserver:execution_status(), boolean()) -> ok.
 pp_execution_status({success, _Result}, false) ->
-  io:format("OK");
+  io:format("ok");
 pp_execution_status({runtime_error, _Node, _Pid, _Error}, false) ->
   io:format("RUNTIME ERROR");
 pp_execution_status({internal_error, _Type, _Node, _Why}, false) ->
@@ -245,9 +246,9 @@ pp_input([], {M, F, _}, false) -> io:format("~p:~p()~n", [M, F]);
 pp_input(Input, {M, F, _}, false) ->
   io:format("~p:~p(", [M, F]),
   S = pp_arguments(Input),
-  io:format("~s) ...", [S]),
-  Spaces = 50 - length(S),
-  lists:foreach(fun(_) -> io:format(" ") end, lists:seq(1, Spaces));
+  io:format("~s) ... ", [S]);
+%  Spaces = 50 - length(S),
+%  lists:foreach(fun(_) -> io:format(" ") end, lists:seq(1, Spaces));
 pp_input(Input, _MFA, true) ->
   divider("="),
   io:format("INPUT~n"),
@@ -268,7 +269,7 @@ pp_execution_logs(Info, false) ->
   Unsupported = [orddict:fetch(unsupported_mfas, Ls) || Ls <- CodeLogs],
   case lists:flatten(Unsupported) of
     [] -> ok;
-    MFAs -> io:format("  UNSUPPORTED MFAS: ~p~n", [MFAs])
+    MFAs -> io:format(" Unsupported: ~p", [MFAs])
   end;
 pp_execution_logs(Info, true) ->
   io:format("EXECUTION INFO~n"),
@@ -316,7 +317,7 @@ pp_code_logs([{tags_added_no, N}|Logs]) ->
 
 -spec pp_path_vertex(cuter_analyzer:path_vertex(), boolean()) -> ok.
 pp_path_vertex(Vertex, false) ->
-  io:format("  (# ~w)~n", [length(Vertex)]);
+  io:format(" (#~w)", [length(Vertex)]);
 pp_path_vertex(Vertex, true) ->
   io:format("PATH VERTEX~n"),
   io:format("  ~p (~w)~n", [Vertex, length(Vertex)]).
