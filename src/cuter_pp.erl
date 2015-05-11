@@ -325,13 +325,13 @@ pp_path_vertex(Vertex, true) ->
 pp_erroneous_inputs([]) ->
   io:format("NO RUNTIME ERRORS OCCURED~n");
 pp_erroneous_inputs(Errors) ->
-  io:format("INPUTS THAT LEAD TO RUNTIME ERRORS~n"),
+  io:format("INPUTS THAT LEAD TO RUNTIME ERRORS"),
   pp_erroneous_inputs(Errors, 1).
 
 pp_erroneous_inputs([], _N) ->
   io:format("~n");
 pp_erroneous_inputs([I|Is], N) ->
-  io:format("[#~w]", [N]),
+  io:format("~n#~w:", [N]),
   pp_arguments(I),
   pp_erroneous_inputs(Is, N + 1).
 
