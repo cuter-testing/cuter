@@ -13,7 +13,7 @@
           %% Overriding functions
         , abs/1
         , float/1
-        , atom_to_list/1, list_to_tuple/1, tuple_to_list/1
+        , atom_to_list/1, list_to_tuple/1, tuple_to_list/1, integer_to_list/1
         , 'and'/2, 'andalso'/2, 'not'/1, 'or'/2, 'orelse'/2, 'xor'/2
         , 'div'/2, 'rem'/2
         , element/2, setelement/3
@@ -181,6 +181,36 @@ tuple_to_list(X) when is_tuple(X) -> safe_tuple_to_list(X).
 
 -spec safe_tuple_to_list(tuple()) -> list().
 safe_tuple_to_list(X) -> erlang:tuple_to_list(X).
+
+%%
+%% Simulate erlang:integer_to_list/1
+%%
+
+-spec int_to_char(0..9) -> 48..57.
+int_to_char(0) -> $0;
+int_to_char(1) -> $1;
+int_to_char(2) -> $2;
+int_to_char(3) -> $3;
+int_to_char(4) -> $4;
+int_to_char(5) -> $5;
+int_to_char(6) -> $6;
+int_to_char(7) -> $7;
+int_to_char(8) -> $8;
+int_to_char(9) -> $9.
+
+-spec integer_to_list(integer()) -> list().
+integer_to_list(I) when is_integer(I) ->
+  case ?MODULE:lt_int(I, 0) of
+    true  -> [$- | safe_integer_to_list(-I, [])];
+    false -> safe_integer_to_list(I, [])
+  end.
+
+-spec safe_integer_to_list(non_neg_integer(), list()) -> list().
+safe_integer_to_list(I, Acc) when I < 10 ->
+  [int_to_char(I) | Acc];
+safe_integer_to_list(I, Acc) ->
+  D = int_to_char(I rem 10),
+  safe_integer_to_list(I div 10, [D|Acc]).
 
 %% ----------------------------------------------------------------------------
 %% ARITHMETIC OPERATIONS
