@@ -176,9 +176,9 @@ handle_call(solving_failed_notify, _From, State) ->
   io:format("."),
   {reply, ok, State#sts{nl = true}};
 %% Report the errors that were found.
-handle_call({errors_found, Errors}, _From, State=#sts{nl = Nl}) ->
+handle_call({errors_found, Errors}, _From, State=#sts{nl = Nl, mfa = MFA}) ->
   pp_nl(Nl),
-  pp_erroneous_inputs(Errors),
+  pp_erroneous_inputs(Errors, MFA),
   {reply, ok, State#sts{nl = false}}.
 
 
@@ -321,19 +321,18 @@ pp_path_vertex(Vertex, true) ->
   io:format("PATH VERTEX~n"),
   io:format("  ~p (~w)~n", [Vertex, length(Vertex)]).
 
--spec pp_erroneous_inputs(cuter:erroneous_inputs()) -> ok.
-pp_erroneous_inputs([]) ->
+-spec pp_erroneous_inputs(cuter:erroneous_inputs(), mfa()) -> ok.
+pp_erroneous_inputs([], _MFA) ->
   io:format("NO RUNTIME ERRORS OCCURED~n");
-pp_erroneous_inputs(Errors) ->
+pp_erroneous_inputs(Errors, MFA) ->
   io:format("INPUTS THAT LEAD TO RUNTIME ERRORS"),
-  pp_erroneous_inputs(Errors, 1).
+  pp_erroneous_inputs(Errors, MFA, 1).
 
-pp_erroneous_inputs([], _N) ->
+pp_erroneous_inputs([], _MFA, _N) ->
   io:format("~n");
-pp_erroneous_inputs([I|Is], N) ->
-  io:format("~n#~w:", [N]),
-  pp_arguments(I),
-  pp_erroneous_inputs(Is, N + 1).
+pp_erroneous_inputs([I|Is], {M, F, _}=MFA, N) ->
+  io:format("~n#~w ~p:~p(~s)", [N, M, F, pp_arguments(I)]),
+  pp_erroneous_inputs(Is, MFA, N + 1).
 
 
 %%
