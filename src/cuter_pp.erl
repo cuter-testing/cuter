@@ -45,6 +45,7 @@
   super      :: pid(),
   pplevel    :: map(),
   nl = false :: boolean(),
+  mfa        :: mfa(),
   info       :: dict:dict(cuter_scheduler_maxcover:exec_handle(), orddict:orddict())
 }).
 -type state() :: #sts{}.
@@ -137,13 +138,13 @@ code_change(_OldVsn, State, _Extra) ->
 
 
 %% A new input to be tested.
-handle_call({input, Ref, Input}, _From, State=#sts{info = Info}) ->
+handle_call({input, Ref, Input}, _From, State=#sts{info = Info, pplevel = _PpLevel, mfa = _MFA}) ->
   Data = orddict:store(input, Input, orddict:new()),
   {reply, ok, State#sts{info = dict:store(Ref, Data, Info)}};
 %% The MFA to be tested.
 handle_call({mfa, {M, F, Ar}}, _From, State) ->
   io:format("Testing ~p:~p/~p ...~n", [M, F, Ar]),
-  {reply, ok, State};
+  {reply, ok, State#sts{mfa = {M, F, Ar}}};
 %% The status of the given concolic execution.
 handle_call({execution_status, Ref, Status}, _From, State=#sts{info = Info}) ->
   Update = fun(Curr) -> orddict:store(execution_status, Status, Curr) end,
@@ -166,9 +167,9 @@ handle_call({path_vertex, Ref, Vertex}, _From, State=#sts{info = Info}) ->
   Update = fun(Curr) -> orddict:store(path_vertex, Vertex, Curr) end,
   {reply, ok, State#sts{info = dict:update(Ref, Update, Info)}};
 %% Display the information of the given concolic execution.
-handle_call({flush, Ref}, _From, State=#sts{pplevel = PpLevel, info = Info, nl = Nl}) ->
+handle_call({flush, Ref}, _From, State=#sts{pplevel = PpLevel, info = Info, nl = Nl, mfa = MFA}) ->
   pp_nl(Nl),
-  pp_execution_info(dict:fetch(Ref, Info), maps:get(verbose_execution_info, PpLevel)),
+  pp_execution_info(dict:fetch(Ref, Info), MFA, maps:get(verbose_execution_info, PpLevel)),
   {reply, ok, State#sts{info = dict:erase(Ref, Info), nl = false}};
 %% Print a character to show that solving failed to product an output.
 handle_call(solving_failed_notify, _From, State) ->
@@ -204,14 +205,14 @@ handle_info(_What, State) ->
 pp_nl(true) -> io:format("~n");
 pp_nl(false) -> ok.
 
--spec pp_execution_info(orddict:orddict(), boolean()) -> ok.
-pp_execution_info(Info, false) ->
+-spec pp_execution_info(orddict:orddict(), mfa(), boolean()) -> ok.
+pp_execution_info(Info, MFA, false) ->
+  pp_input(orddict:fetch(input, Info), MFA, false),
   pp_execution_status(orddict:fetch(execution_status, Info), false),
-  pp_input(orddict:fetch(input, Info), false),
   pp_path_vertex(orddict:fetch(path_vertex, Info), false),
   pp_execution_logs(orddict:fetch(execution_info, Info), false);
-pp_execution_info(Info, true) ->
-  pp_input(orddict:fetch(input, Info), true),
+pp_execution_info(Info, MFA, true) ->
+  pp_input(orddict:fetch(input, Info), MFA, true),
   pp_execution_status(orddict:fetch(execution_status, Info), true),
   pp_execution_logs(orddict:fetch(execution_info, Info), true),
   pp_path_vertex(orddict:fetch(path_vertex, Info), true).
@@ -239,20 +240,27 @@ pp_execution_status({internal_error, Type, Node, Why}, true) ->
   io:format("  NODE: ~p~n", [Node]),
   io:format("  REASON: ~p~n", [Why]).
 
--spec pp_input(cuter:input(), boolean()) -> ok.
-pp_input([], false) -> io:format("()~n");
-pp_input(Input, false) -> pp_arguments(Input);
-pp_input(Input, true) ->
+-spec pp_input(cuter:input(), mfa(), boolean()) -> ok.
+pp_input([], {M, F, _}, false) -> io:format("~p:~p()~n", [M, F]);
+pp_input(Input, {M, F, _}, false) ->
+  io:format("~p:~p(", [M, F]),
+  S = pp_arguments(Input),
+  io:format("~s) ...", [S]),
+  Spaces = 50 - length(S),
+  lists:foreach(fun(_) -> io:format(" ") end, lists:seq(1, Spaces));
+pp_input(Input, _MFA, true) ->
   divider("="),
   io:format("INPUT~n"),
-  pp_arguments(Input),
-  io:format("~n").
+  io:format("~s~n", [pp_arguments(Input)]).
 
 pp_arguments([]) ->
-  io:format("()");
+  "()";
 pp_arguments([A|As]) ->
-  io:format("  ~p", [A]),
-  lists:foreach(fun(X) -> io:format(", ~p", [X]) end, As).
+  Xs = lists:foldl(
+        fun(X, Acc) -> [io_lib:format(", ~p", [X]) | Acc] end,
+        io_lib:format("~p", [A]),
+        As),
+  string:join(lists:reverse(Xs), "").
 
 -spec pp_execution_logs(orddict:orddict(), boolean()) -> ok.
 pp_execution_logs(Info, false) ->
