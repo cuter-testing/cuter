@@ -258,7 +258,7 @@ generate_queue_items([R|Rs], Handle, Visited, N, Depth, Acc) ->
 
 -spec maybe_item(cuter_analyzer:reversible_with_tag(), exec_handle(), cuter_analyzer:visited_tags(), integer(), integer()) -> {ok, item()} | false.
 maybe_item({Id, TagID}, Handle, Visited, N, Depth) ->
-  case Id > Depth orelse Id < N of
+  case Id < N of
     true  -> false;
     false -> {ok, {gb_sets:is_element(TagID, Visited), Id, TagID, Handle}}
   end.

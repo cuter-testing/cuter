@@ -95,7 +95,7 @@ store_module(M, Db, TagGen) ->
 get_core_ast(M) ->
   {ok, BeamPath} = mod_beam_path(M),
   {ok, AbstractCode} = extract_abstract_code(M, BeamPath),
-  case compile:forms(AbstractCode, [to_core]) of
+  case compile:forms(AbstractCode, [to_core, {core_transform, cerl_pmatch}]) of
     {ok, M, AST} -> AST;
     {ok, M, AST, _Warns} -> AST;
     Errors -> erlang:throw({compile, Errors})

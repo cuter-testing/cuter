@@ -49,7 +49,8 @@ SRC_MODULES = \
 	cuter_solver \
 	cuter_merger \
 	cuter_types \
-	cuter_minheap
+	cuter_minheap \
+	cerl_pmatch
 
 UTEST_MODULES = \
 	cuter_tests_lib \

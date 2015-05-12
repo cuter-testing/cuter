@@ -492,6 +492,7 @@ eval_expr({c_call, Anno, Mod, Name, Args}, M, Cenv, Senv, Servers, Fd) ->
 eval_expr({c_case, _Anno, Arg, Clauses}, M, Cenv, Senv, Servers, Fd) ->
   {Arg_c, Arg_s} = eval_expr(Arg, M, Cenv, Senv, Servers, Fd),
   {Body, Ce, Se, _Cnt} = find_clause(Clauses, M, 'case', Arg_c, Arg_s, Cenv, Senv, Servers, Fd),
+  cuter_log:reduce_constraint_counter(),  %% Should also add this call to c_receive
   eval_expr(Body, M, Ce, Se, Servers, Fd);
 
 %% c_catch
