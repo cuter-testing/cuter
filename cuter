@@ -13,8 +13,15 @@ if [ $# -ge 3 ]; then
 
     beamfile=$1.beam
     if [ ! -f $beamfile ]; then
-	echo "File " "$beamfile" " does not exist... creating it"
-	erlc +debug_info $1.erl
+	echo -n "File ""$beamfile" "does not exist, "
+        erlfile=$1.erl
+	if [ ! -f $erlfile ]; then
+	    echo "but cannot locate" "$erlfile" "either... exiting"
+	    exit 1
+        fi
+	echo -n "creating it... "
+	erlc +debug_info $erlfile
+	echo "done"
     fi
 
     if [ "$4" != "" ]; then
