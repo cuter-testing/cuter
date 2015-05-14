@@ -103,7 +103,7 @@ set_reporting_level(Options) ->
   Default = #{
     verbose_execution_info => false
   },
-  SetFlags = lists:filter(fun(X) -> maps:is_key(X, Default) end, Options),
+  SetFlags = [Opt || Opt <- Options, maps:is_key(Opt, Default)],
   lists:foldl(fun(X, Acc) -> maps:update(X, true, Acc) end, Default, SetFlags).
 
 %% ------------------------------------------------------------------
@@ -167,7 +167,7 @@ wait_for_execution(IServer) ->
 
 -spec wait_for_iserver(pid()) -> ok | not_ok.
 wait_for_iserver(IServer) ->
-receive {'EXIT', IServer, normal} -> ok
-after 10000 -> not_ok
-end.
+  receive {'EXIT', IServer, normal} -> ok
+  after 10000 -> not_ok
+  end.
 
