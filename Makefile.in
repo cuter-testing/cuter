@@ -96,7 +96,7 @@ utest: $(TARGETS)
 	@(./runtests.py $(EBIN) $(MECK))
 
 dialyzer: $(TARGETS)
-	dialyzer -n -nn -Wunmatched_returns $(EBIN)/*.beam
+	dialyzer -n -nn -Wunmatched_returns -Wunderspecs $(EBIN)/*.beam
 
 -include .depend
 
