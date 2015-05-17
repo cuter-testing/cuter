@@ -183,7 +183,7 @@ handle_call({errors_found, Errors}, _From, State=#sts{nl = Nl, mfa = MFA}) ->
 
 
 %% gen_server callback : handle_cast/2
--spec handle_cast(any(), state()) -> {stop, normal, state()} | {noreply, state()}.
+-spec handle_cast({stop, pid()}, state()) -> {stop, normal, state()} | {noreply, state()}.
 %% Stops the server.
 handle_cast({stop, FromWho}, State=#sts{super = Super}) ->
   case FromWho =:= Super of

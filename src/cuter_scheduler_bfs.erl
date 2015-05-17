@@ -97,7 +97,7 @@ handle_info(Msg, State) ->
 %% handle_call/3
 -spec handle_call({seed_execution, cuter_analyzer:info()}, from(), state()) -> {reply, ok, state()}
                ; (request_input, from(), state()) -> {reply, (empty | {reference(), [any()], cuter_analyzer:stored_modules(), integer()}), state()}
-               ; ({store_execution, reference(), cuter_analyzer:info()}, from(), state()) -> {reply, ok, state}.
+               ; ({store_execution, reference(), cuter_analyzer:info()}, from(), state()) -> {reply, ok, state()}.
 %% Store the information of the first concolic execution
 handle_call({seed_execution, Info}, _From, S=#sts{queue = Q, info = I}) ->
   Rf = make_ref(),

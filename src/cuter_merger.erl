@@ -8,7 +8,9 @@
 
 -export_type([goal/0]).
 
--record(sts, {
+-type goal()  :: {integer(), string()}.
+
+-record(st, {
   currFd       :: file:io_device() | 'undefined',
   openFds      :: ets:tab(),
   pendingFiles :: [file:filename_all()],
@@ -18,10 +20,12 @@
   goalRef      :: goal() | 'none',
   dirs         :: [cuter_analyzer:node_trace()]
 }).
--type state() :: #sts{}.
--type goal()  :: {integer(), string()}.
+-type state()  :: #st{}.
 
--type validation() :: 'ok' | {'error', binary()}.
+-type entry_type() :: ?CONSTRAINT_TRUE | ?CONSTRAINT_FALSE | ?NOT_CONSTRAINT.
+-type data()       :: binary().
+-type entry() :: {entry_type(), cuter_log:opcode(), cuter_cerl:tagID(), data()}.
+-type validation() :: 'ok' | {'error', entry()}.
 -type known_set()  :: gb_sets:set().
 
 %% Merge the traces of an execution into one file.
@@ -42,7 +46,7 @@ initialize(Dirs, {INode, IPid}, MergedLogFile) ->
   ets:insert(Open, {F, Fd}),
   ets:insert(Open, {Fd, F}),
   {ok, LogFd} = cuter_log:open_file(MergedLogFile, write),
-  #sts{
+  #st{
     currFd = Fd,
     openFds = Open,
     pendingFiles = Pending,
@@ -67,7 +71,7 @@ all_logfiles([{_Node, Path}|Rest], Acc) ->
 
 
 -spec merge(state()) -> ok.
-merge(State=#sts{currFd = Fd, logFd = LogFd, openFds = Open, seenRefs = Seen}) ->
+merge(State=#st{currFd = Fd, logFd = LogFd, openFds = Open, seenRefs = Seen}) ->
   case cuter_log:next_entry(Fd, true) of
     %% Reached the end of the file
     eof ->
@@ -75,7 +79,7 @@ merge(State=#sts{currFd = Fd, logFd = LogFd, openFds = Open, seenRefs = Seen}) -
       cuter_pp:file_finished(File),
       ets:delete(Open, Fd),
       ets:delete(Open, File),
-      merge_next_file(State#sts{currFd = undefined});
+      merge_next_file(State#st{currFd = undefined});
     %% SPAWN
     {?NOT_CONSTRAINT, ?OP_SPAWN, _Tag, Data} ->
       {?OP_SPAWN, [_ChildNode, _ChildPid, Rf]} = cuter_json:json_to_command(Data),
@@ -117,7 +121,7 @@ merge(State=#sts{currFd = Fd, logFd = LogFd, openFds = Open, seenRefs = Seen}) -
 %%
 
 -spec achieve_goal(goal(), node(), pid(), state()) -> ok.
-achieve_goal(Goal={OpCode, Rf}, Node, Pid, State=#sts{seenRefs = Seen, dirs = Dirs}) ->
+achieve_goal(Goal={OpCode, Rf}, Node, Pid, State=#st{seenRefs = Seen, dirs = Dirs}) ->
   case ets:lookup(Seen, Rf) of
     %% The goal has already been achieved
     [{Rf, OpCode}] ->
@@ -135,19 +139,19 @@ achieve_goal(Goal={OpCode, Rf}, Node, Pid, State=#sts{seenRefs = Seen, dirs = Di
   end.
 
 -spec achieve_goal_from_file(goal(), file:filename_all(), state()) -> ok.
-achieve_goal_from_file(NewGoal, F, State=#sts{currFd = Fd, openFds = Open, waitingFds = Waiting, pendingFiles = Pending, goalRef = Goal}) ->
+achieve_goal_from_file(NewGoal, F, State=#st{currFd = Fd, openFds = Open, waitingFds = Waiting, pendingFiles = Pending, goalRef = Goal}) ->
   Q = queue:in_r({Goal, Fd}, Waiting),
   case ets:lookup(Open, F) of
     [{F, NextFd}] ->
       cuter_pp:change_to_file(F),
-      merge(State#sts{currFd = NextFd, waitingFds = Q, goalRef = NewGoal});
+      merge(State#st{currFd = NextFd, waitingFds = Q, goalRef = NewGoal});
     [] ->
       {ok, NewFd} = cuter_log:open_file(F, read),
       Fs = Pending -- [F],
       cuter_pp:open_file(F, Fs),
       ets:insert(Open, {F, NewFd}),
       ets:insert(Open, {NewFd, F}),
-      merge(State#sts{currFd = NewFd, waitingFds = Q, pendingFiles = Fs, goalRef = NewGoal})
+      merge(State#st{currFd = NewFd, waitingFds = Q, pendingFiles = Fs, goalRef = NewGoal})
   end.
 
 
@@ -157,17 +161,17 @@ achieve_goal_from_file(NewGoal, F, State=#sts{currFd = Fd, openFds = Open, waiti
 
 -spec check_for_goal(goal(), state()) -> ok.
 %% No goal
-check_for_goal(_Goal, State=#sts{goalRef = none}) ->
+check_for_goal(_Goal, State=#st{goalRef = none}) ->
   merge(State);
 %% Achieved goal
-check_for_goal(Goal, State=#sts{currFd = Fd, waitingFds = Waiting, goalRef = Goal}) ->
+check_for_goal(Goal, State=#st{currFd = Fd, waitingFds = Waiting, goalRef = Goal}) ->
   %% Get the file that set the goal
   {{value, {NextGoal, NextFd}}, Q1} = queue:out(Waiting),
   %% Add the current file to the waiting queue without a goal
   Q2 = queue:in({none, Fd}, Q1),
   %% start merging the next file
   cuter_pp:achieve_goal(Goal, NextGoal),
-  merge(State#sts{currFd = NextFd, waitingFds = Q2, goalRef = NextGoal});
+  merge(State#st{currFd = NextFd, waitingFds = Q2, goalRef = NextGoal});
 %% Did not achieve goal
 check_for_goal(_Goal, State) ->
   merge(State).
@@ -177,7 +181,7 @@ check_for_goal(_Goal, State) ->
 %%
 
 -spec merge_next_file(state()) -> ok.
-merge_next_file(State=#sts{waitingFds = Waiting}) ->
+merge_next_file(State=#st{waitingFds = Waiting}) ->
   case queue:is_empty(Waiting) of
     true  -> merge_next_file_from_pending(State);
     false -> merge_next_file_from_waiting(State)
@@ -185,27 +189,27 @@ merge_next_file(State=#sts{waitingFds = Waiting}) ->
 
 -spec merge_next_file_from_pending(state()) -> ok.
 %% All files are successfully merged
-merge_next_file_from_pending(#sts{openFds = Open, pendingFiles = [], seenRefs = Seen, logFd = LogFd}) ->
+merge_next_file_from_pending(#st{openFds = Open, pendingFiles = [], seenRefs = Seen, logFd = LogFd}) ->
   ets:delete(Open),
   ets:delete(Seen),
   cuter_log:close_file(LogFd);
 %% There are pending files to be merged
-merge_next_file_from_pending(State=#sts{openFds = Open, pendingFiles = [F|Rest]}) ->
+merge_next_file_from_pending(State=#st{openFds = Open, pendingFiles = [F|Rest]}) ->
   cuter_pp:open_pending_file(F),
   {ok, Fd} = cuter_log:open_file(F, read),
   ets:insert(Open, {F, Fd}),
   ets:insert(Open, {Fd, F}),
-  merge(State#sts{currFd = Fd, pendingFiles = Rest}).
+  merge(State#st{currFd = Fd, pendingFiles = Rest}).
 
 -spec merge_next_file_from_waiting(state()) -> ok.
-merge_next_file_from_waiting(State=#sts{openFds = Open, waitingFds = Waiting}) ->
+merge_next_file_from_waiting(State=#st{openFds = Open, waitingFds = Waiting}) ->
   %% expect the next file would not have a goal
   %% if it had one, it would be achieved by the current file
   %% but the current file reached its end
   {{value, {none, Fd}}, Q} = queue:out(Waiting),
   case ets:lookup(Open, Fd) of
-    [] -> merge_next_file(State#sts{waitingFds = Q});
-    _  -> merge(State#sts{currFd = Fd, waitingFds = Q})
+    [] -> merge_next_file(State#st{waitingFds = Q});
+    _  -> merge(State#st{currFd = Fd, waitingFds = Q})
   end.
 
 %%-----------------------------------------------------------------------------
@@ -232,7 +236,7 @@ validate_entries(Fd, Known) ->
       end
   end.
 
--spec validate_entry(integer(), integer(), [any()], known_set()) -> {ok, known_set()} | error.
+-spec validate_entry(entry_type(), cuter_log:opcode(), [any()], known_set()) -> {ok, known_set()} | error.
 validate_entry(?NOT_CONSTRAINT, ?OP_PARAMS, Args, Known) ->
   add_symbolic_vars(Args, Known);
 validate_entry(Kind, _Tp, Args, Known) when Kind =:= ?CONSTRAINT_TRUE; Kind =:= ?CONSTRAINT_FALSE ->
@@ -246,7 +250,7 @@ validate_entry(?NOT_CONSTRAINT, Tp, [A|Args], Known) when Tp =:= ?OP_UNFOLD_TUPL
     error -> error;
     {ok, Known} -> add_symbolic_vars(Args, Known)
   end;
-% BIF operations
+%% BIF operations
 validate_entry(?NOT_CONSTRAINT, _Tp, [T|Ts], Known) ->
   case lookup_symbolic_vars(Ts, Known) of
     error -> error;

@@ -80,7 +80,7 @@ evaluate_mfa(MFA, SAs, Cv, CodeServer, Tag, Fd) ->
       end
   end.
 
--spec evaluate_supported_mfa(mfa(), [maybe_s(any())], cuter_cerl:tag(), file:io_device()) -> maybe_s(any()).
+-spec evaluate_supported_mfa(mfa(), [maybe_s(any())], cuter_cerl:tag(), file:io_device()) -> symbolic().
 evaluate_supported_mfa(MFA, SAs, Tag, Fd) ->
   X = fresh_symbolic_var(),
   cuter_log:log_mfa(Fd, MFA, SAs, X, Tag),
@@ -100,8 +100,8 @@ tpl_to_list(Sv, Ne, Fd) ->
   end.
 
 %% Ensures that a symbolic term is a list of N elements
-%% (Used before evaluating a Cerl function)
--spec ensure_list(maybe_s([any()]), pos_integer(), file:io_device()) -> [maybe_s(any())].
+%% (Used before evaluating a cerl function)
+-spec ensure_list(maybe_s([any()]), non_neg_integer(), file:io_device()) -> [maybe_s(any())].
 ensure_list(SVs, N, Fd) ->
   case is_symbolic(SVs) of
     false -> SVs;
@@ -112,13 +112,15 @@ ensure_list(SVs, N, Fd) ->
 %% (Used when matching lists)
 -spec head(maybe_s([any()]), file:io_device()) -> maybe_s(any()).
 head(Sv, _Fd) when is_list(Sv) -> erlang:hd(Sv);
-head(Sv, Fd) -> evaluate_supported_mfa({erlang, hd, 1}, [Sv], cuter_cerl:empty_tag(), Fd).
+head(Sv, Fd) ->
+  evaluate_supported_mfa({erlang, hd, 1}, [Sv], cuter_cerl:empty_tag(), Fd).
 
 %% Return the tail of a symbolic term that represents a list
 %% (Used when matching lists)
 -spec tail(maybe_s([any()]), file:io_device()) -> maybe_s([any()]).
 tail(Sv, _Fd) when is_list(Sv) -> erlang:tl(Sv);
-tail(Sv, Fd) -> evaluate_supported_mfa({erlang, tl, 1}, [Sv], cuter_cerl:empty_tag(), Fd).
+tail(Sv, Fd) ->
+  evaluate_supported_mfa({erlang, tl, 1}, [Sv], cuter_cerl:empty_tag(), Fd).
 
 %% Returns the cons of two terms. Either can be a symbolic value.
 %% (Used when creating lists).

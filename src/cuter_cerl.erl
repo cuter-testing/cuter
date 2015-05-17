@@ -5,20 +5,21 @@
 %% External exports
 -export([load/3, retrieve_spec/2, get_tags/1, id_of_tag/1, tag_from_id/1, empty_tag/0]).
 
-%% Will be using the records representation of the Core Erlang Abstract Syntax Tree
-%% as they are defined in core_parse.hrl
+%% We are using the records representation of the Core Erlang Abstract
+%% Syntax Tree as they are defined in core_parse.hrl
 -include_lib("compiler/src/core_parse.hrl").
+
 -include("include/cuter_macros.hrl").
 
--export_type([compile_error/0, cerl_spec/0, cerl_func/0, cerl_type/0, cerl_bounded_func/0,
-              tagID/0, tag/0, tag_generator/0]).
+-export_type([compile_error/0, cerl_spec/0, cerl_func/0, cerl_type/0,
+              cerl_bounded_func/0, tagID/0, tag/0, tag_generator/0]).
 
 -type info()          :: anno | attributes | exports | name.
--type compile_error() :: {error, {loaded_ret_atoms() | loaded_ret_atoms(), module()}} 
+-type compile_error() :: {error, {loaded_ret_atoms(), cuter:mod()}}
                        | {runtime_error, {compile, {atom(), term()}}}.
 
 -type tagID() :: integer().
--type tag() :: {?BRANCH_TAG_PREFIX, tagID()}.
+-opaque tag() :: {?BRANCH_TAG_PREFIX, tagID()}.
 -type tag_generator() :: fun(() -> tag()).
 
 -type lineno() :: integer().
@@ -40,7 +41,7 @@
 %%====================================================================
 %% External exports
 %%====================================================================
--spec load(module(), ets:tid(), tag_generator()) -> {ok, module()} | compile_error().
+-spec load(M, ets:tid(), tag_generator()) -> {ok, M} | compile_error() when M :: cuter:mod().
 load(Mod, Db, TagGen) ->
   try store_module(Mod, Db, TagGen) of
     ok -> {ok, Mod}
@@ -80,9 +81,9 @@ locate_spec([_|Attrs], FA) ->
 %% exported             [{M :: module(), Fun :: atom(), Arity :: non_neg_integer()}]  
 %% attributes           Attrs :: [{cerl(), cerl()}]
 %% {M, Fun, Arity}      {Def :: #c_fun{}, Exported :: boolean()}
--spec store_module(module(), ets:tid(), tag_generator()) -> ok.
+-spec store_module(cuter:mod(), ets:tid(), tag_generator()) -> ok.
 store_module(M, Db, TagGen) ->
-  AST = get_core_ast(M),  %% Get the module's Core Erlang AST.
+  AST = get_core_ast(M),
   store_module_info(anno, M, AST, Db),
   store_module_info(name, M, AST, Db),
   store_module_info(exports, M, AST, Db),
@@ -91,7 +92,7 @@ store_module(M, Db, TagGen) ->
   ok.
 
 %% Gets the Core Erlang AST of a module.
--spec get_core_ast(module()) -> cerl:cerl().
+-spec get_core_ast(cuter:mod()) -> cerl:cerl().
 get_core_ast(M) ->
   {ok, BeamPath} = mod_beam_path(M),
   {ok, AbstractCode} = extract_abstract_code(M, BeamPath),
@@ -102,7 +103,7 @@ get_core_ast(M) ->
   end.
   
 %% Gets the path of the module's beam file, if such one exists.
--spec mod_beam_path(module()) -> {ok, file:filename()} | no_return().
+-spec mod_beam_path(cuter:mod()) -> {ok, file:filename()}.
 mod_beam_path(M) ->
   case code:which(M) of
     non_existing   -> erlang:throw(non_existing);
@@ -112,7 +113,7 @@ mod_beam_path(M) ->
   end.
 
 %% Gets the abstract code from a module's beam file, if possible.
--spec extract_abstract_code(module(), file:name()) -> {ok, list()}.
+-spec extract_abstract_code(cuter:mod(), file:name()) -> {ok, list()}.
 extract_abstract_code(Mod, Beam) ->
   case beam_lib:chunks(Beam, [abstract_code]) of
     {error, beam_lib, _} ->
@@ -123,8 +124,8 @@ extract_abstract_code(Mod, Beam) ->
       {ok, AbstractCode}
   end.
 
-%% Store Module Information
--spec store_module_info(info(), module(), cerl:cerl(), ets:tab()) -> ok.
+%% Store module information
+-spec store_module_info(info(), cuter:mod(), cerl:c_module(), ets:tab()) -> ok.
 store_module_info(anno, _M, AST, Db) ->
   Anno = AST#c_module.anno,
   true = ets:insert(Db, {anno, Anno}),
@@ -149,15 +150,15 @@ store_module_info(name, _M, AST, Db) ->
   true = ets:insert(Db, {name, ModName}),
   ok.
 
-%% Store Module exported functions
--spec store_module_funs(module(), cerl:cerl(), ets:tab(), tag_generator()) -> ok.
+%% Store exported functions of a module
+-spec store_module_funs(cuter:mod(), cerl:cerl(), ets:tab(), tag_generator()) -> ok.
 store_module_funs(M, AST, Db, TagGen) ->
   Funs = AST#c_module.defs,
   [{exported, Exps}] = ets:lookup(Db, exported),
   lists:foreach(fun(X) -> store_fun(Exps, M, X, Db, TagGen) end, Funs).
 
-%% Store the AST of a Function
--spec store_fun([atom()], module(), {cerl:c_var(), cerl:c_fun()}, ets:tab(), tag_generator()) -> ok.
+%% Store the AST of a function
+-spec store_fun([atom()], cuter:mod(), {cerl:c_var(), cerl:c_fun()}, ets:tab(), tag_generator()) -> ok.
 store_fun(Exps, M, {Fun, Def}, Db, TagGen) ->
   {FunName, Arity} = Fun#c_var.name,
   MFA = {M, FunName, Arity},
@@ -258,4 +259,5 @@ id_of_tag({?BRANCH_TAG_PREFIX, N}) -> N.
 
 %% Creates an empty tag.
 -spec empty_tag() -> tag().
-empty_tag() -> tag_from_id(?EMPTY_TAG_ID).
+empty_tag() ->
+  tag_from_id(?EMPTY_TAG_ID).

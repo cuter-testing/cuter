@@ -63,7 +63,8 @@ json_to_command(JSON) ->
   As = decode_arguments(Rest, #decoder{}),
   {Op, As}.
 
--spec term_to_json(any()) -> binary().
+-type t() :: atom() | list() | number() | pid() | reference() | tuple().
+-spec term_to_json(t()) -> binary().
 term_to_json(Term) ->
   list_to_binary(json_encode(Term)).
 

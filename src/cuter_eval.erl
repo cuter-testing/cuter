@@ -1352,17 +1352,14 @@ adjust_arguments(slave, F, CAs, SAs, Fd) when F =:= start; F =:= start_link ->
       {[Host, Name, Args ++ Ebin], SAs_e};
     _ -> {CAs, SAs_e} %% Do not the arguments of the other calls
   end;
-
 %% erlang:register/1
 %% Append the unique execution prefix to the registered name
 adjust_arguments(erlang, register, [RegName, PidOrPort], SAs, _Fd) ->
   {[append_execution_prefix(RegName), PidOrPort], SAs};
-
 %% erlang:unregister/1
 %% Append the unique execution prefix to the registered name
 adjust_arguments(erlang, unregister, [RegName], SAs, _Fd) ->
   {[append_execution_prefix(RegName)], SAs};
-
 %% All other functions will have their arguments unaltered
 adjust_arguments(_M, _F, CAs, SAs, _Fd) -> {CAs, SAs}.
 

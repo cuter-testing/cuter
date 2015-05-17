@@ -36,7 +36,7 @@
 %% Return the term in the n-th position of a tuple.
 %%
 
--spec element(integer(), tuple()) -> any().
+-spec element(pos_integer(), tuple()) -> any().
 element(N, T) when is_tuple(T), is_integer(N) ->
   L = erlang:tuple_to_list(T),
   lists:nth(N, L).
@@ -65,7 +65,7 @@ set_nth_element(N, V, [H|T], Curr, Acc) ->
 %% Find the length of a list via iterating over it.
 %%
 
--spec length(list()) -> integer().
+-spec length(list()) -> non_neg_integer().
 length(L) ->
   length(L, 0).
 
@@ -78,7 +78,7 @@ length([_|L], N) -> length(L, N+1).
 %% Find the size of a tuple.
 %%
 
--spec tuple_size(tuple()) -> integer().
+-spec tuple_size(tuple()) -> non_neg_integer().
 tuple_size(T) when is_tuple(T) ->
   ?MODULE:length(erlang:tuple_to_list(T)).
 
@@ -88,9 +88,9 @@ tuple_size(T) when is_tuple(T) ->
 %% Create a tuple with N copies of a term.
 %%
 
--spec make_tuple(integer(), any()) -> tuple().
+-spec make_tuple(non_neg_integer(), any()) -> tuple().
 make_tuple(N, X) when is_integer(N) ->
-  case ?MODULE:lt_int(N, 0) of
+  case lt_int(N, 0) of
     true  -> error(badarg);
     false -> create_tuple(N, X, [])
   end.
@@ -198,14 +198,14 @@ int_to_char(7) -> $7;
 int_to_char(8) -> $8;
 int_to_char(9) -> $9.
 
--spec integer_to_list(integer()) -> list().
+-spec integer_to_list(integer()) -> [45 | 48..57,...].
 integer_to_list(I) when is_integer(I) ->
-  case ?MODULE:lt_int(I, 0) of
+  case lt_int(I, 0) of
     true  -> [$- | safe_integer_to_list(-I, [])];
     false -> safe_integer_to_list(I, [])
   end.
 
--spec safe_integer_to_list(non_neg_integer(), list()) -> list().
+-spec safe_integer_to_list(non_neg_integer(), [48..57]) -> [48..57,...].
 safe_integer_to_list(I, Acc) when I < 10 ->
   [int_to_char(I) | Acc];
 safe_integer_to_list(I, Acc) ->
@@ -223,7 +223,8 @@ safe_integer_to_list(I, Acc) ->
 %%
 
 -spec '+'(number(), number()) -> number().
-'+'(X, Y) when is_number(X), is_number(Y) -> ?MODULE:safe_plus(X, Y).
+'+'(X, Y) when is_number(X), is_number(Y) ->
+  safe_plus(X, Y).
 
 -spec safe_plus(number(), number()) -> number().
 safe_plus(X, Y) -> X + Y.
@@ -235,7 +236,8 @@ safe_plus(X, Y) -> X + Y.
 %%
 
 -spec '-'(number(), number()) -> number().
-'-'(X, Y) when is_number(X), is_number(Y) -> ?MODULE:safe_minus(X, Y).
+'-'(X, Y) when is_number(X), is_number(Y) ->
+  safe_minus(X, Y).
 
 -spec safe_minus(number(), number()) -> number().
 safe_minus(X, Y) -> X - Y.
@@ -247,7 +249,8 @@ safe_minus(X, Y) -> X - Y.
 %%
 
 -spec '*'(number(), number()) -> number().
-'*'(X, Y) when is_number(X), is_number(Y) -> ?MODULE:safe_times(X, Y).
+'*'(X, Y) when is_number(X), is_number(Y) ->
+  safe_times(X, Y).
 
 -spec safe_times(number(), number()) -> number().
 safe_times(X, Y) -> X * Y.
@@ -259,10 +262,11 @@ safe_times(X, Y) -> X * Y.
 %% is not zero.
 %%
 
--spec '/'(number(), number()) -> number().
-'/'(X, Y) when is_number(X), is_number(Y), Y /= 0 -> ?MODULE:safe_rdiv(X, Y).
+-spec '/'(number(), number()) -> float().
+'/'(X, Y) when is_number(X), is_number(Y), Y /= 0 ->
+  safe_rdiv(X, Y).
 
--spec safe_rdiv(number(), number()) -> number().
+-spec safe_rdiv(number(), number()) -> float().
 safe_rdiv(X, Y) -> X / Y.
 
 %%
@@ -274,12 +278,12 @@ safe_rdiv(X, Y) -> X / Y.
 -spec abs(integer()) -> integer()
        ; (float()) -> float().
 abs(X) when is_integer(X) ->
-  case ?MODULE:lt_int(X, 0) of
+  case lt_int(X, 0) of
     false -> X;
     true  -> -X
   end;
 abs(X) when is_float(X) ->
-  case ?MODULE:lt_float(X, 0.0) of
+  case lt_float(X, 0.0) of
     false -> X;
     true  -> -X
   end.
@@ -546,7 +550,8 @@ lt_float(X, Y) -> X < Y.
 
 %% Used to wrap a call to erlang'<'/2 when the solver cannot 'understand' the
 %% left operand. i.e. when it's a term like reference, fun, pid etc.
--spec unsupported_lt(reference() | function() | port() | pid() | map() | bitstring(), any()) -> boolean().
+-type ut() :: reference() | function() | port() | pid() | map() | bitstring().
+-spec unsupported_lt(ut(), any()) -> boolean().
 unsupported_lt(X, Y) -> X < Y.
 
 -spec lt_atom(string(), string()) -> boolean().
@@ -583,7 +588,9 @@ lt_list([X|Xs], [Y|Ys]) ->
     false -> ?MODULE:'<'(X, Y)
   end.
 
--spec '<'(any(), any()) -> boolean().
+-type t() :: atom() | bitstring() | function() | map() | maybe_improper_list()
+           | number() | pid() | port() | reference()| tuple().
+-spec '<'(t(), any()) -> boolean().
 %% Left operand is a number.
 %% Comparing integers and floats will convert the term with the lesser
 %% precision into the other term's type before the comparison.
@@ -743,7 +750,7 @@ lt_list([X|Xs], [Y|Ys]) ->
 %% Simulate erlang'>='/2
 %%
 
--spec '>='(any(), any()) -> boolean().
+-spec '>='(t(), any()) -> boolean().
 '>='(X, Y) ->
   ?MODULE:'not'(?MODULE:'<'(X, Y)).
 

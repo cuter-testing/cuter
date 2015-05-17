@@ -66,18 +66,20 @@
 %% fsm state datatype
 -record(fsm_state, {
   super         :: pid(),
-  from = null   :: (from() | null),
-  port = null   :: (port() | null),
+  from = null   :: from() | null,
+  port = null   :: port() | null,
   sol = #{}     :: model(),
-  var = null    :: (cuter_symbolic:symbolic() | null)
+  var = null    :: cuter_symbolic:symbolic() | null
 }).
 -type fsm_state() :: #fsm_state{}.
+
+-type mappings() :: [cuter_symbolic:mapping()].
 
 %% ----------------------------------------------------------------------------
 %% Query the Z3 SMT Solver
 %% ----------------------------------------------------------------------------
 
--spec solve(string(), [cuter_symbolic:mapping()], file:name(), integer()) -> solver_result().
+-spec solve(string(), mappings(), file:name(), integer()) -> solver_result().
 solve(Python, Mappings, File, N) ->
   FSM = start(),
   ok = exec(FSM, Python),
@@ -86,7 +88,7 @@ solve(Python, Mappings, File, N) ->
   query_solver(FSM, Mappings, Setting).
 
 
--spec query_solver(pid(), [cuter_symbolic:mapping()], bitstring()) -> solver_result().
+-spec query_solver(pid(), mappings(), bitstring()) -> solver_result().
 query_solver(FSM, Mappings, CurrSetting) ->
   ok = add_axioms(FSM),
   load_setting(CurrSetting, Mappings, FSM),
@@ -98,7 +100,7 @@ query_solver(FSM, Mappings, CurrSetting) ->
       query_with_new_setting(NextSetting, FSM, Mappings)
   end.
 
--spec get_solution(pid(), [cuter_symbolic:mapping()]) -> solver_result().
+-spec get_solution(pid(), mappings()) -> solver_result().
 get_solution(FSM, Mappings) ->
   M = get_model(FSM),
   ok = stop_exec(FSM),
@@ -113,8 +115,8 @@ wait_for_fsm(FSM, Ret) ->
     Ret
   end.
 
--spec query_with_new_setting(error, pid(), [cuter_symbolic:mapping()]) -> error
-                          ; ({ok, simplifier_conf()}, pid(), [cuter_symbolic:mapping()]) -> solver_result().
+-spec query_with_new_setting(error, pid(), mappings()) -> error
+                          ; ({ok, simplifier_conf()}, pid(), mappings()) -> solver_result().
 query_with_new_setting(error, FSM, _Mappings) ->
   ok = stop_exec(FSM),
   wait_for_fsm(FSM, error);
@@ -138,11 +140,11 @@ lookup_in_model(Var, Model) ->
 
 %% The initial setting.
 %% Do not fix any variable.
--spec initial_setting(integer()) -> simplifier_conf().
+-spec initial_setting(non_neg_integer()) -> simplifier_conf().
 initial_setting(N) -> <<0:N>>.
 
 %% Generate the next setting if possible.
--spec generate_next_setting(simplifier_conf(), integer()) -> {ok, simplifier_conf()} | error.
+-spec generate_next_setting(simplifier_conf(), non_neg_integer()) -> {ok, simplifier_conf()} | error.
 generate_next_setting(Setting, N) ->
   Next = next_setting(Setting, N),
   case is_limit_setting(Next, N) of
@@ -153,7 +155,7 @@ generate_next_setting(Setting, N) ->
 %% Actually generate the next setting.
 %% The current strategy is to have at most one variable fixed,
 %% so we just apply a left bit shift to the setting.
--spec next_setting(simplifier_conf(), integer()) -> simplifier_conf().
+-spec next_setting(simplifier_conf(), non_neg_integer()) -> simplifier_conf().
 next_setting(Setting, N) ->
   case Setting of
     <<0:N>> -> <<1:N>>;
@@ -163,7 +165,7 @@ next_setting(Setting, N) ->
 %% Check if we have generated all the available settings.
 %% For our current strategy, the end is when we have performed
 %% N left bit shifts, where N is the length of the bitstring.
--spec is_limit_setting(simplifier_conf(), integer()) -> boolean().
+-spec is_limit_setting(simplifier_conf(), non_neg_integer()) -> boolean().
 is_limit_setting(Setting, N) ->
   Max = << <<1:1>> || _ <- lists:seq(1,N) >>,
   Overflow = <<0:N>>,
@@ -174,7 +176,7 @@ is_limit_setting(Setting, N) ->
   end.
 
 %% Load the current setting to the solver.
--spec load_setting(simplifier_conf(), [cuter_symbolic:mapping()], pid()) -> ok.
+-spec load_setting(simplifier_conf(), mappings(), pid()) -> ok.
 load_setting(<<>>, [], _FSM) ->
   ok;
 load_setting(<<F:1, Rest/bitstring>>, [M|Ms], FSM) ->
@@ -225,7 +227,7 @@ check_model(Pid) ->
   gen_fsm:sync_send_event(Pid, check_model, 500000).
 
 %% Get the instance of the sat model
--spec get_model(pid()) -> [cuter_symbolic:mapping()].
+-spec get_model(pid()) -> mappings().
 get_model(Pid) ->
   gen_fsm:sync_send_event(Pid, get_model, 500000).
 
@@ -352,7 +354,7 @@ handle_info(Info, _StateName, Data) ->
 idle(Event, Data) ->
   {stop, {unexpected_event, Event}, Data}.
 
--spec idle(any(), from(), fsm_state()) -> {reply, ok, waiting, fsm_state()} | err_sync().
+-spec idle(any(), from(), fsm_state()) -> {reply, ok, python_started, fsm_state()} | err_sync().
 %% Open a port by executing an external program
 idle({exec, Command}, _From, Data) ->
   Port = open_port({spawn, Command}, [{packet, 2}, binary, hide]),

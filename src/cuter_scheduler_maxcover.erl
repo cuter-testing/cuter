@@ -21,19 +21,21 @@
 
 -export_type([exec_handle/0]).
 
--type item()  :: {boolean(), integer(), cuter_cerl:tagID(), exec_handle()}.
+-type item() :: {boolean(), integer(), cuter_cerl:tagID(), exec_handle()}.
 -type inp_queue_item() :: {integer(), cuter:input()}.
 -type inp_queue() :: queue:queue(inp_queue_item()).
--type exec_handle() :: string().
--type exec_info() :: dict:dict(exec_handle(), #{ traceFile => file:name()
-                                               , dataDir => file:filename_all()
-                                               , mappings => [cuter_symbolic:mapping()]
-                                               , input => undefined}).  %% TODO Populate this field
+-type exec_handle() :: nonempty_string().
+-type exec_info() :: #{ traceFile => file:name()
+		      , dataDir => file:filename_all()
+		      , mappings => [cuter_symbolic:mapping()]
+		      , input => undefined}.  %% TODO Populate this field
+-type exec_info_tab() :: dict:dict(exec_handle(), exec_info()).
+
 %% gen_server state datatype
 -record(sts, {
     tags_queue         :: cuter_minheap:minheap()
   , inputs_queue       :: inp_queue()
-  , info               :: exec_info()
+  , info_tab           :: exec_info_tab()
   , python             :: string()
   , depth              :: integer()
   , stored_mods        :: cuter_analyzer:stored_modules()
@@ -52,7 +54,7 @@
 %% ============================================================================
 
 %% Start the Scheduler
--spec start(string(), integer(), [cuter:input()]) -> pid().
+-spec start(string(), integer(), cuter:input()) -> pid().
 start(Python, Depth, SeedInput) ->
   case gen_server:start_link(?MODULE, [Python, Depth, SeedInput], []) of
     {ok, Scheduler} -> Scheduler;
@@ -84,7 +86,7 @@ init([Python, Depth, SeedInput]) ->
   _ = set_execution_counter(0),
   TagsQueue = cuter_minheap:new(fun erlang:'<'/2),
   InpQueue = queue:in({1, SeedInput}, queue:new()),
-  {ok, #sts{info = dict:new(), python = Python, depth = Depth, visited_tags = gb_sets:new(),
+  {ok, #sts{info_tab = dict:new(), python = Python, depth = Depth, visited_tags = gb_sets:new(),
             stored_mods = orddict:new(), running = dict:new(), first_operation = dict:new(),
             erroneous = [], inputs_queue = InpQueue, tags_queue = TagsQueue}}.
 
@@ -109,11 +111,11 @@ handle_info(Msg, State) ->
 
 %% handle_call/3
 -spec handle_call(request_input, from(), state()) -> {reply, (empty | {exec_handle(), cuter:input(), cuter_analyzer:stored_modules(), integer()}), state()}
-               ; ({store_execution, exec_handle(), cuter_analyzer:info()}, from(), state()) -> {reply, ok, state}
+               ; ({store_execution, exec_handle(), cuter_analyzer:info()}, from(), state()) -> {reply, ok, state()}
                ; (stop, from(), state()) -> {stop, normal, cuter:erroneous_inputs(), state()}.
 
 %% Ask for a new input to execute
-handle_call(request_input, _From, S=#sts{tags_queue = TQ, info = AllInfo, python = P, stored_mods = SMs, visited_tags = Vs, tags_added_no = TagsN,
+handle_call(request_input, _From, S=#sts{tags_queue = TQ, info_tab = AllInfo, python = P, stored_mods = SMs, visited_tags = Vs, tags_added_no = TagsN,
                                          running = Rn, first_operation = FOp, inputs_queue = IQ}) ->
   case find_new_input(TQ, IQ, P, AllInfo, Vs) of
     empty -> {reply, empty, S};
@@ -124,7 +126,7 @@ handle_call(request_input, _From, S=#sts{tags_queue = TQ, info = AllInfo, python
   end;
 
 %% Store the information of a concolic execution
-handle_call({store_execution, Handle, Info}, _From, S=#sts{tags_queue = TQ, info = AllInfo, stored_mods = SMs, visited_tags = Vs, depth = Depth,
+handle_call({store_execution, Handle, Info}, _From, S=#sts{tags_queue = TQ, info_tab = AllInfo, stored_mods = SMs, visited_tags = Vs, depth = Depth,
                                                            running = Rn, first_operation = FOp, erroneous = Err}) ->
   %% Generate the information of the execution
   I = #{ traceFile => maps:get(traceFile, Info)
@@ -142,7 +144,7 @@ handle_call({store_execution, Handle, Info}, _From, S=#sts{tags_queue = TQ, info
   Rvs = maps:get(reversible, Info),
   Items = generate_queue_items(Rvs, Handle, Visited, N, Depth),
   lists:foreach(fun(Item) -> cuter_minheap:insert(Item, TQ) end, Items),
-  {reply, ok, S#sts{ info = dict:store(Handle, I, AllInfo)
+  {reply, ok, S#sts{ info_tab = dict:store(Handle, I, AllInfo)
                    , stored_mods = StoredMods
                    , tags_added_no = maps:get(tags_added_no, Info)  %% Number of added tags
                    , visited_tags = Visited
@@ -166,7 +168,7 @@ handle_cast(Msg, State) ->
 %% Generate new input
 %% ============================================================================
 
--spec find_new_input(cuter_minheap:minheap(), inp_queue(), string(), exec_info(), cuter_analyzer:visited_tags()) ->
+-spec find_new_input(cuter_minheap:minheap(), inp_queue(), string(), exec_info_tab(), cuter_analyzer:visited_tags()) ->
         {ok, exec_handle(), cuter:input(), integer(), inp_queue()} | empty.
 find_new_input(TagsQueue, InpQueue, Python, Info, Visited) ->
   case queue:out(InpQueue) of
@@ -182,7 +184,7 @@ find_new_input(TagsQueue, InpQueue, Python, Info, Visited) ->
       end
   end.
 
--spec generate_new_input(cuter_minheap:minheap(), string(), exec_info(), cuter_analyzer:visited_tags()) ->
+-spec generate_new_input(cuter_minheap:minheap(), string(), exec_info_tab(), cuter_analyzer:visited_tags()) ->
         {ok, exec_handle(), cuter:input(), integer()} | empty.
 generate_new_input(Queue, Python, Info, Visited) ->
   case locate_next_reversible(Queue, Visited) of
@@ -191,7 +193,7 @@ generate_new_input(Queue, Python, Info, Visited) ->
       I = dict:fetch(Handle, Info),
       File = maps:get(traceFile, I),
       Ms = maps:get(mappings, I),
-%      io:format("[sched] Attempting ~w in ~p~n", [N, File]),
+      %% io:format("[sched] Attempting ~w in ~p~n", [N, File]),
       case cuter_solver:solve(Python, Ms, File, N) of
         error ->
           cuter_pp:solving_failed_notify(),

@@ -30,7 +30,7 @@
 -export_type([opcode/0]).
 
 -type mode()   :: read | write.
--type opcode() :: integer().
+-type opcode() :: byte().
 -type entry_type() :: ?CONSTRAINT_TRUE | ?CONSTRAINT_FALSE | ?NOT_CONSTRAINT.
 
 %% Opens a file for logging or reading terms
@@ -229,7 +229,7 @@ entry_type(_) -> ?NOT_CONSTRAINT.
 
 %% Reduce the contraint counter by one every time
 %% a constraint is logged.
--spec update_constraint_counter(entry_type(), integer()) -> ok.
+-spec update_constraint_counter(entry_type(), pos_integer()) -> ok.
 update_constraint_counter(Type, N) when Type =:= ?CONSTRAINT_TRUE; Type =:= ?CONSTRAINT_FALSE ->
   _ = put(?DEPTH_PREFIX, N-1), ok;
 update_constraint_counter(_Type, _ok) -> ok.
@@ -278,7 +278,7 @@ locate_reversible(File) ->
   {ok, Fd} = open_file(File, read),
   locate_reversible(Fd, 0, []).
 
--spec locate_reversible(file:io_device(), integer(), cuter_analyzer:reversible_with_tags()) -> cuter_analyzer:reversible_with_tags().
+-spec locate_reversible(file:io_device(), non_neg_integer(), cuter_analyzer:reversible_with_tags()) -> cuter_analyzer:reversible_with_tags().
 locate_reversible(Fd, N, Acc) ->
   N1 = N + 1,
   case next_entry(Fd, false) of

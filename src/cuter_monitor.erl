@@ -139,7 +139,7 @@ code_change(_OldVsn, State, _Extra) ->
   {ok, State}.  %% No change planned.
 
 %% gen_server callback : handle_call/3
--spec handle_call({subscribe, pid()}, {pid(), any()}, state()) -> {reply, {ok, file:io_device(), pos_integer(), nonempty_string()}, state()}
+-spec handle_call({subscribe, pid()}, {pid(), any()}, state()) -> {reply, {ok, file:filename_all(), pos_integer(), nonempty_string()}, state()}
                ; ({is_monitored, pid()}, {pid(), any()}, state()) -> {reply, boolean(), state()}
                ; ({get_fd, pid()}, {pid(), any()}, state()) -> {reply, {ok, file:io_device()}, state()}
                ; ({node_servers, node()}, {pid(), any()}, state()) -> {reply, {ok, (servers() | error)}, state()}.

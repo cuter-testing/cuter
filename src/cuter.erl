@@ -4,12 +4,19 @@
 
 -export([run/3, run/4, run/5, run_once/4, run_once/5]).
 
--export_type([input/0, erroneous_inputs/0]).
+-export_type([mod/0, input/0, erroneous_inputs/0]).
 
 -include("include/cuter_macros.hrl").
 
--type loop_limit() :: integer() | inf.
--type configuration() :: #{mod => module(),
+-type mod() :: atom().  % a subtype of module()
+-type input() :: [term()].
+-type erroneous_inputs() :: [input()].
+
+-define(ZERO, 0).
+-define(ONE,  1).
+-type loop_limit() :: ?ZERO | ?ONE | inf.
+
+-type configuration() :: #{mod => mod(),
                            func => atom(),
                            dataDir => file:filename(),
                            depth => pos_integer(),
@@ -21,58 +28,57 @@
 -type option() :: {basedir, file:filename()}
                 | verbose_execution_info.
 
--type input() :: [any()].
--type erroneous_inputs() :: [input()].
 
-
--spec run_once(module(), atom(), input(), pos_integer()) -> erroneous_inputs().
+-spec run_once(mod(), atom(), input(), pos_integer()) -> erroneous_inputs().
 run_once(M, F, As, Depth) ->
   run_once(M, F, As, Depth, []).
 
--spec run_once(module(), atom(), input(), pos_integer(), [option()]) -> erroneous_inputs().
+-spec run_once(mod(), atom(), input(), pos_integer(), [option()]) -> erroneous_inputs().
 run_once(M, F, As, Depth, Options) ->
   Conf = initialize_app(M, F, As, Depth, Options),
-  loop(Conf, 1).
+  loop(Conf, ?ONE).
 
--spec run(module(), atom(), input()) -> erroneous_inputs().
+-spec run(mod(), atom(), input()) -> erroneous_inputs().
 run(M, F, As) ->
   run(M, F, As, ?DEFAULT_DEPTH).
 
--spec run(module(), atom(), input(), pos_integer()) -> erroneous_inputs().
+-spec run(mod(), atom(), input(), pos_integer()) -> erroneous_inputs().
 run(M, F, As, Depth) ->
   run(M, F, As, Depth, []).
 
--spec run(module(), atom(), input(), pos_integer(), [option()]) -> erroneous_inputs().
+-spec run(mod(), atom(), input(), pos_integer(), [option()]) -> erroneous_inputs().
 run(M, F, As, Depth, Options) ->
   Conf = initialize_app(M, F, As, Depth, Options),
   loop(Conf, inf).
 
 -spec loop(configuration(), loop_limit()) -> erroneous_inputs().
-loop(Conf, 0) -> stop(Conf);
+loop(Conf, ?ZERO) -> stop(Conf);
 loop(Conf, Lmt) ->
-  case cuter_scheduler_maxcover:request_input(maps:get(scheduler, Conf)) of
+  Scheduler = maps:get(scheduler, Conf),
+  case cuter_scheduler_maxcover:request_input(Scheduler) of
     empty -> stop(Conf);
     {Ref, As, StoredMods, TagsN} ->
       No = maps:get(no, Conf) + 1,
       Conf_n = Conf#{no := No, stored_mods := StoredMods, tags_added_no := TagsN},
       case concolic_execute(Conf_n, Ref, As) of
         cuter_error ->
-          stop(Conf);
+          stop(Conf_n);
         Info ->
-          ok = cuter_scheduler_maxcover:store_execution(maps:get(scheduler, Conf), Ref, Info),
+          ok = cuter_scheduler_maxcover:store_execution(Scheduler, Ref, Info),
           loop(Conf_n, tick(Lmt))
       end
   end.
 
--spec tick(loop_limit()) -> loop_limit().
+-spec tick(inf) -> inf
+       ; (?ONE) -> ?ZERO.
 tick(inf) -> inf;
-tick(N) when is_integer(N) -> N - 1.
+tick(?ONE) -> ?ZERO.
 
--spec initialize_app(module(), atom(), input(), pos_integer(), [option()]) -> configuration().
+-spec initialize_app(mod(), atom(), input(), pos_integer(), [option()]) -> configuration().
 initialize_app(M, F, As, Depth, Options) ->
   BaseDir = set_basedir(Options),
   process_flag(trap_exit, true),
-  error_logger:tty(false),  %% Disable error_logger
+  error_logger:tty(false),  %% disable error_logger
   SchedPid = cuter_scheduler_maxcover:start(?PYTHON_CALL, Depth, As),
   ok = cuter_pp:start(set_reporting_level(Options)),
   cuter_pp:mfa({M, F, length(As)}),
