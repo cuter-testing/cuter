@@ -35,8 +35,8 @@
   db                             :: ets:tab(),
   waiting = orddict:new()        :: [{{atom(), tuple()}, pid()}],
   workers = []                   :: [pid()],
-  unsupported_mfas = sets:new()  :: sets:set(),
-  tags = gb_sets:new()           :: gb_sets:set()
+  unsupported_mfas = sets:new()  :: sets:set(mfa()),
+  tags = gb_sets:new()           :: gb_sets:set(cuter_cerl:tagID())
 }).
 -type state() :: #state{}.
 

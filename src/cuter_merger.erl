@@ -14,7 +14,7 @@
   currFd       :: file:io_device() | 'undefined',
   openFds      :: ets:tab(),
   pendingFiles :: [file:filename_all()],
-  waitingFds   :: queue:queue(),
+  waitingFds   :: queue:queue({goal(), file:io_device()}),
   logFd        :: file:io_device(),
   seenRefs     :: ets:tab(),
   goalRef      :: goal() | 'none',
@@ -26,7 +26,7 @@
 -type data()       :: binary().
 -type entry() :: {entry_type(), cuter_log:opcode(), cuter_cerl:tagID(), data()}.
 -type validation() :: 'ok' | {'error', entry()}.
--type known_set()  :: gb_sets:set().
+-type known_set()  :: gb_sets:set(cuter_symbolic:symbolic()).
 
 %% Merge the traces of an execution into one file.
 -spec merge_traces(cuter_analyzer:raw_info(), file:name()) -> ok.
