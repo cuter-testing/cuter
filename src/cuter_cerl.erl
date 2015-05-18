@@ -12,7 +12,8 @@
 -include("include/cuter_macros.hrl").
 
 -export_type([compile_error/0, cerl_spec/0, cerl_func/0, cerl_type/0,
-              cerl_bounded_func/0, tagID/0, tag/0, tag_generator/0]).
+              cerl_bounded_func/0, tagID/0, tag/0, tag_generator/0,
+              cerl_attr_type/0, cerl_recdef/0, cerl_typedef/0, cerl_record_field/0, cerl_type_record_field/0]).
 
 -type info()          :: anno | attributes | exports | name.
 -type code_error()    :: {error, {loaded_ret_atoms(), cuter:mod()}}.
@@ -25,20 +26,84 @@
 -type tag_generator() :: fun(() -> tag()).
 
 -type lineno() :: integer().
--type cerl_attr() :: {cerl:c_literal(), cerl:c_literal()}.
--type cerl_func() :: {type, lineno(), 'fun', [cerl_product() | cerl_type()]}.
--type cerl_bounded_func() :: {type, lineno(), bounded_fun, [cerl_func() | cerl_constraint()]}.
--type cerl_constraint() :: {type, lineno(), constraint, [{atom, lineno(), is_subtype} | [atom() | cerl_type()]]}.
+-type name() :: atom().
+-type cerl_attr() :: {#c_literal{val :: 'type'}, #c_literal{val :: cerl_attr_type()}}
+                   | {#c_literal{val :: 'spec'}, #c_literal{val :: cerl_attr_spec()}}.
+-type cerl_attr_type() :: cerl_recdef() | cerl_typedef().
+-type cerl_attr_spec() :: cerl_specdef().
+
+-type cerl_recdef() :: {{'record', name()}, [cerl_record_field()], []}.
+-type cerl_record_field() :: cerl_untyped_record_field() | cerl_typed_record_field().
+-type cerl_untyped_record_field() :: {'record_field', lineno(), name()}
+                                   | {'record_field', lineno(), name(), any()}.
+-type cerl_typed_record_field() :: {'typed_record_field', cerl_untyped_record_field(), cerl_type()}.
+-type cerl_typedef() :: {name(), cerl_type(), [cerl:c_var()]}.
+
+-type cerl_specdef() :: {name(), byte(), cerl_spec()}.
 -type cerl_spec() :: [cerl_func() | cerl_bounded_func(), ...].
 
--type cerl_product() :: {type, lineno(), product, [cerl_type()]}.
--type cerl_base_type() :: nil | any | term | boolean | integer | float.
--type cerl_type() :: {atom, lineno(), atom()}
-                   | {integer, lineno(), integer()}
-                   | {type, lineno(), cerl_base_type(), []}
-                   | {type, lineno(), list, [cerl_type()]}
-                   | {type, lineno(), tuple, any | [cerl_type()]}
-                   | {type, lineno(), union, [cerl_type()]}.
+-type cerl_bounded_func() :: {'type', lineno(), 'bounded_fun', [cerl_func() | cerl_constraint()]}.
+-type cerl_func() :: {'type', lineno(), 'fun', [cerl_product() | cerl_type()]}.
+-type cerl_constraint() :: {'type', lineno(), 'constraint', [{atom, lineno(), 'is_subtype'} | [atom() | cerl_type()]]}.
+-type cerl_product() :: {'type', lineno(), product, [cerl_type()]}.
+
+-type cerl_type() :: cerl_type_nil()
+                   | cerl_type_any()
+                   | cerl_type_integer()
+                   | cerl_type_float()
+                   | cerl_type_boolean()
+                   | cerl_type_atom()
+                   | cerl_type_module()
+                   | cerl_type_number()
+                   | cerl_type_char()
+                   | cerl_type_byte()
+                   | cerl_type_binary()
+                   | cerl_type_bitstring()
+                   | cerl_type_string()
+                   | cerl_type_tuple()
+                   | cerl_type_literal()
+                   | cerl_type_list()
+                   | cerl_type_nonempty_list()
+                   | cerl_type_union()
+                   | cerl_type_range()
+                   | cerl_type_ann()
+                   | cerl_type_paren()
+                   | cerl_type_remote()
+                   | cerl_type_record()
+                   | cerl_type_local()
+                   | cerl_type_var()
+                   .
+
+
+-type cerl_type_nil() :: {'type', lineno(), 'nil', []}.
+-type cerl_type_any() :: {'type', lineno(), 'any' | 'term', []}.
+-type cerl_type_integer() :: {'type', lineno(), 'integer' | 'pos_integer' | 'non_neg_integer' | 'neg_integer', []}.
+-type cerl_type_float() :: {'type', lineno(), 'float', []}.
+-type cerl_type_boolean() :: {'type', lineno(), 'boolean', []}.
+-type cerl_type_atom() :: {'type', lineno(), 'atom', []}.
+-type cerl_type_module() :: {'type', lineno(), 'module', []}.
+-type cerl_type_number() :: {'type', lineno(), 'number', []}.
+-type cerl_type_char() :: {'type', lineno(), 'char', []}.
+-type cerl_type_byte() :: {'type', lineno(), 'byte', []}.
+-type cerl_type_binary() :: {'type', lineno(), 'binary', []}.
+-type cerl_type_bitstring() :: {'type', lineno(), 'bitstring', []}.
+-type cerl_type_string() :: {'type', lineno(), 'string', []}.
+-type cerl_type_tuple() :: {'type', lineno(), 'tuple', 'any' | [cerl_type(), ...]}.
+-type cerl_type_literal() :: cerl_type_literal_atom() | cerl_type_literal_integer().
+-type cerl_type_literal_atom() :: {'atom', lineno(), atom()}.
+-type cerl_type_literal_integer() :: {'integer', lineno(), integer()}.
+-type cerl_type_list() :: {'type', lineno(), 'list', [cerl_type()]}.
+-type cerl_type_nonempty_list() :: {'type', lineno(), 'nonempty_list', [cerl_type()]}.
+-type cerl_type_union() :: {'type', lineno(), 'union', [cerl_type()]}.
+-type cerl_type_range() :: {'type', lineno(), 'range', [cerl_type_literal_integer()]}.
+-type cerl_type_ann() :: {'ann_type', lineno(), [cerl:c_var() | cerl_type()]}.
+-type cerl_type_paren() :: {'paren_type', lineno(), cerl_type()}.
+-type cerl_type_remote() :: {'remote_type', lineno(), [cerl_type_literal_atom() | [cerl_type()]]}.
+-type cerl_type_record() :: {'type', lineno(), 'record', [cerl_type_literal_atom() | [cerl_type_record()]]}.
+-type cerl_type_record_field() :: {'type', lineno(), 'field_type', [cerl_type_literal_atom() | cerl_type()]}.
+-type cerl_type_local() :: {'type', lineno(), cerl_type_literal_atom(), [cerl_type()]}.
+-type cerl_type_var() :: cerl:c_var().
+
 
 %%====================================================================
 %% External exports
@@ -53,13 +118,13 @@ load(Mod, Db, TagGen) ->
   end.
 
 %% Retrieves the spec of a function from a stored module's info.
--spec retrieve_spec(ets:tid(), {atom(), integer()}) -> cerl_spec() | not_found.
+-spec retrieve_spec(ets:tid(), {name(), byte()}) -> cerl_spec() | not_found.
 retrieve_spec(Db, FA) ->
-  [{attributes, Attrs}] = ets:lookup(Db, attributes),
-  locate_spec(Attrs, FA).
+  [{specs, SpecAttrs}] = ets:lookup(Db, specs),
+  locate_spec(SpecAttrs, FA).
 
 %% Locates the spec of a function from the list of the module's attributes.
--spec locate_spec([cerl_attr()], {atom(), integer()}) -> cerl_spec() | not_found.
+-spec locate_spec([cerl_attr()], {name(), byte()}) -> cerl_spec() | not_found.
 locate_spec([], _FA) ->
   not_found;
 locate_spec([{#c_literal{val = spec}, #c_literal{val = [{FA, Spec}]}}|_Attrs], FA) ->
@@ -135,8 +200,15 @@ store_module_info(anno, _M, AST, Db) ->
   true = ets:insert(Db, {anno, Anno}),
   ok;
 store_module_info(attributes, _M, AST, Db) ->
-  Attrs_c = AST#c_module.attrs,
-  true = ets:insert(Db, {attributes, Attrs_c}),
+  Attrs = cerl:module_attrs(AST),
+  true = ets:insert(Db, {attributes, Attrs}),
+  %% Retrieve the attributes that involve type & record declarations.
+  {TypeAttrs, SpecAttrs} = classify_attributes(Attrs),
+  %% Pre-process those declarations.
+  Types = cuter_types:retrieve_types(TypeAttrs),
+  true = ets:insert(Db, {types, Types}),
+  %% Just store the attributes that involve specs.
+  true = ets:insert(Db, {specs, SpecAttrs}),
   ok;
 store_module_info(exports, M, AST, Db) ->
   Exps_c = AST#c_module.exports,
@@ -175,6 +247,19 @@ store_fun(Exps, M, {Fun, Def}, Db, TagGen) ->
 %  io:format("~p~n", [AnnDef]),
   true = ets:insert(Db, {MFA, {AnnDef, Exported}}),
   ok.
+
+-spec classify_attributes([cerl_attr()]) -> {[cerl_attr_type()], [cerl_attr_spec()]}.
+classify_attributes(Attrs) ->
+  classify_attributes(Attrs, [], []).
+
+-spec classify_attributes([cerl_attr()], [cerl_attr_type()], [cerl_attr_spec()]) -> {[cerl_attr_type()], [cerl_attr_spec()]}.
+classify_attributes([], Types, Specs) ->
+  {lists:reverse(Types), lists:reverse(Specs)};
+classify_attributes([{What, #c_literal{val = [Info]}}|Attrs], Types, Specs) ->
+  case cerl:atom_val(What) of
+    type -> classify_attributes(Attrs, [Info|Types], Specs);
+    spec -> classify_attributes(Attrs, Types, [Info|Specs])
+  end.
 
 %% Annotates the AST with tags.
 -spec annotate(cerl:cerl(), tag_generator()) -> cerl:cerl().
