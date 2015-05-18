@@ -54,6 +54,7 @@
 -define(remote_tag, remote_type).
 -define(local_tag, local).
 -define(record_tag, record).
+-define(function_tag, function).
 
 %% Pre-processed types.
 
@@ -65,7 +66,7 @@
 -type record_field_name() :: atom().
 -type record_field_type() :: {record_field_name(), raw_type()}.
 -type dep() :: remote_type().
--type deps() :: ordsets:set(remote_type()).
+-type deps() :: ordsets:ordset(remote_type()).
 -record(t, {
   kind = ?simple_type,
   rep,
@@ -84,6 +85,7 @@
                   | t_union()             % Type1 | ... | TypeN
                   | t_range()             % Erlang_Integer..Erlang_Integer
                   | t_bitstring()         % <<_:M>>
+                  | t_function()          % function() | Fun | BoundedFun
                   | t_local()             % Local Type Usage
                   | t_remote()            % Remote Type Usage
                   | t_record()            % Record Usage
@@ -107,7 +109,10 @@
 -type t_integer_inf() :: t_integer_pos_inf() | t_integer_neg_inf().
 -type t_integer_pos_inf() :: #t{kind :: ?simple_type, rep :: ?pos_inf}.
 -type t_integer_neg_inf() :: #t{kind :: ?simple_type, rep :: ?neg_inf}.
--type t_bitstring() :: #t{kind :: ?simple_type, rep :: {?bitstring_tag, integer()}}.
+-type t_bitstring() :: #t{kind :: ?simple_type, rep :: {?bitstring_tag, 1|8}}.
+-type t_function() :: #t{kind :: ?simple_type, rep :: ?function_tag} | t_function_det().
+-type t_function_det() :: #t{kind :: ?simple_type, rep :: {?function_tag, [raw_type()], raw_type(), [t_constraint()]}}.
+-type t_constraint() :: {t_type_var(), raw_type()}.
 -type t_local() :: #t{kind :: ?local_type, rep :: {?local_tag, type_name(), [raw_type()]}}.
 -type t_remote() :: #t{kind :: ?remote_type, rep :: {?remote_tag, module(), type_name(), [raw_type()]}}.
 -type t_record() :: #t{kind :: ?record_type, rep :: {?record_tag, record_name(), [record_field_type()]}}.
@@ -235,6 +240,15 @@ t_from_form({type, _, binary, []}) ->
 %% bitstring()
 t_from_form({type, _, bitstring, []}) ->
   t_bitstring(1);
+%% function()
+t_from_form({type, _, function, []}) ->
+  t_function();
+%% fun((TList) -> Type)
+t_from_form({type, _, 'fun', [_Product, _RetType]}=Fun) ->
+  t_function_from_form(Fun);
+%% fun((TList) -> Type) (bounded_fun)
+t_from_form({type, _, 'bounded_fun', [_Fun, _Cs]}=BoundedFun) ->
+  t_bounded_function_from_form(BoundedFun);
 %% ann_type
 t_from_form({ann_type, _, [_Var, Type]}) ->
   t_from_form(Type);
@@ -262,6 +276,24 @@ t_from_form({var, _, Var}) ->
 %% Record Field.
 t_bound_field_from_form({type, _, field_type, [{atom, _, Name}, Type]}) ->
   {Name, t_from_form(Type)}.
+
+-spec t_function_from_form(cuter_cerl:cerl_func()) -> t_function_det().
+t_function_from_form({type, _, 'fun', [{type, _, 'product', Types}, RetType]}) ->
+  Ret = t_from_form(RetType),
+  Ts = [t_from_form(T) || T <- Types],
+  t_function(Ts, Ret).
+
+-spec t_bounded_function_from_form(cuter_cerl:cerl_bounded_func()) -> t_function_det().
+t_bounded_function_from_form({type, _, 'bounded_fun', [Fun, Constraints]}) ->
+  {type, _, 'fun', [{type, _, 'product', Types}, RetType]} = Fun,
+  Ret = t_from_form(RetType),
+  Ts = [t_from_form(T) || T <- Types],
+  Cs = [t_constraint_from_form(C) || C <- Constraints],
+  t_function(Ts, Ret, Cs).
+
+-spec t_constraint_from_form(cuter_cerl:cerl_constraint()) -> t_constraint().
+t_constraint_from_form({type, _, constraint, [{atom, _, is_subtype}, [{var, _, Var}, Type]]}) ->
+  {t_var(Var), t_from_form(Type)}.
 
 
 %% Type constructors.
@@ -359,9 +391,24 @@ t_record(Name, Fields) ->
   Ts = [T || {_, T} <- Fields],
   #t{kind = ?record_type, rep = Rep, deps = unify_deps(Ts)}.
 
--spec t_bitstring(integer()) -> t_bitstring().
+-spec t_bitstring(1 | 8) -> t_bitstring().
 t_bitstring(N) ->
   #t{rep = {?bitstring_tag, N}}.
+
+-spec t_function() -> t_function().
+t_function() ->
+  #t{rep = ?function_tag}.
+
+-spec t_function([raw_type()], raw_type()) -> t_function_det().
+t_function(Types, Ret) ->
+  Rep = {?function_tag, Types, Ret, []},
+  #t{rep = Rep, deps = unify_deps([Ret|Types])}.
+
+-spec t_function([raw_type()], raw_type(), [t_constraint()]) -> t_function_det().
+t_function(Types, Ret, Constraints) ->
+  Rep = {?function_tag, Types, Ret, Constraints},
+  Ts = [T || {_V, T} <- Constraints],
+  #t{rep = Rep, deps = unify_deps([Ret|Types] ++ Ts)}.
 
 %% Helper functions for dependencies.
 

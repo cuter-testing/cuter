@@ -12,7 +12,7 @@
 -include("include/cuter_macros.hrl").
 
 -export_type([compile_error/0, cerl_spec/0, cerl_func/0, cerl_type/0,
-              cerl_bounded_func/0, tagID/0, tag/0, tag_generator/0,
+              cerl_bounded_func/0, cerl_constraint/0, tagID/0, tag/0, tag_generator/0,
               cerl_attr_type/0, cerl_recdef/0, cerl_typedef/0, cerl_record_field/0, cerl_type_record_field/0]).
 
 -type info()          :: anno | attributes | exports | name.
@@ -45,7 +45,7 @@
 -type cerl_bounded_func() :: {'type', lineno(), 'bounded_fun', [cerl_func() | cerl_constraint()]}.
 -type cerl_func() :: {'type', lineno(), 'fun', [cerl_product() | cerl_type()]}.
 -type cerl_constraint() :: {'type', lineno(), 'constraint', [{atom, lineno(), 'is_subtype'} | [atom() | cerl_type()]]}.
--type cerl_product() :: {'type', lineno(), product, [cerl_type()]}.
+-type cerl_product() :: {'type', lineno(), 'product', [cerl_type()]}.
 
 -type cerl_type() :: cerl_type_nil()
                    | cerl_type_any()
@@ -66,6 +66,7 @@
                    | cerl_type_nonempty_list()
                    | cerl_type_union()
                    | cerl_type_range()
+                   | cerl_type_function()
                    | cerl_type_ann()
                    | cerl_type_paren()
                    | cerl_type_remote()
@@ -103,6 +104,8 @@
 -type cerl_type_record_field() :: {'type', lineno(), 'field_type', [cerl_type_literal_atom() | cerl_type()]}.
 -type cerl_type_local() :: {'type', lineno(), cerl_type_literal_atom(), [cerl_type()]}.
 -type cerl_type_var() :: cerl:c_var().
+-type cerl_type_function() :: {'type', lineno(), 'function', []}
+                            | cerl_func() | cerl_bounded_func().
 
 
 %%====================================================================
@@ -124,10 +127,10 @@ retrieve_spec(Db, FA) ->
   locate_spec(SpecAttrs, FA).
 
 %% Locates the spec of a function from the list of the module's attributes.
--spec locate_spec([cerl_attr()], {name(), byte()}) -> cerl_spec() | not_found.
+-spec locate_spec([cerl_attr_spec()], {name(), byte()}) -> cerl_spec() | not_found.
 locate_spec([], _FA) ->
   not_found;
-locate_spec([{#c_literal{val = spec}, #c_literal{val = [{FA, Spec}]}}|_Attrs], FA) ->
+locate_spec([{FA, Spec} | _Attrs], FA) ->
   Spec;
 locate_spec([_|Attrs], FA) ->
   locate_spec(Attrs, FA).
