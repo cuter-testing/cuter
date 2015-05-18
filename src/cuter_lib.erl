@@ -7,8 +7,8 @@
 %% external exports
 -export([get_tmp_dir/1, get_data_dir/2, get_trace_dir/1,
          get_merged_tracefile/1, get_monitor_dir/1, logfile_name/2,
-         clear_and_delete_dir/1, clear_and_delete_dir/2, list_dir/1, unique_string/0,
-         ensure_port_or_pid/1]).
+         clear_and_delete_dir/1, clear_and_delete_dir/2, list_dir/1,
+	 unique_string/0, ensure_port_or_pid/1]).
 
 
 %% Generate a unique string
