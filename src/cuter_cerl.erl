@@ -15,8 +15,10 @@
               cerl_bounded_func/0, tagID/0, tag/0, tag_generator/0]).
 
 -type info()          :: anno | attributes | exports | name.
--type compile_error() :: {error, {loaded_ret_atoms(), cuter:mod()}}
-                       | {runtime_error, {compile, {atom(), term()}}}.
+-type code_error()    :: {error, {loaded_ret_atoms(), cuter:mod()}}.
+-type abs_code_error():: {error, {missing_abstract_code, cuter:mod()}}.
+-type compile_error() :: {error, {compile, {cuter:mod(), term()}}}.
+-type load_error()    :: code_error() | abs_code_error() | compile_error().
 
 -type tagID() :: integer().
 -opaque tag() :: {?BRANCH_TAG_PREFIX, tagID()}.
@@ -41,16 +43,13 @@
 %%====================================================================
 %% External exports
 %%====================================================================
--spec load(M, ets:tid(), tag_generator()) -> {ok, M} | compile_error() when M :: cuter:mod().
+-spec load(M, ets:tid(), tag_generator()) -> {ok, M} | load_error() when M :: cuter:mod().
 load(Mod, Db, TagGen) ->
-  try store_module(Mod, Db, TagGen) of
-    ok -> {ok, Mod}
-  catch
-    throw:non_existing      -> {error, {non_existing, Mod}};
-    throw:preloaded         -> {error, {preloaded, Mod}};
-    throw:cover_compiled    -> {error, {cover_compiled, Mod}};
-    throw:missing_ac        -> {error, {missing_abstract_code, Mod}};
-    throw:{compile, Errors} -> {runtime_error, {compile, {Mod, Errors}}}
+  case get_core_ast(Mod) of
+    {ok, AST} ->
+      store_module(Mod, AST, Db, TagGen),
+      {ok, Mod};
+    {error, _} = Error -> Error
   end.
 
 %% Retrieves the spec of a function from a stored module's info.
@@ -78,12 +77,11 @@ locate_spec([_|Attrs], FA) ->
 %% -----------------    ---------------
 %% anno                 Anno :: []
 %% name                 Name :: module()
-%% exported             [{M :: module(), Fun :: atom(), Arity :: non_neg_integer()}]  
+%% exported             [{M :: module(), Fun :: atom(), Arity :: arity()}]
 %% attributes           Attrs :: [{cerl(), cerl()}]
 %% {M, Fun, Arity}      {Def :: #c_fun{}, Exported :: boolean()}
--spec store_module(cuter:mod(), ets:tid(), tag_generator()) -> ok.
-store_module(M, Db, TagGen) ->
-  AST = get_core_ast(M),
+-spec store_module(cuter:mod(), cerl:cerl(), ets:tid(), tag_generator()) -> ok.
+store_module(M, AST, Db, TagGen) ->
   store_module_info(anno, M, AST, Db),
   store_module_info(name, M, AST, Db),
   store_module_info(exports, M, AST, Db),
@@ -92,34 +90,40 @@ store_module(M, Db, TagGen) ->
   ok.
 
 %% Gets the Core Erlang AST of a module.
--spec get_core_ast(cuter:mod()) -> cerl:cerl().
+-spec get_core_ast(cuter:mod()) -> {ok, cerl:cerl()} | load_error().
 get_core_ast(M) ->
-  {ok, BeamPath} = mod_beam_path(M),
-  {ok, AbstractCode} = extract_abstract_code(M, BeamPath),
-  case compile:forms(AbstractCode, [to_core]) of
-    {ok, M, AST} -> AST;
-    {ok, M, AST, _Warns} -> AST;
-    Errors -> erlang:throw({compile, Errors})
+  case mod_beam_path(M) of
+    {ok, BeamPath} ->
+      case extract_abstract_code(M, BeamPath) of
+	{ok, AbstractCode} ->
+	  case compile:forms(AbstractCode, [to_core]) of
+	    {ok, M, AST} -> {ok, AST};
+	    {ok, M, AST, _Warns} -> {ok, AST};
+	    Errors -> {error, {compile, {M, Errors}}}
+	  end;
+	{error, _} = Error -> Error
+      end;
+    {error, _} = Error -> Error
   end.
   
 %% Gets the path of the module's beam file, if such one exists.
--spec mod_beam_path(cuter:mod()) -> {ok, file:filename()}.
+-spec mod_beam_path(cuter:mod()) -> {ok, file:filename()} | code_error().
 mod_beam_path(M) ->
   case code:which(M) of
-    non_existing   -> erlang:throw(non_existing);
-    preloaded      -> erlang:throw(preloaded);
-    cover_compiled -> erlang:throw(cover_compiled);
+    non_existing   -> {error, {non_existing, M}};
+    preloaded      -> {error, {preloaded, M}};
+    cover_compiled -> {error, {cover_compiled, M}};
     Path -> {ok, Path}
   end.
 
 %% Gets the abstract code from a module's beam file, if possible.
--spec extract_abstract_code(cuter:mod(), file:name()) -> {ok, list()}.
+-spec extract_abstract_code(cuter:mod(), file:name()) -> {ok, list()} | abs_code_error().
 extract_abstract_code(Mod, Beam) ->
   case beam_lib:chunks(Beam, [abstract_code]) of
     {error, beam_lib, _} ->
-      erlang:throw(missing_ac);
+      {error, {missing_abstract_code, Mod}};
     {ok, {Mod, [{abstract_code, no_abstract_code}]}} ->
-      erlang:throw(missing_ac);
+      {error, {missing_abstract_code, Mod}};
     {ok, {Mod, [{abstract_code, {_, AbstractCode}}]}} ->
       {ok, AbstractCode}
   end.
