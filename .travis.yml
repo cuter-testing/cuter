@@ -1,5 +1,10 @@
 language: erlang
 before_install:
+  - git clone https://github.com/Z3Prover/z3.git
+  - python scripts/mk_make.py
+  - cd build
+  - make
+  - sudo make install
   - dialyzer --build_plt --apps erts kernel stdlib compiler crypto
 script:
   - autoconf
