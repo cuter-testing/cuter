@@ -9,10 +9,14 @@ before_install:
   - cd ../..
   - dialyzer --build_plt --apps erts kernel stdlib compiler crypto
 script:
+  - git submodule update
+  - git submodule foreach make
+  - export ERL_LIBS=$PWD/lib/proper:$ERL_LIBS
   - autoconf
   - ./configure
   - make depend
   - make
+  - make dialyzer
 otp_release:
   - 17.4
   - 17.0

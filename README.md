@@ -48,6 +48,12 @@ Installing
 
         git clone https://github.com/aggelgian/cuter.git
 
+* **[Optional]** If you want to run the full test suite of CutEr, you will also need [PropEr](https://github.com/manopapad/proper)
+  and [meck](https://github.com/eproxus/meck). You can install them independently or go to CutEr's base directory and run:
+
+        git submodule init && git submodule update
+        git submodule foreach make
+
 * Configure and compile CutEr. For a default build:
 
         autoconf
@@ -55,15 +61,9 @@ Installing
         make depend
         make
 
-* **[Optional]** If you want to run the full test suite of CutEr, you will also need [PropEr](https://github.com/manopapad/proper)
-  and [meck](https://github.com/eproxus/meck). You can install them independently or go to CutEr's base directory and run:
+* **[Optional]** Now you can build and run the unit tests with `make utest`
 
-        git submodule init && git submodule update
-        git submodule foreach make
-
-  Subsequently, you can build and run the unit tests with `make utest`
-
-* **[Optional]**  You can also run Dialyzer with `make dialyzer`
+* **[Optional]** You can also run Dialyzer with `make dialyzer`
 
 * Add CutEr's base directory to your Erlang library path by updating the `ERL_LIBS` environment variable. Just add
 
