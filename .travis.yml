@@ -6,6 +6,7 @@ before_install:
   - cd build
   - make
   - sudo make install
+  - cd ..
   - dialyzer --build_plt --apps erts kernel stdlib compiler crypto
 script:
   - autoconf
@@ -14,5 +15,4 @@ script:
   - make
 otp_release:
   - 17.4
-  - 17.1
   - 17.0
