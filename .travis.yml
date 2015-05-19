@@ -6,7 +6,7 @@ before_install:
   - cd build
   - make
   - sudo make install
-  - cd ..
+  - cd ../..
   - dialyzer --build_plt --apps erts kernel stdlib compiler crypto
 script:
   - autoconf
