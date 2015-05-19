@@ -8,7 +8,7 @@
 
 -export_type([goal/0]).
 
--type goal()  :: {integer(), string()}.
+-type goal()  :: {cuter_log:opcode(), string()}.
 
 -record(st, {
   currFd       :: file:io_device() | 'undefined',
@@ -138,7 +138,8 @@ achieve_goal(Goal={OpCode, Rf}, Node, Pid, State=#st{seenRefs = Seen, dirs = Dir
       achieve_goal_from_file(Goal, F, State)
   end.
 
--spec achieve_goal_from_file(goal(), file:filename_all(), state()) -> ok.
+%% The type inference in 17.0 is too strong and finds this is underspecified
+%%-spec achieve_goal_from_file(goal(), file:filename_all(), state()) -> ok.
 achieve_goal_from_file(NewGoal, F, State=#st{currFd = Fd, openFds = Open, waitingFds = Waiting, pendingFiles = Pending, goalRef = Goal}) ->
   Q = queue:in_r({Goal, Fd}, Waiting),
   case ets:lookup(Open, F) of
