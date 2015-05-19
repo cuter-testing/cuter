@@ -3,6 +3,8 @@ CutEr
 
 This is the source tree for CutEr, a concolic unit testing tool for Erlang.
 
+[![Build Status](https://travis-ci.org/aggelgian/cuter.svg?branch=master)](https://travis-ci.org/aggelgian/cuter)
+
 ***CAUTION: This tool is still under heavy development (and not yet released!)***
 
 * [Dependencies](#dependencies)
@@ -39,12 +41,6 @@ In order to use the tool, you need the following programs:
   To install Z3, follow the instructions in the [README file](https://github.com/Z3Prover/z3/blob/master/README).
   Also, make sure that Z3Py (Python Interface) is installed.
 
-**[Optional]** If you want to run the full test suite of CutEr, you will also need [PropEr](https://github.com/manopapad/proper)
-and [meck](https://github.com/eproxus/meck). You can install them independently or go to CutEr's base directory and run:
-
-        git submodule init && git submodule update
-        git submodule foreach make
-
 Installing
 ----------
 
@@ -59,7 +55,16 @@ Installing
         make depend
         make
 
-* Optionally build and run the unit tests with `make utest` and run Dialyzer with `make dialyzer`
+* **[Optional]** If you want to run the full test suite of CutEr, you will also need [PropEr](https://github.com/manopapad/proper)
+  and [meck](https://github.com/eproxus/meck). You can install them independently or go to CutEr's base directory and run:
+
+        git submodule init && git submodule update
+        git submodule foreach make
+
+  Subsequently, you can build and run the unit tests with `make utest`
+
+* **[Optional]**  You can also run Dialyzer with `make dialyzer`
+
 
 * Add CutEr's base directory to your Erlang library path by updating the `ERL_LIBS` environment variable. Just add
 
