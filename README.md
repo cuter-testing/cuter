@@ -65,7 +65,6 @@ Installing
 
 * **[Optional]**  You can also run Dialyzer with `make dialyzer`
 
-
 * Add CutEr's base directory to your Erlang library path by updating the `ERL_LIBS` environment variable. Just add
 
         export ERL_LIBS=/full/path/to/cuter:$ERL_LIBS
