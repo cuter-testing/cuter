@@ -17,6 +17,9 @@ MECK = $(realpath @MECK@)
 ### Flags
 ###----------------------------------------------------------------------
 
+DIALYZER_APPS = erts kernel stdlib compiler crypto
+DIALYZER_FLAGS = -Wunmatched_returns -Wunderspecs
+
 WARNS = +warn_exported_vars +warn_unused_import +warn_missing_spec #+warn_untyped_record
 ERLC_INCLUDE = -I $(INCLUDE)
 ERLC_FLAGS = +debug_info $(WARNS)
@@ -84,14 +87,17 @@ cuter_target: $(SRC_MODULES:%=$(EBIN)/%.beam)
 utest_target: $(UTEST_MODULES:%=$(EBIN)/%.beam)
 
 $(EBIN)/%.beam: %.erl
-	@echo " ERLC $<"
+	@echo "ERLC $<"
 	@$(ERLC) $(ERLC_INCLUDE) $(ERLC_FLAGS) $(ERLC_MACROS) -o $(EBIN) $<
 
 utest: utest_target
 	@(./runtests.py $(EBIN) $(MECK))
 
-dialyzer: cuter_target
-	dialyzer -n -nn -Wunmatched_returns -Wunderspecs $(EBIN)/*.beam
+dialyzer: cuter_target .cuter_plt
+	dialyzer --plt .cuter_plt $(DIALYZER_FLAGS) $(EBIN)/*.beam
+
+.cuter_plt:
+	dialyzer --build_plt --output_plt $@ --apps $(DIALYZER_APPS)
 
 -include .depend
 

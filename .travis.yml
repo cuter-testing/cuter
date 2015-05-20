@@ -7,7 +7,6 @@ before_install:
   - make
   - sudo make install
   - cd ../..
-  - dialyzer --build_plt --apps erts kernel stdlib compiler crypto
 script:
   - git submodule update
   - git submodule foreach make
