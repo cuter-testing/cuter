@@ -99,7 +99,7 @@ bar([X|Xs], [Y|Ys]) -> X * Y + bar(Xs, Ys).
 For single file tests, such as the above, the simplest way to run CutEr
 is to use the `cuter` script as follows:
 
-   ./cuter foo erl '[[1], [2]]'
+    ./cuter foo erl '[[1], [2]]'
 
 i.e. supply it with three arguments: the module name, the function name,
 and the list of arguments for the call that will act as a seed for the
@@ -130,7 +130,7 @@ but also a numeric argument `Depth` that denotes the depth of the search
 (i.e. roughly the number of branches that will be explored).  This depth
 can also be specified as an optional argument of the `cuter` script:
 
-   ./cuter foo erl '[[1], [2]]' 42
+    ./cuter foo erl '[[1], [2]]' 42
 
 CutEr provides more API functions that also come with options that
 control the concolic execution of Erlang programs. These will be
