@@ -84,25 +84,6 @@
 -define(JSON_TYPE_REF, 7).
 
 %%====================================================================
-%% OpCodes for Erlang type signatures
-%%====================================================================
-
--define(JSON_ERLTYPE_ANY, 0).
--define(JSON_ERLTYPE_ATOM, 1).
--define(JSON_ERLTYPE_ATOMLIT, 2).
--define(JSON_ERLTYPE_BOOLEAN, 3).
--define(JSON_ERLTYPE_FLOAT, 4).
--define(JSON_ERLTYPE_INTEGER, 5).
--define(JSON_ERLTYPE_INTEGERLIT, 6).
--define(JSON_ERLTYPE_LIST, 7).
--define(JSON_ERLTYPE_NIL, 8).
--define(JSON_ERLTYPE_TUPLE, 9).
--define(JSON_ERLTYPE_TUPLEDET, 10).
--define(JSON_ERLTYPE_UNION, 11).
--define(JSON_ERLTYPE_RANGE, 12).
--define(JSON_ERLTYPE_NONEMPTY_LIST, 13).
-
-%%====================================================================
 %% OpCodes for the commands to the solver
 %%====================================================================
 

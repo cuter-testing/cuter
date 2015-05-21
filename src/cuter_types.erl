@@ -2,59 +2,22 @@
 %%------------------------------------------------------------------------------
 -module(cuter_types).
 
--export([parse_spec/1, retrieve_types/1]).
+-export([parse_spec/3, retrieve_types/1, retrieve_specs/1, find_spec/2, get_kind/1]).
 
--export_type([erl_type/0, erl_spec_clause/0, erl_spec/0]).
+-export([params_of_t_function_det/1, ret_of_t_function_det/1, atom_of_t_atom_lit/1, integer_of_t_integer_lit/1,
+         elements_type_of_t_list/1, elements_type_of_t_nonempty_list/1, elements_types_of_t_tuple/1,
+         elements_types_of_t_union/1, bounds_of_t_range/1, segment_size_of_bitstring/1]).
+
+-export_type([erl_type/0, erl_spec_clause/0, erl_spec/0, stored_specs/0, stored_types/0, stored_spec_value/0, t_range_limit/0]).
 
 -include("include/cuter_macros.hrl").
-
-%% Unified representation of Erlang types and specs
--type erl_type() :: any
-                  | atom
-                  | {atom, atom()}
-                  | boolean
-                  | float
-                  | integer
-                  | {integer, integer()}
-                  | {list, erl_type()}
-                  | {nonempty_list, erl_type()}
-                  | nil
-                  | {range, integer() | inf, integer() | inf}
-                  | tuple
-                  | {tuple, [erl_type()]}
-                  | {union, [erl_type()]}.
-
--type erl_spec_clause() :: {[erl_type()], erl_type()}.
--type erl_spec() :: [erl_spec_clause(), ...].
+-include("include/cuter_types.hrl").
 
 
 %% Define tags
--define(simple_type, simt).
--define(local_type, loct).
--define(remote_type, remt).
 -define(type_variable, vart).
--define(record_type, rect).
 -define(type_var, tvar).
--define(atom_lit_tag, atom).
--define(integer_lit_tag, integer).
--define(integer_tag, integer).
--define(nil_tag, nil).
--define(any_tag, any).
--define(atom_tag, atom).
--define(float_tag, float).
--define(tuple_tag, tuple).
--define(list_tag, list).
--define(nonempty_list_tag, nonempty_list).
--define(union_tag, union).
--define(range_tag, range).
--define(bitstring_tag, bitstring).
--define(neg_inf, inf).
--define(pos_inf, inf).
 -define(max_char, 16#10ffff).
--define(remote_tag, remote_type).
--define(local_tag, local).
--define(record_tag, record).
--define(function_tag, function).
 
 %% Pre-processed types.
 
@@ -68,11 +31,11 @@
 -type dep() :: remote_type().
 -type deps() :: ordsets:ordset(remote_type()).
 -record(t, {
-  kind = ?simple_type,
+  kind,
   rep,
   deps = ordsets:new() :: deps()
 }).
--type raw_type() :: t_any()               % any()
+-type erl_type() :: t_any()               % any()
                   | t_nil()               % []
                   | t_atom()              % atom()
                   | t_atom_lit()          % Erlang_Atom
@@ -86,43 +49,51 @@
                   | t_range()             % Erlang_Integer..Erlang_Integer
                   | t_bitstring()         % <<_:M>>
                   | t_function()          % function() | Fun | BoundedFun
+                  .
+-type raw_type() :: erl_type()
                   | t_local()             % Local Type Usage
                   | t_remote()            % Remote Type Usage
                   | t_record()            % Record Usage
                   | t_type_var()          % Type Variable
                   .
 
--type t_any() :: #t{kind :: ?simple_type, rep :: ?any_tag}.
--type t_nil() :: #t{kind :: ?simple_type, rep :: ?nil_tag}.
--type t_atom() :: #t{kind :: ?simple_type, rep :: ?atom_tag}.
--type t_atom_lit() :: #t{kind :: ?simple_type, rep :: {?atom_lit_tag, atom()}}.
--type t_integer() :: #t{kind :: ?simple_type, rep :: ?integer_tag}.
--type t_integer_lit() :: #t{kind :: ?simple_type, rep :: {?integer_lit_tag, integer()}}.
--type t_float() :: #t{kind :: ?simple_type, rep :: ?float_tag}.
--type t_tuple() :: #t{kind :: ?simple_type, rep :: ?tuple_tag}                   % tuple()
-                 | #t{kind :: ?simple_type, rep :: {?tuple_tag, [raw_type()]}}.  % {TList}
--type t_list() :: #t{kind :: ?simple_type, rep :: {?list_tag, raw_type()}}.
--type t_nonempty_list() :: #t{kind :: ?simple_type, rep :: {?nonempty_list_tag, raw_type()}}.
--type t_union() :: #t{kind :: ?simple_type, rep :: {?union_tag, [raw_type()]}}.
--type t_range() :: #t{kind :: ?simple_type, rep :: {?range_tag, t_range_limit(), t_range_limit()}}.
+-type t_any() :: #t{kind :: ?any_tag}.
+-type t_nil() :: #t{kind :: ?nil_tag}.
+-type t_atom() :: #t{kind :: ?atom_tag}.
+-type t_atom_lit() :: #t{kind :: ?atom_lit_tag, rep :: atom()}.
+-type t_integer() :: #t{kind :: ?integer_tag}.
+-type t_integer_lit() :: #t{kind :: ?integer_lit_tag, rep :: integer()}.
+-type t_float() :: #t{kind :: ?float_tag}.
+-type t_tuple() :: #t{kind :: ?tuple_tag, rep :: [raw_type()]}.
+-type t_list() :: #t{kind :: ?list_tag, rep :: raw_type()}.
+-type t_nonempty_list() :: #t{kind :: ?nonempty_list_tag, rep :: raw_type()}.
+-type t_union() :: #t{kind :: ?union_tag, rep :: [raw_type()]}.
+-type t_range() :: #t{kind :: ?range_tag, rep :: {t_range_limit(), t_range_limit()}}.
 -type t_range_limit() :: t_integer_lit() | t_integer_inf().
 -type t_integer_inf() :: t_integer_pos_inf() | t_integer_neg_inf().
--type t_integer_pos_inf() :: #t{kind :: ?simple_type, rep :: ?pos_inf}.
--type t_integer_neg_inf() :: #t{kind :: ?simple_type, rep :: ?neg_inf}.
--type t_bitstring() :: #t{kind :: ?simple_type, rep :: {?bitstring_tag, 1|8}}.
--type t_function() :: #t{kind :: ?simple_type, rep :: ?function_tag} | t_function_det().
--type t_function_det() :: #t{kind :: ?simple_type, rep :: {?function_tag, [raw_type()], raw_type(), [t_constraint()]}}.
+-type t_integer_pos_inf() :: #t{kind :: ?pos_inf}.
+-type t_integer_neg_inf() :: #t{kind :: ?neg_inf}.
+-type t_bitstring() :: #t{kind :: ?bitstring_tag, rep :: 1|8}.
+-type t_function() :: #t{kind :: ?function_tag} | t_function_det().
+-type t_function_det() :: #t{kind :: ?function_tag, rep :: {[raw_type()], raw_type(), [t_constraint()]}}.
 -type t_constraint() :: {t_type_var(), raw_type()}.
--type t_local() :: #t{kind :: ?local_type, rep :: {?local_tag, type_name(), [raw_type()]}}.
--type t_remote() :: #t{kind :: ?remote_type, rep :: {?remote_tag, module(), type_name(), [raw_type()]}}.
--type t_record() :: #t{kind :: ?record_type, rep :: {?record_tag, record_name(), [record_field_type()]}}.
+-type t_local() :: #t{kind :: ?local_tag, rep :: {type_name(), [raw_type()]}}.
+-type t_remote() :: #t{kind :: ?remote_tag, rep :: {module(), type_name(), [raw_type()]}}.
+-type t_record() :: #t{kind :: ?record_tag, rep :: {record_name(), [record_field_type()]}}.
 -type t_type_var() :: #t{kind :: ?type_variable, rep :: type_var()}.
 
 %% How pre-processed types are stored.
 -type stored_type_key() :: {record, record_name()} | {type, type_name(), type_arity()}.
 -type stored_type_value() :: [record_field_type()] | {raw_type(), [type_var()]}.
--type stored_types() :: dict:dict(stored_type_key(), stored_type_value()).
+-opaque stored_types() :: dict:dict(stored_type_key(), stored_type_value()).
 
+-type stored_spec_key() :: {type_name(), type_arity()}.
+-type stored_spec_value() :: [t_function_det()].
+-opaque stored_specs() :: dict:dict(stored_spec_key(), stored_spec_value()).
+
+-type type_var_env() :: dict:dict(type_var(), raw_type()).
+-type erl_spec_clause() :: t_function_det().
+-type erl_spec() :: [erl_spec_clause(), ...].
 
 %% Pre-process the type & record declarations of a module.
 -spec retrieve_types([cuter_cerl:cerl_attr_type()]) -> stored_types().
@@ -137,20 +108,28 @@ process_type_attr({{record, Name}, Fields, []}, Processed) ->
   dict:store({record, Name}, Record, Processed);
 %% Declaration of a type.
 process_type_attr({Name, Repr, Vars}, Processed) ->
-  Type = t_from_form(Repr),
+  Type = safe_t_from_form(Repr),
   Vs = [{?type_var, Var} || {var, _, Var} <- Vars],
   dict:store({type, Name, length(Vs)}, {Type, Vs}, Processed).
 
+%% Provision for unsupported types.
+safe_t_from_form(Form) ->
+  try t_from_form(Form)
+  catch throw:{unsupported, Info} ->
+    cuter_pp:form_has_unsupported_type(Info),
+    t_any()
+  end.
+
 %% The fields of a declared record.
 -spec t_field_from_form(cuter_cerl:cerl_record_field()) -> record_field_type().
-t_field_from_form({record_field, _, Name}) ->
+t_field_from_form({record_field, _, {atom, _, Name}}) ->
   {Name, t_any()};
-t_field_from_form({record_field, _, Name, _Default}) ->
+t_field_from_form({record_field, _, {atom, _, Name}, _Default}) ->
   {Name, t_any()};
-t_field_from_form({typed_record_field, {record_field, _, Name}, Type}) ->
-  {Name, t_from_form(Type)};
-t_field_from_form({typed_record_field, {record_field, _, Name, _Default}, Type}) ->
-  {Name, t_from_form(Type)}.
+t_field_from_form({typed_record_field, {record_field, _, {atom, _, Name}}, Type}) ->
+  {Name, safe_t_from_form(Type)};
+t_field_from_form({typed_record_field, {record_field, _, {atom, _, Name}, _Default}, Type}) ->
+  {Name, safe_t_from_form(Type)}.
 
 %% Parse a type.
 
@@ -269,7 +248,10 @@ t_from_form({type, _, Name, Types}) ->
   t_local(Name, Ts);
 %% Type Variable
 t_from_form({var, _, Var}) ->
-  t_var(Var).
+  t_var(Var);
+%% Unsupported_types
+t_from_form(Type) ->
+  throw({unsupported, Type}).
 
 
 -spec t_bound_field_from_form(cuter_cerl:cerl_type_record_field()) -> record_field_type().
@@ -300,35 +282,35 @@ t_constraint_from_form({type, _, constraint, [{atom, _, is_subtype}, [{var, _, V
 
 -spec t_any() -> t_any().
 t_any() ->
-  #t{rep = ?any_tag}.
+  #t{kind = ?any_tag}.
 
 -spec t_atom_lit(atom()) -> t_atom_lit().
 t_atom_lit(Atom) ->
-  #t{rep = {?atom_lit_tag, Atom}}.
+  #t{kind = ?atom_lit_tag, rep = Atom}.
 
 -spec t_atom() -> t_atom().
 t_atom() ->
-  #t{rep = ?atom_tag}.
+  #t{kind = ?atom_tag}.
 
 -spec t_integer_lit(integer()) -> t_integer_lit().
 t_integer_lit(Integer) ->
-  #t{rep = {?integer_lit_tag, Integer}}.
+  #t{kind = ?integer_lit_tag, rep = Integer}.
 
 -spec t_integer() -> t_integer().
 t_integer() ->
-  #t{rep = ?integer_tag}.
+  #t{kind = ?integer_tag}.
 
 -spec t_range(t_range_limit(), t_range_limit()) -> t_range().
 t_range(Int1, Int2) ->
-  #t{rep = {?range_tag, Int1, Int2}}.
+  #t{kind = ?range_tag, rep = {Int1, Int2}}.
 
 -spec t_pos_inf() -> t_integer_pos_inf().
 t_pos_inf() ->
-  #t{rep = ?pos_inf}.
+  #t{kind = ?pos_inf}.
 
 -spec t_neg_inf() -> t_integer_neg_inf().
 t_neg_inf() ->
-  #t{rep = ?neg_inf}.
+  #t{kind = ?neg_inf}.
 
 -spec t_char() -> t_range().
 t_char() ->
@@ -336,50 +318,50 @@ t_char() ->
 
 -spec t_nil() -> t_nil().
 t_nil() ->
-  #t{rep = ?nil_tag}.
+  #t{kind = ?nil_tag}.
 
 -spec t_float() -> t_float().
 t_float() ->
-  #t{rep = ?float_tag}.
+  #t{kind = ?float_tag}.
 
 -spec t_list() -> t_list().
 t_list() ->
-  #t{rep = {?list_tag, t_any()}}.
+  #t{kind = ?list_tag, rep = t_any()}.
 
 -spec t_list(raw_type()) -> t_list().
 t_list(Type) ->
-  #t{rep = {?list_tag, Type}, deps = get_deps(Type)}.
+  #t{kind = ?list_tag, rep = Type, deps = get_deps(Type)}.
 
 -spec t_nonempty_list() -> t_nonempty_list().
 t_nonempty_list() ->
-  #t{rep = {?nonempty_list_tag, t_any()}}.
+  #t{kind = ?nonempty_list_tag, rep = t_any()}.
 
 -spec t_nonempty_list(raw_type()) -> t_nonempty_list().
 t_nonempty_list(Type) ->
-  #t{rep = {?nonempty_list_tag, Type}, deps = get_deps(Type)}.
+  #t{kind = ?nonempty_list_tag, rep = Type, deps = get_deps(Type)}.
 
 -spec t_tuple() -> t_tuple().
 t_tuple() ->
-  #t{rep = ?tuple_tag}.
+  #t{kind = ?tuple_tag, rep = []}.
 
 -spec t_tuple([raw_type()]) -> t_tuple().
 t_tuple(Types) ->
-  #t{rep = {?tuple_tag, Types}, deps = unify_deps(Types)}.
+  #t{kind = ?tuple_tag, rep = Types, deps = unify_deps(Types)}.
 
 -spec t_union([raw_type()]) -> t_union().
 t_union(Types) ->
-  #t{rep = {?union_tag, Types}, deps = unify_deps(Types)}.
+  #t{kind = ?union_tag, rep = Types, deps = unify_deps(Types)}.
 
 -spec t_local(type_name(), [raw_type()]) -> t_local().
 t_local(Name, Types) ->
-  Rep = {?local_tag, Name, Types},
-  #t{kind = ?local_type, rep = Rep, deps = unify_deps(Types)}.
+  Rep = {Name, Types},
+  #t{kind = ?local_tag, rep = Rep, deps = unify_deps(Types)}.
 
 -spec t_remote(module(), type_name(), [raw_type()]) -> t_remote().
 t_remote(Mod, Name, Types) ->
-  Rep = {?remote_tag, Mod, Name, Types},
+  Rep = {Mod, Name, Types},
   Dep = {Mod, Name, length(Types)},
-  #t{kind = ?remote_type, rep = Rep, deps = add_dep(Dep, unify_deps(Types))}.
+  #t{kind = ?remote_tag, rep = Rep, deps = add_dep(Dep, unify_deps(Types))}.
 
 -spec t_var(atom()) -> t_type_var().
 t_var(Var) ->
@@ -387,34 +369,91 @@ t_var(Var) ->
 
 -spec t_record(record_name(), [record_field_type()]) -> t_record().
 t_record(Name, Fields) ->
-  Rep = {?record_tag, Name, Fields},
+  Rep = {Name, Fields},
   Ts = [T || {_, T} <- Fields],
-  #t{kind = ?record_type, rep = Rep, deps = unify_deps(Ts)}.
+  #t{kind = ?record_tag, rep = Rep, deps = unify_deps(Ts)}.
+
+-spec fields_of_t_record(t_record()) -> [record_field_type()].
+fields_of_t_record(Record) ->
+  Rep = Record#t.rep,
+  element(2, Rep).
 
 -spec t_bitstring(1 | 8) -> t_bitstring().
 t_bitstring(N) ->
-  #t{rep = {?bitstring_tag, N}}.
+  #t{kind = ?bitstring_tag, rep = N}.
 
 -spec t_function() -> t_function().
 t_function() ->
-  #t{rep = ?function_tag}.
+  #t{kind = ?function_tag}.
 
 -spec t_function([raw_type()], raw_type()) -> t_function_det().
 t_function(Types, Ret) ->
-  Rep = {?function_tag, Types, Ret, []},
-  #t{rep = Rep, deps = unify_deps([Ret|Types])}.
+  Rep = {Types, Ret, []},
+  #t{kind = ?function_tag, rep = Rep, deps = unify_deps([Ret|Types])}.
 
 -spec t_function([raw_type()], raw_type(), [t_constraint()]) -> t_function_det().
 t_function(Types, Ret, Constraints) ->
-  Rep = {?function_tag, Types, Ret, Constraints},
+  Rep = {Types, Ret, Constraints},
   Ts = [T || {_V, T} <- Constraints],
-  #t{rep = Rep, deps = unify_deps([Ret|Types] ++ Ts)}.
+  #t{kind = ?function_tag, rep = Rep, deps = unify_deps([Ret|Types] ++ Ts)}.
+
+%% Accessors of representations.
+
+-spec params_of_t_function_det(t_function_det()) -> [raw_type()].
+params_of_t_function_det(#t{kind = ?function_tag, rep = {Params, _Ret, _Constraints}}) ->
+  Params.
+
+-spec ret_of_t_function_det(t_function_det()) -> raw_type().
+ret_of_t_function_det(#t{kind = ?function_tag, rep = {_Params, Ret, _Constraints}}) ->
+  Ret.
+
+-spec atom_of_t_atom_lit(t_atom_lit()) -> atom().
+atom_of_t_atom_lit(#t{kind = ?atom_lit_tag, rep = Atom}) ->
+  Atom.
+
+-spec integer_of_t_integer_lit(t_integer_lit()) -> integer().
+integer_of_t_integer_lit(#t{kind = ?integer_lit_tag, rep = Integer}) ->
+  Integer.
+
+-spec elements_type_of_t_list(t_list()) -> raw_type().
+elements_type_of_t_list(#t{kind = ?list_tag, rep = Type}) ->
+  Type.
+
+-spec elements_type_of_t_nonempty_list(t_list()) -> raw_type().
+elements_type_of_t_nonempty_list(#t{kind = ?nonempty_list_tag, rep = Type}) ->
+  Type.
+
+-spec elements_types_of_t_tuple(t_tuple()) -> [raw_type()].
+elements_types_of_t_tuple(#t{kind = ?tuple_tag, rep = Types}) ->
+  Types.
+
+-spec elements_types_of_t_union(t_union()) -> [raw_type()].
+elements_types_of_t_union(#t{kind = ?union_tag, rep = Types}) ->
+  Types.
+
+-spec bounds_of_t_range(t_range()) -> t_range_limit().
+bounds_of_t_range(#t{kind = ?range_tag, rep = Limits}) ->
+  Limits.
+
+-spec segment_size_of_bitstring(t_bitstring()) -> integer().
+segment_size_of_bitstring(#t{kind = ?bitstring_tag, rep = Sz}) ->
+  Sz.
+
+%% Helper functions for kinds.
+
+-spec get_kind(raw_type()) -> atom().
+get_kind(Type) ->
+  Type#t.kind.
 
 %% Helper functions for dependencies.
 
 -spec get_deps(raw_type()) -> deps().
 get_deps(Type) ->
   Type#t.deps.
+
+-spec has_deps(raw_type()) -> boolean().
+has_deps(Type) ->
+  get_deps(Type) =/= ordsets:new().
 
 -spec add_dep(dep(), deps()) -> deps().
 add_dep(Dep, Deps) ->
@@ -424,100 +463,125 @@ add_dep(Dep, Deps) ->
 unify_deps(Types) ->
   ordsets:union([T#t.deps || T <- Types]).
 
+%% Deal with specs.
 
-%% TODO All the code under here will soon change.
+-spec retrieve_specs([cuter_cerl:cerl_attr_spec()]) -> stored_specs().
+retrieve_specs(SpecAttrs) ->
+  lists:foldl(fun process_spec_attr/2, dict:new(), SpecAttrs).
+
+-spec process_spec_attr(cuter_cerl:cerl_attr_spec(), stored_specs()) -> stored_specs().
+process_spec_attr({FA, Specs}, Processed) ->
+  Xs = [t_spec_from_form(Spec) || Spec <- Specs],
+  dict:store(FA, Xs, Processed).
+
+-spec t_spec_from_form(cuter_cerl:cerl_spec()) -> t_function_det(). 
+t_spec_from_form({type, _, 'fun', _}=Fun) ->
+  t_function_from_form(Fun);
+t_spec_from_form({type, _, 'bounded_fun', _}=Fun) ->
+  t_bounded_function_from_form(Fun).
+
+-spec find_spec(stored_spec_key(), stored_specs()) -> {'ok', stored_spec_value()} | 'error'.
+find_spec(FA, Specs) ->
+  dict:find(FA, Specs).
 
 %% Parse the spec of an MFA.
 
--spec parse_spec(cuter_cerl:cerl_spec()) -> erl_spec().
-parse_spec(Spec) ->
-  [parse_clause(S, orddict:new()) || S <- Spec].
+-type spec_parse_reply() :: {error, has_remote_types | recursive_type} | {ok, raw_type()}.
 
--spec parse_clause(cuter_cerl:cerl_func() | cuter_cerl:cerl_bounded_func(), orddict:orddict()) -> erl_spec_clause().
-parse_clause({type, _, 'fun', [Product, Ret]}, Bound) ->
-  {type, _, product, Params} = Product,
-  {[parse_type(P, Bound) || P <- Params], parse_type(Ret, Bound)};
-parse_clause({type, _, bounded_fun, [Fun, Constraints]}, Bound) ->
-  Bound1 = bind_constraints(Constraints, Bound),
-  parse_clause(Fun, Bound1).
-
-%% Store the constraints of a bounded fun.
-bind_constraints(Constraints, Bound) ->
-  lists:foldl(fun(Cst, Bnd) -> parse_constraint(Cst, Bnd) end, Bound, Constraints).
-
-%% Store the type of a constraint (in a bounded fun).
-parse_constraint({type, _, constraint, [{atom, _, is_subtype}, [Var, Type]]}, Bound) ->
-  {var, _, V} = Var,
-  orddict:store({var, V}, fun(Bnd) -> parse_type(Type, Bnd) end, Bound).
+-spec parse_spec(stored_spec_key(), stored_spec_value(), stored_types()) -> spec_parse_reply().
+parse_spec(FA, Spec, Types) ->
+  try parse_spec_clauses(FA, Spec, Types, []) of
+    {error, has_remote_types}=E -> E;
+    Parsed -> {ok, Parsed}
+  catch
+    throw:remote_type -> {error, has_remote_types};
+    throw:recursive_type -> {error, recursive_type};
+    throw:{unsupported, Name} -> {error, unsupported_type, Name}
+  end.
 
 
-%% Parse an Erlang type.
--spec parse_type(cuter_cerl:cerl_type(), orddict:orddict()) -> erl_type().
-parse_type({atom, _, Atom}, _Bound) ->
-  {atom, Atom};
-parse_type({integer, _, Integer}, _Bound) ->
-  {integer, Integer};
-parse_type({type, _, nil, []}, _Bound) ->
-  nil;
-parse_type({type, _, any, []}, _Bound) ->
-  any;
-parse_type({type, _, term, []}, _Bound) ->
-  any;
-parse_type({type, _, atom, []}, _Bound) ->
-  atom;
-parse_type({type, _, boolean, []}, _Bound) ->
-  boolean;
-parse_type({type, _, integer, []}, _Bound) ->
-  integer;
-parse_type({type, _, float, []}, _Bound) ->
-  float;
-parse_type({type, _, nonempty_list, []}, _Bound) ->
-  {nonempty_list, any};
-parse_type({type, _, nonempty_list, [Type]}, Bound) ->
-  {nonempty_list, parse_type(Type, Bound)};
-parse_type({type, _, list, []}, _Bound) ->
-  {list, any};
-parse_type({type, _, list, [Type]}, Bound) ->
-  {list, parse_type(Type, Bound)};
-parse_type({type, _, tuple, any}, _Bound) ->
-  tuple;
-parse_type({type, _, tuple, Types}, Bound) ->
-  {tuple, [parse_type(T, Bound) || T <- Types]};
-parse_type({type, _, union, Types}, Bound) ->
-  {union, [parse_type(T, Bound) || T <- Types]};
-parse_type({var, _, Var}, Bound) ->
-  case orddict:find({var, Var}, Bound) of
-    {ok, V} -> V(Bound);
-    error -> any
+parse_spec_clauses(_FA, [], _Types, Acc) ->
+  lists:reverse(Acc);
+parse_spec_clauses(FA, [Clause|Clauses], Types, Acc) ->
+  case has_deps(Clause) of
+    true  -> {error, has_remote_types};
+    false ->
+      Visited = ordsets:add_element(FA, ordsets:new()),
+      Simplified = simplify(Clause, Types, dict:new(), Visited),
+      parse_spec_clauses(FA, Clauses, Types, [Simplified|Acc])
+  end.
+
+add_constraints_to_env([], Env) ->
+  Env;
+add_constraints_to_env([{Var, Type}|Cs], Env) ->
+  F = fun(StoredTypes, E, Visited) -> simplify(Type, StoredTypes, E, Visited) end,
+  Env1 = dict:store(Var#t.rep, F, Env),
+  add_constraints_to_env(Cs, Env1).
+
+bind_parameters([], [], Env) ->
+  Env;
+bind_parameters([P|Ps], [A|As], Env) ->
+  F = fun(StoredTypes, E, Visited) -> simplify(A, StoredTypes, E, Visited) end,
+  Env1 = dict:store(P, F, Env),
+  bind_parameters(Ps, As, Env1).
+
+-spec simplify(raw_type(), stored_types(), type_var_env(), ordsets:ordset(stored_spec_key())) -> raw_type().
+%% fun
+simplify(#t{kind = ?function_tag, rep = {Params, Ret, Constraints}}=Raw, StoredTypes, Env, Visited) ->
+  Env1 = add_constraints_to_env(Constraints, Env),
+  ParamsSimplified = [simplify(P, StoredTypes, Env1, Visited) || P <- Params],
+  RetSimplified = simplify(Ret, StoredTypes, Env1, Visited),
+  Rep = {ParamsSimplified, RetSimplified, []},
+  Raw#t{rep = Rep};
+%% tuple
+simplify(#t{kind = ?tuple_tag, rep = Types}=Raw, StoredTypes, Env, Visited) ->
+  Rep = [simplify(T, StoredTypes, Env, Visited) || T <- Types],
+  Raw#t{rep = Rep};
+%% list / nonempty_list
+simplify(#t{kind = Tag, rep = Type}=Raw, StoredTypes, Env, Visited) when Tag =:= ?list_tag; Tag =:= ?nonempty_list_tag ->
+  Rep = simplify(Type, StoredTypes, Env, Visited),
+  Raw#t{rep = Rep};
+%% union
+simplify(#t{kind = ?union_tag, rep = Types}=Raw, StoredTypes, Env, Visited) ->
+  Rep = [simplify(T, StoredTypes, Env, Visited) || T <- Types],
+  Raw#t{rep = Rep};
+%% local type
+simplify(#t{kind = ?local_tag, rep = {Name, Args}}, StoredTypes, Env, Visited) ->
+  Arity = length(Args),
+  TA = {Name, Arity},
+  case ordsets:is_element(TA, Visited) of
+    true -> throw(recursive_type);
+    false ->
+      case dict:find({type, Name, Arity}, StoredTypes) of
+        error -> throw({unsupported, Name});
+        {ok, {Type, Params}} ->
+          Env1 = bind_parameters(Params, Args, Env),
+          simplify(Type, StoredTypes, Env1, [TA|Visited])
+      end
   end;
-parse_type({ann_type, _, [_Var, Type]}, Bound) ->
-  parse_type(Type, Bound);
-parse_type({paren_type, _, [Type]}, Bound) ->
-  parse_type(Type, Bound);
-%% More custom types.
-parse_type({type, _, orddict, []}, _Bound) ->
-  {list, {tuple, [any, any]}};
-parse_type({type, _, number, []}, _Bound) ->
-  {union, [integer, float]};
-parse_type({type, _, char, []}, _Bound) ->
-  {range, 0, 16#10ffff};
-parse_type({type, _, string, []}, _Bound) ->
-  {list, {range, 0, 16#10ffff}};
-parse_type({type, _, range, [{integer, _, I1}, {integer, _, I2}]}, _Bound) ->
-  {range, I1, I2};
-parse_type({type, _, non_neg_integer, []}, _Bound) ->
-  {range, 0, inf};
-parse_type({type, _, pos_integer, []}, _Bound) ->
-  {range, 1, inf};
-parse_type({type, _, neg_integer, []}, _Bound) ->
-  {range, inf, -1};
-%% Unsupported type.
-parse_type(Type, _Bound) -> throw({unsupported_type, Type}).
+%% type variable
+simplify(#t{kind = ?type_variable, rep = TVar}, StoredTypes, Env, Visited) ->
+  V = dict:fetch(TVar, Env),
+  V( StoredTypes, Env, Visited);
+simplify(#t{kind = ?remote_tag}, _StoredTypes, _Env, _Visited) ->
+  throw(remote_type);
+%% record
+simplify(#t{kind = ?record_tag, rep = {Name, OverridenFields}}, StoredTypes, Env, Visited) ->
+  RecordDecl = dict:fetch({record, Name}, StoredTypes),
+  Fields = fields_of_t_record(RecordDecl),
+  ActualFields = replace_record_fields(Fields, OverridenFields),
+  FinalFields = [simplify(T, StoredTypes, Env, Visited) || T <- ActualFields],
+  Simplified = [T || {_, T} <- FinalFields],
+  t_tuple([t_atom_lit(Name)|Simplified]);
+%% all others
+simplify(Raw, _StoredTypes, _Env, _Visited) ->
+  Raw.
 
-
-
-
-
-
+-spec replace_record_fields([record_field_type()], [record_field_type()]) -> [record_field_type()].
+replace_record_fields(Fields, []) ->
+  Fields;
+replace_record_fields(Fields, [{Name, Type}|Rest]) ->
+  Replaced = lists:keyreplace(Name, 1, Fields, {Name, Type}),
+  replace_record_fields(Replaced, Rest).
 
 

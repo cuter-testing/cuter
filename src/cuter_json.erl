@@ -3,8 +3,29 @@
 -module(cuter_json).
 
 -include("include/cuter_macros.hrl").
+-include("include/cuter_types.hrl").
 
 -export([command_to_json/2, json_to_command/1, term_to_json/1, json_to_term/1, encode_port_command/2]).
+
+
+%%====================================================================
+%% OpCodes for Erlang type signatures
+%%====================================================================
+
+-define(JSON_ERLTYPE_ANY, 0).
+-define(JSON_ERLTYPE_ATOM, 1).
+-define(JSON_ERLTYPE_ATOMLIT, 2).
+-define(JSON_ERLTYPE_FLOAT, 3).
+-define(JSON_ERLTYPE_INTEGER, 4).
+-define(JSON_ERLTYPE_INTEGERLIT, 5).
+-define(JSON_ERLTYPE_LIST, 6).
+-define(JSON_ERLTYPE_NIL, 7).
+-define(JSON_ERLTYPE_TUPLE, 8).
+-define(JSON_ERLTYPE_TUPLEDET, 9).
+-define(JSON_ERLTYPE_UNION, 10).
+-define(JSON_ERLTYPE_RANGE, 11).
+-define(JSON_ERLTYPE_NONEMPTY_LIST, 12).
+-define(JSON_ERLTYPE_BITSTRING, 13).
 
 -define(Q, $\").
 
@@ -85,7 +106,9 @@ json_to_term(JSON, WithRem) ->
 %% ==============================================================================
 
 -spec json_encode_spec_clause(cuter_types:erl_spec_clause()) -> list().
-json_encode_spec_clause({Params, Ret}) ->
+json_encode_spec_clause(Fun) ->
+  Params = cuter_types:params_of_t_function_det(Fun),
+  Ret = cuter_types:ret_of_t_function_det(Fun),
   Rt = json_encode_type(Ret),
   F = fun(X, Acc) -> [$,, json_encode_type(X) | Acc] end,
   case lists:foldl(F, [], lists:reverse(Params)) of
@@ -94,48 +117,62 @@ json_encode_spec_clause({Params, Ret}) ->
   end.
 
 -spec json_encode_type(cuter_types:erl_type()) -> list().
-json_encode_type(any) ->
-  ?ENCODE_TYPE(integer_to_list(?JSON_ERLTYPE_ANY));
-json_encode_type(atom) ->
-  ?ENCODE_TYPE(integer_to_list(?JSON_ERLTYPE_ATOM));
-json_encode_type({atom, Atom}) ->
-  A = json_encode(Atom),
-  ?ENCODE_COMPTYPE(integer_to_list(?JSON_ERLTYPE_ATOMLIT), A);
-json_encode_type(boolean) ->
-  ?ENCODE_TYPE(integer_to_list(?JSON_ERLTYPE_BOOLEAN));
-json_encode_type(float) ->
-  ?ENCODE_TYPE(integer_to_list(?JSON_ERLTYPE_FLOAT));
-json_encode_type(integer) ->
-  ?ENCODE_TYPE(integer_to_list(?JSON_ERLTYPE_INTEGER));
-json_encode_type({integer, Integer}) ->
-  I = json_encode(Integer),
-  ?ENCODE_COMPTYPE(integer_to_list(?JSON_ERLTYPE_INTEGERLIT), I);
-json_encode_type({list, Type}) ->
-  T = json_encode_type(Type),
-  ?ENCODE_COMPTYPE(integer_to_list(?JSON_ERLTYPE_LIST), T);
-json_encode_type({nonempty_list, Type}) ->
-  T = json_encode_type(Type),
-  ?ENCODE_COMPTYPE(integer_to_list(?JSON_ERLTYPE_NONEMPTY_LIST), T);
-json_encode_type(nil) ->
-  ?ENCODE_TYPE(integer_to_list(?JSON_ERLTYPE_NIL));
-json_encode_type(tuple) ->
-  ?ENCODE_TYPE(integer_to_list(?JSON_ERLTYPE_TUPLE));
-json_encode_type({tuple, Types}) ->
-  F = fun(X, Acc) -> [$,, json_encode_type(X) | Acc] end,
-  [$, | Ts] = lists:foldl(F, [], lists:reverse(Types)),
-  ?ENCODE_COMPTYPE(integer_to_list(?JSON_ERLTYPE_TUPLEDET), [$\[, Ts, $\]]);
-json_encode_type({union, Types}) ->
-  F = fun(X, Acc) -> [$,, json_encode_type(X) | Acc] end,
-  [$, | Ts] = lists:foldl(F, [], lists:reverse(Types)),
-  ?ENCODE_COMPTYPE(integer_to_list(?JSON_ERLTYPE_UNION), [$\[, Ts, $\]]);
-json_encode_type({range, Integer1, Integer2}) ->
-  I1 = range_encode_maybe_integer(Integer1),
-  I2 = range_encode_maybe_integer(Integer2),
-  ?ENCODE_COMPTYPE(integer_to_list(?JSON_ERLTYPE_RANGE), [$\[, I1, $,, I2, $\]]).
+json_encode_type(Type) ->
+  case cuter_types:get_kind(Type) of
+    ?any_tag -> ?ENCODE_TYPE(integer_to_list(?JSON_ERLTYPE_ANY));
+    ?atom_tag -> ?ENCODE_TYPE(integer_to_list(?JSON_ERLTYPE_ATOM));
+    ?atom_lit_tag ->
+      Atom = cuter_types:atom_of_t_atom_lit(Type),
+      A = json_encode(Atom),
+      ?ENCODE_COMPTYPE(integer_to_list(?JSON_ERLTYPE_ATOMLIT), A);
+    ?float_tag -> ?ENCODE_TYPE(integer_to_list(?JSON_ERLTYPE_FLOAT));
+    ?integer_tag -> ?ENCODE_TYPE(integer_to_list(?JSON_ERLTYPE_INTEGER));
+    ?integer_lit_tag ->
+      Integer = cuter_types:integer_of_t_integer_lit(Type),
+      I = json_encode(Integer),
+      ?ENCODE_COMPTYPE(integer_to_list(?JSON_ERLTYPE_INTEGERLIT), I);
+    ?list_tag ->
+      InnerType = cuter_types:elements_type_of_t_list(Type),
+      T = json_encode_type(InnerType),
+      ?ENCODE_COMPTYPE(integer_to_list(?JSON_ERLTYPE_LIST), T);
+    ?nonempty_list_tag ->
+      InnerType = cuter_types:elements_type_of_t_nonempty_list(Type),
+      T = json_encode_type(InnerType),
+      ?ENCODE_COMPTYPE(integer_to_list(?JSON_ERLTYPE_NONEMPTY_LIST), T);
+    ?nil_tag -> ?ENCODE_TYPE(integer_to_list(?JSON_ERLTYPE_NIL));
+    ?bitstring_tag ->
+      Size = cuter_types:segment_size_of_bitstring(Type),
+      Sz = json_encode(Size),
+      ?ENCODE_COMPTYPE(integer_to_list(?JSON_ERLTYPE_BITSTRING), Sz);
+    ?tuple_tag ->
+      case cuter_types:elements_types_of_t_tuple(Type) of
+        [] -> ?ENCODE_TYPE(integer_to_list(?JSON_ERLTYPE_TUPLE));
+        InnerTypes ->
+          F = fun(X, Acc) -> [$,, json_encode_type(X) | Acc] end,
+          [$, | Ts] = lists:foldl(F, [], lists:reverse(InnerTypes)),
+          ?ENCODE_COMPTYPE(integer_to_list(?JSON_ERLTYPE_TUPLEDET), [$\[, Ts, $\]])
+      end;
+    ?union_tag ->
+      InnerTypes = cuter_types:elements_types_of_t_union(Type),
+      F = fun(X, Acc) -> [$,, json_encode_type(X) | Acc] end,
+      [$, | Ts] = lists:foldl(F, [], lists:reverse(InnerTypes)),
+      ?ENCODE_COMPTYPE(integer_to_list(?JSON_ERLTYPE_UNION), [$\[, Ts, $\]]);
+    ?range_tag ->
+      {Lower, Upper} = cuter_types:bounds_of_t_range(Type),
+      L = json_encode_range_limit(Lower),
+      U = json_encode_range_limit(Upper),
+      ?ENCODE_COMPTYPE(integer_to_list(?JSON_ERLTYPE_RANGE), [$\[, L, $,, U, $\]])
+  end.
 
--spec range_encode_maybe_integer(integer() | inf) -> list().
-range_encode_maybe_integer(inf) -> json_encode_type(integer);
-range_encode_maybe_integer(I) -> json_encode(I).
+json_encode_range_limit(Limit) ->
+  case cuter_types:get_kind(Limit) of
+    ?integer_lit_tag ->
+      Integer = cuter_types:integer_of_t_integer_lit(Limit),
+      json_encode(Integer);
+    Kind when Kind =:= ?pos_inf orelse Kind =:= ?neg_inf ->
+      ?ENCODE_TYPE(integer_to_list(?JSON_ERLTYPE_INTEGER))
+  end.
+
 
 %% ==============================================================================
 %% Exported JSON Encoding / Decoding functions for Port Communication

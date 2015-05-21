@@ -524,7 +524,6 @@ class ErlangZ3:
       cc.JSON_ERLTYPE_ANY: self.type_any_toZ3,
       cc.JSON_ERLTYPE_ATOM: self.type_atom_toZ3,
       cc.JSON_ERLTYPE_ATOMLIT: self.type_atomlit_toZ3,
-      cc.JSON_ERLTYPE_BOOLEAN: self.type_boolean_toZ3,
       cc.JSON_ERLTYPE_FLOAT: self.type_float_toZ3,
       cc.JSON_ERLTYPE_INTEGER: self.type_integer_toZ3,
       cc.JSON_ERLTYPE_INTEGERLIT: self.type_integerlit_toZ3,
@@ -534,7 +533,8 @@ class ErlangZ3:
       cc.JSON_ERLTYPE_TUPLEDET: self.type_tupledet_toZ3,
       cc.JSON_ERLTYPE_UNION: self.type_union_toZ3,
       cc.JSON_ERLTYPE_RANGE: self.type_range_toZ3,
-      cc.JSON_ERLTYPE_NONEMPTY_LIST: self.type_nonempty_list_toZ3
+      cc.JSON_ERLTYPE_NONEMPTY_LIST: self.type_nonempty_list_toZ3,
+      cc.JSON_ERLTYPE_BITSTRING: self.type_bitstring_toZ3
     }
     tpcode = tp["tp"]
     arg = tp["a"] if "a" in tp else None
@@ -550,8 +550,9 @@ class ErlangZ3:
     atm = self.term_toZ3(arg)
     return (s == atm)
   
-  def type_boolean_toZ3(self, s, arg):
-    return Or(s == self.atmTrue, s == self.atmFalse)
+  def type_bitstring_toZ3(self, s, arg):
+    sz = self.term_toZ3(arg)
+    return None  # TODO Do sth with bitstrings
   
   def type_float_toZ3(self, s, arg):
     return self.Term.is_real(s)

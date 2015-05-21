@@ -134,17 +134,25 @@ handle_call({load, M}, _From, State) ->
 handle_call({get_spec, {M, F, A}=MFA}, _From, State) ->
   case try_load(M, State) of
     {ok, MDb} ->
-      try
-        CerlSpec = cuter_cerl:retrieve_spec(MDb, {F, A}),
-        ErlSpec = cuter_types:parse_spec(CerlSpec),
-        {reply, {ok, ErlSpec}, State}
-      catch
-        error:E ->
-          cuter_pp:error_retrieving_spec(MFA, E),
+      case cuter_cerl:retrieve_spec(MDb, {F, A}) of
+        error ->
+          cuter_pp:error_retrieving_spec(MFA, not_found),
           {reply, error, State};
-        throw:E ->
-          cuter_pp:error_retrieving_spec(MFA, E),
-          {reply, error, State}
+        {ok, CerlSpec} ->
+          Types = cuter_cerl:get_stored_types(MDb),
+          case cuter_types:parse_spec({F, A}, CerlSpec, Types) of
+            {error, has_remote_types} ->
+              cuter_pp:error_retrieving_spec(MFA, has_remote_types),
+              {reply, error, State};
+            {error, recursive_type} ->
+              cuter_pp:error_retrieving_spec(MFA, recursive_type),
+              {reply, error, State};
+            {error, unsupported_type, Name} ->
+              cuter_pp:error_retrieving_spec(MFA, {unsupported_type, Name}),
+              {reply, error, State};
+            {ok, _Spec}=OK ->
+              {reply, OK, State}
+          end
       end;
     Msg ->
       cuter_pp:error_retrieving_spec(MFA, Msg),

@@ -3,7 +3,7 @@
 -module(cuter_cerl).
 
 %% External exports
--export([load/3, retrieve_spec/2, get_tags/1, id_of_tag/1, tag_from_id/1, empty_tag/0]).
+-export([load/3, retrieve_spec/2, get_tags/1, id_of_tag/1, tag_from_id/1, empty_tag/0, get_stored_types/1]).
 
 %% We are using the records representation of the Core Erlang Abstract
 %% Syntax Tree as they are defined in core_parse.hrl
@@ -13,7 +13,8 @@
 
 -export_type([compile_error/0, cerl_spec/0, cerl_func/0, cerl_type/0,
               cerl_bounded_func/0, cerl_constraint/0, tagID/0, tag/0, tag_generator/0,
-              cerl_attr_type/0, cerl_recdef/0, cerl_typedef/0, cerl_record_field/0, cerl_type_record_field/0]).
+              cerl_attr_type/0, cerl_recdef/0, cerl_typedef/0, cerl_record_field/0, cerl_type_record_field/0,
+              cerl_attr_spec/0]).
 
 -type info()          :: anno | attributes | exports | name.
 -type code_error()    :: {error, {loaded_ret_atoms(), cuter:mod()}}.
@@ -121,19 +122,15 @@ load(Mod, Db, TagGen) ->
   end.
 
 %% Retrieves the spec of a function from a stored module's info.
--spec retrieve_spec(ets:tid(), {name(), byte()}) -> cerl_spec() | not_found.
+-spec retrieve_spec(ets:tid(), {name(), byte()}) -> {ok, cuter_types:stored_spec_value()} | error.
 retrieve_spec(Db, FA) ->
-  [{specs, SpecAttrs}] = ets:lookup(Db, specs),
-  locate_spec(SpecAttrs, FA).
+  [{specs, Specs}] = ets:lookup(Db, specs),
+  cuter_types:find_spec(FA, Specs).
 
-%% Locates the spec of a function from the list of the module's attributes.
--spec locate_spec([cerl_attr_spec()], {name(), byte()}) -> cerl_spec() | not_found.
-locate_spec([], _FA) ->
-  not_found;
-locate_spec([{FA, Spec} | _Attrs], FA) ->
-  Spec;
-locate_spec([_|Attrs], FA) ->
-  locate_spec(Attrs, FA).
+-spec get_stored_types(ets:tid()) -> cuter_types:stored_types().
+get_stored_types(Db) ->
+  [{types, Types}] = ets:lookup(Db, types),
+  Types.
 
 %%====================================================================
 %% Internal functions
@@ -211,7 +208,8 @@ store_module_info(attributes, _M, AST, Db) ->
   Types = cuter_types:retrieve_types(TypeAttrs),
   true = ets:insert(Db, {types, Types}),
   %% Just store the attributes that involve specs.
-  true = ets:insert(Db, {specs, SpecAttrs}),
+  Specs = cuter_types:retrieve_specs(SpecAttrs),
+  true = ets:insert(Db, {specs, Specs}),
   ok;
 store_module_info(exports, M, AST, Db) ->
   Exps_c = AST#c_module.exports,

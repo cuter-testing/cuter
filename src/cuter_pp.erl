@@ -12,7 +12,7 @@
 
 %% Report information about the concolic executions.
 -export([mfa/1, input/2, error_retrieving_spec/2, execution_status/2,
-	 execution_info/2, path_vertex/2, flush/1, errors_found/1]).
+	 execution_info/2, path_vertex/2, flush/1, errors_found/1, form_has_unsupported_type/1]).
 
 %% Report information about solving.
 -export([solving_failed_notify/0]).
@@ -84,6 +84,11 @@ input(Ref, As) ->
 error_retrieving_spec(MFA, Error) ->
   gen_server:call(?PRETTY_PRINTER, {error_retrieving_spec, MFA, Error}).
 
+%% Encountered unsupported type when parsing a form.
+-spec form_has_unsupported_type(any()) -> ok.
+form_has_unsupported_type(Info) ->
+  gen_server:call(?PRETTY_PRINTER, {form_has_unsupported_type, Info}).
+
 %% The result status of the given concolic execution.
 -spec execution_status(cuter_scheduler_maxcover:exec_handle(), cuter_iserver:execution_status()) -> ok.
 execution_status(Ref, Status) ->
@@ -152,12 +157,21 @@ handle_call({execution_status, Ref, Status}, _From, State=#sts{info = Info}) ->
   Update = fun(Curr) -> orddict:store(execution_status, Status, Curr) end,
   {reply, ok, State#sts{info = dict:update(Ref, Update, Info)}};
 %% Error retrieving the spec of the MFA.
-handle_call({error_retrieving_spec, MFA, _Error}, _From, State) ->
+handle_call({error_retrieving_spec, MFA, Error}, _From, State) ->
   case get(spec_error) of
     yes -> {reply, ok, State};
     undefined ->
       put(spec_error, yes),
-      io:format("~nWARNING: ~p does not have a spec or it is not currently supported!~n~n", [MFA]),
+      spec_error(MFA, Error),
+      {reply, ok, State}
+  end;
+%% Encountered an unsupported type
+handle_call( {form_has_unsupported_type, Info}, _From, State) ->
+  case get(type_error) of
+    yes -> {reply, ok, State};
+    undefined ->
+      put(type_error, yes),
+      unsupported_type_error(Info),
       {reply, ok, State}
   end;
 %% The information of the given concolic execution.
@@ -202,6 +216,20 @@ handle_info(_What, State) ->
 %% ============================================================================
 %% Internal functions
 %% ============================================================================
+
+spec_error(MFA, not_found) ->
+  io:format("~nWARNING: Could not find the spec of ~p!~n~n", [MFA]);
+spec_error(MFA, has_remote_types) ->
+  io:format("~nWARNING: The spec of ~p has a remote type and is not supported!~n~n", [MFA]);
+spec_error(MFA, recursive_type) ->
+  io:format("~nWARNING: The spec of ~p has a recursive type and is not supported!~n~n", [MFA]);
+spec_error(MFA, {unsupported_type, Name}) ->
+  io:format("~nWARNING: The spec of ~p uses the unsupported type ~p!~n~n", [MFA, Name]);
+spec_error(MFA, Error) ->
+  io:format("~nWARNING: Error while retrieving the spec of ~p!~n  Error: ~p~n~n", [MFA, Error]).
+
+unsupported_type_error(Info) ->
+  io:format("~nWARNING: Encountered an unsupported type!~n").
 
 -spec pp_nl(boolean()) -> ok.
 pp_nl(true) -> io:format("~n");
