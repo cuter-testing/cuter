@@ -2,11 +2,12 @@
 %%------------------------------------------------------------------------------
 -module(cuter_json).
 
+-export([command_to_json/2, json_to_command/1, term_to_json/1, json_to_term/1, encode_port_command/2]).
+
 -include("include/cuter_macros.hrl").
 -include("include/cuter_types.hrl").
 
--export([command_to_json/2, json_to_command/1, term_to_json/1, json_to_term/1, encode_port_command/2]).
-
+-type encodable_data() :: [[integer()] | integer()].
 
 %%====================================================================
 %% OpCodes for Erlang type signatures
@@ -105,7 +106,7 @@ json_to_term(JSON, WithRem) ->
 %% JSON Encoding of Erlang Types
 %% ==============================================================================
 
--spec json_encode_spec_clause(cuter_types:erl_spec_clause()) -> list().
+-spec json_encode_spec_clause(cuter_types:erl_spec_clause()) -> encodable_data().
 json_encode_spec_clause(Fun) ->
   Params = cuter_types:params_of_t_function_det(Fun),
   Ret = cuter_types:ret_of_t_function_det(Fun),
@@ -116,7 +117,7 @@ json_encode_spec_clause(Fun) ->
     [$, | Ps] -> ?ENCODE_SPEC([$\[, Ps, $\]], Rt)
   end.
 
--spec json_encode_type(cuter_types:erl_type()) -> list().
+-spec json_encode_type(cuter_types:erl_type()) -> encodable_data().
 json_encode_type(Type) ->
   case cuter_types:get_kind(Type) of
     ?any_tag -> ?ENCODE_TYPE(integer_to_list(?JSON_ERLTYPE_ANY));
@@ -161,7 +162,9 @@ json_encode_type(Type) ->
       {Lower, Upper} = cuter_types:bounds_of_t_range(Type),
       L = json_encode_range_limit(Lower),
       U = json_encode_range_limit(Upper),
-      ?ENCODE_COMPTYPE(integer_to_list(?JSON_ERLTYPE_RANGE), [$\[, L, $,, U, $\]])
+      ?ENCODE_COMPTYPE(integer_to_list(?JSON_ERLTYPE_RANGE), [$\[, L, $,, U, $\]]);
+    %% TODO Properly encode t_function()
+    ?function_tag -> ?ENCODE_TYPE(integer_to_list(?JSON_ERLTYPE_ANY))
   end.
 
 json_encode_range_limit(Limit) ->

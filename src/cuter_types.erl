@@ -75,7 +75,7 @@
 -type t_integer_neg_inf() :: #t{kind :: ?neg_inf}.
 -type t_bitstring() :: #t{kind :: ?bitstring_tag, rep :: 1|8}.
 -type t_function() :: #t{kind :: ?function_tag} | t_function_det().
--type t_function_det() :: #t{kind :: ?function_tag, rep :: {[raw_type()], raw_type(), [t_constraint()]}}.
+-type t_function_det() :: #t{kind :: ?function_tag, rep :: {[raw_type()], raw_type(), [t_constraint()]}, deps :: deps()}.
 -type t_constraint() :: {t_type_var(), raw_type()}.
 -type t_local() :: #t{kind :: ?local_tag, rep :: {type_name(), [raw_type()]}}.
 -type t_remote() :: #t{kind :: ?remote_tag, rep :: {module(), type_name(), [raw_type()]}}.
@@ -84,16 +84,16 @@
 
 %% How pre-processed types are stored.
 -type stored_type_key() :: {record, record_name()} | {type, type_name(), type_arity()}.
--type stored_type_value() :: [record_field_type()] | {raw_type(), [type_var()]}.
--opaque stored_types() :: dict:dict(stored_type_key(), stored_type_value()).
+-type stored_type_value() :: [record_field_type()] | {any(), [type_var()]}. % raw_type()
+-type stored_types() :: dict:dict(stored_type_key(), stored_type_value()).
 
 -type stored_spec_key() :: {type_name(), type_arity()}.
 -type stored_spec_value() :: [t_function_det()].
--opaque stored_specs() :: dict:dict(stored_spec_key(), stored_spec_value()).
+-type stored_specs() :: dict:dict(stored_spec_key(), stored_spec_value()).
 
 -type type_var_env() :: dict:dict(type_var(), raw_type()).
 -type erl_spec_clause() :: t_function_det().
--type erl_spec() :: [erl_spec_clause(), ...].
+-type erl_spec() :: [erl_spec_clause()].
 
 %% Pre-process the type & record declarations of a module.
 -spec retrieve_types([cuter_cerl:cerl_attr_type()]) -> stored_types().
@@ -112,14 +112,6 @@ process_type_attr({Name, Repr, Vars}, Processed) ->
   Vs = [{?type_var, Var} || {var, _, Var} <- Vars],
   dict:store({type, Name, length(Vs)}, {Type, Vs}, Processed).
 
-%% Provision for unsupported types.
-safe_t_from_form(Form) ->
-  try t_from_form(Form)
-  catch throw:{unsupported, Info} ->
-    cuter_pp:form_has_unsupported_type(Info),
-    t_any()
-  end.
-
 %% The fields of a declared record.
 -spec t_field_from_form(cuter_cerl:cerl_record_field()) -> record_field_type().
 t_field_from_form({record_field, _, {atom, _, Name}}) ->
@@ -131,9 +123,17 @@ t_field_from_form({typed_record_field, {record_field, _, {atom, _, Name}}, Type}
 t_field_from_form({typed_record_field, {record_field, _, {atom, _, Name}, _Default}, Type}) ->
   {Name, safe_t_from_form(Type)}.
 
+%% Provision for unsupported types.
+safe_t_from_form(Form) ->
+  try t_from_form(Form)
+  catch throw:{unsupported, Info} ->
+    cuter_pp:form_has_unsupported_type(Info),
+    t_any()
+  end.
+
 %% Parse a type.
 
--spec t_from_form(cerl:cerl_type()) -> raw_type().
+-spec t_from_form(cuter_cerl:cerl_type()) -> raw_type().
 %% Erlang_Atom
 t_from_form({atom, _, Atom}) ->
   t_atom_lit(Atom);
@@ -249,10 +249,9 @@ t_from_form({type, _, Name, Types}) ->
 %% Type Variable
 t_from_form({var, _, Var}) ->
   t_var(Var);
-%% Unsupported_types
+%% Unsupported forms
 t_from_form(Type) ->
   throw({unsupported, Type}).
-
 
 -spec t_bound_field_from_form(cuter_cerl:cerl_type_record_field()) -> record_field_type().
 %% Record Field.
@@ -419,7 +418,7 @@ integer_of_t_integer_lit(#t{kind = ?integer_lit_tag, rep = Integer}) ->
 elements_type_of_t_list(#t{kind = ?list_tag, rep = Type}) ->
   Type.
 
--spec elements_type_of_t_nonempty_list(t_list()) -> raw_type().
+-spec elements_type_of_t_nonempty_list(t_nonempty_list()) -> raw_type().
 elements_type_of_t_nonempty_list(#t{kind = ?nonempty_list_tag, rep = Type}) ->
   Type.
 
@@ -431,7 +430,7 @@ elements_types_of_t_tuple(#t{kind = ?tuple_tag, rep = Types}) ->
 elements_types_of_t_union(#t{kind = ?union_tag, rep = Types}) ->
   Types.
 
--spec bounds_of_t_range(t_range()) -> t_range_limit().
+-spec bounds_of_t_range(t_range()) -> {t_range_limit(), t_range_limit()}.
 bounds_of_t_range(#t{kind = ?range_tag, rep = Limits}) ->
   Limits.
 
@@ -474,7 +473,7 @@ process_spec_attr({FA, Specs}, Processed) ->
   Xs = [t_spec_from_form(Spec) || Spec <- Specs],
   dict:store(FA, Xs, Processed).
 
--spec t_spec_from_form(cuter_cerl:cerl_spec()) -> t_function_det(). 
+-spec t_spec_from_form(cuter_cerl:cerl_spec_func()) -> t_function_det().
 t_spec_from_form({type, _, 'fun', _}=Fun) ->
   t_function_from_form(Fun);
 t_spec_from_form({type, _, 'bounded_fun', _}=Fun) ->
@@ -486,7 +485,9 @@ find_spec(FA, Specs) ->
 
 %% Parse the spec of an MFA.
 
--type spec_parse_reply() :: {error, has_remote_types | recursive_type} | {ok, raw_type()}.
+-type spec_parse_reply() :: {error, has_remote_types | recursive_type}
+                          | {error, unsupported_type, type_name()}
+                          | {ok, erl_spec()}.
 
 -spec parse_spec(stored_spec_key(), stored_spec_value(), stored_types()) -> spec_parse_reply().
 parse_spec(FA, Spec, Types) ->
@@ -570,7 +571,7 @@ simplify(#t{kind = ?record_tag, rep = {Name, OverridenFields}}, StoredTypes, Env
   RecordDecl = dict:fetch({record, Name}, StoredTypes),
   Fields = fields_of_t_record(RecordDecl),
   ActualFields = replace_record_fields(Fields, OverridenFields),
-  FinalFields = [simplify(T, StoredTypes, Env, Visited) || T <- ActualFields],
+  FinalFields = [{N, simplify(T, StoredTypes, Env, Visited)} || {N, T} <- ActualFields],
   Simplified = [T || {_, T} <- FinalFields],
   t_tuple([t_atom_lit(Name)|Simplified]);
 %% all others

@@ -14,7 +14,7 @@
 -export_type([compile_error/0, cerl_spec/0, cerl_func/0, cerl_type/0,
               cerl_bounded_func/0, cerl_constraint/0, tagID/0, tag/0, tag_generator/0,
               cerl_attr_type/0, cerl_recdef/0, cerl_typedef/0, cerl_record_field/0, cerl_type_record_field/0,
-              cerl_attr_spec/0]).
+              cerl_attr_spec/0, cerl_spec_func/0]).
 
 -type info()          :: anno | attributes | exports | name.
 -type code_error()    :: {error, {loaded_ret_atoms(), cuter:mod()}}.
@@ -35,17 +35,18 @@
 
 -type cerl_recdef() :: {{'record', name()}, [cerl_record_field()], []}.
 -type cerl_record_field() :: cerl_untyped_record_field() | cerl_typed_record_field().
--type cerl_untyped_record_field() :: {'record_field', lineno(), name()}
-                                   | {'record_field', lineno(), name(), any()}.
+-type cerl_untyped_record_field() :: {'record_field', lineno(), {atom, lineno(), name()}}
+                                   | {'record_field', lineno(), {atom, lineno(), name()}, any()}.
 -type cerl_typed_record_field() :: {'typed_record_field', cerl_untyped_record_field(), cerl_type()}.
--type cerl_typedef() :: {name(), cerl_type(), [cerl:c_var()]}.
+-type cerl_typedef() :: {name(), cerl_type(), [cerl_type_var()]}.
 
--type cerl_specdef() :: {name(), byte(), cerl_spec()}.
--type cerl_spec() :: [cerl_func() | cerl_bounded_func(), ...].
+-type cerl_specdef() :: {{name(), byte()}, cerl_spec()}.
+-type cerl_spec() :: [cerl_spec_func(), ...].
+-type cerl_spec_func() :: cerl_func() | cerl_bounded_func().
 
 -type cerl_bounded_func() :: {'type', lineno(), 'bounded_fun', [cerl_func() | cerl_constraint()]}.
 -type cerl_func() :: {'type', lineno(), 'fun', [cerl_product() | cerl_type()]}.
--type cerl_constraint() :: {'type', lineno(), 'constraint', [{atom, lineno(), 'is_subtype'} | [atom() | cerl_type()]]}.
+-type cerl_constraint() :: {'type', lineno(), 'constraint', [{atom, lineno(), 'is_subtype'} | [cerl_type_var() | cerl_type()]]}.
 -type cerl_product() :: {'type', lineno(), 'product', [cerl_type()]}.
 
 -type cerl_type() :: cerl_type_nil()
@@ -76,7 +77,6 @@
                    | cerl_type_var()
                    .
 
-
 -type cerl_type_nil() :: {'type', lineno(), 'nil', []}.
 -type cerl_type_any() :: {'type', lineno(), 'any' | 'term', []}.
 -type cerl_type_integer() :: {'type', lineno(), 'integer' | 'pos_integer' | 'non_neg_integer' | 'neg_integer', []}.
@@ -104,7 +104,7 @@
 -type cerl_type_record() :: {'type', lineno(), 'record', [cerl_type_literal_atom() | [cerl_type_record()]]}.
 -type cerl_type_record_field() :: {'type', lineno(), 'field_type', [cerl_type_literal_atom() | cerl_type()]}.
 -type cerl_type_local() :: {'type', lineno(), cerl_type_literal_atom(), [cerl_type()]}.
--type cerl_type_var() :: cerl:c_var().
+-type cerl_type_var() :: {var, lineno(), atom()}.
 -type cerl_type_function() :: {'type', lineno(), 'function', []}
                             | cerl_func() | cerl_bounded_func().
 
