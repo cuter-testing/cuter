@@ -2,21 +2,18 @@
 %%------------------------------------------------------------------------------
 -module(cuter_env).
 
--export([
-  new_environment/0, add_binding/3, bind_parameters/3, get_value/2,
-  add_mappings_to_environment/2
-]).
+-export([new_environment/0, add_binding/3, bind_parameters/3,
+	 get_value/2, add_mappings_to_environment/2]).
 
+-include_lib("compiler/src/core_parse.hrl").
 
 %% External exported types
 -export_type([environment/0]).
 
--include_lib("compiler/src/core_parse.hrl").
-
 %% Environments are rather small so orddict is more efficient
 -type environment() :: orddict:orddict().
 -type cvar() :: cerl:var_name().
--type cval() :: concolic_eval:valuelist() | term().
+-type cval() :: cuter_eval:valuelist() | cuter_eval:value().
 
 
 %% Creates a new empty environment

@@ -2,11 +2,12 @@
 %%------------------------------------------------------------------------------
 -module(cuter_eval).
 
+-export([i/4, eval/7, unzip_error/1]).
+
 -include("include/cuter_macros.hrl").
 -include_lib("compiler/src/core_parse.hrl").
 
--export([i/4, eval/7, unzip_error/1]).
--export_type([result/0, valuelist/0]).
+-export_type([result/0, valuelist/0, value/0]).
 
 -type calltype() :: local | external.
 -type result()   :: {any(), any()}.
@@ -14,10 +15,11 @@
 -type eval()     :: {named, module(), atom()}
                   | {lambda, function()}
                   | {letrec_func, {atom(), atom(), cerl:c_fun(), function()}}.
+-type value()    :: any().
 
 %% Used to represent list of values for Core Erlang interpretation
 -record(valuelist, {
-  values :: [any()],
+  values :: [value()],
   degree :: non_neg_integer()
 }).
 -type valuelist() :: #valuelist{}.
@@ -40,7 +42,8 @@ i(M, F, As, Servers) ->
       log_mfa_spec(Fd, Servers#svs.code, MFA),
       cuter_iserver:send_mapping(Root, Mapping),
       NMF = {named, M, F},
-      Ret = eval(NMF, As, SymbAs, external, Servers, cuter_cerl:empty_tag(), Fd),
+      Tag = cuter_cerl:empty_tag(),
+      Ret = eval(NMF, As, SymbAs, external, Servers, Tag, Fd),
       cuter_iserver:int_return(Root, Ret)
     end,
   erlang:spawn(I).
@@ -439,7 +442,7 @@ eval_expr({c_apply, Anno, Op, Args}, M, Cenv, Senv, Servers, Fd) ->
     {letrec_func, {Mod, Func, _Arity, Def, E}} ->
       eval({letrec_func, {Mod, Func, Def, E}}, CAs, SAs, local, Servers, Tags#tags.this, Fd);
     Closure ->
-      % Constraint OP_s = OP_c (in case closure is made by make_fun)
+      %% Constraint OP_s = OP_c (in case closure is made by make_fun)
       eval({lambda, Closure}, CAs, SAs, local, Servers, Tags#tags.this, Fd)
   end;
 
@@ -513,8 +516,8 @@ eval_expr({c_catch, _Anno, Body}, M, Cenv, Senv, Servers, Fd) ->
       Stacktrace = erlang:get_stacktrace(),
       {{'EXIT', {Cv, Stacktrace}}, {'EXIT', {Sv, Stacktrace}}}
   end;
-%eval_expr({c_catch, _Anno, Body}, M, Cenv, Senv, Servers, Fd) ->
-%  eval_expr(Body, M, Cenv, Senv, Servers, Fd);
+%%eval_expr({c_catch, _Anno, Body}, M, Cenv, Senv, Servers, Fd) ->
+%%  eval_expr(Body, M, Cenv, Senv, Servers, Fd);
 
 %% c_cons
 eval_expr({c_cons, _Anno, Hd, Tl}, M, Cenv, Senv, Servers, Fd) ->
@@ -641,20 +644,20 @@ eval_expr({c_try, _Anno, Arg, Vars, Body, Evars, Handler}, M, Cenv, Senv, Server
       ESe = cuter_env:bind_parameters(Ss, Evars, Senv),
       eval_expr(Handler, M, ECe, ESe, Servers, Fd)
   end;
-%eval_expr({c_try, _Anno, Arg, Vars, Body, _Evars, _Handler}, M, Cenv, Senv, Servers, Fd) ->
-%  Deg = length(Vars),
-%  {A_c, A_s} = eval_expr(Arg, M, Cenv, Senv, Servers, Fd),
-%  case Deg of
-%    1 ->
-%      CAs = [A_c],
-%      SAs = [A_s];
-%    _ ->
-%      {valuelist, CAs, Deg} = A_c,
-%      {valuelist, SAs, Deg} = A_s
-%  end,
-%  Ce = cuter_env:bind_parameters(CAs, Vars, Cenv),
-%  Se = cuter_env:bind_parameters(SAs, Vars, Senv),
-%  eval_expr(Body, M, Ce, Se, Servers, Fd);
+%%eval_expr({c_try, _Anno, Arg, Vars, Body, _Evars, _Handler}, M, Cenv, Senv, Servers, Fd) ->
+%%  Deg = length(Vars),
+%%  {A_c, A_s} = eval_expr(Arg, M, Cenv, Senv, Servers, Fd),
+%%  case Deg of
+%%    1 ->
+%%      CAs = [A_c],
+%%      SAs = [A_s];
+%%    _ ->
+%%      {valuelist, CAs, Deg} = A_c,
+%%      {valuelist, SAs, Deg} = A_s
+%%  end,
+%%  Ce = cuter_env:bind_parameters(CAs, Vars, Cenv),
+%%  Se = cuter_env:bind_parameters(SAs, Vars, Senv),
+%%  eval_expr(Body, M, Ce, Se, Servers, Fd);
 
 %% c_tuple
 eval_expr({c_tuple, _Anno, Es}, M, Cenv, Senv, Servers, Fd) ->
@@ -695,7 +698,8 @@ eval_expr({c_var, _Anno, Name}, _M, Cenv, Senv, _Servers, _Fd) ->
   {ok, Sv} = cuter_env:get_value(Name, Senv),
   {Cv, Sv};
 
-eval_expr(Cerl, _M, _Cenv, _Senv, _Servers, _Fd) -> exception(error, {unknown_cerl, Cerl}).
+eval_expr(Cerl, _M, _Cenv, _Senv, _Servers, _Fd) ->
+  exception(error, {unknown_cerl, Cerl}).
 
 
 %% --------------------------------------------------------
