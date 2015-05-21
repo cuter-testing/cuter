@@ -3,10 +3,10 @@
 -module(cuter_codeserver_tests).
 
 -include_lib("eunit/include/eunit.hrl").
--include("include/eunit_config.hrl").
 
 -spec test() -> ok | {error | term()}. %% Silence dialyzer warning
 
+-define(MODS_LIST, [lists, dict, orddict, ets, os, string, filelib, beam_lib, cerl]).
 
 %% Load modules
 -spec load_modules_test_() -> term().

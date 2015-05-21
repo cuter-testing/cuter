@@ -29,7 +29,8 @@
 -type lineno() :: integer().
 -type name() :: atom().
 -type cerl_attr() :: {#c_literal{val :: 'type'}, #c_literal{val :: cerl_attr_type()}}
-                   | {#c_literal{val :: 'spec'}, #c_literal{val :: cerl_attr_spec()}}.
+                   | {#c_literal{val :: spec | opaque}, #c_literal{val :: cerl_attr_spec()}}
+                   | {#c_literal{val :: export_type | behaviour}, cerl:c_literal()}.
 -type cerl_attr_type() :: cerl_recdef() | cerl_typedef().
 -type cerl_attr_spec() :: cerl_specdef().
 
@@ -256,10 +257,13 @@ classify_attributes(Attrs) ->
 -spec classify_attributes([cerl_attr()], [cerl_attr_type()], [cerl_attr_spec()]) -> {[cerl_attr_type()], [cerl_attr_spec()]}.
 classify_attributes([], Types, Specs) ->
   {lists:reverse(Types), lists:reverse(Specs)};
-classify_attributes([{What, #c_literal{val = [Info]}}|Attrs], Types, Specs) ->
+classify_attributes([{What, #c_literal{val = Val}}|Attrs], Types, Specs) ->
+  io:format("%% ~p~n", [What]),
   case cerl:atom_val(What) of
-    type -> classify_attributes(Attrs, [Info|Types], Specs);
-    spec -> classify_attributes(Attrs, Types, [Info|Specs])
+    Tp when Tp =:= type orelse Tp =:= opaque ->
+      classify_attributes(Attrs, [hd(Val)|Types], Specs);
+    spec -> classify_attributes(Attrs, Types, [hd(Val)|Specs]);
+    _Ignore -> classify_attributes(Attrs, Types, Specs)
   end.
 
 %% Annotates the AST with tags.
