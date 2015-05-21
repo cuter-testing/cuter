@@ -598,7 +598,7 @@ eval_expr({c_primop, _Anno, Name, Args}, M, Cenv, Senv, Servers, Fd) ->
 eval_expr({c_receive, _Anno, Clauses, Timeout, Action}, M, Cenv, Senv, Servers, Fd) ->
   {CTimeout, STimeout} = eval_expr(Timeout, M, Cenv, Senv, Servers, Fd),
   true = check_timeout(CTimeout, STimeout, Fd),
-  Start = erlang:now(),  %% Start timeout timer
+  Start = os:timestamp(),  %% Start time of timeout timer
   {messages, Mailbox} = erlang:process_info(self(), messages),
   Message = find_message(Mailbox, Clauses, M, Cenv, Senv, Servers, Fd),
   case Message of
@@ -801,7 +801,7 @@ exception(Class, Reason) ->
 find_message_loop(Clauses, Action, infinity, STimetout, Start, Msgs, M, Cenv, Senv, Servers, Fd) ->
   run_message_loop(Clauses, Action, infinity, STimetout, Start, Msgs, M, Cenv, Senv, Servers, Fd);
 find_message_loop(Clauses, Action, CTimeout, STimeout, Start, Msgs, M, Cenv, Senv, Servers, Fd) ->
-  Now = erlang:now(),
+  Now = os:timestamp(),
   Passed = timer:now_diff(Now, Start) / 1000,
   case Passed >= CTimeout of
     true ->
