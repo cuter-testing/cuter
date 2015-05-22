@@ -61,7 +61,7 @@ eval_cerl_test_() ->
   [{"Basic Cerl Evaluation: " ++ C, {setup, Setup(I), Cleanup, Inst}} || {C, I} <- Is].
 
 eval_cerl({F, As, Result, Dir}) ->
-  Server = cuter_iserver:start(?MODULE, F, As, Dir, ?TRACE_DEPTH, orddict:new(), 0),
+  Server = cuter_iserver:start(?MODULE, F, As, Dir, ?TRACE_DEPTH, orddict:new(), 0, false),
   R = execution_result(Server),
   ok = wait_for_iserver(Server),
   [{atom_to_list(F), ?_assertMatch({success, {Result, _}}, R)}].
