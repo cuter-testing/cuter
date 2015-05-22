@@ -23,10 +23,15 @@
                            no => integer(),
                            scheduler => pid(),
                            stored_mods => cuter_analyzer:stored_modules(),
-                           tags_added_no => integer()}.
+                           tags_added_no => integer(),
+                           pmatch => boolean()}.
+
+-define(ENABLE_PMATCH, enable_pmatch).
 
 -type option() :: {basedir, file:filename()}
-                | verbose_execution_info.
+                | verbose_execution_info
+                | ?ENABLE_PMATCH
+                .
 
 
 -spec run_once(mod(), atom(), input(), pos_integer()) -> erroneous_inputs().
@@ -89,7 +94,8 @@ initialize_app(M, F, As, Depth, Options) ->
     dataDir => cuter_lib:get_tmp_dir(BaseDir),
     scheduler => SchedPid,
     stored_mods => orddict:new(),
-    tags_added_no => 0}.
+    tags_added_no => 0,
+    pmatch => lists:member(?ENABLE_PMATCH, Options)}.
 
 -spec stop(configuration()) -> erroneous_inputs().
 stop(Conf) ->
@@ -128,7 +134,8 @@ concolic_execute(Conf, Ref, Input) ->
   Depth = maps:get(depth, Conf),
   StoredMods = maps:get(stored_mods, Conf),
   TagsN = maps:get(tags_added_no, Conf),
-  IServer = cuter_iserver:start(M, F, Input, TraceDir, Depth, StoredMods, TagsN),
+  WithPmatch = maps:get(pmatch, Conf),
+  IServer = cuter_iserver:start(M, F, Input, TraceDir, Depth, StoredMods, TagsN, WithPmatch),
   retrieve_info(IServer, Ref, DataDir).
 
 -spec retrieve_info(pid(), cuter_scheduler_maxcover:exec_handle(), file:filename()) -> cuter_analyzer:info() | cuter_error.

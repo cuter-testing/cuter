@@ -18,7 +18,7 @@ just_load_test_() ->
 
 just_load({M, MDb}) ->
   TagGen = fun() -> {?BRANCH_TAG_PREFIX, 42} end,
-  R = cuter_cerl:load(M, MDb, TagGen),
+  R = cuter_cerl:load(M, MDb, TagGen, false),
   Ns = ets:lookup(MDb, name),
   [{"successful loading", ?_assertEqual({ok, M}, R)},
    {"retrieve module's name", ?_assertEqual([{name, M}], Ns)}].
@@ -33,7 +33,7 @@ load_exports_test_() ->
   
 load_exports({M, MDb}) ->
   TagGen = fun() -> {?BRANCH_TAG_PREFIX, 42} end,
-  _ = cuter_cerl:load(M, MDb, TagGen),
+  _ = cuter_cerl:load(M, MDb, TagGen, false),
   Exp = lists:sort(M:module_info(exports)),
   MExp = lists:map(fun({F,A}) -> {M, F, A} end, Exp),
   Ns = lists:sort(ets:lookup(MDb, exported)),

@@ -23,7 +23,7 @@ start_stop_test_() ->
 setup() ->
   process_flag(trap_exit, true),
   Dir = cuter_tests_lib:setup_dir(),
-  Server = cuter_iserver:start(lists, reverse, [[42,17]], Dir, ?TRACE_DEPTH, orddict:new(), 0),
+  Server = cuter_iserver:start(lists, reverse, [[42,17]], Dir, ?TRACE_DEPTH, orddict:new(), 0, false),
   {Dir, Server}.
 
 cleanup({Dir, Server}) ->

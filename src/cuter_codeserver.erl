@@ -4,7 +4,7 @@
 -behaviour(gen_server).
 
 %% external exports
--export([start/3, stop/1, load/2, unsupported_mfa/2, retrieve_spec/2, visit_tag/2]).
+-export([start/4, stop/1, load/2, unsupported_mfa/2, retrieve_spec/2, visit_tag/2]).
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_info/2, handle_call/3, handle_cast/2]).
 %% counter of branches
@@ -36,7 +36,8 @@
   waiting = orddict:new()        :: [{{atom(), tuple()}, pid()}],
   workers = []                   :: [pid()],
   unsupported_mfas = sets:new()  :: sets:set(mfa()),
-  tags = gb_sets:new()           :: gb_sets:set(cuter_cerl:tagID())
+  tags = gb_sets:new()           :: gb_sets:set(cuter_cerl:tagID()),
+  with_pmatch                    :: boolean()
 }).
 -type state() :: #state{}.
 
@@ -45,9 +46,9 @@
 %% ============================================================================
 
 %% Start a CodeServer
--spec start(pid(), cuter_analyzer:stored_modules(), integer()) -> pid().
-start(Super, StoredMods, TagsN) ->
-  case gen_server:start(?MODULE, [Super, StoredMods, TagsN], []) of
+-spec start(pid(), cuter_analyzer:stored_modules(), integer(), boolean()) -> pid().
+start(Super, StoredMods, TagsN, WithPmatch) ->
+  case gen_server:start(?MODULE, [Super, StoredMods, TagsN, WithPmatch], []) of
     {ok, CodeServer} -> CodeServer;
     {error, Reason}  -> exit({codeserver_start, Reason})
   end.
@@ -86,13 +87,13 @@ visit_tag(CodeServer, Tag) ->
 %% ============================================================================
 
 %% gen_server callback : init/1
--spec init([pid() | cuter_analyzer:stored_modules() | integer(), ...]) -> {ok, state()}.
-init([Super, StoredMods, TagsN]) ->
+-spec init([pid() | cuter_analyzer:stored_modules() | integer() | boolean(), ...]) -> {ok, state()}.
+init([Super, StoredMods, TagsN, WithPmatch]) ->
   link(Super),
   Db = ets:new(?MODULE, [ordered_set, protected]),
   populate_db_with_mods(Db, StoredMods),
   set_branch_counter(TagsN), %% Initialize the counter for the branch enumeration.
-  {ok, #state{db = Db, super = Super}}.
+  {ok, #state{db = Db, super = Super, with_pmatch = WithPmatch}}.
 
 %% gen_server callback : terminate/2
 -spec terminate(term(), state()) -> ok.
@@ -205,10 +206,10 @@ try_load(M, State) ->
 
 %% Load a module's code
 -spec load_mod(module(), state()) -> {ok, ets:tid()} | cuter_cerl:compile_error().
-load_mod(M, #state{db = Db}) ->
+load_mod(M, #state{db = Db, with_pmatch = WithPmatch}) ->
   MDb = ets:new(M, [ordered_set, protected]),  %% Create an ETS table to store the code of the module
   ets:insert(Db, {M, MDb}),                    %% Store the tid of the ETS table
-  Reply = cuter_cerl:load(M, MDb, fun generate_tag/0),        %% Load the code of the module
+  Reply = cuter_cerl:load(M, MDb, fun generate_tag/0, WithPmatch),  %% Load the code of the module
   case Reply of
     {ok, M} -> {ok, MDb};
     _ -> Reply

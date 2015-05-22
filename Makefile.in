@@ -25,7 +25,7 @@ export ERL_LIBS := $(PROPER):$(MECK):$$ERL_LIBS
 ### Flags
 ###----------------------------------------------------------------------
 
-DIALYZER_APPS = erts kernel stdlib compiler crypto
+DIALYZER_APPS = erts kernel stdlib compiler crypto syntax_tools hipe
 DIALYZER_FLAGS = -Wunmatched_returns -Wunderspecs
 
 WARNS = +warn_exported_vars +warn_unused_import +warn_missing_spec #+warn_untyped_record

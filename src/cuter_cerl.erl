@@ -3,7 +3,7 @@
 -module(cuter_cerl).
 
 %% External exports
--export([load/3, retrieve_spec/2, get_tags/1, id_of_tag/1, tag_from_id/1, empty_tag/0, get_stored_types/1]).
+-export([load/4, retrieve_spec/2, get_tags/1, id_of_tag/1, tag_from_id/1, empty_tag/0, get_stored_types/1]).
 
 %% We are using the records representation of the Core Erlang Abstract
 %% Syntax Tree as they are defined in core_parse.hrl
@@ -115,9 +115,9 @@
 %%====================================================================
 %% External exports
 %%====================================================================
--spec load(M, ets:tid(), tag_generator()) -> {ok, M} | load_error() when M :: cuter:mod().
-load(Mod, Db, TagGen) ->
-  case get_core_ast(Mod) of
+-spec load(M, ets:tid(), tag_generator(), boolean()) -> {ok, M} | load_error() when M :: cuter:mod().
+load(Mod, Db, TagGen, WithPmatch) ->
+  case get_core_ast(Mod, WithPmatch) of
     {ok, AST} ->
       store_module(Mod, AST, Db, TagGen),
       {ok, Mod};
@@ -158,13 +158,13 @@ store_module(M, AST, Db, TagGen) ->
   ok.
 
 %% Gets the Core Erlang AST of a module.
--spec get_core_ast(cuter:mod()) -> {ok, cerl:cerl()} | load_error().
-get_core_ast(M) ->
+-spec get_core_ast(cuter:mod(), boolean()) -> {ok, cerl:cerl()} | load_error().
+get_core_ast(M, WithPmatch) ->
   case mod_beam_path(M) of
     {ok, BeamPath} ->
       case extract_abstract_code(M, BeamPath) of
         {ok, AbstractCode} ->
-          case compile:forms(AbstractCode, [to_core, {core_transform, cerl_pmatch}]) of
+          case compile:forms(AbstractCode, compile_options(WithPmatch)) of
             {ok, M, AST} -> {ok, AST};
             {ok, M, AST, _Warns} -> {ok, AST};
             Errors -> {error, {compile, {M, Errors}}}
@@ -173,7 +173,11 @@ get_core_ast(M) ->
       end;
     {error, _} = Error -> Error
   end.
-  
+
+%% The compilation options.
+compile_options(true) -> [to_core, {core_transform, cerl_pmatch}];
+compile_options(false) -> [to_core].
+
 %% Gets the path of the module's beam file, if such one exists.
 -spec mod_beam_path(cuter:mod()) -> {ok, file:filename()} | code_error().
 mod_beam_path(M) ->
