@@ -24,6 +24,7 @@
   , next_entry/2
   , open_file/2
   , path_vertex/1
+  , reduce_constraint_counter/0
   , write_data/5
 ]).
 
@@ -197,8 +198,7 @@ log(Fd, OpCode, TagID, Data) ->
       Type = entry_type(OpCode),
       try cuter_json:command_to_json(OpCode, Data) of
         Jdata ->
-          write_data(Fd, Type, OpCode, TagID, Jdata),
-          update_constraint_counter(Type, N)
+          write_data(Fd, Type, OpCode, TagID, Jdata)
       catch
         throw:{unsupported_term, _} -> ok
       end
@@ -227,12 +227,14 @@ entry_type(?OP_LIST_EMPTY)     -> ?CONSTRAINT_FALSE;
 entry_type(?OP_LIST_NOT_LST)   -> ?CONSTRAINT_FALSE;
 entry_type(_) -> ?NOT_CONSTRAINT.
 
-%% Reduce the contraint counter by one every time
-%% a constraint is logged.
--spec update_constraint_counter(entry_type(), pos_integer()) -> ok.
-update_constraint_counter(Type, N) when Type =:= ?CONSTRAINT_TRUE; Type =:= ?CONSTRAINT_FALSE ->
-  _ = put(?DEPTH_PREFIX, N-1), ok;
-update_constraint_counter(_Type, _ok) -> ok.
+%% Reduce the counter that controls the logging of constraints.
+-spec reduce_constraint_counter() -> ok.
+reduce_constraint_counter() ->
+  case get(?DEPTH_PREFIX) of
+    undefined -> throw(depth_undefined_in_pdict);
+    0 -> ok;
+    N when N > 0 -> _ = put(?DEPTH_PREFIX, N - 1), ok
+  end.
 
 %% ------------------------------------------------------------------
 %% Read / Write Data

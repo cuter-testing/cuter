@@ -164,7 +164,7 @@ get_core_ast(M) ->
     {ok, BeamPath} ->
       case extract_abstract_code(M, BeamPath) of
 	{ok, AbstractCode} ->
-	  case compile:forms(AbstractCode, [to_core]) of
+	  case compile:forms(AbstractCode, [to_core, {core_transform, cerl_pmatch}]) of
 	    {ok, M, AST} -> {ok, AST};
 	    {ok, M, AST, _Warns} -> {ok, AST};
 	    Errors -> {error, {compile, {M, Errors}}}
