@@ -16,8 +16,8 @@ run_test() ->
 
 -spec bugs_test_() -> any().
 bugs_test_() ->
-  Tests = [ {"Match to single value", {t0, [0], 10, [[42]]}}
-          , {"Non-exhaustive pattern matching", {t1, [0], 15, [[42], [42.0]]}}
+  Tests = [ {"Match to single value", {t0, [0], 1, [[42]]}}
+          , {"Non-exhaustive pattern matching", {t1, [0], 17, [[42], [42.0]]}}
           , {"N-th element of a list to be an atom", {t2, [1, [1,2]], 15, fun check_t2/1}}
           ],
   [{"Shallow - " ++ Descr, {timeout, 20000, {setup, fun() -> Data end, fun find_bugs/1}}} || {Descr, Data} <- Tests].
