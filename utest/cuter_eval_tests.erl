@@ -80,10 +80,12 @@ wait_for_iserver(Server) ->
 
 setup({F, As, Result}) ->
   process_flag(trap_exit, true),
+  _ = cuter_pp:start(#{verbose_execution_info => false}),
   Dir = cuter_tests_lib:setup_dir(),
   {F, As, Result, Dir}.
 
 cleanup({_F, _As, _Result, Dir}) ->
+  cuter_pp:stop(),
   cuter_lib:clear_and_delete_dir(Dir).
 
 %% --------------------------------------------------------
