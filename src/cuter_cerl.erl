@@ -70,6 +70,7 @@
                    | cerl_type_union()
                    | cerl_type_range()
                    | cerl_type_function()
+                   | cerl_type_map()
                    | cerl_type_ann()
                    | cerl_type_paren()
                    | cerl_type_remote()
@@ -105,6 +106,7 @@
 -type cerl_type_record() :: {'type', lineno(), 'record', [cerl_type_literal_atom() | [cerl_type_record()]]}.
 -type cerl_type_record_field() :: {'type', lineno(), 'field_type', [cerl_type_literal_atom() | cerl_type()]}.
 -type cerl_type_local() :: {'type', lineno(), cerl_type_literal_atom(), [cerl_type()]}.
+-type cerl_type_map() :: {'type', lineno(), 'map', any()}.  %% TODO Refine map representation.
 -type cerl_type_var() :: {var, lineno(), atom()}.
 -type cerl_type_function() :: {'type', lineno(), 'function', []}
                             | cerl_func() | cerl_bounded_func().
@@ -258,7 +260,7 @@ classify_attributes(Attrs) ->
 classify_attributes([], Types, Specs) ->
   {lists:reverse(Types), lists:reverse(Specs)};
 classify_attributes([{What, #c_literal{val = Val}}|Attrs], Types, Specs) ->
-  io:format("%% ~p~n", [What]),
+%  io:format("%% ~p~n", [What]),
   case cerl:atom_val(What) of
     Tp when Tp =:= type orelse Tp =:= opaque ->
       classify_attributes(Attrs, [hd(Val)|Types], Specs);

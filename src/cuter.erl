@@ -95,6 +95,7 @@ initialize_app(M, F, As, Depth, Options) ->
 stop(Conf) ->
   Erroneous = cuter_scheduler_maxcover:stop(maps:get(scheduler, Conf)),
   cuter_pp:errors_found(Erroneous),
+  cuter_pp:stop(),
   cuter_lib:clear_and_delete_dir(maps:get(dataDir, Conf)),
   Erroneous.
 

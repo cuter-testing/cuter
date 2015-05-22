@@ -3,7 +3,6 @@
 -module(cuter_tests).
 
 -include_lib("eunit/include/eunit.hrl").
--include("include/eunit_config.hrl").
 
 -export([t0/1, t1/1, t2/2]).
 
@@ -21,7 +20,7 @@ bugs_test_() ->
           , {"Non-exhaustive pattern matching", {t1, [0], 15, [[42], [42.0]]}}
           , {"N-th element of a list to be an atom", {t2, [1, [1,2]], 15, fun check_t2/1}}
           ],
-  [{"Shallow - " ++ Descr, {timeout, 10000, {setup, fun() -> Data end, fun find_bugs/1}}} || {Descr, Data} <- Tests].
+  [{"Shallow - " ++ Descr, {timeout, 20000, {setup, fun() -> Data end, fun find_bugs/1}}} || {Descr, Data} <- Tests].
 
 find_bugs({Fn, Inp, Depth, Bugs}) ->
   Found = cuter:run(?MODULE, Fn, Inp, Depth),
