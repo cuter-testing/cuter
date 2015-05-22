@@ -8,10 +8,18 @@ SRC  = src
 INCLUDE = include
 EBIN = ebin
 PRIV = $(PWD)/priv
-UTEST = $(PWD)/utest
+UTEST_SRC = utest/src
+UTEST_EBIN = utest/ebin
 LIB = $(PWD)/lib
 ERLC = @ERLC@
 MECK = $(realpath @MECK@)
+PROPER = $(realpath @PROPER@)
+
+###----------------------------------------------------------------------
+### Set Environment Variables
+###----------------------------------------------------------------------
+
+export ERL_LIBS := $(PROPER):$(MECK):$$ERL_LIBS
 
 ###----------------------------------------------------------------------
 ### Flags
@@ -21,8 +29,10 @@ DIALYZER_APPS = erts kernel stdlib compiler crypto
 DIALYZER_FLAGS = -Wunmatched_returns -Wunderspecs
 
 WARNS = +warn_exported_vars +warn_unused_import +warn_missing_spec #+warn_untyped_record
+UTEST_WARNS = +warn_exported_vars +warn_missing_spec #+warn_unused_import +warn_untyped_record
 ERLC_INCLUDE = -I $(INCLUDE)
 ERLC_FLAGS = +debug_info $(WARNS)
+ERLC_UTEST_FLAGS = +debug_info $(UTEST_WARNS)
 ERLC_MACROS = -DEBIN=\"$(PWD)/$(EBIN)\" -DPYTHON_PATH=\"@PYTHON_PATH@\" -DPRIV=\"$(PRIV)\"
 
 HRL_FILES = \
@@ -70,7 +80,11 @@ UTEST_MODULES = \
 
 ERL_DIRS = \
 	$(SRC) \
-	$(UTEST)
+	$(UTEST_SRC)
+
+TARGETS = \
+	cuter_target \
+	utest_target
 
 vpath %.erl $(ERL_DIRS)
 
@@ -84,14 +98,20 @@ all: $(TARGETS) dialyzer #utest
 
 cuter_target: $(SRC_MODULES:%=$(EBIN)/%.beam)
 
-utest_target: $(UTEST_MODULES:%=$(EBIN)/%.beam)
+utest_target: $(UTEST_MODULES:%=$(UTEST_EBIN)/%.beam)
 
 $(EBIN)/%.beam: %.erl
 	@echo "ERLC $<"
 	@$(ERLC) $(ERLC_INCLUDE) $(ERLC_FLAGS) $(ERLC_MACROS) -o $(EBIN) $<
 
-utest: utest_target
-	@(./runtests.py $(EBIN) $(MECK))
+$(UTEST_EBIN)/%.beam: %.erl
+	@echo "ERLC $<"
+	@$(ERLC) $(ERLC_INCLUDE) $(ERLC_UTEST_FLAGS) $(ERLC_MACROS) -o $(UTEST_EBIN) $<
+
+utest: $(TARGETS)
+	@(erl -noshell -pa $(EBIN) -pa $(UTEST_EBIN) \
+		-eval "eunit:test([cuter, cuter_cerl, cuter_iserver, cuter_eval, cuter_json, cuter_solver, cuter_erlang, cuter_codeserver, cuter_monitor], [verbose])" \
+		-s init stop)
 
 dialyzer: cuter_target .cuter_plt
 	dialyzer --plt .cuter_plt $(DIALYZER_FLAGS) $(EBIN)/*.beam
@@ -112,9 +132,12 @@ depend: cleandep $(SRC_MODULES:%=%.dep) $(HRL_FILES:%=%.hrl)
 clean:
 	$(RM) $(EBIN)/*.beam
 
+clean_tests:
+	$(RM) $(UTEST_EBIN)/*.beam
+
 cleandep:
 	@$(RM) .depend
 
-distclean: clean cleandep
+distclean: clean clean_tests cleandep
 	$(RM)
 

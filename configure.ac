@@ -105,9 +105,9 @@ AC_ARG_WITH(meck,
 [AS_HELP_STRING([--with-meck=MECK],
 		[specify the location of meck.])])
 
-MECK="lib/meck/ebin/"
+MECK="lib/meck"
 if test "x$with_meck" != x; then
-  MECK="$with_meck/ebin/"
+  MECK="$with_meck"
 fi
 
 AC_SUBST(MECK)
@@ -123,7 +123,7 @@ foo() ->
 EOF
 
 ERL=`which erl`
-if $ERLC test_meck.erl && $ERL -noshell -pa $MECK -eval "test_meck:foo()" -s init stop &> /dev/null; then
+if $ERLC test_meck.erl && $ERL -noshell -pa $MECK/ebin -eval "test_meck:foo()" -s init stop &> /dev/null; then
   HAS_MECK="1"
   HAS_MECK_MSG="yes"
 else
@@ -135,7 +135,7 @@ rm -f test_meck.erl test_meck.beam
 
 if test "$HAS_MECK" = "0"; then
    MECK=
-   AC_MSG_NOTICE([Meck is missing. You will not be able to run some of the tests. Download it at https://github.com/eproxus/meck.])
+   AC_MSG_NOTICE([Meck is missing. You will not be able to run the tests. Download it at https://github.com/eproxus/meck.])
 fi
 
 ###############################################
@@ -143,6 +143,17 @@ fi
 # Testing proper
 #
 ###############################################
+AC_ARG_WITH(proper,
+[AS_HELP_STRING([--with-proper=PROPER],
+		[specify the location of proper.])])
+
+PROPER="lib/proper"
+if test "x$with_proper" != x; then
+  PROPER="$with_proper"
+fi
+
+AC_SUBST(PROPER)
+
 cat > test_proper.erl <<EOF
 -module(test_proper).
 -compile(export_all).
@@ -154,7 +165,7 @@ foo() ->
 EOF
 
 ERL=`which erl`
-if $ERLC test_proper.erl && $ERL -noshell -eval "test_proper:foo()" -s init stop &> /dev/null; then
+if $ERLC test_proper.erl && $ERL -noshell -pa $PROPER/ebin -eval "test_proper:foo()" -s init stop &> /dev/null; then
   HAS_PROPER="1"
   HAS_PROPER_MSG="yes"
 else
@@ -166,7 +177,7 @@ rm -f test_proper.erl test_proper.beam
 
 if test "$HAS_PROPER" = "0"; then
    PROPER=
-   AC_MSG_NOTICE([The path to PropEr is unknown. If you have installed it make sure you have included it in your ERL_LIBS path. If not, you can find it at https://github.com/manopapad/proper and follow the instructions.])
+   AC_MSG_NOTICE([PropEr is missing. You will not be able to run the tests. Download it at https://github.com/manopapad/proper and follow the instructions.])
 fi
 
 
