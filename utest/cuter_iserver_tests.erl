@@ -18,12 +18,12 @@ start_stop_test_() ->
     end,
   Stop = cleanup(Start),
   [{"Start & Finish", ?_assertEqual(ok, Stop)},
-   {"Expected Result", ?_assertMatch({success, {true, _}}, R)}].
+   {"Expected Result", ?_assertMatch({success, {[17,42], _}}, R)}].
 
 setup() ->
   process_flag(trap_exit, true),
   Dir = cuter_tests_lib:setup_dir(),
-  Server = cuter_iserver:start(erlang, is_integer, [42], Dir, ?TRACE_DEPTH, orddict:new(), 0),
+  Server = cuter_iserver:start(lists, reverse, [[42,17]], Dir, ?TRACE_DEPTH, orddict:new(), 0),
   {Dir, Server}.
 
 cleanup({Dir, Server}) ->
