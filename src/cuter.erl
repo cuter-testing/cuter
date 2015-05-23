@@ -159,7 +159,7 @@ retrieve_info(IServer, Ref, DataDir) ->
           TagsN = cuter_analyzer:get_no_of_tags_added(Info),
           RawInfo = cuter_analyzer:mk_raw_info(Mappings, ExResult, Traces, Int, DataDir, Tags, StoredMods, TagsN),
           AnalyzedInfo = cuter_analyzer:process_raw_execution_info(RawInfo),
-          cuter_pp:path_vertex(Ref, maps:get(path_vertex, AnalyzedInfo)),
+          cuter_pp:path_vertex(Ref, cuter_analyzer:pathVertex_of_info(AnalyzedInfo)),
           cuter_pp:flush(Ref),
           AnalyzedInfo
       end;

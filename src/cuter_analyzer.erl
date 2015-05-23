@@ -2,12 +2,16 @@
 %%------------------------------------------------------------------------------
 -module(cuter_analyzer).
 
--include("include/cuter_macros.hrl").
-
 -export([get_result/1, get_mapping/1, get_traces/1, get_stored_modules/1,
          get_int_process/1, process_raw_execution_info/1, get_tags/1,
-         get_no_of_tags_added/1, mk_raw_info/8, traces_of_raw_info/1,
-         int_of_raw_info/1]).
+         get_no_of_tags_added/1,
+         %% Constructor & accessors for #raw{}
+         mk_raw_info/8, traces_of_raw_info/1, int_of_raw_info/1,
+         %% Accessors for #info{}
+         mappings_of_info/1, runtimeError_of_info/1, traceFile_of_info/1, reversible_of_info/1,
+         dir_of_info/1, tags_of_info/1, storedMods_of_info/1, pathVertex_of_info/1, tagsAddedNo_of_info/1]).
+
+-include("include/cuter_macros.hrl").
 
 -export_type([execution_result/0, node_trace/0, path_vertex/0, int_process/0,
               raw_info/0, info/0, visited_tags/0, stored_modules/0,
@@ -22,7 +26,6 @@
 -type stored_modules() :: orddict:orddict().
 -type path_vertex() :: [?CONSTRAINT_TRUE_REPR | ?CONSTRAINT_FALSE_REPR].  % [$T | $F]
 
-
 -record(raw, {
   mappings      :: [cuter_symbolic:mapping()],
   result        :: execution_result(),
@@ -35,16 +38,19 @@
 }).
 -type raw_info() :: #raw{}.
 
--type info() :: #{mappings => [cuter_symbolic:mapping()],
-                  runtime_error => boolean(),
-                  traceFile => file:filename_all(),
-                  pathLength => integer(),
-                  reversible => reversible_with_tags(),
-                  dir => file:filename_all(),
-                  tags => visited_tags(),
-                  stored_mods => stored_modules(),
-                  path_vertex => path_vertex(),
-                  tags_added_no => integer()}.
+-record(info, {
+  dir          :: file:filename(),
+  mappings     :: [cuter_symbolic:mapping()],
+  pathLength   :: integer(),
+  pathVertex   :: path_vertex(),
+  reversible   :: reversible_with_tags(),
+  runtimeError :: boolean(),
+  storedMods   :: stored_modules(),
+  tags         :: visited_tags(),
+  tagsAddedNo  :: integer(),
+  traceFile    :: file:filename()
+}).
+-type info() :: #info{}.
 
 
 -spec get_result(cuter_iserver:execution_status()) -> execution_result().
@@ -112,6 +118,31 @@ get_no_of_tags_added_of_node({_Node, Data}) ->
   Logs = proplists:get_value(code_logs, Data),
   proplists:get_value(tags_added_no, Logs).
 
+-spec process_raw_execution_info(raw_info()) -> info().
+process_raw_execution_info(Info) ->
+  DataDir = Info#raw.dir,
+  MergedTraceFile = cuter_lib:get_merged_tracefile(DataDir),
+  cuter_merger:merge_traces(Info, MergedTraceFile),
+  cuter_lib:clear_and_delete_dir(Info#raw.dir, MergedTraceFile),
+  PathVertex = cuter_log:path_vertex(MergedTraceFile),
+  Rvs = cuter_log:locate_reversible(MergedTraceFile),
+  RvsCnt = length(Rvs),
+%%  cuter_pp:reversible_operations(RvsCnt),
+  #info{dir = DataDir,
+        mappings = Info#raw.mappings,
+        pathLength = RvsCnt,
+        pathVertex = PathVertex,
+        reversible = Rvs,
+        runtimeError = is_runtime_error(Info#raw.result),
+        storedMods = Info#raw.stored_mods,
+        tags = Info#raw.tags,
+        tagsAddedNo = Info#raw.tags_added_no,
+        traceFile = MergedTraceFile}.
+
+%% ----------------------------------------------------------------------------
+%% Constructor & accessors of #raw{}.
+%% ----------------------------------------------------------------------------
+
 %% Creates a raw_info record.
 -spec mk_raw_info([cuter_symbolic:mapping()], execution_result(), [node_trace()], int_process(),
                   file:filename(), visited_tags(), stored_modules(), integer()) -> raw_info().
@@ -135,25 +166,42 @@ traces_of_raw_info(RawInfo) ->
 int_of_raw_info(RawInfo) ->
   RawInfo#raw.int.
 
--spec process_raw_execution_info(raw_info()) -> info().
-process_raw_execution_info(Info) ->
-  DataDir = Info#raw.dir,
-  MergedTraceFile = cuter_lib:get_merged_tracefile(DataDir),
-  cuter_merger:merge_traces(Info, MergedTraceFile),
-  cuter_lib:clear_and_delete_dir(Info#raw.dir, MergedTraceFile),
-  PathVertex = cuter_log:path_vertex(MergedTraceFile),
-  Rvs = cuter_log:locate_reversible(MergedTraceFile),
-  RvsCnt = length(Rvs),
-%%  cuter_pp:reversible_operations(RvsCnt),
-  #{dir => DataDir,
-    runtime_error => is_runtime_error(Info#raw.result),
-    mappings => Info#raw.mappings,
-    traceFile => MergedTraceFile,
-    pathLength => RvsCnt,
-    reversible => Rvs,
-    tags => Info#raw.tags,
-    stored_mods => Info#raw.stored_mods,
-    path_vertex => PathVertex,
-    tags_added_no => Info#raw.tags_added_no}.
+%% ----------------------------------------------------------------------------
+%% Accessors for #info{}.
+%% ----------------------------------------------------------------------------
 
+-spec mappings_of_info(info()) -> [cuter_symbolic:mapping()].
+mappings_of_info(Info) ->
+  Info#info.mappings.
 
+-spec runtimeError_of_info(info()) -> boolean().
+runtimeError_of_info(Info) ->
+  Info#info.runtimeError.
+
+-spec traceFile_of_info(info()) -> file:filename().
+traceFile_of_info(Info) ->
+  Info#info.traceFile.
+
+-spec reversible_of_info(info()) -> reversible_with_tags().
+reversible_of_info(Info) ->
+  Info#info.reversible.
+
+-spec dir_of_info(info()) -> file:filename().
+dir_of_info(Info) ->
+  Info#info.dir.
+
+-spec tags_of_info(info()) -> visited_tags().
+tags_of_info(Info) ->
+  Info#info.tags.
+
+-spec storedMods_of_info(info()) -> stored_modules().
+storedMods_of_info(Info) ->
+  Info#info.storedMods.
+
+-spec pathVertex_of_info(info()) -> path_vertex().
+pathVertex_of_info(Info) ->
+  Info#info.pathVertex.
+
+-spec tagsAddedNo_of_info(info()) -> integer().
+tagsAddedNo_of_info(Info) ->
+  Info#info.tagsAddedNo.
