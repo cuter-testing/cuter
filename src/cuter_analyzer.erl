@@ -6,11 +6,12 @@
 
 -export([get_result/1, get_mapping/1, get_traces/1, get_stored_modules/1,
          get_int_process/1, process_raw_execution_info/1, get_tags/1,
-         get_no_of_tags_added/1]).
+         get_no_of_tags_added/1, mk_raw_info/8, traces_of_raw_info/1,
+         int_of_raw_info/1]).
 
 -export_type([execution_result/0, node_trace/0, path_vertex/0, int_process/0,
               raw_info/0, info/0, visited_tags/0, stored_modules/0,
-	      reversible_with_tags/0, reversible_with_tag/0]).
+              reversible_with_tags/0, reversible_with_tag/0]).
 
 -type execution_result() :: {success, any()} | {runtime_error, any()} | internal_error.
 -type node_trace()  :: {atom(), string()}.
@@ -21,14 +22,18 @@
 -type stored_modules() :: orddict:orddict().
 -type path_vertex() :: [?CONSTRAINT_TRUE_REPR | ?CONSTRAINT_FALSE_REPR].  % [$T | $F]
 
--type raw_info() :: #{mappings => [cuter_symbolic:mapping()],
-                      result => execution_result(),
-                      traces => [node_trace()],
-                      int => int_process(),
-                      dir => file:filename_all(),
-                      tags => visited_tags(),
-                      stored_mods => stored_modules(),
-                      tags_added_no => integer()}.
+
+-record(raw, {
+  mappings      :: [cuter_symbolic:mapping()],
+  result        :: execution_result(),
+  traces        :: [node_trace()],
+  int           :: int_process(),
+  dir           :: file:filename(),
+  tags          :: visited_tags(),
+  stored_mods   :: stored_modules(),
+  tags_added_no :: integer()
+}).
+-type raw_info() :: #raw{}.
 
 -type info() :: #{mappings => [cuter_symbolic:mapping()],
                   runtime_error => boolean(),
@@ -90,7 +95,7 @@ get_tags_of_node({_Node, Data}) ->
 -spec get_stored_modules(orddict:orddict()) -> stored_modules().
 get_stored_modules(Info) ->
   AllNodes = [get_stored_modules_of_node(I) || I <- Info],
-  %% FIXME Expect just one node.
+  %% FIXME Now expects just one node.
   hd(AllNodes).
 
 get_stored_modules_of_node({_Node, Data}) ->
@@ -100,33 +105,55 @@ get_stored_modules_of_node({_Node, Data}) ->
 -spec get_no_of_tags_added(orddict:orddict()) -> integer().
 get_no_of_tags_added(Info) ->
   AllNodes = [get_no_of_tags_added_of_node(I) || I <- Info],
-  %% FIXME Expect just one node.
+  %% FIXME Now expects just one node.
   hd(AllNodes).
 
 get_no_of_tags_added_of_node({_Node, Data}) ->
   Logs = proplists:get_value(code_logs, Data),
   proplists:get_value(tags_added_no, Logs).
 
+%% Creates a raw_info record.
+-spec mk_raw_info([cuter_symbolic:mapping()], execution_result(), [node_trace()], int_process(),
+                  file:filename(), visited_tags(), stored_modules(), integer()) -> raw_info().
+mk_raw_info(Mappings, Result, Traces, Int, Dir, Tags, StoredMods, TagsN) ->
+  #raw{mappings = Mappings,
+       result = Result,
+       traces = Traces,
+       int = Int,
+       dir = Dir,
+       tags = Tags,
+       stored_mods = StoredMods,
+       tags_added_no = TagsN}.
+
+%% Gets the traces from a raw_info record.
+-spec traces_of_raw_info(raw_info()) -> [node_trace()].
+traces_of_raw_info(RawInfo) ->
+  RawInfo#raw.traces.
+
+%% Gets the int_process from a raw_info record.
+-spec int_of_raw_info(raw_info()) -> int_process().
+int_of_raw_info(RawInfo) ->
+  RawInfo#raw.int.
+
 -spec process_raw_execution_info(raw_info()) -> info().
 process_raw_execution_info(Info) ->
-%  io:format("[RAW INFO] ~p~n", [Info]),
-  DataDir = maps:get(dir, Info),
+  DataDir = Info#raw.dir,
   MergedTraceFile = cuter_lib:get_merged_tracefile(DataDir),
   cuter_merger:merge_traces(Info, MergedTraceFile),
-  cuter_lib:clear_and_delete_dir(maps:get(dir, Info), MergedTraceFile),
+  cuter_lib:clear_and_delete_dir(Info#raw.dir, MergedTraceFile),
   PathVertex = cuter_log:path_vertex(MergedTraceFile),
   Rvs = cuter_log:locate_reversible(MergedTraceFile),
   RvsCnt = length(Rvs),
 %%  cuter_pp:reversible_operations(RvsCnt),
   #{dir => DataDir,
-    runtime_error => is_runtime_error(maps:get(result, Info)),
-    mappings => maps:get(mappings, Info),
+    runtime_error => is_runtime_error(Info#raw.result),
+    mappings => Info#raw.mappings,
     traceFile => MergedTraceFile,
     pathLength => RvsCnt,
     reversible => Rvs,
-    tags => maps:get(tags, Info),
-    stored_mods => maps:get(stored_mods, Info),
+    tags => Info#raw.tags,
+    stored_mods => Info#raw.stored_mods,
     path_vertex => PathVertex,
-    tags_added_no => maps:get(tags_added_no, Info)}.
+    tags_added_no => Info#raw.tags_added_no}.
 
 

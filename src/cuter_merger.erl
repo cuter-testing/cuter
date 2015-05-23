@@ -31,8 +31,8 @@
 %% Merge the traces of an execution into one file.
 -spec merge_traces(cuter_analyzer:raw_info(), file:name()) -> ok.
 merge_traces(Info, MergedLogFile) ->
-  Dirs = maps:get(traces, Info),
-  Int = maps:get(int, Info), 
+  Dirs = cuter_analyzer:traces_of_raw_info(Info),
+  Int = cuter_analyzer:int_of_raw_info(Info),
   Init = initialize(Dirs, Int, MergedLogFile),
   merge(Init).
 

@@ -151,16 +151,13 @@ retrieve_info(IServer, Ref, DataDir) ->
       case cuter_analyzer:get_result(ExStatus) of
         internal_error -> cuter_error;
         ExResult ->
-          RawInfo = #{
-            result => ExResult,
-            dir => DataDir,
-            mappings => cuter_analyzer:get_mapping(Info),
-            traces => cuter_analyzer:get_traces(Info),
-            int => cuter_analyzer:get_int_process(Info),
-            tags => cuter_analyzer:get_tags(Info),
-            stored_mods => cuter_analyzer:get_stored_modules(Info),
-            tags_added_no => cuter_analyzer:get_no_of_tags_added(Info)
-          },
+          Mappings = cuter_analyzer:get_mapping(Info),
+          Traces = cuter_analyzer:get_traces(Info),
+          Int = cuter_analyzer:get_int_process(Info),
+          Tags = cuter_analyzer:get_tags(Info),
+          StoredMods = cuter_analyzer:get_stored_modules(Info),
+          TagsN = cuter_analyzer:get_no_of_tags_added(Info),
+          RawInfo = cuter_analyzer:mk_raw_info(Mappings, ExResult, Traces, Int, DataDir, Tags, StoredMods, TagsN),
           AnalyzedInfo = cuter_analyzer:process_raw_execution_info(RawInfo),
           cuter_pp:path_vertex(Ref, maps:get(path_vertex, AnalyzedInfo)),
           cuter_pp:flush(Ref),
