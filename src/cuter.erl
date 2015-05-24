@@ -30,10 +30,11 @@
 -type configuration() :: #conf{}.
 
 %% Runtime Options
+-define(FULLY_VERBOSE_EXEC_INFO, fully_verbose_execution_info).
 -define(ENABLE_PMATCH, enable_pmatch).
 
 -type option() :: {basedir, file:filename()}
-                | verbose_execution_info
+                | ?FULLY_VERBOSE_EXEC_INFO
                 | ?ENABLE_PMATCH
                 .
 
@@ -89,7 +90,7 @@ initialize_app(M, F, As, Depth, Options) ->
   process_flag(trap_exit, true),
   error_logger:tty(false),  %% disable error_logger
   SchedPid = cuter_scheduler_maxcover:start(?PYTHON_CALL, Depth, As),
-  ok = cuter_pp:start(set_reporting_level(Options)),
+  ok = cuter_pp:start(reporting_level(Options)),
   cuter_pp:mfa({M, F, length(As)}),
   #conf{mod = M,
         func = F,
@@ -115,13 +116,13 @@ set_basedir([]) -> {ok, CWD} = file:get_cwd(), CWD;
 set_basedir([{basedir, BaseDir}|_]) -> BaseDir;
 set_basedir([_|Rest]) -> set_basedir(Rest).
 
--spec set_reporting_level([option()]) -> map().
-set_reporting_level(Options) ->
-  Default = #{
-    verbose_execution_info => false
-  },
-  SetFlags = [Opt || Opt <- Options, maps:is_key(Opt, Default)],
-  lists:foldl(fun(X, Acc) -> maps:update(X, true, Acc) end, Default, SetFlags).
+-spec reporting_level([option()]) -> cuter_pp:pp_level().
+reporting_level(Options) ->
+  Default = cuter_pp:default_reporting_level(),
+  case lists:member(?FULLY_VERBOSE_EXEC_INFO, Options) of
+    false -> Default;
+    true  -> cuter_pp:fully_verbose_exec_info(Default)
+  end.
 
 %% ------------------------------------------------------------------
 %% Concolic Execution
