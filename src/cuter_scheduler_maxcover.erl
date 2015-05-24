@@ -129,24 +129,24 @@ handle_call(request_input, _From, S=#sts{tags_queue = TQ, info_tab = AllInfo, py
 handle_call({store_execution, Handle, Info}, _From, S=#sts{tags_queue = TQ, info_tab = AllInfo, stored_mods = SMs, visited_tags = Vs, depth = Depth,
                                                            running = Rn, first_operation = FOp, erroneous = Err}) ->
   %% Generate the information of the execution
-  I = #{ traceFile => maps:get(traceFile, Info)
-       , dataDir => maps:get(dir, Info)
-       , mappings => maps:get(mappings, Info)},
+  I = #{ traceFile => cuter_analyzer:traceFile_of_info(Info)
+       , dataDir => cuter_analyzer:dir_of_info(Info)
+       , mappings => cuter_analyzer:mappings_of_info(Info)},
   %% Get the input & update the erroneous inputs
   Input = dict:fetch(Handle, Rn),
-  NErr = update_erroneous(maps:get(runtime_error, Info), Input, Err),
+  NErr = update_erroneous(cuter_analyzer:runtimeError_of_info(Info), Input, Err),
   %% Update the stored code of modules
-  StoredMods = orddict:merge(fun(_K, V1, _V2) -> V1 end, SMs, maps:get(stored_mods, Info)),
+  StoredMods = orddict:merge(fun(_K, V1, _V2) -> V1 end, SMs, cuter_analyzer:storedMods_of_info(Info)),
   %% Update the visited tags
-  Visited = gb_sets:union(Vs, maps:get(tags, Info)),
+  Visited = gb_sets:union(Vs, cuter_analyzer:tags_of_info(Info)),
   %% Update the queue
   N = dict:fetch(Handle, FOp),
-  Rvs = maps:get(reversible, Info),
+  Rvs = cuter_analyzer:reversible_of_info(Info),
   Items = generate_queue_items(Rvs, Handle, Visited, N, Depth),
   lists:foreach(fun(Item) -> cuter_minheap:insert(Item, TQ) end, Items),
   {reply, ok, S#sts{ info_tab = dict:store(Handle, I, AllInfo)
                    , stored_mods = StoredMods
-                   , tags_added_no = maps:get(tags_added_no, Info)  %% Number of added tags
+                   , tags_added_no = cuter_analyzer:tagsAddedNo_of_info(Info)  %% Number of added tags
                    , visited_tags = Visited
                    , running = dict:erase(Handle, Rn)  %% Remove the handle from the running set
                    , first_operation = dict:erase(Handle, FOp)

@@ -7,17 +7,19 @@
 
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3,
-	 handle_info/2, handle_call/3, handle_cast/2]).
+         handle_info/2, handle_call/3, handle_cast/2]).
 -export([start/1, stop/0]).
 
 %% Report information about the concolic executions.
 -export([mfa/1, input/2, error_retrieving_spec/2, execution_status/2,
-	 execution_info/2, path_vertex/2, flush/1, errors_found/1, form_has_unsupported_type/1]).
+         execution_info/2, path_vertex/2, flush/1, errors_found/1, form_has_unsupported_type/1]).
 
 %% Report information about solving.
 -export([solving_failed_notify/0]).
 
 -export([ reversible_operations/1
+        %% Execution info reporting level
+        , default_reporting_level/0, minimal_exec_info/1, fully_verbose_exec_info/1
         %% Verbose File/Folder Deletion
         , delete_file/2
         %% Verbose solving
@@ -43,21 +45,49 @@
         , open_pending_file/1
        ]).
 
+-export_type([pp_level/0]).
+
 -record(sts, {
   super      :: pid(),
-  pplevel    :: map(),
+  pplevel    :: pp_level(),
   nl = false :: boolean(),
   mfa        :: mfa(),
   info       :: dict:dict(cuter_scheduler_maxcover:exec_handle(), orddict:orddict())
 }).
 -type state() :: #sts{}.
 
+%% Reporting levels.
+-define(MINIMAL, 0).
+-define(VERBOSE, 1).
+-define(FULLY_VERBOSE, 2).
+-type level() :: ?MINIMAL | ?VERBOSE | ?FULLY_VERBOSE.
+
+-record(pp_level, {
+  execInfo = ?VERBOSE :: level()
+}).
+-type pp_level() :: #pp_level{}.
+
+%% ----------------------------------------------------------------------------
+%% Manipulate the reporting levels
+%% ----------------------------------------------------------------------------
+
+-spec default_reporting_level() -> pp_level().
+default_reporting_level() -> #pp_level{}.
+
+-spec minimal_exec_info(pp_level()) -> pp_level().
+minimal_exec_info(PpLevel) ->
+  PpLevel#pp_level{execInfo = ?MINIMAL}.
+
+-spec fully_verbose_exec_info(pp_level()) -> pp_level().
+fully_verbose_exec_info(PpLevel) ->
+  PpLevel#pp_level{execInfo = ?FULLY_VERBOSE}.
+
 %% ============================================================================
 %% Eternal API
 %% ============================================================================
 
 %% Starts the server.
--spec start(map()) -> ok.
+-spec start(pp_level()) -> ok.
 start(PpLevel) ->
   case gen_server:start({local, ?PRETTY_PRINTER}, ?MODULE, [self(), PpLevel], []) of
     {ok, _Pid} -> ok;
@@ -124,7 +154,7 @@ errors_found(Errors) ->
 %% ============================================================================
 
 %% gen_server callback : init/1
--spec init([pid() | map(), ...]) -> {ok, state()}.
+-spec init([pid() | pp_level(), ...]) -> {ok, state()}.
 init([Super, PpLevel]) ->
   %% process_flag(trap_exit, true),
   link(Super),
@@ -166,7 +196,7 @@ handle_call({error_retrieving_spec, MFA, Error}, _From, State) ->
       {reply, ok, State}
   end;
 %% Encountered an unsupported type
-handle_call( {form_has_unsupported_type, Info}, _From, State) ->
+handle_call({form_has_unsupported_type, Info}, _From, State) ->
   case get(type_error) of
     yes -> {reply, ok, State};
     undefined ->
@@ -184,16 +214,14 @@ handle_call({path_vertex, Ref, Vertex}, _From, State=#sts{info = Info}) ->
   {reply, ok, State#sts{info = dict:update(Ref, Update, Info)}};
 %% Display the information of the given concolic execution.
 handle_call({flush, Ref}, _From, State=#sts{pplevel = PpLevel, info = Info, nl = Nl, mfa = MFA}) ->
-  pp_nl(Nl),
-  pp_execution_info(dict:fetch(Ref, Info), MFA, maps:get(verbose_execution_info, PpLevel)),
+  pp_execution_info(dict:fetch(Ref, Info), MFA, Nl, PpLevel#pp_level.execInfo),
   {reply, ok, State#sts{info = dict:erase(Ref, Info), nl = false}};
 %% Print a character to show that solving failed to product an output.
 handle_call(solving_failed_notify, _From, State) ->
   io:format("x"),
   {reply, ok, State#sts{nl = true}};
 %% Report the errors that were found.
-handle_call({errors_found, Errors}, _From, State=#sts{nl = Nl, mfa = MFA}) ->
-  pp_nl(Nl),
+handle_call({errors_found, Errors}, _From, State=#sts{mfa = MFA}) ->
   pp_erroneous_inputs(Errors, MFA),
   {reply, ok, State#sts{nl = false}}.
 
@@ -228,58 +256,82 @@ spec_error(MFA, {unsupported_type, Name}) ->
 spec_error(MFA, Error) ->
   io:format("~nWARNING: Error while retrieving the spec of ~p!~n  Error: ~p~n~n", [MFA, Error]).
 
-unsupported_type_error(_Info) ->
-  io:format("~nWARNING: Encountered an unsupported type!~n").
+unsupported_type_error(Form) ->
+  io:format("~nWARNING: Encountered an unsupported type while parsing the types in Core Erlang forms!~n"),
+  io:format("  Form: ~p~n~n", [Form]).
 
 -spec pp_nl(boolean()) -> ok.
 pp_nl(true) -> io:format("~n");
 pp_nl(false) -> ok.
 
--spec pp_execution_info(orddict:orddict(), mfa(), boolean()) -> ok.
-pp_execution_info(Info, MFA, false) ->
-  pp_input(orddict:fetch(input, Info), MFA, false),
-  pp_execution_status(orddict:fetch(execution_status, Info), false),
-  pp_path_vertex(orddict:fetch(path_vertex, Info), false),
-  pp_execution_logs(orddict:fetch(execution_info, Info), false),
-  io:format("~n");
-pp_execution_info(Info, MFA, true) ->
-  pp_input(orddict:fetch(input, Info), MFA, true),
-  pp_execution_status(orddict:fetch(execution_status, Info), true),
-  pp_execution_logs(orddict:fetch(execution_info, Info), true),
-  pp_path_vertex(orddict:fetch(path_vertex, Info), true).
+-spec pp_execution_info(orddict:orddict(), mfa(), boolean(), level()) -> ok.
+pp_execution_info(Info, _MFA, _Nl, ?MINIMAL) ->
+  pp_execution_status_minimal(orddict:fetch(execution_status, Info));
+pp_execution_info(Info, MFA, Nl, ?VERBOSE) ->
+  pp_nl(Nl),
+  pp_input_verbose(orddict:fetch(input, Info), MFA),
+  pp_execution_status_verbose(orddict:fetch(execution_status, Info)),
+  pp_execution_logs_verbose(orddict:fetch(execution_info, Info)),
+  pp_nl(true);
+pp_execution_info(Info, MFA, Nl, ?FULLY_VERBOSE) ->
+  pp_nl(Nl),
+  pp_input_fully_verbose(orddict:fetch(input, Info), MFA),
+  pp_execution_status_fully_verbose(orddict:fetch(execution_status, Info)),
+  pp_execution_logs_fully_verbose(orddict:fetch(execution_info, Info)),
+  pp_path_vertex_fully_verbose(orddict:fetch(path_vertex, Info)).
 
--spec pp_execution_status(cuter_iserver:execution_status(), boolean()) -> ok.
-pp_execution_status({success, _Result}, false) ->
+%% ----------------------------------------------------------------------------
+%% Report the execution status
+%% ----------------------------------------------------------------------------
+
+-spec pp_execution_status_minimal(cuter_iserver:execution_status()) -> ok.
+pp_execution_status_minimal({success, _Result}) ->
+  io:format(".");
+pp_execution_status_minimal({runtime_error, _Node, _Pid, _Error}) ->
+  io:format("E");
+pp_execution_status_minimal({internal_error, _Type, _Node, _Why}) ->
+  io:format("I").
+
+-spec pp_execution_status_verbose(cuter_iserver:execution_status()) -> ok.
+
+pp_execution_status_verbose({success, _Result}) ->
   io:format("ok");
-pp_execution_status({runtime_error, _Node, _Pid, _Error}, false) ->
+pp_execution_status_verbose({runtime_error, _Node, _Pid, _Error}) ->
   io:format("RUNTIME ERROR");
-pp_execution_status({internal_error, _Type, _Node, _Why}, false) ->
-  io:format("INTERNAL ERROR");
-pp_execution_status({success, {Cv, Sv}}, true) ->
+pp_execution_status_verbose({internal_error, _Type, _Node, _Why}) ->
+  io:format("INTERNAL ERROR").
+
+-spec pp_execution_status_fully_verbose(cuter_iserver:execution_status()) -> ok.
+pp_execution_status_fully_verbose({success, {Cv, Sv}}) ->
   io:format("OK~n"),
   io:format("  CONCRETE: ~p~n", [Cv]),
   io:format("  SYMBOLIC: ~p~n", [Sv]);
-pp_execution_status({runtime_error, Node, Pid, {Cv, Sv}}, true) ->
+pp_execution_status_fully_verbose({runtime_error, Node, Pid, {Cv, Sv}}) ->
   io:format("RUNTIME ERROR~n"),
   io:format("  NODE: ~p~n", [Node]),
   io:format("  PID: ~p~n", [Pid]),
   io:format("  CONCRETE: ~p~n", [Cv]),
   io:format("  SYMBOLIC: ~p~n", [Sv]);
-pp_execution_status({internal_error, Type, Node, Why}, true) ->
+pp_execution_status_fully_verbose({internal_error, Type, Node, Why}) ->
   io:format("INTERNAL ERROR~n"),
   io:format("  TYPE: ~p~n", [Type]),
   io:format("  NODE: ~p~n", [Node]),
   io:format("  REASON: ~p~n", [Why]).
 
--spec pp_input(cuter:input(), mfa(), boolean()) -> ok.
-pp_input([], {M, F, _}, false) -> io:format("~p:~p()~n", [M, F]);
-pp_input(Input, {M, F, _}, false) ->
+%% ----------------------------------------------------------------------------
+%% Report the input
+%% ----------------------------------------------------------------------------
+
+-spec pp_input_verbose(cuter:input(), mfa()) -> ok.
+pp_input_verbose([], {M, F, _}) ->
+  io:format("~p:~p()~n", [M, F]);
+pp_input_verbose(Input, {M, F, _}) ->
   io:format("~p:~p(", [M, F]),
   S = pp_arguments(Input),
-  io:format("~s) ... ", [S]);
-%  Spaces = 50 - length(S),
-%  lists:foreach(fun(_) -> io:format(" ") end, lists:seq(1, Spaces));
-pp_input(Input, _MFA, true) ->
+  io:format("~s) ... ", [S]).
+
+-spec pp_input_fully_verbose(cuter:input(), mfa()) -> ok.
+pp_input_fully_verbose(Input, _MFA) ->
   divider("="),
   io:format("INPUT~n"),
   io:format("~s~n", [pp_arguments(Input)]).
@@ -293,15 +345,21 @@ pp_arguments([A|As]) ->
         As),
   string:join(lists:reverse(Xs), "").
 
--spec pp_execution_logs(orddict:orddict(), boolean()) -> ok.
-pp_execution_logs(Info, false) ->
+%% ----------------------------------------------------------------------------
+%% Report the execution logs
+%% ----------------------------------------------------------------------------
+
+-spec pp_execution_logs_verbose(orddict:orddict()) -> ok.
+pp_execution_logs_verbose(Info) ->
   CodeLogs = [orddict:fetch(code_logs, Data) || {_Node, Data} <- Info],
   Unsupported = [orddict:fetch(unsupported_mfas, Ls) || Ls <- CodeLogs],
   case lists:flatten(Unsupported) of
     [] -> ok;
     MFAs -> io:format(" Unsupported: ~p", [MFAs])
-  end;
-pp_execution_logs(Info, true) ->
+  end.
+
+-spec pp_execution_logs_fully_verbose(orddict:orddict()) -> ok.
+pp_execution_logs_fully_verbose(Info) ->
   io:format("EXECUTION INFO~n"),
   F = fun({Node, Data}) ->
     io:format("  ~p~n", [Node]),
@@ -346,19 +404,25 @@ pp_code_logs([{tags_added_no, N}|Logs]) ->
   io:format("        ~p~n", [N]),
   pp_code_logs(Logs).
 
--spec pp_path_vertex(cuter_analyzer:path_vertex(), boolean()) -> ok.
-pp_path_vertex(Vertex, false) ->
-  io:format(" (#~w)", [length(Vertex)]);
-pp_path_vertex(Vertex, true) ->
+%% ----------------------------------------------------------------------------
+%% Report the path vertex
+%% ----------------------------------------------------------------------------
+
+-spec pp_path_vertex_fully_verbose(cuter_analyzer:path_vertex()) -> ok.
+pp_path_vertex_fully_verbose(Vertex) ->
   io:format("PATH VERTEX~n"),
   io:format("  ~p (~w)~n", [Vertex, length(Vertex)]).
 
 -spec pp_erroneous_inputs(cuter:erroneous_inputs(), mfa()) -> ok.
 pp_erroneous_inputs([], _MFA) ->
-  io:format("NO RUNTIME ERRORS OCCURED~n");
+  io:format("~nNO RUNTIME ERRORS OCCURED~n");
 pp_erroneous_inputs(Errors, MFA) ->
-  io:format("INPUTS THAT LEAD TO RUNTIME ERRORS"),
+  io:format("~nINPUTS THAT LEAD TO RUNTIME ERRORS"),
   pp_erroneous_inputs(Errors, MFA, 1).
+
+%% ----------------------------------------------------------------------------
+%% Report the erroneous inputs
+%% ----------------------------------------------------------------------------
 
 pp_erroneous_inputs([], _MFA, _N) ->
   io:format("~n");

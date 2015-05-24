@@ -9,27 +9,32 @@
 -include("include/cuter_macros.hrl").
 
 -type mod() :: atom().  % a subtype of module()
--type input() :: [term()].
+-type input() :: [any()].
 -type erroneous_inputs() :: [input()].
 
 -define(ZERO, 0).
 -define(ONE,  1).
 -type loop_limit() :: ?ZERO | ?ONE | inf.
 
--type configuration() :: #{mod => mod(),
-                           func => atom(),
-                           dataDir => file:filename(),
-                           depth => pos_integer(),
-                           no => integer(),
-                           scheduler => pid(),
-                           stored_mods => cuter_analyzer:stored_modules(),
-                           tags_added_no => integer(),
-                           pmatch => boolean()}.
+-record(conf, {
+  mod           :: mod(),
+  func          :: atom(),
+  dataDir       :: file:filename(),
+  depth         :: pos_integer(),
+  no            :: integer(),
+  scheduler     :: pid(),
+  stored_mods   :: cuter_analyzer:stored_modules(),
+  tags_added_no :: integer(),
+  pmatch        :: boolean()
+}).
+-type configuration() :: #conf{}.
 
+%% Runtime Options
+-define(FULLY_VERBOSE_EXEC_INFO, fully_verbose_execution_info).
 -define(ENABLE_PMATCH, enable_pmatch).
 
 -type option() :: {basedir, file:filename()}
-                | verbose_execution_info
+                | ?FULLY_VERBOSE_EXEC_INFO
                 | ?ENABLE_PMATCH
                 .
 
@@ -59,12 +64,12 @@ run(M, F, As, Depth, Options) ->
 -spec loop(configuration(), loop_limit()) -> erroneous_inputs().
 loop(Conf, ?ZERO) -> stop(Conf);
 loop(Conf, Lmt) ->
-  Scheduler = maps:get(scheduler, Conf),
+  Scheduler = Conf#conf.scheduler,
   case cuter_scheduler_maxcover:request_input(Scheduler) of
     empty -> stop(Conf);
     {Ref, As, StoredMods, TagsN} ->
-      No = maps:get(no, Conf) + 1,
-      Conf_n = Conf#{no := No, stored_mods := StoredMods, tags_added_no := TagsN},
+      No = Conf#conf.no + 1,
+      Conf_n = Conf#conf{no = No, stored_mods = StoredMods, tags_added_no = TagsN},
       case concolic_execute(Conf_n, Ref, As) of
         cuter_error ->
           stop(Conf_n);
@@ -85,24 +90,24 @@ initialize_app(M, F, As, Depth, Options) ->
   process_flag(trap_exit, true),
   error_logger:tty(false),  %% disable error_logger
   SchedPid = cuter_scheduler_maxcover:start(?PYTHON_CALL, Depth, As),
-  ok = cuter_pp:start(set_reporting_level(Options)),
+  ok = cuter_pp:start(reporting_level(Options)),
   cuter_pp:mfa({M, F, length(As)}),
-  #{mod => M,
-    func => F,
-    no => 1,
-    depth => Depth,
-    dataDir => cuter_lib:get_tmp_dir(BaseDir),
-    scheduler => SchedPid,
-    stored_mods => orddict:new(),
-    tags_added_no => 0,
-    pmatch => lists:member(?ENABLE_PMATCH, Options)}.
+  #conf{mod = M,
+        func = F,
+        no = 1,
+        depth = Depth,
+        dataDir = cuter_lib:get_tmp_dir(BaseDir),
+        scheduler = SchedPid,
+        stored_mods = orddict:new(),
+        tags_added_no = 0,
+        pmatch = lists:member(?ENABLE_PMATCH, Options)}.
 
 -spec stop(configuration()) -> erroneous_inputs().
 stop(Conf) ->
-  Erroneous = cuter_scheduler_maxcover:stop(maps:get(scheduler, Conf)),
+  Erroneous = cuter_scheduler_maxcover:stop(Conf#conf.scheduler),
   cuter_pp:errors_found(Erroneous),
   cuter_pp:stop(),
-  cuter_lib:clear_and_delete_dir(maps:get(dataDir, Conf)),
+  cuter_lib:clear_and_delete_dir(Conf#conf.dataDir),
   Erroneous.
 
 %% Set app parameters.
@@ -111,13 +116,13 @@ set_basedir([]) -> {ok, CWD} = file:get_cwd(), CWD;
 set_basedir([{basedir, BaseDir}|_]) -> BaseDir;
 set_basedir([_|Rest]) -> set_basedir(Rest).
 
--spec set_reporting_level([option()]) -> map().
-set_reporting_level(Options) ->
-  Default = #{
-    verbose_execution_info => false
-  },
-  SetFlags = [Opt || Opt <- Options, maps:is_key(Opt, Default)],
-  lists:foldl(fun(X, Acc) -> maps:update(X, true, Acc) end, Default, SetFlags).
+-spec reporting_level([option()]) -> cuter_pp:pp_level().
+reporting_level(Options) ->
+  Default = cuter_pp:default_reporting_level(),
+  case lists:member(?FULLY_VERBOSE_EXEC_INFO, Options) of
+    false -> Default;
+    true  -> cuter_pp:fully_verbose_exec_info(Default)
+  end.
 
 %% ------------------------------------------------------------------
 %% Concolic Execution
@@ -126,15 +131,15 @@ set_reporting_level(Options) ->
 -spec concolic_execute(configuration(), cuter_scheduler_maxcover:exec_handle(), input()) -> cuter_analyzer:info() | cuter_error.
 concolic_execute(Conf, Ref, Input) ->
   cuter_pp:input(Ref, Input),
-  BaseDir = maps:get(dataDir, Conf),
-  DataDir = cuter_lib:get_data_dir(BaseDir, maps:get(no, Conf)),
+  BaseDir = Conf#conf.dataDir,
+  DataDir = cuter_lib:get_data_dir(BaseDir, Conf#conf.no),
   TraceDir = cuter_lib:get_trace_dir(DataDir),  % Directory to store process traces
-  M = maps:get(mod, Conf),
-  F = maps:get(func, Conf),
-  Depth = maps:get(depth, Conf),
-  StoredMods = maps:get(stored_mods, Conf),
-  TagsN = maps:get(tags_added_no, Conf),
-  WithPmatch = maps:get(pmatch, Conf),
+  M = Conf#conf.mod,
+  F = Conf#conf.func,
+  Depth = Conf#conf.depth,
+  StoredMods = Conf#conf.stored_mods,
+  TagsN = Conf#conf.tags_added_no,
+  WithPmatch = Conf#conf.pmatch,
   IServer = cuter_iserver:start(M, F, Input, TraceDir, Depth, StoredMods, TagsN, WithPmatch),
   retrieve_info(IServer, Ref, DataDir).
 
@@ -147,18 +152,15 @@ retrieve_info(IServer, Ref, DataDir) ->
       case cuter_analyzer:get_result(ExStatus) of
         internal_error -> cuter_error;
         ExResult ->
-          RawInfo = #{
-            result => ExResult,
-            dir => DataDir,
-            mappings => cuter_analyzer:get_mapping(Info),
-            traces => cuter_analyzer:get_traces(Info),
-            int => cuter_analyzer:get_int_process(Info),
-            tags => cuter_analyzer:get_tags(Info),
-            stored_mods => cuter_analyzer:get_stored_modules(Info),
-            tags_added_no => cuter_analyzer:get_no_of_tags_added(Info)
-          },
+          Mappings = cuter_analyzer:get_mapping(Info),
+          Traces = cuter_analyzer:get_traces(Info),
+          Int = cuter_analyzer:get_int_process(Info),
+          Tags = cuter_analyzer:get_tags(Info),
+          StoredMods = cuter_analyzer:get_stored_modules(Info),
+          TagsN = cuter_analyzer:get_no_of_tags_added(Info),
+          RawInfo = cuter_analyzer:mk_raw_info(Mappings, ExResult, Traces, Int, DataDir, Tags, StoredMods, TagsN),
           AnalyzedInfo = cuter_analyzer:process_raw_execution_info(RawInfo),
-          cuter_pp:path_vertex(Ref, maps:get(path_vertex, AnalyzedInfo)),
+          cuter_pp:path_vertex(Ref, cuter_analyzer:pathVertex_of_info(AnalyzedInfo)),
           cuter_pp:flush(Ref),
           AnalyzedInfo
       end;
