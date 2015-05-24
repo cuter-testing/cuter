@@ -12,7 +12,8 @@
 
 %% Report information about the concolic executions.
 -export([mfa/1, input/2, error_retrieving_spec/2, execution_status/2,
-         execution_info/2, path_vertex/2, flush/1, errors_found/1, form_has_unsupported_type/1]).
+         execution_info/2, path_vertex/2, flush/1, errors_found/1,
+         form_has_unsupported_type/1]).
 
 %% Report information about solving.
 -export([solving_failed_notify/0]).
@@ -51,8 +52,8 @@
   super      :: pid(),
   pplevel    :: pp_level(),
   nl = false :: boolean(),
-  mfa        :: mfa(),
-  info       :: dict:dict(cuter_scheduler_maxcover:exec_handle(), orddict:orddict())
+  mfa        :: mfa() | 'undefined',
+  info = dict:new() :: dict:dict(cuter_scheduler_maxcover:exec_handle(), orddict:orddict())
 }).
 -type state() :: #sts{}.
 
@@ -158,7 +159,7 @@ errors_found(Errors) ->
 init([Super, PpLevel]) ->
   %% process_flag(trap_exit, true),
   link(Super),
-  {ok, #sts{super = Super, pplevel = PpLevel, info = dict:new()}}.
+  {ok, #sts{super = Super, pplevel = PpLevel}}.
 
 %% gen_server callback : terminate/2
 -spec terminate(term(), state()) -> ok.
@@ -173,9 +174,8 @@ code_change(_OldVsn, State, _Extra) ->
 %% gen_server callback : handle_call/3
 -spec handle_call(any(), {pid(), reference()}, state()) -> {reply, ok, state()}.
 
-
 %% A new input to be tested.
-handle_call({input, Ref, Input}, _From, State=#sts{info = Info, pplevel = _PpLevel, mfa = _MFA}) ->
+handle_call({input, Ref, Input}, _From, State=#sts{info = Info}) ->
   Data = orddict:store(input, Input, orddict:new()),
   {reply, ok, State#sts{info = dict:store(Ref, Data, Info)}};
 %% The MFA to be tested.
