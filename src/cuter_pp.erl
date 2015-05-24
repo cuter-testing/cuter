@@ -228,7 +228,7 @@ spec_error(MFA, {unsupported_type, Name}) ->
 spec_error(MFA, Error) ->
   io:format("~nWARNING: Error while retrieving the spec of ~p!~n  Error: ~p~n~n", [MFA, Error]).
 
-unsupported_type_error(Info) ->
+unsupported_type_error(_Info) ->
   io:format("~nWARNING: Encountered an unsupported type!~n").
 
 -spec pp_nl(boolean()) -> ok.

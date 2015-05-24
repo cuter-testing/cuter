@@ -31,7 +31,7 @@ DIALYZER_FLAGS = -Wunmatched_returns -Wunderspecs
 WARNS = +warn_exported_vars +warn_unused_import +warn_missing_spec #+warn_untyped_record
 UTEST_WARNS = +warn_exported_vars +warn_missing_spec #+warn_unused_import +warn_untyped_record
 ERLC_INCLUDE = -I $(INCLUDE)
-ERLC_FLAGS = +debug_info $(WARNS)
+ERLC_FLAGS = +debug_info $(WARNS) -Werror
 ERLC_UTEST_FLAGS = +debug_info $(UTEST_WARNS)
 ERLC_MACROS = -DEBIN=\"$(PWD)/$(EBIN)\" -DPYTHON_PATH=\"@PYTHON_PATH@\" -DPRIV=\"$(PRIV)\"
 
@@ -136,9 +136,8 @@ clean:
 clean_tests:
 	$(RM) $(UTEST_EBIN)/*.beam
 
-cleandep:
-	@$(RM) .depend
+cleangen:
+	$(RM) .depend .cuter_plt
 
-distclean: clean clean_tests cleandep
-	$(RM)
+distclean: clean clean_tests cleangen
 

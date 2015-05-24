@@ -253,13 +253,13 @@ generate_queue_items(Rvs, Handle, Visited, N, Depth) ->
 generate_queue_items([], _Handle, _Visited, _N, _Depth, Acc) ->
   lists:reverse(Acc);
 generate_queue_items([R|Rs], Handle, Visited, N, Depth, Acc) ->
-  case maybe_item(R, Handle, Visited, N, Depth) of
+  case maybe_item(R, Handle, Visited, N) of
     false -> generate_queue_items(Rs, Handle, Visited, N, Depth, Acc);
     {ok, Item} -> generate_queue_items(Rs, Handle, Visited, N, Depth, [Item|Acc])
   end.
 
--spec maybe_item(cuter_analyzer:reversible_with_tag(), exec_handle(), cuter_analyzer:visited_tags(), integer(), integer()) -> {ok, item()} | false.
-maybe_item({Id, TagID}, Handle, Visited, N, Depth) ->
+-spec maybe_item(cuter_analyzer:reversible_with_tag(), exec_handle(), cuter_analyzer:visited_tags(), integer()) -> {ok, item()} | false.
+maybe_item({Id, TagID}, Handle, Visited, N) ->
   case Id < N of
     true  -> false;
     false -> {ok, {gb_sets:is_element(TagID, Visited), Id, TagID, Handle}}
