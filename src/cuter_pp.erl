@@ -192,7 +192,7 @@ handle_call({error_retrieving_spec, MFA, Error}, _From, State) ->
       {reply, ok, State}
   end;
 %% Encountered an unsupported type
-handle_call( {form_has_unsupported_type, Info}, _From, State) ->
+handle_call({form_has_unsupported_type, Info}, _From, State) ->
   case get(type_error) of
     yes -> {reply, ok, State};
     undefined ->
@@ -254,8 +254,9 @@ spec_error(MFA, {unsupported_type, Name}) ->
 spec_error(MFA, Error) ->
   io:format("~nWARNING: Error while retrieving the spec of ~p!~n  Error: ~p~n~n", [MFA, Error]).
 
-unsupported_type_error(_Info) ->
-  io:format("~nWARNING: Encountered an unsupported type!~n").
+unsupported_type_error(Form) ->
+  io:format("~nWARNING: Encountered an unsupported type while parsing the types in Core Erlang forms!~n"),
+  io:format("  Form: ~p~n~n", [Form]).
 
 -spec pp_nl(boolean()) -> ok.
 pp_nl(true) -> io:format("~n");
@@ -265,7 +266,7 @@ pp_nl(false) -> ok.
 pp_execution_info(Info, MFA, ?VERBOSE) ->
   pp_input(orddict:fetch(input, Info), MFA, ?VERBOSE),
   pp_execution_status(orddict:fetch(execution_status, Info), ?VERBOSE),
-  pp_path_vertex(orddict:fetch(path_vertex, Info), ?VERBOSE),
+%%  pp_path_vertex(orddict:fetch(path_vertex, Info), ?VERBOSE),
   pp_execution_logs(orddict:fetch(execution_info, Info), ?VERBOSE),
   io:format("~n");
 pp_execution_info(Info, MFA, ?FULLY_VERBOSE) ->

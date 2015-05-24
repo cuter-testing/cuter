@@ -243,8 +243,8 @@ t_from_form({type, _, record, [{atom, _, Name} | FieldTypes]}) ->
   Fields = [t_bound_field_from_form(F) || F <- FieldTypes],
   t_record(Name, Fields);
 %% Map
-t_from_form({type, _, map, _}) ->
-  throw({unsupported, map});
+t_from_form({type, _, map, _}=X) ->
+  throw({unsupported, X});
 %% local type
 t_from_form({type, _, Name, Types}) ->
   Ts = [t_from_form(T) || T <- Types],
