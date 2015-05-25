@@ -451,6 +451,10 @@ bounds_of_t_range(#t{kind = ?range_tag, rep = Limits}) ->
 segment_size_of_bitstring(#t{kind = ?bitstring_tag, rep = Sz}) ->
   Sz.
 
+-spec is_tvar_wild_card(t_type_var()) -> boolean().
+is_tvar_wild_card(#t{kind = ?type_variable, rep = {?type_var, Var}}) ->
+  Var =:= '_'.
+
 %% Helper functions for kinds.
 
 -spec get_kind(raw_type()) -> atom().
@@ -574,9 +578,13 @@ simplify(#t{kind = ?local_tag, rep = {Name, Args}}, StoredTypes, Env, Visited) -
       end
   end;
 %% type variable
-simplify(#t{kind = ?type_variable, rep = TVar}, StoredTypes, Env, Visited) ->
-  V = dict:fetch(TVar, Env),
-  V( StoredTypes, Env, Visited);
+simplify(#t{kind = ?type_variable, rep = TVar}=T, StoredTypes, Env, Visited) ->
+  case is_tvar_wild_card(T) of
+    true -> t_any();
+    false ->
+      V = dict:fetch(TVar, Env),
+      V(StoredTypes, Env, Visited)
+  end;
 simplify(#t{kind = ?remote_tag}, _StoredTypes, _Env, _Visited) ->
   throw(remote_type);
 %% record
