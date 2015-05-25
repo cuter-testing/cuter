@@ -157,7 +157,7 @@ t_from_form({type, _, atom, []}) ->
   t_atom();
 %% module()
 t_from_form({type, _, module, []}) ->
-  t_atom();
+  t_module();
 %% float()
 t_from_form({type, _, float, []}) ->
   t_float();
@@ -202,7 +202,10 @@ t_from_form({type, _, char, []}) ->
   t_char();
 %% byte()
 t_from_form({type, _, byte, []}) ->
-  t_range(t_integer_lit(0), t_integer_lit(255));
+  t_byte();
+%% mfa()
+t_from_form({type, _, mfa, []}) ->
+  t_tuple([t_module(), t_atom(), t_byte()]);
 %% string()
 t_from_form({type, _, string, []}) ->
   t_list(t_char());
@@ -294,6 +297,9 @@ t_atom_lit(Atom) ->
 t_atom() ->
   #t{kind = ?atom_tag}.
 
+-spec t_module() -> t_atom().
+t_module() -> t_atom().
+
 -spec t_integer_lit(integer()) -> t_integer_lit().
 t_integer_lit(Integer) ->
   #t{kind = ?integer_lit_tag, rep = Integer}.
@@ -353,6 +359,10 @@ t_tuple(Types) ->
 -spec t_union([raw_type()]) -> t_union().
 t_union(Types) ->
   #t{kind = ?union_tag, rep = Types, deps = unify_deps(Types)}.
+
+-spec t_byte() -> t_range().
+t_byte() ->
+  t_range(t_integer_lit(0), t_integer_lit(255)).
 
 -spec t_local(type_name(), [raw_type()]) -> t_local().
 t_local(Name, Types) ->
