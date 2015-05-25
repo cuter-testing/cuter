@@ -4,7 +4,7 @@ before_install:
   - cd z3
   - python scripts/mk_make.py
   - cd build
-  - make
+  - make -j 4
   - sudo make install
   - cd ../..
 script:
@@ -14,8 +14,7 @@ script:
   - autoconf
   - ./configure
   - make depend
-  - make
-  - make dialyzer
+  - make all
 otp_release:
   - 17.4
   - 17.0

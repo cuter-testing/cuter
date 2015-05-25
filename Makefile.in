@@ -25,14 +25,12 @@ export ERL_LIBS := $(PROPER):$(MECK):$$ERL_LIBS
 ### Flags
 ###----------------------------------------------------------------------
 
-DIALYZER_APPS = erts kernel stdlib compiler crypto syntax_tools hipe
+DIALYZER_APPS = erts kernel stdlib compiler crypto
 DIALYZER_FLAGS = -Wunmatched_returns -Wunderspecs
 
 WARNS = +warn_exported_vars +warn_unused_import +warn_missing_spec #+warn_untyped_record
-UTEST_WARNS = +warn_exported_vars +warn_missing_spec #+warn_unused_import +warn_untyped_record
 ERLC_INCLUDE = -I $(INCLUDE)
 ERLC_FLAGS = +debug_info $(WARNS) -Werror
-ERLC_UTEST_FLAGS = +debug_info $(UTEST_WARNS)
 ERLC_MACROS = -DEBIN=\"$(PWD)/$(EBIN)\" -DPYTHON_PATH=\"@PYTHON_PATH@\" -DPRIV=\"$(PRIV)\"
 
 HRL_FILES = \
@@ -95,7 +93,7 @@ default: cuter_target
 
 suite: utest_target
 
-all: $(TARGETS) dialyzer #utest
+all: $(TARGETS) dialyzer utest
 
 cuter_target: $(SRC_MODULES:%=$(EBIN)/%.beam)
 
@@ -107,7 +105,7 @@ $(EBIN)/%.beam: %.erl
 
 $(UTEST_EBIN)/%.beam: %.erl
 	@echo "ERLC $<"
-	@$(ERLC) $(ERLC_INCLUDE) $(ERLC_UTEST_FLAGS) $(ERLC_MACROS) -o $(UTEST_EBIN) $<
+	@$(ERLC) $(ERLC_INCLUDE) $(ERLC_FLAGS) $(ERLC_MACROS) -o $(UTEST_EBIN) $<
 
 utest: $(TARGETS)
 	@(erl -noshell -pa $(EBIN) -pa $(UTEST_EBIN) \
