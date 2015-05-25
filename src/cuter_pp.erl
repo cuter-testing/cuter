@@ -13,7 +13,7 @@
 %% Report information about the concolic executions.
 -export([mfa/1, input/2, error_retrieving_spec/2, execution_status/2,
          execution_info/2, path_vertex/2, flush/1, errors_found/1,
-         form_has_unsupported_type/1]).
+         form_has_unsupported_type/1, invalid_ast_with_pmatch/2]).
 
 %% Report information about solving.
 -export([solving_failed_notify/0]).
@@ -110,6 +110,11 @@ mfa(MFA) ->
 input(Ref, As) ->
   gen_server:call(?PRETTY_PRINTER, {input, Ref, As}).
 
+%% Generated invalid Core Erlang AST with pmatch.
+-spec invalid_ast_with_pmatch(module(), any()) -> ok.
+invalid_ast_with_pmatch(Mod, Generated) ->
+  gen_server:call(?PRETTY_PRINTER, {invalid_ast_with_pmatch, Mod, Generated}).
+
 %% Error while retrieving the spec for the MFA.
 -spec error_retrieving_spec(mfa(), any()) -> ok.
 error_retrieving_spec(MFA, Error) ->
@@ -186,6 +191,22 @@ handle_call({mfa, {M, F, Ar}}, _From, State) ->
 handle_call({execution_status, Ref, Status}, _From, State=#sts{info = Info}) ->
   Update = fun(Curr) -> orddict:store(execution_status, Status, Curr) end,
   {reply, ok, State#sts{info = dict:update(Ref, Update, Info)}};
+%% Generated invalid Core Erlang AST with pmatch.
+handle_call({invalid_ast_with_pmatch, Mod, Generated}, _From, State) ->
+  case get(invalid_ast) of
+    undefined ->
+      put(invalid_ast, [Mod]),
+      invalid_ast(Mod, Generated),
+      {reply, ok, State};
+    Mods ->
+      case lists:member(Mod, Mods) of
+        true -> {reply, ok, State};
+        false ->
+          invalid_ast(Mod, Generated),
+          put(invalid_ast, [Mod|Mods]),
+          {reply, ok, State}
+      end
+  end;
 %% Error retrieving the spec of the MFA.
 handle_call({error_retrieving_spec, MFA, Error}, _From, State) ->
   case get(spec_error) of
@@ -255,6 +276,9 @@ spec_error(MFA, {unsupported_type, Name}) ->
   io:format("~nWARNING: The spec of ~p uses the unsupported type ~p!~n~n", [MFA, Name]);
 spec_error(MFA, Error) ->
   io:format("~nWARNING: Error while retrieving the spec of ~p!~n  Error: ~p~n~n", [MFA, Error]).
+
+invalid_ast(Mod, Generated) ->
+  io:format("~nWARNING: Generated invalid Core Erlang AST for module ~p!~n  ~p~n~n", [Mod, Generated]).
 
 unsupported_type_error(Form) ->
   io:format("~nWARNING: Encountered an unsupported type while parsing the types in Core Erlang forms!~n"),

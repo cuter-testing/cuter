@@ -117,12 +117,23 @@
 %%====================================================================
 -spec load(M, ets:tid(), tag_generator(), boolean()) -> {ok, M} | load_error() when M :: cuter:mod().
 load(Mod, Db, TagGen, WithPmatch) ->
-  case get_core_ast(Mod, WithPmatch) of
-    {ok, AST} ->
-      store_module(Mod, AST, Db, TagGen),
-      {ok, Mod};
-    {error, _} = Error -> Error
-  end.
+case get_core_ast(Mod, WithPmatch) of
+  {ok, AST} ->
+    case is_valid_ast(WithPmatch, AST) of
+      false ->
+        cuter_pp:invalid_ast_with_pmatch(Mod, AST),
+        load(Mod, Db, TagGen, false);
+      true ->
+        store_module(Mod, AST, Db, TagGen),
+        {ok, Mod}
+    end;
+  {error, _} = Error -> Error
+end.
+
+is_valid_ast(false, _AST) ->
+  true;
+is_valid_ast(true, AST) ->
+  erlang:is_record(AST, c_module).
 
 %% Retrieves the spec of a function from a stored module's info.
 -spec retrieve_spec(ets:tid(), {name(), byte()}) -> {ok, cuter_types:stored_spec_value()} | error.
