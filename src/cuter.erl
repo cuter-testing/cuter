@@ -33,15 +33,17 @@
 -define(FULLY_VERBOSE_EXEC_INFO, fully_verbose_execution_info).
 -define(ENABLE_PMATCH, enable_pmatch).
 
--type option() :: {basedir, file:filename()}
+-type default_option() :: ?ENABLE_PMATCH.
+
+-type option() :: default_option()
+                | {basedir, file:filename()}
                 | ?FULLY_VERBOSE_EXEC_INFO
-                | ?ENABLE_PMATCH
                 .
 
 
 -spec run_once(mod(), atom(), input(), pos_integer()) -> erroneous_inputs().
 run_once(M, F, As, Depth) ->
-  run_once(M, F, As, Depth, []).
+  run_once(M, F, As, Depth, default_options()).
 
 -spec run_once(mod(), atom(), input(), pos_integer(), [option()]) -> erroneous_inputs().
 run_once(M, F, As, Depth, Options) ->
@@ -54,7 +56,7 @@ run(M, F, As) ->
 
 -spec run(mod(), atom(), input(), pos_integer()) -> erroneous_inputs().
 run(M, F, As, Depth) ->
-  run(M, F, As, Depth, []).
+  run(M, F, As, Depth, default_options()).
 
 -spec run(mod(), atom(), input(), pos_integer(), [option()]) -> erroneous_inputs().
 run(M, F, As, Depth, Options) ->
@@ -111,6 +113,10 @@ stop(Conf) ->
   Erroneous.
 
 %% Set app parameters.
+-spec default_options() -> [default_option(), ...].
+default_options() ->
+  [?ENABLE_PMATCH].
+
 -spec set_basedir([option()]) -> file:filename().
 set_basedir([]) -> {ok, CWD} = file:get_cwd(), CWD;
 set_basedir([{basedir, BaseDir}|_]) -> BaseDir;
