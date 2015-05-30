@@ -23,7 +23,8 @@ start_stop_test_() ->
 setup() ->
   process_flag(trap_exit, true),
   Dir = cuter_tests_lib:setup_dir(),
-  Server = cuter_iserver:start(lists, reverse, [[42,17]], Dir, ?TRACE_DEPTH, orddict:new(), 0, false),
+  Server = cuter_iserver:start(lists, reverse, [[42,17]], Dir, ?TRACE_DEPTH,
+                               cuter_codeserver:no_cached_modules(), cuter_codeserver:initial_branch_counter(), false),
   {Dir, Server}.
 
 cleanup({Dir, Server}) ->

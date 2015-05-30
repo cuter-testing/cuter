@@ -9,33 +9,10 @@
   selective_receive/1
 ]).
 
--export([run/2, run/3]).
-
 -include_lib("eunit/include/eunit.hrl").
 -include("include/eunit_config.hrl").
 
 -spec test() -> ok | {error | term()}. %% Silence dialyzer warning
-
--spec run(atom(), [any()]) -> any().
-run(F, As) -> run(?MODULE, F, As).
-
--spec run(atom(), atom(), [any()]) -> any().
-run(M, F, As) ->
-  process_flag(trap_exit, true),
-  Dir = cuter_tests_lib:setup_dir(),
-  Server = cuter_iserver:start(M, F, As, Dir, ?TRACE_DEPTH, orddict:new(), 0),
-  R = 
-    receive
-      {Server, ExStatus, Result} -> {Server, ExStatus, Result}
-    end,
-  receive
-    {'EXIT', Server, normal} -> ok
-  after
-    5000 -> ok
-  end,
-  cuter_lib:clear_and_delete_dir(Dir),
-  io:format("~p~n", [R]),
-  R.
 
 -spec eval_cerl_test_() -> term().
 eval_cerl_test_() ->
@@ -52,7 +29,7 @@ eval_cerl_test_() ->
     {"Pattern Mathing", {lambdaEval, [{{{$\\,x,{$\\,y,{$+,x,y}}},5},4}], 9}},
     {"Bit Pattern Matching", {doBitMatch, [], {42, <<"ok">>}}},
     {"Naming Processes", {doRegister, [], true}},
-%    {"Start a Slave Node", {doDistributed, [lists:seq(1,100)], 100}},
+%%    {"Start a Slave Node", {doDistributed, [lists:seq(1,100)], 100}},
     {"Selective Receive", {selective_receive, [100], ok}}
   ],
   Setup = fun(I) -> fun() -> setup(I) end end,
@@ -61,7 +38,7 @@ eval_cerl_test_() ->
   [{"Basic Cerl Evaluation: " ++ C, {setup, Setup(I), Cleanup, Inst}} || {C, I} <- Is].
 
 eval_cerl({F, As, Result, Dir}) ->
-  Server = cuter_iserver:start(?MODULE, F, As, Dir, ?TRACE_DEPTH, orddict:new(), 0, false),
+  Server = cuter_iserver:start(?MODULE, F, As, Dir, ?TRACE_DEPTH, cuter_codeserver:no_cached_modules(), cuter_codeserver:initial_branch_counter(), false),
   R = execution_result(Server),
   ok = wait_for_iserver(Server),
   [{atom_to_list(F), ?_assertMatch({success, {Result, _}}, R)}].

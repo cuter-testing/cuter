@@ -122,7 +122,7 @@ terminate(_Reason, #st{db = Db, super = Super, unsupported_mfas = Ms, tags = Tag
   Logs = [ {loaded_mods, drop_module_cache(Db)}  % Delete all created ETS tables
          , {unsupported_mfas, sets:to_list(Ms)}
          , {visited_tags, Tags}
-         , {stored_mods, CachedMods}
+         , {cachedMods, CachedMods}
          , {tags_added_no, Cnt}
          ],
   ok = cuter_iserver:code_logs(Super, orddict:from_list(Logs)),  % Send logs to the supervisor

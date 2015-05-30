@@ -145,14 +145,14 @@ process_raw_execution_info(Info) ->
 %% Creates a raw_info record.
 -spec mk_raw_info([cuter_symbolic:mapping()], execution_result(), [node_trace()], int_process(),
                   file:filename(), visited_tags(), cuter_codeserver:cached_modules(), integer()) -> raw_info().
-mk_raw_info(Mappings, Result, Traces, Int, Dir, Tags, StoredMods, TagsN) ->
+mk_raw_info(Mappings, Result, Traces, Int, Dir, Tags, CachedMods, TagsN) ->
   #raw{mappings = Mappings,
        result = Result,
        traces = Traces,
        int = Int,
        dir = Dir,
        tags = Tags,
-       cachedMods = StoredMods,
+       cachedMods = CachedMods,
        tags_added_no = TagsN}.
 
 %% Gets the traces from a raw_info record.
