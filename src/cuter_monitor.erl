@@ -4,11 +4,22 @@
 -behaviour(gen_server).
 
 %% external exports
--export([start/4, stop/1, subscribe/2, is_monitored/2, file_descriptor/1, node_servers/2]).
+-export([start/4, stop/1, subscribe/2, is_monitored/2, file_descriptor/1, node_servers/2,
+         %% Access logs
+         dir_of_logs/1, procs_of_logs/1]).
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_info/2, handle_call/3, handle_cast/2]).
 
 -include("include/cuter_macros.hrl").
+
+-export_type([logs/0]).
+
+%% The logs of a MonitorServer.
+-record(logs, {
+  dir   :: file:filename(),
+  procs :: integer()
+}).
+-type logs() :: #logs{}.
 
 %% Server's state
 %% ---------------
@@ -33,13 +44,8 @@
 %%   Used to prefix named processes & ets tables.
 %% logs :: logs()
 %%   Store information logs
-%%   Currently the elements are:
-%%     {procs, NumOfMonitoredProcs}
-%%     {dir, TraceDir}
 
--type logs() :: [{atom(), any()}].
-
--record(state, {
+-record(st, {
   super  :: pid(),
   depth  :: integer(),
   dir    :: string(),
@@ -49,7 +55,7 @@
   prefix :: nonempty_string(),
   logs   :: logs()
 }).
--type state() :: #state{}.
+-type state() :: #st{}.
 
 %% ============================================================================
 %% External exports (Public API)
@@ -109,30 +115,25 @@ init([Dir, Super, Depth, Prefix]) when is_list(Dir) ->
   Fds = ets:new(?MODULE, [ordered_set, protected]),
   Procs = ets:new(?MODULE, [ordered_set, protected]),
   LogDir = cuter_lib:get_monitor_dir(Dir),
-  InitState = #state{
-    super = Super,
-    depth = Depth,
-    dir = LogDir,
-    procs = Procs,
-    fds = Fds,
-    ptree = Ptree,
-    prefix = Prefix,
-    logs = [{procs, 0}, {dir, LogDir}]
-  },
+  InitState = #st{ super = Super
+                 , depth = Depth
+                 , dir = LogDir
+                 , procs = Procs
+                 , fds = Fds
+                 , ptree = Ptree
+                 , prefix = Prefix
+                 , logs = mk_logs(LogDir)},
   {ok, InitState}.
 
 %% gen_server callback : terminate/2
--spec terminate(term(), state()) -> 'ok'.
-terminate(_Reason, State) ->
-  Procs = State#state.procs,
-  Ptree = State#state.ptree,
-  Fds = State#state.fds,
+-spec terminate(term(), state()) -> ok.
+terminate(_Reason, #st{fds = Fds, logs = Logs, procs = Procs, ptree = Ptree, super = Super}) ->
   %% TODO reconstruct Process Tree and Traces Tree
   ets:delete(Ptree),
   ets:delete(Procs),
   ets:delete(Fds),
   %% Send Logs to supervisor
-  ok = cuter_iserver:monitor_logs(State#state.super, State#state.logs),
+  ok = cuter_iserver:monitor_logs(Super, Logs),
   ok.
 
 %% gen_server callback : code_change/3
@@ -145,37 +146,27 @@ code_change(_OldVsn, State, _Extra) ->
                ; ({is_monitored, pid()}, {pid(), any()}, state()) -> {reply, boolean(), state()}
                ; ({get_fd, pid()}, {pid(), any()}, state()) -> {reply, {ok, file:io_device()}, state()}
                ; ({node_servers, node()}, {pid(), any()}, state()) -> {reply, {ok, (servers() | error)}, state()}.
-handle_call({subscribe, Parent}, {From, _FromTag}, State) ->
-  Procs = State#state.procs,
-  Ptree = State#state.ptree,
-  Dir = State#state.dir,
-  Logs = State#state.logs,
-  Depth = State#state.depth,
-  Prefix = State#state.prefix,
+handle_call({subscribe, Parent}, {From, _FromTag}, State=#st{depth = Depth, dir = Dir, logs = Logs, prefix = Prefix, procs = Procs, ptree = Ptree}) ->
   monitor(process, From),
   ets:insert(Ptree, {Parent, From}),
   ets:insert(Procs, {From}),
   %% Update Logs - Number of monitored processes
-  P = proplists:get_value(procs, Logs),
-  NewLogs = [{procs, P+1}|(Logs -- [{procs, P}])],
+  NewLogs = Logs#logs{procs = Logs#logs.procs + 1},
   %% Create the filename of the log file
   Filename = cuter_lib:logfile_name(Dir, From),
   ok = filelib:ensure_dir(Filename),  % Ensure that the directory exists
-  {reply, {ok, Filename, Depth, Prefix}, State#state{logs=NewLogs}};
-handle_call({is_monitored, Who}, {_From, _FromTag}, State) ->
-  Procs = State#state.procs,
+  {reply, {ok, Filename, Depth, Prefix}, State#st{logs = NewLogs}};
+handle_call({is_monitored, Who}, {_From, _FromTag}, State=#st{procs = Procs}) ->
   Monitored = 
     case ets:lookup(Procs, Who) of
       [] -> false;
       [{Who}] -> true
     end,
   {reply, Monitored, State};
-handle_call({get_fd, Who}, _From, State) ->
-  Fds = State#state.fds,
+handle_call({get_fd, Who}, _From, State=#st{fds = Fds}) ->
   [{Who, Fd}] = ets:lookup(Fds, Who),
   {reply, {ok, Fd}, State};
-handle_call({node_servers, Node}, _From, State) ->
-  Super = State#state.super,
+handle_call({node_servers, Node}, _From, State=#st{super = Super}) ->
   Servers = cuter_iserver:node_servers(Super, Node),
   {reply, {ok, Servers}, State}.
 
@@ -183,12 +174,10 @@ handle_call({node_servers, Node}, _From, State) ->
 %% gen_server callback : handle_cast/2
 -spec handle_cast({store_fd, pid(), file:io_device()}, state()) -> {noreply, state()}
                ; ({stop, pid()}, state()) -> {stop, normal, state()} | {noreply, state()}.
-handle_cast({store_fd, From, Fd}, State=#state{fds = Fds}) ->
+handle_cast({store_fd, From, Fd}, State=#st{fds = Fds}) ->
   ets:insert(Fds, {From, Fd}),
   {noreply, State};
-handle_cast({stop, FromWho}, State) ->
-  Super = State#state.super,
-  Procs = State#state.procs,
+handle_cast({stop, FromWho}, State=#st{procs = Procs, super = Super}) ->
   case FromWho =:= Super of
     true ->
       kill_all_processes(get_procs(Procs)),
@@ -200,9 +189,7 @@ handle_cast({stop, FromWho}, State) ->
 %% gen_server callback : handle_info/2
 %% Msg when a monitored process exited normally
 -spec handle_info({'DOWN', reference(), process, pid(), any()}, state()) -> {stop, normal, state()} | {noreply, state()}.
-handle_info({'DOWN', _Ref, process, Who, normal}, State) ->
-  Procs = State#state.procs,
-  Fds = State#state.fds,
+handle_info({'DOWN', _Ref, process, Who, normal}, State=#st{fds = Fds, procs = Procs}) ->
   ets:delete(Fds, Who),
   ets:delete(Procs, Who),
   case ets:first(Procs) of
@@ -210,10 +197,7 @@ handle_info({'DOWN', _Ref, process, Who, normal}, State) ->
     _  -> {noreply, State}
   end;
 %% Msg when a monitored process experienced an exception
-handle_info({'DOWN', _Ref, process, Who, Reason}, State) ->
-  Super = State#state.super,
-  Procs = State#state.procs,
-  Fds = State#state.fds,
+handle_info({'DOWN', _Ref, process, Who, Reason}, State=#st{fds = Fds, procs = Procs, super = Super}) ->
   ets:delete(Procs, Who),
   ets:delete(Fds, Who),
   %% Killing all remaining alive processes
@@ -221,6 +205,22 @@ handle_info({'DOWN', _Ref, process, Who, Reason}, State) ->
   %% Send the Error Report to the supervisor
   cuter_iserver:send_error_report(Super, Who, cuter_eval:unzip_error(Reason)),
   {stop, normal, State}.
+
+%% ----------------------------------------------------------------------------
+%% Manage the logs of the CodeServer
+%% ----------------------------------------------------------------------------
+
+-spec mk_logs(file:filename()) -> logs().
+mk_logs(Dir) ->
+  #logs{dir = Dir, procs = 0}.
+
+-spec dir_of_logs(logs()) -> file:filename().
+dir_of_logs(Logs) ->
+  Logs#logs.dir.
+
+-spec procs_of_logs(logs()) -> integer().
+procs_of_logs(Logs) ->
+  Logs#logs.procs.
 
 %% ============================================================================
 %% Internal functions (Helper methods)

@@ -77,7 +77,7 @@ get_traces(Info) -> [get_trace_dir(I) || I <- Info].
 
 get_trace_dir({Node, Data}) ->
   Logs = proplists:get_value(monitor_logs, Data),
-  Dir = proplists:get_value(dir, Logs),
+  Dir = cuter_monitor:dir_of_logs(Logs),
   {Node, Dir}.
 
 -spec get_int_process(orddict:orddict()) -> int_process().

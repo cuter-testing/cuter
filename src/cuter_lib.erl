@@ -8,7 +8,7 @@
 -export([get_tmp_dir/1, get_data_dir/2, get_trace_dir/1,
          get_merged_tracefile/1, get_monitor_dir/1, logfile_name/2,
          clear_and_delete_dir/1, clear_and_delete_dir/2, list_dir/1,
-	 unique_string/0, ensure_port_or_pid/1]).
+         unique_string/0, ensure_port_or_pid/1]).
 
 
 %% Generate a unique string
@@ -30,33 +30,33 @@ ensure_port_or_pid({RegName, Node}) when is_atom(RegName), is_atom(Node) ->
 
 %% The working directory used during the execution of the tool
 %% (relative to a base directory that is provided)
--spec get_tmp_dir(file:filename_all()) -> file:filename_all().
+-spec get_tmp_dir(file:filename_all()) -> file:filename().
 get_tmp_dir(BaseDir) ->
   filename:absname(?RELATIVE_TMP_DIR, BaseDir).
 
 %% The directory to store the data of the specific execution
--spec get_data_dir(file:filename_all(), integer()) -> file:filename_all().
+-spec get_data_dir(file:filename_all(), integer()) -> file:filename().
 get_data_dir(BaseDir, No) ->
   filename:absname("exec" ++ integer_to_list(No), BaseDir).
 
 %% The directory for all the trace files
--spec get_trace_dir(file:filename_all()) -> file:filename_all().
+-spec get_trace_dir(file:filename_all()) -> file:filename().
 get_trace_dir(BaseDir) ->
   filename:absname("traces", BaseDir).
 
 %% The directory for the trace files for the processes of a specific monitor server
--spec get_monitor_dir(file:filename_all()) -> file:filename_all().
+-spec get_monitor_dir(file:filename_all()) -> file:filename().
 get_monitor_dir(BaseDir) ->
   U = cuter_lib:unique_string(),
   filename:absname("trace-" ++ U, BaseDir).
 
 %% The file that will hold the merged traces of an execution
--spec get_merged_tracefile(file:filename_all()) -> file:filename_all().
+-spec get_merged_tracefile(file:filename_all()) -> file:filename().
 get_merged_tracefile(BaseDir) ->
   filename:absname("run.trace", BaseDir).
 
 %% The file that holds the trace of a specific process
--spec logfile_name(file:filename_all(), pid()) -> file:filename_all().
+-spec logfile_name(file:filename_all(), pid()) -> file:filename().
 logfile_name(Dir, Pid) ->
   F = erlang:pid_to_list(Pid) -- "<>",
   filename:absname("proc-" ++ F, Dir).
@@ -66,7 +66,7 @@ logfile_name(Dir, Pid) ->
 clear_and_delete_dir(D) ->
   clear_and_delete_dir(D, none).
 
--spec clear_and_delete_dir(file:filename_all(), file:filename_all() | none) -> ok.
+-spec clear_and_delete_dir(file:filename_all(), file:filename() | none) -> ok.
 clear_and_delete_dir(F, F) ->
   cuter_pp:delete_file(F, false),
   ok;
@@ -95,7 +95,7 @@ delete_file(_) -> ok.
 -endif.
 
 %% List the absolute names of the files/folders in a directory in ascending order
--spec list_dir(file:filename_all()) -> [file:filename_all()].
+-spec list_dir(file:filename_all()) -> [file:filename()].
 list_dir(Dir) ->
   {ok, Fs} = file:list_dir(Dir),
   [filename:absname(F, Dir) || F <- lists:sort(fun erlang:'<'/2, Fs)].

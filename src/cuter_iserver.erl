@@ -19,8 +19,6 @@
                           | {internal_error, server(), node(), any()}
                           | {runtime_error, node(), pid(), cuter_eval:result()}.
 
--type logs() :: [{atom(), any()}].
-
 %% Server's state
 %% ---------------
 %%
@@ -97,7 +95,7 @@ code_logs(IServer, Logs) ->
   gen_server:call(IServer, {code_logs, Logs}).
 
 %% Send the logs of a monitor server
--spec monitor_logs(pid(), logs()) -> ok.
+-spec monitor_logs(pid(), cuter_monitor:logs()) -> ok.
 monitor_logs(IServer, Logs) ->
   gen_server:call(IServer, {monitor_logs, Logs}).
 
@@ -154,7 +152,7 @@ code_change(_OldVsn, State, _Extra) ->
                ; ({error_report, pid(), any()}, {pid(), any()}, state()) -> {reply, ok, state()}
                ; ({node_servers, node()}, {pid(), any()}, state()) -> {reply, servers(), state()} | {stop, error, normal, state()}
                ; ({code_logs, cuter_codeserver:logs()}, {pid(), any()}, state()) -> {reply, ok, state()}
-               ; ({monitor_logs, logs()}, {pid(), any()}, state()) -> {reply, ok, state()}.
+               ; ({monitor_logs, cuter_monitor:logs()}, {pid(), any()}, state()) -> {reply, ok, state()}.
 %% Log the result of the first spawned process
 handle_call({int_return, Return}, {From, _FromTag}, S=#sts{int = Ipid, info = Info, exstatus = ExStatus}) ->
   case Ipid =:= {From, running} of %% Ipid is always a local process

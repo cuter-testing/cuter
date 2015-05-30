@@ -397,7 +397,12 @@ pp_node_data({mapping, Ms}) ->
   lists:foreach(F, Ms);
 pp_node_data({monitor_logs, Logs}) ->
   io:format("    MONITOR LOGS~n"),
-  io:format("      ~p~n", [Logs]);
+  Dir = cuter_monitor:dir_of_logs(Logs),
+  io:format("      DIR~n"),
+  io:format("        ~p~n", [Dir]),
+  Procs = cuter_monitor:procs_of_logs(Logs),
+  io:format("      PROCS~n"),
+  io:format("        ~p~n", [Procs]);
 pp_node_data({code_logs, Logs}) ->
   io:format("    CODE LOGS~n"),
   pp_code_logs(Logs);
