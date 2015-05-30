@@ -224,7 +224,7 @@ add_cached_modules(Db, CachedMods) ->
 -spec try_load(module(), state()) -> load_reply().
 try_load(M, State) ->
   case is_mod_stored(M, State) of
-    {true, MDb}     -> {ok, MDb};
+    {true, Cache}   -> {ok, Cache};
     {false, eexist} -> load_mod(M, State); %% Load module M
     {false, Msg}    -> {error, Msg}
   end.
@@ -232,19 +232,19 @@ try_load(M, State) ->
 %% Load a module's code
 -spec load_mod(module(), state()) -> {ok, module_cache()} | cuter_cerl:compile_error().
 load_mod(M, #st{db = Db, withPmatch = WithPmatch}) ->
-  MDb = ets:new(M, [ordered_set, protected]),  %% Create an ETS table to store the code of the module
-  ets:insert(Db, {M, MDb}),                    %% Store the tid of the ETS table
-  Reply = cuter_cerl:load(M, MDb, fun generate_tag/0, WithPmatch),  %% Load the code of the module
+  Cache = ets:new(M, [ordered_set, protected]),  %% Create an ETS table to store the code of the module
+  ets:insert(Db, {M, Cache}),                    %% Store the tid of the ETS table
+  Reply = cuter_cerl:load(M, Cache, fun generate_tag/0, WithPmatch),  %% Load the code of the module
   case Reply of
-    {ok, M} -> {ok, MDb};
+    {ok, M} -> {ok, Cache};
     _ -> Reply
   end.
 
 %% Check if a Module is stored in the Db
--spec is_mod_stored(atom(), state()) -> {true, module_cache()} | {false, eexist | loaded_ret_atoms()}.
+-spec is_mod_stored(module(), state()) -> {true, module_cache()} | {false, eexist | loaded_ret_atoms()}.
 is_mod_stored(M, #st{db = Db}) ->
   case ets:lookup(Db, M) of
-    [{M, MDb}] -> {true, MDb};
+    [{M, Cache}] -> {true, Cache};
     [] ->
       case code:which(M) of
         non_existing   -> {false, non_existing};
