@@ -4,13 +4,27 @@
 -behaviour(gen_server).
 
 %% external exports
--export([start/4, stop/1, load/2, unsupported_mfa/2, retrieve_spec/2, visit_tag/2]).
+-export([start/2, start/4, stop/1, load/2, unsupported_mfa/2, retrieve_spec/2, visit_tag/2,
+         merge_dumped_cached_modules/2, no_cached_modules/0, initial_branch_counter/0,
+         lookup_in_module_cache/2]).
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_info/2, handle_call/3, handle_cast/2]).
 %% counter of branches
 -export([set_branch_counter/1, generate_tag/0]).
 
 -include("include/cuter_macros.hrl").
+
+-export_type([cached_modules/0, counter/0, module_cache/0]).
+
+%% Macros
+-define(BRANCH_COUNTER_PREFIX, '__branch_count').
+
+-type counter() :: non_neg_integer().
+-type cached_module_data() :: any().
+-type cached_modules() :: dict:dict(module(), cached_module_data()).
+
+-type module_cache() :: ets:tid().
+-type cache() :: ets:tid().
 
 %% Internal type declarations
 -type load_reply() :: {ok, ets:tid()} | cuter_cerl:compile_error() | {error, (preloaded | cover_compiled | non_existing)}.
@@ -30,23 +44,28 @@
 %% workers :: [pid()]
 %%   PIDs of all worker processes
 
--record(state, {
+-record(st, {
   super                          :: pid(),
-  db                             :: ets:tab(),
+  db                             :: cache(),
   waiting = orddict:new()        :: [{{atom(), tuple()}, pid()}],
   workers = []                   :: [pid()],
   unsupported_mfas = sets:new()  :: sets:set(mfa()),
   tags = gb_sets:new()           :: gb_sets:set(cuter_cerl:tagID()),
   with_pmatch                    :: boolean()
 }).
--type state() :: #state{}.
+-type state() :: #st{}.
 
 %% ============================================================================
 %% External exports (Public API)
 %% ============================================================================
 
+%% Starts a CodeServer in the local node.
+-spec start(pid(), boolean()) -> pid().
+start(Super, WithPmatch) ->
+  start(Super, no_cached_modules(), initial_branch_counter(), WithPmatch).
+
 %% Start a CodeServer
--spec start(pid(), cuter_analyzer:stored_modules(), integer(), boolean()) -> pid().
+-spec start(pid(), cached_modules(), counter(), boolean()) -> pid().
 start(Super, StoredMods, TagsN, WithPmatch) ->
   case gen_server:start(?MODULE, [Super, StoredMods, TagsN, WithPmatch], []) of
     {ok, CodeServer} -> CodeServer;
@@ -87,30 +106,25 @@ visit_tag(CodeServer, Tag) ->
 %% ============================================================================
 
 %% gen_server callback : init/1
--spec init([pid() | cuter_analyzer:stored_modules() | integer() | boolean(), ...]) -> {ok, state()}.
-init([Super, StoredMods, TagsN, WithPmatch]) ->
+-spec init([pid() | cached_modules() | counter() | boolean(), ...]) -> {ok, state()}.
+init([Super, CachedMods, TagsN, WithPmatch]) ->
   link(Super),
   Db = ets:new(?MODULE, [ordered_set, protected]),
-  populate_db_with_mods(Db, StoredMods),
-  set_branch_counter(TagsN), %% Initialize the counter for the branch enumeration.
-  {ok, #state{db = Db, super = Super, with_pmatch = WithPmatch}}.
+  add_cached_modules(Db, CachedMods),
+  _ = set_branch_counter(TagsN), %% Initialize the counter for the branch enumeration.
+  {ok, #st{db = Db, super = Super, with_pmatch = WithPmatch}}.
 
 %% gen_server callback : terminate/2
--spec terminate(term(), state()) -> ok.
-terminate(_Reason, State) ->
-  Db = State#state.db,
-  Super = State#state.super,
-  Ms = State#state.unsupported_mfas,
-  Tags = State#state.tags,
+-spec terminate(any(), state()) -> ok.
+terminate(_Reason, #st{db = Db, super = Super, unsupported_mfas = Ms, tags = Tags}) ->
   Cnt = get_branch_counter(),
-  StoredMods = stored_mods(Db),
-  Logs = [ {loaded_mods, delete_stored_modules(Db)}  % Delete all created ETS tables
+  CachedMods = dump_cached_modules(Db),
+  Logs = [ {loaded_mods, drop_module_cache(Db)}  % Delete all created ETS tables
          , {unsupported_mfas, sets:to_list(Ms)}
          , {visited_tags, Tags}
-         , {stored_mods, StoredMods}
+         , {stored_mods, CachedMods}
          , {tags_added_no, Cnt}
          ],
-  ets:delete(Db),
   ok = cuter_iserver:code_logs(Super, orddict:from_list(Logs)),  % Send logs to the supervisor
   ok.
 
@@ -118,7 +132,6 @@ terminate(_Reason, State) ->
 -spec code_change(any(), state(), any()) -> {ok, state()}.
 code_change(_OldVsn, State, _Extra) ->
   {ok, State}.  %% No change planned.
-
 
 %% gen_server callback : handle_info/2
 -spec handle_info(any(), state()) -> {noreply, state()}.
@@ -164,27 +177,26 @@ handle_call({get_spec, {M, F, A}=MFA}, _From, State) ->
 -spec handle_cast({stop, pid()}, state()) -> {stop, normal, state()} | {noreply, state()}
                ; ({unsupported_mfa, mfa()}, state()) -> {noreply, state()}
                ; ({visit_tag, cuter_cerl:tag()}, state()) -> {noreply, state()}.
-handle_cast({unsupported_mfa, MFA}, State=#state{unsupported_mfas = Ms}) ->
+handle_cast({unsupported_mfa, MFA}, State=#st{unsupported_mfas = Ms}) ->
   Ms1 = sets:add_element(MFA, Ms),
-  {noreply, State#state{unsupported_mfas = Ms1}};
-handle_cast({stop, FromWho}, State) ->
-  case FromWho =:= State#state.super of
+  {noreply, State#st{unsupported_mfas = Ms1}};
+handle_cast({stop, FromWho}, State=#st{super = Super}) ->
+  case FromWho =:= Super of
     true  -> {stop, normal, State};
     false -> {noreply, State}
   end;
-handle_cast({visit_tag, Tag}, State=#state{tags = Tags}) ->
-%  io:format("[code] ~p~n", [Tag]),
+handle_cast({visit_tag, Tag}, State=#st{tags = Tags}) ->
   Ts = gb_sets:add_element(cuter_cerl:id_of_tag(Tag), Tags),
-  {noreply, State#state{tags = Ts}}.
+  {noreply, State#st{tags = Ts}}.
 
 %% ============================================================================
 %% Internal functions (Helper methods)
 %% ============================================================================
 
 %% Populates the DB with the stored modules provided.
--spec populate_db_with_mods(ets:tid(), cuter_analyzer:stored_modules()) -> ok.
-populate_db_with_mods(Db, StoredMods) ->
-  orddict:fold(
+-spec add_cached_modules(cache(), cached_modules()) -> ok.
+add_cached_modules(Db, CachedMods) ->
+  dict:fold(
     fun(M, Info, CDb) ->
       MDb = ets:new(M, [ordered_set, protected]),
       ets:insert(MDb, Info),
@@ -192,7 +204,7 @@ populate_db_with_mods(Db, StoredMods) ->
       CDb
     end,
     Db,
-    StoredMods
+    CachedMods
   ),
   ok.
 
@@ -205,8 +217,8 @@ try_load(M, State) ->
   end.
 
 %% Load a module's code
--spec load_mod(module(), state()) -> {ok, ets:tid()} | cuter_cerl:compile_error().
-load_mod(M, #state{db = Db, with_pmatch = WithPmatch}) ->
+-spec load_mod(module(), state()) -> {ok, module_cache()} | cuter_cerl:compile_error().
+load_mod(M, #st{db = Db, with_pmatch = WithPmatch}) ->
   MDb = ets:new(M, [ordered_set, protected]),  %% Create an ETS table to store the code of the module
   ets:insert(Db, {M, MDb}),                    %% Store the tid of the ETS table
   Reply = cuter_cerl:load(M, MDb, fun generate_tag/0, WithPmatch),  %% Load the code of the module
@@ -216,9 +228,8 @@ load_mod(M, #state{db = Db, with_pmatch = WithPmatch}) ->
   end.
 
 %% Check if a Module is stored in the Db
--spec is_mod_stored(atom(), state()) -> {true, ets:tab()} | {false, eexist | loaded_ret_atoms()}.
-is_mod_stored(M, State) ->
-  Db = State#state.db,
+-spec is_mod_stored(atom(), state()) -> {true, module_cache()} | {false, eexist | loaded_ret_atoms()}.
+is_mod_stored(M, #st{db = Db}) ->
   case ets:lookup(Db, M) of
     [{M, MDb}] -> {true, MDb};
     [] ->
@@ -230,24 +241,48 @@ is_mod_stored(M, State) ->
       end
   end.
 
-%% Delete all ETS tables that contain the code of modules
--spec delete_stored_modules(ets:tid()) -> [module()].
-delete_stored_modules(Db) ->
-  ets:foldl(fun({M, MDb}, Ms) -> ets:delete(MDb), [M|Ms] end, [], Db).
+%% ============================================================================
+%% Manage cached modules
+%% ============================================================================
 
--spec stored_mods(ets:tid()) -> orddict:orddict().
-stored_mods(Db) ->
-  ets:foldl(fun({M, MDb}, Stored) -> orddict:store(M, ets:tab2list(MDb), Stored) end, orddict:new(), Db).
+-spec lookup_in_module_cache(any(), module_cache()) -> any().
+lookup_in_module_cache(Key, Cache) ->
+  [{Key, Value}] = ets:lookup(Cache, Key),
+  Value.
+
+%% Deletes all e tables that contain the code of modules.
+-spec drop_module_cache(cache()) -> [module()].
+drop_module_cache(Db) ->
+  ModNames = ets:foldl(fun({M, MDb}, Ms) -> ets:delete(MDb), [M|Ms] end, [], Db),
+  ets:delete(Db),
+  ModNames.
+
+%% Dumps the cached modules' info into a dict.
+-spec dump_cached_modules(cache()) -> cached_modules().
+dump_cached_modules(Db) ->
+  ets:foldl(fun({M, MDb}, Stored) -> dict:store(M, ets:tab2list(MDb), Stored) end, dict:new(), Db).
+
+%% Creates an empty modules' cache.
+-spec no_cached_modules() -> cached_modules().
+no_cached_modules() -> dict:new().
+
+%% Merges two caches.
+-spec merge_dumped_cached_modules(cached_modules(), cached_modules()) -> cached_modules().
+merge_dumped_cached_modules(Cached1, Cached2) ->
+  dict:merge(fun(_Mod, Data1, _Data2) -> Data1 end, Cached1, Cached2).
 
 %% ============================================================================
 %% Counter for branch enumeration
 %% ============================================================================
 
--spec get_branch_counter() -> integer().
+-spec initial_branch_counter() -> 0.
+initial_branch_counter() -> 0.
+
+-spec get_branch_counter() -> counter().
 get_branch_counter() ->
   get(?BRANCH_COUNTER_PREFIX).
 
--spec set_branch_counter(integer()) -> any().
+-spec set_branch_counter(counter()) -> counter() | undefined.
 set_branch_counter(N) ->
   put(?BRANCH_COUNTER_PREFIX, N).
 

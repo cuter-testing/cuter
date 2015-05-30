@@ -2,19 +2,19 @@
 %%------------------------------------------------------------------------------
 -module(cuter_analyzer).
 
--export([get_result/1, get_mapping/1, get_traces/1, get_stored_modules/1,
+-export([get_result/1, get_mapping/1, get_traces/1, get_cached_modules/1,
          get_int_process/1, process_raw_execution_info/1, get_tags/1,
          get_no_of_tags_added/1,
          %% Constructor & accessors for #raw{}
          mk_raw_info/8, traces_of_raw_info/1, int_of_raw_info/1,
          %% Accessors for #info{}
          mappings_of_info/1, runtimeError_of_info/1, traceFile_of_info/1, reversible_of_info/1,
-         dir_of_info/1, tags_of_info/1, storedMods_of_info/1, pathVertex_of_info/1, tagsAddedNo_of_info/1]).
+         dir_of_info/1, tags_of_info/1, cachedMods_of_info/1, pathVertex_of_info/1, tagsAddedNo_of_info/1]).
 
 -include("include/cuter_macros.hrl").
 
 -export_type([execution_result/0, node_trace/0, path_vertex/0, int_process/0,
-              raw_info/0, info/0, visited_tags/0, stored_modules/0,
+              raw_info/0, info/0, visited_tags/0,
               reversible_with_tags/0, reversible_with_tag/0]).
 
 -type execution_result() :: {success, any()} | {runtime_error, any()} | internal_error.
@@ -23,7 +23,6 @@
 -type visited_tags() :: gb_sets:set(cuter_cerl:tagID()).
 -type reversible_with_tag() :: {integer(), cuter_cerl:tagID()}.
 -type reversible_with_tags() :: [reversible_with_tag()].
--type stored_modules() :: orddict:orddict().
 -type path_vertex() :: [?CONSTRAINT_TRUE_REPR | ?CONSTRAINT_FALSE_REPR].  % [$T | $F]
 
 -record(raw, {
@@ -33,7 +32,7 @@
   int           :: int_process(),
   dir           :: file:filename(),
   tags          :: visited_tags(),
-  stored_mods   :: stored_modules(),
+  cachedMods    :: cuter_codeserver:cached_modules(),
   tags_added_no :: integer()
 }).
 -type raw_info() :: #raw{}.
@@ -45,7 +44,7 @@
   pathVertex   :: path_vertex(),
   reversible   :: reversible_with_tags(),
   runtimeError :: boolean(),
-  storedMods   :: stored_modules(),
+  cachedMods   :: cuter_codeserver:cached_modules(),
   tags         :: visited_tags(),
   tagsAddedNo  :: integer(),
   traceFile    :: file:filename()
@@ -98,15 +97,15 @@ get_tags_of_node({_Node, Data}) ->
   Logs = proplists:get_value(code_logs, Data),
   proplists:get_value(visited_tags, Logs).
 
--spec get_stored_modules(orddict:orddict()) -> stored_modules().
-get_stored_modules(Info) ->
-  AllNodes = [get_stored_modules_of_node(I) || I <- Info],
+-spec get_cached_modules(orddict:orddict()) -> cuter_codeserver:cached_modules().
+get_cached_modules(Info) ->
+  AllNodes = [get_cached_modules_of_node(I) || I <- Info],
   %% FIXME Now expects just one node.
   hd(AllNodes).
 
-get_stored_modules_of_node({_Node, Data}) ->
+get_cached_modules_of_node({_Node, Data}) ->
   Logs = proplists:get_value(code_logs, Data),
-  proplists:get_value(stored_mods, Logs).
+  proplists:get_value(cachedMods, Logs).
 
 -spec get_no_of_tags_added(orddict:orddict()) -> integer().
 get_no_of_tags_added(Info) ->
@@ -134,7 +133,7 @@ process_raw_execution_info(Info) ->
         pathVertex = PathVertex,
         reversible = Rvs,
         runtimeError = is_runtime_error(Info#raw.result),
-        storedMods = Info#raw.stored_mods,
+        cachedMods = Info#raw.cachedMods,
         tags = Info#raw.tags,
         tagsAddedNo = Info#raw.tags_added_no,
         traceFile = MergedTraceFile}.
@@ -145,7 +144,7 @@ process_raw_execution_info(Info) ->
 
 %% Creates a raw_info record.
 -spec mk_raw_info([cuter_symbolic:mapping()], execution_result(), [node_trace()], int_process(),
-                  file:filename(), visited_tags(), stored_modules(), integer()) -> raw_info().
+                  file:filename(), visited_tags(), cuter_codeserver:cached_modules(), integer()) -> raw_info().
 mk_raw_info(Mappings, Result, Traces, Int, Dir, Tags, StoredMods, TagsN) ->
   #raw{mappings = Mappings,
        result = Result,
@@ -153,7 +152,7 @@ mk_raw_info(Mappings, Result, Traces, Int, Dir, Tags, StoredMods, TagsN) ->
        int = Int,
        dir = Dir,
        tags = Tags,
-       stored_mods = StoredMods,
+       cachedMods = StoredMods,
        tags_added_no = TagsN}.
 
 %% Gets the traces from a raw_info record.
@@ -194,9 +193,9 @@ dir_of_info(Info) ->
 tags_of_info(Info) ->
   Info#info.tags.
 
--spec storedMods_of_info(info()) -> stored_modules().
-storedMods_of_info(Info) ->
-  Info#info.storedMods.
+-spec cachedMods_of_info(info()) -> cuter_codeserver:cached_modules().
+cachedMods_of_info(Info) ->
+  Info#info.cachedMods.
 
 -spec pathVertex_of_info(info()) -> path_vertex().
 pathVertex_of_info(Info) ->

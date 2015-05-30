@@ -54,7 +54,7 @@
   info          :: orddict:orddict(), %% [{node(), list()}]
   int           :: {pid(), 'running'} | 'exited',
   exstatus      :: execution_status() | 'undefined',
-  stored_mods   :: cuter_analyzer:stored_modules(),
+  stored_mods   :: cuter_codeserver:cached_modules(),
   tags_added_no :: integer(),
   with_pmatch   :: boolean()
 }).
@@ -65,7 +65,7 @@
 %% ============================================================================
 
 %% Start the interpreter server
--spec start(module(), atom(), [any()], nonempty_string(), pos_integer(), cuter_analyzer:stored_modules(), integer(), boolean()) ->
+-spec start(module(), atom(), [any()], nonempty_string(), pos_integer(), cuter_codeserver:cached_modules(), integer(), boolean()) ->
               {ok, state()} | execution_status().
 start(M, F, As, LogDir, Depth, StoredMods, TagsN, WithPmatch) ->
   Args = [M, F, As, LogDir, Depth, StoredMods, TagsN, WithPmatch, self()],
@@ -109,7 +109,7 @@ send_mapping(IServer, Mapping) ->
 %% ============================================================================
 
 %% gen_server callback : init/1
--spec init([module() | atom() | [any()] | nonempty_string() | integer() | cuter_analyzer:stored_modules() | boolean(), ...]) -> {ok, state()}.
+-spec init([module() | atom() | [any()] | nonempty_string() | integer() | cuter_codeserver:cached_modules() | boolean(), ...]) -> {ok, state()}.
 init([M, F, As, LogDir, Depth, StoredMods, TagsN, WithPmatch, Super]) ->
   link(Super),
   process_flag(trap_exit, true),
@@ -298,7 +298,7 @@ node_monitored(Node, Cs, Ms) ->
   end.
 
 %% Spawn a code server and a monitor server at a remote node
--spec spawn_remote_servers(node(), pid(), nonempty_string(), pos_integer(), nonempty_string(), cuter_analyzer:stored_modules(), integer(), boolean()) ->
+-spec spawn_remote_servers(node(), pid(), nonempty_string(), pos_integer(), nonempty_string(), cuter_codeserver:cached_modules(), integer(), boolean()) ->
         {ok, servers()} | error.
 spawn_remote_servers(Node, Super, LogDir, Depth, Prefix, StoredMods, TagsN, WithPmatch) ->
   Me = self(),

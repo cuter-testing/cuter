@@ -26,9 +26,9 @@
 -type inp_queue() :: queue:queue(inp_queue_item()).
 -type exec_handle() :: nonempty_string().
 -type exec_info() :: #{ traceFile => file:name()
-		      , dataDir => file:filename_all()
-		      , mappings => [cuter_symbolic:mapping()]
-		      , input => undefined}.  %% TODO Populate this field
+                      , dataDir => file:filename_all()
+                      , mappings => [cuter_symbolic:mapping()]
+                      , input => undefined}.  %% TODO Populate this field
 -type exec_info_tab() :: dict:dict(exec_handle(), exec_info()).
 
 %% gen_server state datatype
@@ -38,8 +38,8 @@
   , info_tab           :: exec_info_tab()
   , python             :: string()
   , depth              :: integer()
-  , stored_mods        :: cuter_analyzer:stored_modules()
-  , tags_added_no = 0  :: integer()
+  , cached_modules     :: cuter_codeserver:cached_modules()
+  , tags_added_no      :: cuter_codeserver:counter()
   , visited_tags       :: cuter_analyzer:visited_tags()
   , running            :: dict:dict(exec_handle(), cuter:input())
   , first_operation    :: dict:dict(exec_handle(), integer())
@@ -67,7 +67,7 @@ stop(Scheduler) ->
   gen_server:call(Scheduler, stop).
 
 %% Request a new Input vertex for concolic execution
--spec request_input(pid()) -> {exec_handle(), cuter:input(), cuter_analyzer:stored_modules(), integer()} | empty.
+-spec request_input(pid()) -> {exec_handle(), cuter:input(), cuter_codeserver:cached_modules(), integer()} | empty.
 request_input(Scheduler) ->
   gen_server:call(Scheduler, request_input, infinity).
 
@@ -86,9 +86,17 @@ init([Python, Depth, SeedInput]) ->
   _ = set_execution_counter(0),
   TagsQueue = cuter_minheap:new(fun erlang:'<'/2),
   InpQueue = queue:in({1, SeedInput}, queue:new()),
-  {ok, #sts{info_tab = dict:new(), python = Python, depth = Depth, visited_tags = gb_sets:new(),
-            stored_mods = orddict:new(), running = dict:new(), first_operation = dict:new(),
-            erroneous = [], inputs_queue = InpQueue, tags_queue = TagsQueue}}.
+  {ok, #sts{ info_tab = dict:new()
+           , python = Python
+           , depth = Depth
+           , visited_tags = gb_sets:new()
+           , cached_modules = cuter_codeserver:no_cached_modules()
+           , tags_added_no = cuter_codeserver:initial_branch_counter()
+           , running = dict:new()
+           , first_operation = dict:new()
+           , erroneous = []
+           , inputs_queue = InpQueue
+           , tags_queue = TagsQueue}}.
 
 %% terminate/2
 -spec terminate(any(), state()) -> ok.
@@ -104,18 +112,16 @@ code_change(_OldVsn, State, _Extra) ->
 
 %% handle_info/2
 -spec handle_info(any(), state()) -> {noreply, state()}.
-handle_info(Msg, State) ->
-  %% Just outputting unexpected messages for now
-  io:format("[~s]: Unexpected message ~p~n", [?MODULE, Msg]),
+handle_info(_Msg, State) ->
   {noreply, State}.
 
 %% handle_call/3
--spec handle_call(request_input, from(), state()) -> {reply, (empty | {exec_handle(), cuter:input(), cuter_analyzer:stored_modules(), integer()}), state()}
+-spec handle_call(request_input, from(), state()) -> {reply, (empty | {exec_handle(), cuter:input(), cuter_codeserver:cached_modules(), integer()}), state()}
                ; ({store_execution, exec_handle(), cuter_analyzer:info()}, from(), state()) -> {reply, ok, state()}
                ; (stop, from(), state()) -> {stop, normal, cuter:erroneous_inputs(), state()}.
 
 %% Ask for a new input to execute
-handle_call(request_input, _From, S=#sts{tags_queue = TQ, info_tab = AllInfo, python = P, stored_mods = SMs, visited_tags = Vs, tags_added_no = TagsN,
+handle_call(request_input, _From, S=#sts{tags_queue = TQ, info_tab = AllInfo, python = P, cached_modules = SMs, visited_tags = Vs, tags_added_no = TagsN,
                                          running = Rn, first_operation = FOp, inputs_queue = IQ}) ->
   case find_new_input(TQ, IQ, P, AllInfo, Vs) of
     empty -> {reply, empty, S};
@@ -126,7 +132,7 @@ handle_call(request_input, _From, S=#sts{tags_queue = TQ, info_tab = AllInfo, py
   end;
 
 %% Store the information of a concolic execution
-handle_call({store_execution, Handle, Info}, _From, S=#sts{tags_queue = TQ, info_tab = AllInfo, stored_mods = SMs, visited_tags = Vs, depth = Depth,
+handle_call({store_execution, Handle, Info}, _From, S=#sts{tags_queue = TQ, info_tab = AllInfo, cached_modules = SMs, visited_tags = Vs, depth = Depth,
                                                            running = Rn, first_operation = FOp, erroneous = Err}) ->
   %% Generate the information of the execution
   I = #{ traceFile => cuter_analyzer:traceFile_of_info(Info)
@@ -136,7 +142,7 @@ handle_call({store_execution, Handle, Info}, _From, S=#sts{tags_queue = TQ, info
   Input = dict:fetch(Handle, Rn),
   NErr = update_erroneous(cuter_analyzer:runtimeError_of_info(Info), Input, Err),
   %% Update the stored code of modules
-  StoredMods = orddict:merge(fun(_K, V1, _V2) -> V1 end, SMs, cuter_analyzer:storedMods_of_info(Info)),
+  CachedMods = cuter_codeserver:merge_dumped_cached_modules(SMs, cuter_analyzer:cachedMods_of_info(Info)),
   %% Update the visited tags
   Visited = gb_sets:union(Vs, cuter_analyzer:tags_of_info(Info)),
   %% Update the queue
@@ -145,7 +151,7 @@ handle_call({store_execution, Handle, Info}, _From, S=#sts{tags_queue = TQ, info
   Items = generate_queue_items(Rvs, Handle, Visited, N, Depth),
   lists:foreach(fun(Item) -> cuter_minheap:insert(Item, TQ) end, Items),
   {reply, ok, S#sts{ info_tab = dict:store(Handle, I, AllInfo)
-                   , stored_mods = StoredMods
+                   , cached_modules = CachedMods
                    , tags_added_no = cuter_analyzer:tagsAddedNo_of_info(Info)  %% Number of added tags
                    , visited_tags = Visited
                    , running = dict:erase(Handle, Rn)  %% Remove the handle from the running set
@@ -158,11 +164,8 @@ handle_call(stop, _From, S=#sts{erroneous = Err}) ->
 
 %% handle_cast/2
 -spec handle_cast(any(), state()) -> {noreply, state()}.
-handle_cast(Msg, State) ->
-  %% Just outputting unexpected messages for now
-  io:format("[~s]: Unexpected message ~p~n", [?MODULE, Msg]),
+handle_cast(_Msg, State) ->
   {noreply, State}.
-
 
 %% ============================================================================
 %% Generate new input

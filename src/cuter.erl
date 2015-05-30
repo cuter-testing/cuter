@@ -23,7 +23,7 @@
   depth         :: pos_integer(),
   no            :: integer(),
   scheduler     :: pid(),
-  stored_mods   :: cuter_analyzer:stored_modules(),
+  stored_mods   :: cuter_codeserver:cached_modules(),
   tags_added_no :: integer(),
   pmatch        :: boolean()
 }).
@@ -91,18 +91,19 @@ initialize_app(M, F, As, Depth, Options) ->
   BaseDir = set_basedir(Options),
   process_flag(trap_exit, true),
   error_logger:tty(false),  %% disable error_logger
+  WithPmatch = lists:member(?ENABLE_PMATCH, Options),
   SchedPid = cuter_scheduler_maxcover:start(?PYTHON_CALL, Depth, As),
   ok = cuter_pp:start(reporting_level(Options)),
   cuter_pp:mfa({M, F, length(As)}),
   #conf{mod = M,
         func = F,
-        no = 1,
+        no = 0,
         depth = Depth,
         dataDir = cuter_lib:get_tmp_dir(BaseDir),
         scheduler = SchedPid,
-        stored_mods = orddict:new(),
-        tags_added_no = 0,
-        pmatch = lists:member(?ENABLE_PMATCH, Options)}.
+        stored_mods = cuter_codeserver:no_cached_modules(),
+        tags_added_no = cuter_codeserver:initial_branch_counter(),
+        pmatch = WithPmatch}.
 
 -spec stop(configuration()) -> erroneous_inputs().
 stop(Conf) ->
@@ -162,7 +163,7 @@ retrieve_info(IServer, Ref, DataDir) ->
           Traces = cuter_analyzer:get_traces(Info),
           Int = cuter_analyzer:get_int_process(Info),
           Tags = cuter_analyzer:get_tags(Info),
-          StoredMods = cuter_analyzer:get_stored_modules(Info),
+          StoredMods = cuter_analyzer:get_cached_modules(Info),
           TagsN = cuter_analyzer:get_no_of_tags_added(Info),
           RawInfo = cuter_analyzer:mk_raw_info(Mappings, ExResult, Traces, Int, DataDir, Tags, StoredMods, TagsN),
           AnalyzedInfo = cuter_analyzer:process_raw_execution_info(RawInfo),
