@@ -44,7 +44,7 @@
 -type logs() :: #logs{}.
 
 %% Internal type declarations
--type load_reply() :: {ok, ets:tid()} | cuter_cerl:compile_error() | {error, (preloaded | cover_compiled | non_existing)}.
+-type load_reply() :: {ok, module_cache()} | cuter_cerl:compile_error() | {error, (preloaded | cover_compiled | non_existing)}.
 -type spec_reply() :: {ok, cuter_types:erl_spec()} | error.
 
 %% Server's state
@@ -67,7 +67,7 @@
   waiting = orddict:new()        :: [{{atom(), tuple()}, pid()}],
   workers = []                   :: [pid()],
   unsupportedMfas = sets:new()   :: sets:set(mfa()),
-  tags = gb_sets:new()           :: gb_sets:set(cuter_cerl:tagID()),
+  tags = gb_sets:new()           :: tags(),
   withPmatch                     :: boolean()
 }).
 -type state() :: #st{}.
@@ -81,7 +81,8 @@
 start(Super, WithPmatch) ->
   start(Super, no_cached_modules(), initial_branch_counter(), WithPmatch).
 
-%% Start a CodeServer
+%% Starts a CodeServer in the local node with an initialized
+%% modules' cache and tag counter.
 -spec start(pid(), cached_modules(), counter(), boolean()) -> pid().
 start(Super, StoredMods, TagsN, WithPmatch) ->
   case gen_server:start(?MODULE, [Super, StoredMods, TagsN, WithPmatch], []) of
@@ -89,12 +90,12 @@ start(Super, StoredMods, TagsN, WithPmatch) ->
     {error, Reason}  -> exit({codeserver_start, Reason})
   end.
 
-%% Stop a CodeServer
+%% Stops a CodeServers
 -spec stop(pid()) -> ok.
 stop(CodeServer) ->
   gen_server:cast(CodeServer, {stop, self()}).
 
-%% Request the ETS table where the code of module M is stored
+%% Requests a module's cache.
 -spec load(pid(), module()) -> load_reply().
 load(CodeServer, M) ->
   gen_server:call(CodeServer, {load, M}).
@@ -290,10 +291,12 @@ unsupportedMfas_of_logs(Logs) ->
 %% ----------------------------------------------------------------------------
 
 %% Looks up data in a module's cache.
--spec lookup_in_module_cache(any(), module_cache()) -> any().
+-spec lookup_in_module_cache(any(), module_cache()) -> {ok, any()} | error.
 lookup_in_module_cache(Key, Cache) ->
-  [{Key, Value}] = ets:lookup(Cache, Key),
-  Value.
+  case ets:lookup(Cache, Key) of
+    [] -> error;
+    [{Key, Value}] -> {ok, Value}
+  end.
 
 %% Inserts data in a module's cache.
 -spec insert_in_module_cache(any(), any(), module_cache()) -> ok.

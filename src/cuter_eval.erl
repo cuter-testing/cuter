@@ -734,9 +734,9 @@ access_mfa_code({Mod, Fun, Arity}, Servers) ->
   case cuter_mock:simulate_behaviour(Mod, Fun, Arity) of
     bif -> error;
     {ok, {M, _F, Arity} = MFA} ->
-      case get_module_db(M, Servers#svs.code) of
+      case get_module_cache(M, Servers#svs.code) of
         {error, _} -> error;
-        {ok, MDb} -> {M, retrieve_function_code(MFA, MDb)}
+        {ok, Cache} -> {M, retrieve_function_code(MFA, Cache)}
       end
   end.
 
@@ -747,14 +747,14 @@ access_mfa_code({Mod, Fun, Arity}, Servers) ->
 %% Optimization : For caching purposes, the MDb is stored
 %% in the process dictionary for subsequent lookups
 %% --------------------------------------------------------
--spec get_module_db(atom(), pid()) -> {ok, ets:tab()} | {error, (preloaded | cover_compiled)}.
-get_module_db(M, CodeServer) ->
+-spec get_module_cache(atom(), pid()) -> {ok, cuter_codeserver:module_cache()} | {error, (preloaded | cover_compiled)}.
+get_module_cache(M, CodeServer) ->
   What = {?CONCOLIC_PREFIX_PDICT, M},
   case get(What) of
     undefined ->
       case cuter_codeserver:load(CodeServer, M) of
         %% Module Code loaded
-        {ok, MDb} = Ok -> put(What, MDb), Ok;
+        {ok, Cache} = Ok -> put(What, Cache), Ok;
         %% Preloaded Module
         {error, preloaded} = E -> E;
         %% Cover Compiled Module
@@ -774,14 +774,14 @@ get_module_db(M, CodeServer) ->
 %% definition is stored in the process dictionary for 
 %% subsequent lookups
 %% --------------------------------------------------------
--spec retrieve_function_code(mfa(), ets:tab()) -> {cerl:c_fun(), boolean()}.
-retrieve_function_code(MFA, ModDb) ->
+-spec retrieve_function_code(mfa(), cuter_codeserver:module_cache()) -> {cerl:c_fun(), boolean()}.
+retrieve_function_code(MFA, Cache) ->
   What = {?CONCOLIC_PREFIX_PDICT, MFA},
   case get(What) of
     undefined ->
-      case ets:lookup(ModDb, MFA) of
-        [] -> exception(error, {undef, MFA});
-        [{MFA, Val}] -> put(What, Val), Val
+      case cuter_codeserver:lookup_in_module_cache(MFA, Cache) of
+        error -> exception(error, {undef, MFA});
+        {ok, Val} -> put(What, Val), Val
       end;
     Val -> Val
   end.

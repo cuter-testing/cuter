@@ -138,12 +138,13 @@ is_valid_ast(true, AST) ->
 %% Retrieves the spec of a function from a stored module's info.
 -spec retrieve_spec(cuter_codeserver:module_cache(), {name(), byte()}) -> {ok, cuter_types:stored_spec_value()} | error.
 retrieve_spec(Cache, FA) ->
-  Specs = cuter_codeserver:lookup_in_module_cache(specs, Cache),
+  {ok, Specs} = cuter_codeserver:lookup_in_module_cache(specs, Cache),
   cuter_types:find_spec(FA, Specs).
 
 -spec get_stored_types(cuter_codeserver:module_cache()) -> cuter_types:stored_types().
 get_stored_types(Cache) ->
-  cuter_codeserver:lookup_in_module_cache(types, Cache).
+  {ok, Types} = cuter_codeserver:lookup_in_module_cache(types, Cache),
+  Types.
 
 %%====================================================================
 %% Internal functions
@@ -243,7 +244,7 @@ store_module_info(name, _M, AST, Cache) ->
 -spec store_module_funs(cuter:mod(), cerl:cerl(), cuter_codeserver:module_cache(), tag_generator()) -> ok.
 store_module_funs(M, AST, Cache, TagGen) ->
   Funs = AST#c_module.defs,
-  Exps = cuter_codeserver:lookup_in_module_cache(exported, Cache),
+  {ok, Exps} = cuter_codeserver:lookup_in_module_cache(exported, Cache),
   lists:foreach(fun(X) -> store_fun(Exps, M, X, Cache, TagGen) end, Funs).
 
 %% Store the AST of a function
