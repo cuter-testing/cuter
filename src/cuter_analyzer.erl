@@ -95,7 +95,7 @@ get_tags(Info) ->
 
 get_tags_of_node({_Node, Data}) ->
   Logs = proplists:get_value(code_logs, Data),
-  proplists:get_value(visited_tags, Logs).
+  cuter_codeserver:visitedTags_of_logs(Logs).
 
 -spec get_cached_modules(orddict:orddict()) -> cuter_codeserver:cached_modules().
 get_cached_modules(Info) ->
@@ -105,9 +105,9 @@ get_cached_modules(Info) ->
 
 get_cached_modules_of_node({_Node, Data}) ->
   Logs = proplists:get_value(code_logs, Data),
-  proplists:get_value(cachedMods, Logs).
+  cuter_codeserver:cachedMods_of_logs(Logs).
 
--spec get_no_of_tags_added(orddict:orddict()) -> integer().
+-spec get_no_of_tags_added(orddict:orddict()) -> cuter_codeserver:counter().
 get_no_of_tags_added(Info) ->
   AllNodes = [get_no_of_tags_added_of_node(I) || I <- Info],
   %% FIXME Now expects just one node.
@@ -115,7 +115,7 @@ get_no_of_tags_added(Info) ->
 
 get_no_of_tags_added_of_node({_Node, Data}) ->
   Logs = proplists:get_value(code_logs, Data),
-  proplists:get_value(tags_added_no, Logs).
+  cuter_codeserver:tagsAddedNo_of_logs(Logs).
 
 -spec process_raw_execution_info(raw_info()) -> info().
 process_raw_execution_info(Info) ->

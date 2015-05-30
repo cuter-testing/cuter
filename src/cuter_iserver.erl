@@ -19,6 +19,8 @@
                           | {internal_error, server(), node(), any()}
                           | {runtime_error, node(), pid(), cuter_eval:result()}.
 
+-type logs() :: [{atom(), any()}].
+
 %% Server's state
 %% ---------------
 %%
@@ -90,7 +92,7 @@ send_error_report(IServer, Who, Error) ->
   gen_server:call(IServer, {error_report, Who, Error}).
 
 %% Send the logs of a code server
--spec code_logs(pid(), logs()) -> ok.
+-spec code_logs(pid(), cuter_codeserver:logs()) -> ok.
 code_logs(IServer, Logs) ->
   gen_server:call(IServer, {code_logs, Logs}).
 
@@ -151,7 +153,7 @@ code_change(_OldVsn, State, _Extra) ->
                ; ({mapping, [cuter_symbolic:mapping()]}, {pid(), any()}, state()) -> {reply, (ok | mismatch), state()}
                ; ({error_report, pid(), any()}, {pid(), any()}, state()) -> {reply, ok, state()}
                ; ({node_servers, node()}, {pid(), any()}, state()) -> {reply, servers(), state()} | {stop, error, normal, state()}
-               ; ({code_logs, logs()}, {pid(), any()}, state()) -> {reply, ok, state()}
+               ; ({code_logs, cuter_codeserver:logs()}, {pid(), any()}, state()) -> {reply, ok, state()}
                ; ({monitor_logs, logs()}, {pid(), any()}, state()) -> {reply, ok, state()}.
 %% Log the result of the first spawned process
 handle_call({int_return, Return}, {From, _FromTag}, S=#sts{int = Ipid, info = Info, exstatus = ExStatus}) ->

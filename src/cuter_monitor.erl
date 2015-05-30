@@ -37,6 +37,8 @@
 %%     {procs, NumOfMonitoredProcs}
 %%     {dir, TraceDir}
 
+-type logs() :: [{atom(), any()}].
+
 -record(state, {
   super  :: pid(),
   depth  :: integer(),

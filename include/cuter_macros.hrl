@@ -18,7 +18,6 @@
 }).
 
 -type loaded_ret_atoms() :: cover_compiled | preloaded | non_existing.
--type logs() :: [{atom(), any()}].
 -type servers() :: #svs{}.
 -type ast_tags() :: #tags{}.
 

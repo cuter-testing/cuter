@@ -376,7 +376,7 @@ pp_arguments([A|As]) ->
 -spec pp_execution_logs_verbose(orddict:orddict()) -> ok.
 pp_execution_logs_verbose(Info) ->
   CodeLogs = [orddict:fetch(code_logs, Data) || {_Node, Data} <- Info],
-  Unsupported = [orddict:fetch(unsupported_mfas, Ls) || Ls <- CodeLogs],
+  Unsupported = [cuter_codeserver:unsupportedMfas_of_logs(Ls) || Ls <- CodeLogs],
   case lists:flatten(Unsupported) of
     [] -> ok;
     MFAs -> io:format(" Unsupported: ~p", [MFAs])
@@ -406,27 +406,28 @@ pp_node_data({int, Pid}) ->
   io:format("      ~p~n", [Pid]);
 pp_node_data(_Data) -> ok.
 
-pp_code_logs([]) -> ok;
-pp_code_logs([{loaded_mods, Ms}|Logs]) ->
+-spec pp_code_logs(cuter_codeserver:logs()) -> ok.
+pp_code_logs(Logs) ->
+  %% Cached modules.
+  Cached = cuter_codeserver:cachedMods_of_logs(Logs),
+  io:format("      CACHED MODS~n"),
+  io:format("        ~p~n", [cuter_codeserver:modules_of_dumped_cache(Cached)]),
+  %% Loaded modules.
+  Ms = cuter_codeserver:loadedMods_of_logs(Logs),
   io:format("      LOADED MODS~n"),
   io:format("        ~p~n", [Ms]),
-  pp_code_logs(Logs);
-pp_code_logs([{unsupported_mfas, MFAs}|Logs]) ->
-  io:format("      UNSUPPORTED MFAS~n"),
-  io:format("        ~p~n", [MFAs]),
-  pp_code_logs(Logs);
-pp_code_logs([{visited_tags, Tags}|Logs]) ->
-  io:format("      VISITED TAGS~n"),
-  io:format("        ~p~n", [gb_sets:to_list(Tags)]),
-  pp_code_logs(Logs);
-pp_code_logs([{stored_mods, Stored}|Logs]) ->
-  io:format("      STORED MODS~n"),
-  io:format("        ~p~n", [[M || {M, _Info} <- orddict:to_list(Stored)]]),
-  pp_code_logs(Logs);
-pp_code_logs([{tags_added_no, N}|Logs]) ->
+  %% Number of added tags.
+  N = cuter_codeserver:tagsAddedNo_of_logs(Logs),
   io:format("      NO OF ADDED TAGS~n"),
   io:format("        ~p~n", [N]),
-  pp_code_logs(Logs).
+  %% Visited tags.
+  Tags = cuter_codeserver:visitedTags_of_logs(Logs),
+  io:format("      VISITED TAGS~n"),
+  io:format("        ~p~n", [gb_sets:to_list(Tags)]),
+  %% Unsupported MFAs.
+  MFAs = cuter_codeserver:unsupportedMfas_of_logs(Logs),
+  io:format("      UNSUPPORTED MFAS~n"),
+  io:format("        ~p~n", [MFAs]).
 
 %% ----------------------------------------------------------------------------
 %% Report the path vertex

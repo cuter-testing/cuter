@@ -6,7 +6,10 @@
 %% external exports
 -export([start/2, start/4, stop/1, load/2, unsupported_mfa/2, retrieve_spec/2, visit_tag/2,
          merge_dumped_cached_modules/2, no_cached_modules/0, initial_branch_counter/0,
-         lookup_in_module_cache/2, insert_in_module_cache/3]).
+         lookup_in_module_cache/2, insert_in_module_cache/3, modules_of_dumped_cache/1,
+         %% Access logs
+         cachedMods_of_logs/1, visitedTags_of_logs/1, tagsAddedNo_of_logs/1,
+         unsupportedMfas_of_logs/1, loadedMods_of_logs/1]).
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_info/2, handle_call/3, handle_cast/2]).
 %% counter of branches
@@ -14,7 +17,7 @@
 
 -include("include/cuter_macros.hrl").
 
--export_type([cached_modules/0, counter/0, module_cache/0]).
+-export_type([cached_modules/0, counter/0, module_cache/0, logs/0]).
 
 %% Macros
 -define(BRANCH_COUNTER_PREFIX, '__branch_count').
@@ -25,6 +28,20 @@
 
 -type module_cache() :: ets:tid().
 -type cache() :: ets:tid().
+
+-type modules() :: [module()].
+-type mfas() :: [mfa()].
+-type tags() :: gb_sets:set(cuter_cerl:tagID()).
+
+%% The logs of a CodeServer.
+-record(logs, {
+  cachedMods      :: cached_modules(),
+  loadedMods      :: modules(),
+  tagsAddedNo     :: counter(),
+  visitedTags     :: tags(),
+  unsupportedMfas :: mfas()
+}).
+-type logs() :: #logs{}.
 
 %% Internal type declarations
 -type load_reply() :: {ok, ets:tid()} | cuter_cerl:compile_error() | {error, (preloaded | cover_compiled | non_existing)}.
@@ -49,9 +66,9 @@
   db                             :: cache(),
   waiting = orddict:new()        :: [{{atom(), tuple()}, pid()}],
   workers = []                   :: [pid()],
-  unsupported_mfas = sets:new()  :: sets:set(mfa()),
+  unsupportedMfas = sets:new()   :: sets:set(mfa()),
   tags = gb_sets:new()           :: gb_sets:set(cuter_cerl:tagID()),
-  with_pmatch                    :: boolean()
+  withPmatch                     :: boolean()
 }).
 -type state() :: #st{}.
 
@@ -112,20 +129,15 @@ init([Super, CachedMods, TagsN, WithPmatch]) ->
   Db = ets:new(?MODULE, [ordered_set, protected]),
   add_cached_modules(Db, CachedMods),
   _ = set_branch_counter(TagsN), %% Initialize the counter for the branch enumeration.
-  {ok, #st{db = Db, super = Super, with_pmatch = WithPmatch}}.
+  {ok, #st{db = Db, super = Super, withPmatch = WithPmatch}}.
 
 %% gen_server callback : terminate/2
 -spec terminate(any(), state()) -> ok.
-terminate(_Reason, #st{db = Db, super = Super, unsupported_mfas = Ms, tags = Tags}) ->
+terminate(_Reason, #st{db = Db, super = Super, unsupportedMfas = Ms, tags = Tags}) ->
   Cnt = get_branch_counter(),
   CachedMods = dump_cached_modules(Db),
-  Logs = [ {loaded_mods, drop_module_cache(Db)}  % Delete all created ETS tables
-         , {unsupported_mfas, sets:to_list(Ms)}
-         , {visited_tags, Tags}
-         , {cachedMods, CachedMods}
-         , {tags_added_no, Cnt}
-         ],
-  ok = cuter_iserver:code_logs(Super, orddict:from_list(Logs)),  % Send logs to the supervisor
+  Logs = mk_logs(drop_module_cache(Db), sets:to_list(Ms), Tags, CachedMods, Cnt),
+  ok = cuter_iserver:code_logs(Super, Logs),  % Send logs to the supervisor
   ok.
 
 %% gen_server callback : code_change/3
@@ -177,9 +189,9 @@ handle_call({get_spec, {M, F, A}=MFA}, _From, State) ->
 -spec handle_cast({stop, pid()}, state()) -> {stop, normal, state()} | {noreply, state()}
                ; ({unsupported_mfa, mfa()}, state()) -> {noreply, state()}
                ; ({visit_tag, cuter_cerl:tag()}, state()) -> {noreply, state()}.
-handle_cast({unsupported_mfa, MFA}, State=#st{unsupported_mfas = Ms}) ->
+handle_cast({unsupported_mfa, MFA}, State=#st{unsupportedMfas = Ms}) ->
   Ms1 = sets:add_element(MFA, Ms),
-  {noreply, State#st{unsupported_mfas = Ms1}};
+  {noreply, State#st{unsupportedMfas = Ms1}};
 handle_cast({stop, FromWho}, State=#st{super = Super}) ->
   case FromWho =:= Super of
     true  -> {stop, normal, State};
@@ -218,7 +230,7 @@ try_load(M, State) ->
 
 %% Load a module's code
 -spec load_mod(module(), state()) -> {ok, module_cache()} | cuter_cerl:compile_error().
-load_mod(M, #st{db = Db, with_pmatch = WithPmatch}) ->
+load_mod(M, #st{db = Db, withPmatch = WithPmatch}) ->
   MDb = ets:new(M, [ordered_set, protected]),  %% Create an ETS table to store the code of the module
   ets:insert(Db, {M, MDb}),                    %% Store the tid of the ETS table
   Reply = cuter_cerl:load(M, MDb, fun generate_tag/0, WithPmatch),  %% Load the code of the module
@@ -241,9 +253,41 @@ is_mod_stored(M, #st{db = Db}) ->
       end
   end.
 
-%% ============================================================================
+%% ----------------------------------------------------------------------------
+%% Manage the logs of the CodeServer
+%% ----------------------------------------------------------------------------
+
+-spec mk_logs(modules(), mfas(), tags(), cached_modules(), counter()) -> logs().
+mk_logs(LoadedMods, UnsupportedMFAs, VisitedTags, CachedMods, TagsAddedNo) ->
+  #logs{ cachedMods = CachedMods
+       , loadedMods = LoadedMods
+       , tagsAddedNo = TagsAddedNo
+       , visitedTags = VisitedTags
+       , unsupportedMfas = UnsupportedMFAs}.
+
+-spec cachedMods_of_logs(logs()) -> cached_modules().
+cachedMods_of_logs(Logs) ->
+  Logs#logs.cachedMods.
+
+-spec loadedMods_of_logs(logs()) -> modules().
+loadedMods_of_logs(Logs) ->
+  Logs#logs.loadedMods.
+
+-spec tagsAddedNo_of_logs(logs()) -> counter().
+tagsAddedNo_of_logs(Logs) ->
+  Logs#logs.tagsAddedNo.
+
+-spec visitedTags_of_logs(logs()) -> tags().
+visitedTags_of_logs(Logs) ->
+  Logs#logs.visitedTags.
+
+-spec unsupportedMfas_of_logs(logs()) -> mfas().
+unsupportedMfas_of_logs(Logs) ->
+  Logs#logs.unsupportedMfas.
+
+%% ----------------------------------------------------------------------------
 %% Manage module cache
-%% ============================================================================
+%% ----------------------------------------------------------------------------
 
 %% Looks up data in a module's cache.
 -spec lookup_in_module_cache(any(), module_cache()) -> any().
@@ -279,9 +323,14 @@ no_cached_modules() -> dict:new().
 merge_dumped_cached_modules(Cached1, Cached2) ->
   dict:merge(fun(_Mod, Data1, _Data2) -> Data1 end, Cached1, Cached2).
 
-%% ============================================================================
+%% Gets the names of the modules in a cache dump.
+-spec modules_of_dumped_cache(cached_modules()) -> modules().
+modules_of_dumped_cache(Cached) ->
+  dict:fetch_keys(Cached).
+
+%% ----------------------------------------------------------------------------
 %% Counter for branch enumeration
-%% ============================================================================
+%% ----------------------------------------------------------------------------
 
 -spec initial_branch_counter() -> 0.
 initial_branch_counter() -> 0.
