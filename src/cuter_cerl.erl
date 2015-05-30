@@ -115,16 +115,16 @@
 %%====================================================================
 %% External exports
 %%====================================================================
--spec load(M, ets:tid(), tag_generator(), boolean()) -> {ok, M} | load_error() when M :: cuter:mod().
-load(Mod, Db, TagGen, WithPmatch) ->
+-spec load(M, cuter_codeserver:module_cache(), tag_generator(), boolean()) -> {ok, M} | load_error() when M :: cuter:mod().
+load(Mod, Cache, TagGen, WithPmatch) ->
 case get_core_ast(Mod, WithPmatch) of
   {ok, AST} ->
     case is_valid_ast(WithPmatch, AST) of
       false ->
         cuter_pp:invalid_ast_with_pmatch(Mod, AST),
-        load(Mod, Db, TagGen, false);
+        load(Mod, Cache, TagGen, false);
       true ->
-        store_module(Mod, AST, Db, TagGen),
+        store_module(Mod, AST, Cache, TagGen),
         {ok, Mod}
     end;
   {error, _} = Error -> Error
@@ -136,15 +136,14 @@ is_valid_ast(true, AST) ->
   erlang:is_record(AST, c_module).
 
 %% Retrieves the spec of a function from a stored module's info.
--spec retrieve_spec(ets:tid(), {name(), byte()}) -> {ok, cuter_types:stored_spec_value()} | error.
-retrieve_spec(Db, FA) ->
-  [{specs, Specs}] = ets:lookup(Db, specs),
+-spec retrieve_spec(cuter_codeserver:module_cache(), {name(), byte()}) -> {ok, cuter_types:stored_spec_value()} | error.
+retrieve_spec(Cache, FA) ->
+  Specs = cuter_codeserver:lookup_in_module_cache(specs, Cache),
   cuter_types:find_spec(FA, Specs).
 
--spec get_stored_types(ets:tid()) -> cuter_types:stored_types().
-get_stored_types(Db) ->
-  [{types, Types}] = ets:lookup(Db, types),
-  Types.
+-spec get_stored_types(cuter_codeserver:module_cache()) -> cuter_types:stored_types().
+get_stored_types(Cache) ->
+  cuter_codeserver:lookup_in_module_cache(types, Cache).
 
 %%====================================================================
 %% Internal functions
@@ -159,14 +158,13 @@ get_stored_types(Db) ->
 %% exported             [{M :: module(), Fun :: atom(), Arity :: arity()}]
 %% attributes           Attrs :: [{cerl(), cerl()}]
 %% {M, Fun, Arity}      {Def :: #c_fun{}, Exported :: boolean()}
--spec store_module(cuter:mod(), cerl:cerl(), ets:tid(), tag_generator()) -> ok.
-store_module(M, AST, Db, TagGen) ->
-  store_module_info(anno, M, AST, Db),
-  store_module_info(name, M, AST, Db),
-  store_module_info(exports, M, AST, Db),
-  store_module_info(attributes, M, AST, Db),
-  store_module_funs(M, AST, Db, TagGen),
-  ok.
+-spec store_module(cuter:mod(), cerl:cerl(), cuter_codeserver:module_cache(), tag_generator()) -> ok.
+store_module(M, AST, Cache, TagGen) ->
+  store_module_info(anno, M, AST, Cache),
+  store_module_info(name, M, AST, Cache),
+  store_module_info(exports, M, AST, Cache),
+  store_module_info(attributes, M, AST, Cache),
+  store_module_funs(M, AST, Cache, TagGen).
 
 %% Gets the Core Erlang AST of a module.
 -spec get_core_ast(cuter:mod(), boolean()) -> {ok, cerl:cerl()} | load_error().
@@ -212,24 +210,22 @@ extract_abstract_code(Mod, Beam) ->
   end.
 
 %% Store module information
--spec store_module_info(info(), cuter:mod(), cerl:c_module(), ets:tab()) -> ok.
-store_module_info(anno, _M, AST, Db) ->
+-spec store_module_info(info(), cuter:mod(), cerl:c_module(), cuter_codeserver:module_cache()) -> ok.
+store_module_info(anno, _M, AST, Cache) ->
   Anno = AST#c_module.anno,
-  true = ets:insert(Db, {anno, Anno}),
-  ok;
-store_module_info(attributes, _M, AST, Db) ->
+  cuter_codeserver:insert_in_module_cache(anno, Anno, Cache);
+store_module_info(attributes, _M, AST, Cache) ->
   Attrs = cerl:module_attrs(AST),
-  true = ets:insert(Db, {attributes, Attrs}),
+  cuter_codeserver:insert_in_module_cache(attributes, Attrs, Cache),
   %% Retrieve the attributes that involve type & record declarations.
   {TypeAttrs, SpecAttrs} = classify_attributes(Attrs),
   %% Pre-process those declarations.
   Types = cuter_types:retrieve_types(TypeAttrs),
-  true = ets:insert(Db, {types, Types}),
+  cuter_codeserver:insert_in_module_cache(types, Types, Cache),
   %% Just store the attributes that involve specs.
   Specs = cuter_types:retrieve_specs(SpecAttrs),
-  true = ets:insert(Db, {specs, Specs}),
-  ok;
-store_module_info(exports, M, AST, Db) ->
+  cuter_codeserver:insert_in_module_cache(specs, Specs, Cache);
+store_module_info(exports, M, AST, Cache) ->
   Exps_c = AST#c_module.exports,
   Fun_info = 
     fun(Elem) ->
@@ -237,24 +233,22 @@ store_module_info(exports, M, AST, Db) ->
       {M, Fun, Arity}
     end,
   Exps = [Fun_info(E) || E <- Exps_c],
-  true = ets:insert(Db, {exported, Exps}),
-  ok;
-store_module_info(name, _M, AST, Db) ->
+  cuter_codeserver:insert_in_module_cache(exported, Exps, Cache);
+store_module_info(name, _M, AST, Cache) ->
   ModName_c = AST#c_module.name,
   ModName = ModName_c#c_literal.val,
-  true = ets:insert(Db, {name, ModName}),
-  ok.
+  cuter_codeserver:insert_in_module_cache(name, ModName, Cache).
 
 %% Store exported functions of a module
--spec store_module_funs(cuter:mod(), cerl:cerl(), ets:tab(), tag_generator()) -> ok.
-store_module_funs(M, AST, Db, TagGen) ->
+-spec store_module_funs(cuter:mod(), cerl:cerl(), cuter_codeserver:module_cache(), tag_generator()) -> ok.
+store_module_funs(M, AST, Cache, TagGen) ->
   Funs = AST#c_module.defs,
-  [{exported, Exps}] = ets:lookup(Db, exported),
-  lists:foreach(fun(X) -> store_fun(Exps, M, X, Db, TagGen) end, Funs).
+  Exps = cuter_codeserver:lookup_in_module_cache(exported, Cache),
+  lists:foreach(fun(X) -> store_fun(Exps, M, X, Cache, TagGen) end, Funs).
 
 %% Store the AST of a function
--spec store_fun([atom()], cuter:mod(), {cerl:c_var(), cerl:c_fun()}, ets:tab(), tag_generator()) -> ok.
-store_fun(Exps, M, {Fun, Def}, Db, TagGen) ->
+-spec store_fun([atom()], cuter:mod(), {cerl:c_var(), cerl:c_fun()}, cuter_codeserver:module_cache(), tag_generator()) -> ok.
+store_fun(Exps, M, {Fun, Def}, Cache, TagGen) ->
   {FunName, Arity} = Fun#c_var.name,
   MFA = {M, FunName, Arity},
   Exported = lists:member(MFA, Exps),
@@ -264,8 +258,7 @@ store_fun(Exps, M, {Fun, Def}, Db, TagGen) ->
   AnnDef = annotate(Def, TagGen),
 %  io:format("AFTER~n"),
 %  io:format("~p~n", [AnnDef]),
-  true = ets:insert(Db, {MFA, {AnnDef, Exported}}),
-  ok.
+  cuter_codeserver:insert_in_module_cache(MFA, {AnnDef, Exported}, Cache).
 
 -spec classify_attributes([cerl_attr()]) -> {[cerl_attr_type()], [cerl_attr_spec()]}.
 classify_attributes(Attrs) ->

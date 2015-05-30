@@ -6,7 +6,7 @@
 %% external exports
 -export([start/2, start/4, stop/1, load/2, unsupported_mfa/2, retrieve_spec/2, visit_tag/2,
          merge_dumped_cached_modules/2, no_cached_modules/0, initial_branch_counter/0,
-         lookup_in_module_cache/2]).
+         lookup_in_module_cache/2, insert_in_module_cache/3]).
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_info/2, handle_call/3, handle_cast/2]).
 %% counter of branches
@@ -242,15 +242,23 @@ is_mod_stored(M, #st{db = Db}) ->
   end.
 
 %% ============================================================================
-%% Manage cached modules
+%% Manage module cache
 %% ============================================================================
 
+%% Looks up data in a module's cache.
 -spec lookup_in_module_cache(any(), module_cache()) -> any().
 lookup_in_module_cache(Key, Cache) ->
   [{Key, Value}] = ets:lookup(Cache, Key),
   Value.
 
-%% Deletes all e tables that contain the code of modules.
+%% Inserts data in a module's cache.
+-spec insert_in_module_cache(any(), any(), module_cache()) -> ok.
+insert_in_module_cache(Key, Data, Cache) ->
+  true = ets:insert(Cache, {Key, Data}),
+  ok.
+
+%% Drops the cache of the CodeServer.
+%% Deletes all modules' caches and the mapping of a module to its cache.
 -spec drop_module_cache(cache()) -> [module()].
 drop_module_cache(Db) ->
   ModNames = ets:foldl(fun({M, MDb}, Ms) -> ets:delete(MDb), [M|Ms] end, [], Db),
