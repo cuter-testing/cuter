@@ -17,15 +17,18 @@
 -define(ONE,  1).
 -type loop_limit() :: ?ZERO | ?ONE | inf.
 
+-define(DEFAULT_DEPTH, 25).
+
 -record(conf, {
   mod           :: mod(),
   func          :: atom(),
   dataDir       :: file:filename(),
-  depth         :: pos_integer(),
+  depth         :: depth(),
   no            :: integer(),
+  ppServer      :: pid(),
   scheduler     :: pid(),
-  stored_mods   :: cuter_codeserver:cached_modules(),
-  tags_added_no :: integer(),
+  storedMods    :: cuter_codeserver:cached_modules(),
+  tagsAddedNo   :: cuter_codeserver:counter(),
   pmatch        :: boolean()
 }).
 -type configuration() :: #conf{}.
@@ -72,7 +75,7 @@ loop(Conf, Lmt) ->
     empty -> stop(Conf);
     {Ref, As, StoredMods, TagsN} ->
       No = Conf#conf.no + 1,
-      Conf_n = Conf#conf{no = No, stored_mods = StoredMods, tags_added_no = TagsN},
+      Conf_n = Conf#conf{no = No, storedMods = StoredMods, tagsAddedNo = TagsN},
       case concolic_execute(Conf_n, Ref, As) of
         cuter_error ->
           stop(Conf_n);
@@ -102,8 +105,8 @@ initialize_app(M, F, As, Depth, Options) ->
         depth = Depth,
         dataDir = cuter_lib:get_tmp_dir(BaseDir),
         scheduler = SchedPid,
-        stored_mods = cuter_codeserver:no_cached_modules(),
-        tags_added_no = cuter_codeserver:initial_branch_counter(),
+        storedMods = cuter_codeserver:no_cached_modules(),
+        tagsAddedNo = cuter_codeserver:initial_branch_counter(),
         pmatch = WithPmatch}.
 
 -spec stop(configuration()) -> erroneous_inputs().
@@ -145,8 +148,8 @@ concolic_execute(Conf, Ref, Input) ->
   M = Conf#conf.mod,
   F = Conf#conf.func,
   Depth = Conf#conf.depth,
-  StoredMods = Conf#conf.stored_mods,
-  TagsN = Conf#conf.tags_added_no,
+  StoredMods = Conf#conf.storedMods,
+  TagsN = Conf#conf.tagsAddedNo,
   WithPmatch = Conf#conf.pmatch,
   IServer = cuter_iserver:start(M, F, Input, TraceDir, Depth, StoredMods, TagsN, WithPmatch),
   retrieve_info(IServer, Ref, DataDir).

@@ -3,8 +3,6 @@
 -module(cuter_pp).
 -behaviour(gen_server).
 
--include("include/cuter_macros.hrl").
-
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3,
          handle_info/2, handle_call/3, handle_cast/2]).
@@ -46,16 +44,32 @@
         , open_pending_file/1
        ]).
 
+-include("include/cuter_macros.hrl").
+
 -export_type([pp_level/0]).
 
--record(sts, {
-  super      :: pid(),
-  pplevel    :: pp_level(),
-  nl = false :: boolean(),
-  mfa        :: mfa() | 'undefined',
-  info = dict:new() :: dict:dict(cuter_scheduler_maxcover:exec_handle(), orddict:orddict())
+-define(PRETTY_PRINTER, pretty_printer).
+
+-type from() :: {pid(), reference()}.
+
+%% The data of each concolic execution.
+-record(info, {
+  executionInfo   :: cuter_iserver:logs(),
+  executionStatus :: cuter_iserver:execution_status(),
+  input           :: cuter:input(),
+  pathVertex      :: cuter_analyzer:path_vertex()
 }).
--type state() :: #sts{}.
+-type execution_data() :: #info{}.
+
+%% The state of the server.
+-record(st, {
+  super   :: pid(),
+  pplevel :: pp_level(),
+  nl      :: boolean(),
+  mfa     :: mfa() | 'undefined',
+  info    :: dict:dict(cuter_scheduler_maxcover:exec_handle(), execution_data())
+}).
+-type state() :: #st{}.
 
 %% Reporting levels.
 -define(MINIMAL, 0).
@@ -164,7 +178,10 @@ errors_found(Errors) ->
 init([Super, PpLevel]) ->
   %% process_flag(trap_exit, true),
   link(Super),
-  {ok, #sts{super = Super, pplevel = PpLevel}}.
+  {ok, #st{ info = dict:new()
+          , nl = false
+          , pplevel = PpLevel
+          , super = Super}}.
 
 %% gen_server callback : terminate/2
 -spec terminate(term(), state()) -> ok.
@@ -177,20 +194,23 @@ code_change(_OldVsn, State, _Extra) ->
   {ok, State}.  %% No change planned.
 
 %% gen_server callback : handle_call/3
--spec handle_call(any(), {pid(), reference()}, state()) -> {reply, ok, state()}.
+-spec handle_call({mfa, mfa()}, from(), state()) -> {reply, ok, state()}
+               ; ({invalid_ast_with_pmatch, module(), any()}, from(), state()) -> {reply, ok, state()}
+               ; ({error_retrieving_spec, mfa(), any()}, from(), state()) -> {reply, ok, state()}
+               ; ({form_has_unsupported_type, any()}, from(), state()) -> {reply, ok, state()}
+               ; ({input, cuter_scheduler_maxcover:exec_handle(), cuter:input()}, from(), state()) -> {reply, ok, state()}
+               ; ({execution_status, cuter_scheduler_maxcover:exec_handle(), cuter_iserver:execution_status()}, from(), state()) -> {reply, ok, state()}
+               ; ({execution_info, cuter_scheduler_maxcover:exec_handle(), cuter_iserver:logs()}, from(), state()) -> {reply, ok, state()}
+               ; ({path_vertex, cuter_scheduler_maxcover:exec_handle(), cuter_analyzer:path_vertex()}, from(), state()) -> {reply, ok, state()}
+               ; ({flush, cuter_scheduler_maxcover:exec_handle()}, from(), state()) -> {reply, ok, state()}
+               ; (solving_failed_notify, from(), state()) -> {reply, ok, state()}
+               ; ({errors_found, cuter:erroneous_inputs()}, from(), state()) -> {reply, ok, state()}
+               .
 
-%% A new input to be tested.
-handle_call({input, Ref, Input}, _From, State=#sts{info = Info}) ->
-  Data = orddict:store(input, Input, orddict:new()),
-  {reply, ok, State#sts{info = dict:store(Ref, Data, Info)}};
 %% The MFA to be tested.
 handle_call({mfa, {M, F, Ar}}, _From, State) ->
   io:format("Testing ~p:~p/~p ...~n", [M, F, Ar]),
-  {reply, ok, State#sts{mfa = {M, F, Ar}}};
-%% The status of the given concolic execution.
-handle_call({execution_status, Ref, Status}, _From, State=#sts{info = Info}) ->
-  Update = fun(Curr) -> orddict:store(execution_status, Status, Curr) end,
-  {reply, ok, State#sts{info = dict:update(Ref, Update, Info)}};
+  {reply, ok, State#st{mfa = {M, F, Ar}}};
 %% Generated invalid Core Erlang AST with pmatch.
 handle_call({invalid_ast_with_pmatch, Mod, Generated}, _From, State) ->
   case get(invalid_ast) of
@@ -225,32 +245,40 @@ handle_call({form_has_unsupported_type, Info}, _From, State) ->
       unsupported_type_error(Info),
       {reply, ok, State}
   end;
+%% A new input to be tested.
+handle_call({input, Ref, Input}, _From, State=#st{info = Info}) ->
+  Info1 = dict:store(Ref, #info{input = Input}, Info),
+  {reply, ok, State#st{info = Info1}};
+%% The status of the given concolic execution.
+handle_call({execution_status, Ref, Status}, _From, State=#st{info = Info}) ->
+  Info1 = dict:update(Ref, fun(Data) -> Data#info{executionStatus = Status} end, Info),
+  {reply, ok, State#st{info = Info1}};
 %% The information of the given concolic execution.
-handle_call({execution_info, Ref, ExecInfo}, _From, State=#sts{info = Info}) ->
-  Update = fun(Curr) -> orddict:store(execution_info, ExecInfo, Curr) end,
-  {reply, ok, State#sts{info = dict:update(Ref, Update, Info)}};
+handle_call({execution_info, Ref, ExecInfo}, _From, State=#st{info = Info}) ->
+  Info1 = dict:update(Ref, fun(Data) -> Data#info{executionInfo = ExecInfo} end, Info),
+  {reply, ok, State#st{info = Info1}};
 %% The path vertex of the given concolic execution.
-handle_call({path_vertex, Ref, Vertex}, _From, State=#sts{info = Info}) ->
-  Update = fun(Curr) -> orddict:store(path_vertex, Vertex, Curr) end,
-  {reply, ok, State#sts{info = dict:update(Ref, Update, Info)}};
+handle_call({path_vertex, Ref, Vertex}, _From, State=#st{info = Info}) ->
+  Info1 = dict:update(Ref, fun(Data) -> Data#info{pathVertex = Vertex} end, Info),
+  {reply, ok, State#st{info = Info1}};
 %% Display the information of the given concolic execution.
-handle_call({flush, Ref}, _From, State=#sts{pplevel = PpLevel, info = Info, nl = Nl, mfa = MFA}) ->
+handle_call({flush, Ref}, _From, State=#st{pplevel = PpLevel, info = Info, nl = Nl, mfa = MFA}) ->
   pp_execution_info(dict:fetch(Ref, Info), MFA, Nl, PpLevel#pp_level.execInfo),
-  {reply, ok, State#sts{info = dict:erase(Ref, Info), nl = false}};
+  {reply, ok, State#st{info = dict:erase(Ref, Info), nl = false}};
 %% Print a character to show that solving failed to product an output.
 handle_call(solving_failed_notify, _From, State) ->
   io:format("x"),
-  {reply, ok, State#sts{nl = true}};
+  {reply, ok, State#st{nl = true}};
 %% Report the errors that were found.
-handle_call({errors_found, Errors}, _From, State=#sts{mfa = MFA}) ->
+handle_call({errors_found, Errors}, _From, State=#st{mfa = MFA}) ->
   pp_erroneous_inputs(Errors, MFA),
-  {reply, ok, State#sts{nl = false}}.
+  {reply, ok, State#st{nl = false}}.
 
 
 %% gen_server callback : handle_cast/2
 -spec handle_cast({stop, pid()}, state()) -> {stop, normal, state()} | {noreply, state()}.
 %% Stops the server.
-handle_cast({stop, FromWho}, State=#sts{super = Super}) ->
+handle_cast({stop, FromWho}, State=#st{super = Super}) ->
   case FromWho =:= Super of
     true  -> {stop, normal, State};
     false -> {noreply, State}
@@ -288,21 +316,21 @@ unsupported_type_error(Form) ->
 pp_nl(true) -> io:format("~n");
 pp_nl(false) -> ok.
 
--spec pp_execution_info(orddict:orddict(), mfa(), boolean(), level()) -> ok.
-pp_execution_info(Info, _MFA, _Nl, ?MINIMAL) ->
-  pp_execution_status_minimal(orddict:fetch(execution_status, Info));
-pp_execution_info(Info, MFA, Nl, ?VERBOSE) ->
+-spec pp_execution_info(execution_data(), mfa(), boolean(), level()) -> ok.
+pp_execution_info(Data, _MFA, _Nl, ?MINIMAL) ->
+  pp_execution_status_minimal(Data#info.executionStatus);
+pp_execution_info(Data, MFA, Nl, ?VERBOSE) ->
   pp_nl(Nl),
-  pp_input_verbose(orddict:fetch(input, Info), MFA),
-  pp_execution_status_verbose(orddict:fetch(execution_status, Info)),
-  pp_execution_logs_verbose(orddict:fetch(execution_info, Info)),
+  pp_input_verbose(Data#info.input, MFA),
+  pp_execution_status_verbose(Data#info.executionStatus),
+  pp_execution_logs_verbose(Data#info.executionInfo),
   pp_nl(true);
-pp_execution_info(Info, MFA, Nl, ?FULLY_VERBOSE) ->
+pp_execution_info(Data, MFA, Nl, ?FULLY_VERBOSE) ->
   pp_nl(Nl),
-  pp_input_fully_verbose(orddict:fetch(input, Info), MFA),
-  pp_execution_status_fully_verbose(orddict:fetch(execution_status, Info)),
-  pp_execution_logs_fully_verbose(orddict:fetch(execution_info, Info)),
-  pp_path_vertex_fully_verbose(orddict:fetch(path_vertex, Info)).
+  pp_input_fully_verbose(Data#info.input, MFA),
+  pp_execution_status_fully_verbose(Data#info.executionStatus),
+  pp_execution_logs_fully_verbose(Data#info.executionInfo),
+  pp_path_vertex_fully_verbose(Data#info.pathVertex).
 
 %% ----------------------------------------------------------------------------
 %% Report the execution status
