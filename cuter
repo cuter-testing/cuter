@@ -8,27 +8,62 @@
 
 DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
+add_opt(){
+    if [ "$1" != "" ]; then
+        echo "$1,$2"
+    else
+        echo $2
+    fi
+}
+
 if [ $# -ge 3 ]; then
+    mod=$1
+    func=$2
+    args=$3
+    depth=25
+    opts=
+
     export ERL_LIBS=${DIR}:${ERL_LIBS}
 
-    beamfile=$1.beam
+    beamfile=$mod.beam
     if [ ! -f $beamfile ]; then
-	echo -n "File ""$beamfile" "does not exist, "
-        erlfile=$1.erl
-	if [ ! -f $erlfile ]; then
-	    echo "but cannot locate" "$erlfile" "either... exiting"
-	    exit 1
+        echo -n "File ""$beamfile" "does not exist, "
+        erlfile=$mod.erl
+        if [ ! -f $erlfile ]; then
+            echo "but cannot locate" "$erlfile" "either... exiting"
+            exit 1
         fi
-	echo -n "creating it... "
-	erlc +debug_info $erlfile
-	echo "done"
+        echo -n "creating it... "
+        erlc +debug_info $erlfile
+        echo "done"
     fi
 
-    if [ "$4" != "" ]; then
-	erl -noshell -eval "cuter:run($1, $2, $3, $4)" -s init stop
-    else
-	erl -noshell -eval "cuter:run($1, $2, $3)" -s init stop
+    shift
+    shift
+    shift
+
+    if [ "$1" != "" ]; then
+        re='^[0-9]+$'
+        if [[ $1 =~ $re ]] ; then
+          depth=$1
+          shift
+        fi
     fi
+
+    while [ "$1" != "" ]; do
+        PARAM=`echo $1 | awk -F= '{print $1}'`
+        VALUE=`echo $1 | awk -F= '{print $2}'`
+        case $PARAM in
+            -p | --pollers)
+                opts=$(add_opt "$opts" "{number_of_pollers, $VALUE}")
+                ;;
+            *)
+                ;;
+        esac
+        shift
+    done
+
+    erl -noshell -eval "cuter:run($mod, $func, $args, $depth, [$opts])" -s init stop
 else
     echo "Usage: cuter M F '[A1,...,An]' Depth"
 fi
