@@ -11,7 +11,7 @@
 
 -include("include/cuter_macros.hrl").
 
--export_type([compile_error/0, cerl_spec/0, cerl_func/0, cerl_type/0,
+-export_type([compile_error/0, cerl_spec/0, cerl_func/0, cerl_type/0, visited_tags/0,
               cerl_bounded_func/0, cerl_constraint/0, tagID/0, tag/0, tag_generator/0,
               cerl_attr_type/0, cerl_recdef/0, cerl_typedef/0, cerl_record_field/0, cerl_type_record_field/0,
               cerl_attr_spec/0, cerl_spec_func/0]).
@@ -25,6 +25,7 @@
 -type tagID() :: integer().
 -opaque tag() :: {?BRANCH_TAG_PREFIX, tagID()}.
 -type tag_generator() :: fun(() -> tag()).
+-type visited_tags() :: gb_sets:set(tagID()).
 
 -type lineno() :: integer().
 -type name() :: atom().

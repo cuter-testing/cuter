@@ -1564,7 +1564,7 @@ y(M) ->
 %% --------------------------------------------------------
 %% Reports visiting a tag.
 %% --------------------------------------------------------
--spec visited_tags() -> gb_sets:set(cuter_cerl:tagID()).
+-spec visited_tags() -> cuter_cerl:visited_tags().
 visited_tags() ->
   case get(?VISITED_TAGS_PREFIX) of
     undefined -> gb_sets:new();

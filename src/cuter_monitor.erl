@@ -27,7 +27,7 @@
 %% super :: pid()
 %%   The supervisor process that spawned the monitor server.
 %% depth :: integer()
-%%   Number of constraints to log per process.
+%%   Number of branches to log per process.
 %%   Passes this information to newly spawned processes.
 %% dir :: nonempty_string()
 %%   The directory where the generated .core files are stored.

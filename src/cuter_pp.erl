@@ -67,7 +67,7 @@
   pplevel :: pp_level(),
   nl      :: boolean(),
   mfa     :: mfa() | 'undefined',
-  info    :: dict:dict(cuter_scheduler_maxcover:exec_handle(), execution_data())
+  info    :: dict:dict(cuter_scheduler_maxcover:handle(), execution_data())
 }).
 -type state() :: #st{}.
 
@@ -120,7 +120,7 @@ mfa(MFA) ->
   gen_server:call(?PRETTY_PRINTER, {mfa, MFA}).
 
 %% The input that will be tested.
--spec input(cuter_scheduler_maxcover:exec_handle(), cuter:input()) -> ok.
+-spec input(cuter_scheduler_maxcover:handle(), cuter:input()) -> ok.
 input(Ref, As) ->
   gen_server:call(?PRETTY_PRINTER, {input, Ref, As}).
 
@@ -140,22 +140,22 @@ form_has_unsupported_type(Info) ->
   gen_server:call(?PRETTY_PRINTER, {form_has_unsupported_type, Info}).
 
 %% The result status of the given concolic execution.
--spec execution_status(cuter_scheduler_maxcover:exec_handle(), cuter_iserver:execution_status()) -> ok.
+-spec execution_status(cuter_scheduler_maxcover:handle(), cuter_iserver:execution_status()) -> ok.
 execution_status(Ref, Status) ->
   gen_server:call(?PRETTY_PRINTER, {execution_status, Ref, Status}).
 
 %% The InterpreterServer's logs of the given concolic execution.
--spec execution_info(cuter_scheduler_maxcover:exec_handle(), cuter_iserver:logs()) -> ok.
+-spec execution_info(cuter_scheduler_maxcover:handle(), cuter_iserver:logs()) -> ok.
 execution_info(Ref, Logs) ->
   gen_server:call(?PRETTY_PRINTER, {execution_info, Ref, Logs}).
 
 %% The path vertex of the given concolic execution.
--spec path_vertex(cuter_scheduler_maxcover:exec_handle(), cuter_analyzer:path_vertex()) -> ok.
+-spec path_vertex(cuter_scheduler_maxcover:handle(), cuter_analyzer:path_vertex()) -> ok.
 path_vertex(Ref, Vertex) ->
   gen_server:call(?PRETTY_PRINTER, {path_vertex, Ref, Vertex}).
 
 %% Display the information of the given concolic execution.
--spec flush(cuter_scheduler_maxcover:exec_handle()) -> ok.
+-spec flush(cuter_scheduler_maxcover:handle()) -> ok.
 flush(Ref) ->
   gen_server:call(?PRETTY_PRINTER, {flush, Ref}).
 
@@ -203,11 +203,11 @@ code_change(_OldVsn, State, _Extra) ->
                ; ({invalid_ast_with_pmatch, module(), any()}, from(), state()) -> {reply, ok, state()}
                ; ({error_retrieving_spec, mfa(), any()}, from(), state()) -> {reply, ok, state()}
                ; ({form_has_unsupported_type, any()}, from(), state()) -> {reply, ok, state()}
-               ; ({input, cuter_scheduler_maxcover:exec_handle(), cuter:input()}, from(), state()) -> {reply, ok, state()}
-               ; ({execution_status, cuter_scheduler_maxcover:exec_handle(), cuter_iserver:execution_status()}, from(), state()) -> {reply, ok, state()}
-               ; ({execution_info, cuter_scheduler_maxcover:exec_handle(), cuter_iserver:logs()}, from(), state()) -> {reply, ok, state()}
-               ; ({path_vertex, cuter_scheduler_maxcover:exec_handle(), cuter_analyzer:path_vertex()}, from(), state()) -> {reply, ok, state()}
-               ; ({flush, cuter_scheduler_maxcover:exec_handle()}, from(), state()) -> {reply, ok, state()}
+               ; ({input, cuter_scheduler_maxcover:handle(), cuter:input()}, from(), state()) -> {reply, ok, state()}
+               ; ({execution_status, cuter_scheduler_maxcover:handle(), cuter_iserver:execution_status()}, from(), state()) -> {reply, ok, state()}
+               ; ({execution_info, cuter_scheduler_maxcover:handle(), cuter_iserver:logs()}, from(), state()) -> {reply, ok, state()}
+               ; ({path_vertex, cuter_scheduler_maxcover:handle(), cuter_analyzer:path_vertex()}, from(), state()) -> {reply, ok, state()}
+               ; ({flush, cuter_scheduler_maxcover:handle()}, from(), state()) -> {reply, ok, state()}
                ; (solving_failed_notify, from(), state()) -> {reply, ok, state()}
                ; ({errors_found, cuter:erroneous_inputs()}, from(), state()) -> {reply, ok, state()}
                ; ({code_logs, cuter_codeserver:logs()}, from(), state()) -> {reply, ok, state()}

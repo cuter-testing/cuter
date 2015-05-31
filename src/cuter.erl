@@ -152,7 +152,7 @@ reporting_level(Options) ->
 %% Concolic Execution
 %% ------------------------------------------------------------------
 
--spec concolic_execute(configuration(), cuter_scheduler_maxcover:exec_handle(), input()) -> cuter_analyzer:info() | cuter_error.
+-spec concolic_execute(configuration(), cuter_scheduler_maxcover:handle(), input()) -> cuter_analyzer:info() | cuter_error.
 concolic_execute(Conf, Ref, Input) ->
   cuter_pp:input(Ref, Input),
   BaseDir = Conf#conf.dataDir,
@@ -161,7 +161,7 @@ concolic_execute(Conf, Ref, Input) ->
   IServer = cuter_iserver:start(Conf#conf.mod, Conf#conf.func, Input, TraceDir, Conf#conf.depth, Conf#conf.codeServer),
   retrieve_info(IServer, Ref, DataDir).
 
--spec retrieve_info(pid(), cuter_scheduler_maxcover:exec_handle(), file:filename()) -> cuter_analyzer:info() | cuter_error.
+-spec retrieve_info(pid(), cuter_scheduler_maxcover:handle(), file:filename()) -> cuter_analyzer:info() | cuter_error.
 retrieve_info(IServer, Ref, DataDir) ->
   case wait_for_execution(IServer) of
     {ok, ExStatus, Logs} ->

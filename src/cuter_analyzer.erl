@@ -13,12 +13,10 @@
 -include("include/cuter_macros.hrl").
 
 -export_type([execution_result/0, node_trace/0, path_vertex/0,
-              raw_info/0, info/0, visited_tags/0,
-              reversible_with_tags/0, reversible_with_tag/0]).
+              raw_info/0, info/0, reversible_with_tags/0, reversible_with_tag/0]).
 
 -type execution_result() :: {success, any()} | {runtime_error, any()} | internal_error.
 -type node_trace()  :: {atom(), string()}.
--type visited_tags() :: gb_sets:set(cuter_cerl:tagID()).
 -type reversible_with_tag() :: {integer(), cuter_cerl:tagID()}.
 -type reversible_with_tags() :: [reversible_with_tag()].
 -type path_vertex() :: [?CONSTRAINT_TRUE_REPR | ?CONSTRAINT_FALSE_REPR].  % [$T | $F]
