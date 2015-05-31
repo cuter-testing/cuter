@@ -4,7 +4,7 @@
 -behaviour(gen_server).
 
 -export([ %% external API
-          start/3
+          start/4
         , stop/1
         , request_input/1
         , store_execution/3
@@ -33,13 +33,12 @@
 
 %% gen_server state datatype
 -record(sts, {
-    tags_queue         :: cuter_minheap:minheap()
+    codeServer         :: pid()
+  , tags_queue         :: cuter_minheap:minheap()
   , inputs_queue       :: inp_queue()
   , info_tab           :: exec_info_tab()
   , python             :: string()
   , depth              :: integer()
-  , cached_modules     :: cuter_codeserver:cached_modules()
-  , tags_added_no      :: cuter_codeserver:counter()
   , visited_tags       :: cuter_analyzer:visited_tags()
   , running            :: dict:dict(exec_handle(), cuter:input())
   , first_operation    :: dict:dict(exec_handle(), integer())
@@ -54,9 +53,9 @@
 %% ============================================================================
 
 %% Start the Scheduler
--spec start(string(), integer(), cuter:input()) -> pid().
-start(Python, Depth, SeedInput) ->
-  case gen_server:start_link(?MODULE, [Python, Depth, SeedInput], []) of
+-spec start(string(), integer(), cuter:input(), pid()) -> pid().
+start(Python, Depth, SeedInput, CodeServer) ->
+  case gen_server:start_link(?MODULE, [Python, Depth, SeedInput, CodeServer], []) of
     {ok, Scheduler} -> Scheduler;
     {error, R} -> exit({scheduler_start, R})
   end.
@@ -67,7 +66,7 @@ stop(Scheduler) ->
   gen_server:call(Scheduler, stop).
 
 %% Request a new Input vertex for concolic execution
--spec request_input(pid()) -> {exec_handle(), cuter:input(), cuter_codeserver:cached_modules(), integer()} | empty.
+-spec request_input(pid()) -> {exec_handle(), cuter:input()} | empty.
 request_input(Scheduler) ->
   gen_server:call(Scheduler, request_input, infinity).
 
@@ -81,17 +80,16 @@ store_execution(Scheduler, Handle, Info) ->
 %% ============================================================================
 
 %% init/1
--spec init([string() | integer() | cuter:input(), ...]) -> {ok, state()}.
-init([Python, Depth, SeedInput]) ->
+-spec init([string() | integer() | cuter:input() | pid(), ...]) -> {ok, state()}.
+init([Python, Depth, SeedInput, CodeServer]) ->
   _ = set_execution_counter(0),
   TagsQueue = cuter_minheap:new(fun erlang:'<'/2),
   InpQueue = queue:in({1, SeedInput}, queue:new()),
-  {ok, #sts{ info_tab = dict:new()
+  {ok, #sts{ codeServer = CodeServer
+           , info_tab = dict:new()
            , python = Python
            , depth = Depth
            , visited_tags = gb_sets:new()
-           , cached_modules = cuter_codeserver:no_cached_modules()
-           , tags_added_no = cuter_codeserver:initial_branch_counter()
            , running = dict:new()
            , first_operation = dict:new()
            , erroneous = []
@@ -116,24 +114,24 @@ handle_info(_Msg, State) ->
   {noreply, State}.
 
 %% handle_call/3
--spec handle_call(request_input, from(), state()) -> {reply, (empty | {exec_handle(), cuter:input(), cuter_codeserver:cached_modules(), integer()}), state()}
+-spec handle_call(request_input, from(), state()) -> {reply, (empty | {exec_handle(), cuter:input()}), state()}
                ; ({store_execution, exec_handle(), cuter_analyzer:info()}, from(), state()) -> {reply, ok, state()}
                ; (stop, from(), state()) -> {stop, normal, cuter:erroneous_inputs(), state()}.
 
 %% Ask for a new input to execute
-handle_call(request_input, _From, S=#sts{tags_queue = TQ, info_tab = AllInfo, python = P, cached_modules = SMs, visited_tags = Vs, tags_added_no = TagsN,
+handle_call(request_input, _From, S=#sts{tags_queue = TQ, info_tab = AllInfo, python = P, visited_tags = Vs,
                                          running = Rn, first_operation = FOp, inputs_queue = IQ}) ->
   case find_new_input(TQ, IQ, P, AllInfo, Vs) of
     empty -> {reply, empty, S};
     {ok, Handle, Input, NAllowed, Rem} ->
-      {reply, {Handle, Input, SMs, TagsN}, S#sts{ running = dict:store(Handle, Input, Rn)
-                                                , first_operation = dict:store(Handle, NAllowed, FOp)
-                                                , inputs_queue = Rem}}
+      {reply, {Handle, Input}, S#sts{ running = dict:store(Handle, Input, Rn)
+                                    , first_operation = dict:store(Handle, NAllowed, FOp)
+                                    , inputs_queue = Rem}}
   end;
 
 %% Store the information of a concolic execution
-handle_call({store_execution, Handle, Info}, _From, S=#sts{tags_queue = TQ, info_tab = AllInfo, cached_modules = SMs, visited_tags = Vs, depth = Depth,
-                                                           running = Rn, first_operation = FOp, erroneous = Err}) ->
+handle_call({store_execution, Handle, Info}, _From, S=#sts{tags_queue = TQ, info_tab = AllInfo, visited_tags = Vs, depth = Depth,
+                                                           running = Rn, first_operation = FOp, erroneous = Err, codeServer = CServer}) ->
   %% Generate the information of the execution
   I = #{ traceFile => cuter_analyzer:traceFile_of_info(Info)
        , dataDir => cuter_analyzer:dir_of_info(Info)
@@ -141,18 +139,14 @@ handle_call({store_execution, Handle, Info}, _From, S=#sts{tags_queue = TQ, info
   %% Get the input & update the erroneous inputs
   Input = dict:fetch(Handle, Rn),
   NErr = update_erroneous(cuter_analyzer:runtimeError_of_info(Info), Input, Err),
-  %% Update the stored code of modules
-  CachedMods = cuter_codeserver:merge_dumped_cached_modules(SMs, cuter_analyzer:cachedMods_of_info(Info)),
   %% Update the visited tags
-  Visited = gb_sets:union(Vs, cuter_analyzer:tags_of_info(Info)),
+  Visited = gb_sets:union(Vs, cuter_codeserver:get_visited_tags(CServer)),
   %% Update the queue
   N = dict:fetch(Handle, FOp),
   Rvs = cuter_analyzer:reversible_of_info(Info),
   Items = generate_queue_items(Rvs, Handle, Visited, N, Depth),
   lists:foreach(fun(Item) -> cuter_minheap:insert(Item, TQ) end, Items),
   {reply, ok, S#sts{ info_tab = dict:store(Handle, I, AllInfo)
-                   , cached_modules = CachedMods
-                   , tags_added_no = cuter_analyzer:tagsAddedNo_of_info(Info)  %% Number of added tags
                    , visited_tags = Visited
                    , running = dict:erase(Handle, Rn)  %% Remove the handle from the running set
                    , first_operation = dict:erase(Handle, FOp)

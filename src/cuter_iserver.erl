@@ -6,14 +6,14 @@
 -include("include/cuter_macros.hrl").
 
 %% external exports
--export([start/8, node_servers/2, int_return/2, send_error_report/3, code_logs/2, monitor_logs/2, send_mapping/2,
+-export([start/6, node_servers/2, int_return/2, send_error_report/3, monitor_logs/2, send_mapping/2,
          %% Access logs
-         codeLogs_of_logs/1, logs_foreach/2, int_of_node_logs/1, mapping_of_node_logs/1, monitorLogs_of_node_logs/1,
-         codeLogs_of_node_logs/1, mapping_of_logs/1, monitorLogs_of_logs/1, int_of_logs/1]).
+         logs_foreach/2, int_of_node_logs/1, mapping_of_node_logs/1, monitorLogs_of_node_logs/1,
+         mapping_of_logs/1, monitorLogs_of_logs/1, int_of_logs/1]).
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_info/2, handle_call/3, handle_cast/2]).
 
--export_type([execution_status/0, logs/0, node_logs/0, code_logs/0, maybe/1, int_process/0]).
+-export_type([execution_status/0, logs/0, node_logs/0, maybe/1, int_process/0]).
 
 %% Internal type declarations
 -type ann_pid() :: {node(), pid()}.
@@ -28,8 +28,6 @@
 -type maybe(X) :: X | undefined.
 
 -record(nlogs, {
-  codeLogs           :: cuter_codeserver:logs(),
-  codeServerError    :: any(),
   int                :: maybe(int_process()),
   mapping            :: maybe([cuter_symbolic:mapping()]),
   monitorLogs        :: cuter_monitor:logs(),
@@ -40,7 +38,6 @@
 
 -type node_logs() :: #nlogs{}.
 -type logs() :: dict:dict(node(), node_logs()).
--type code_logs() :: [{node(), cuter_codeserver:logs()}].
 -type monitor_logs() :: [{node(), cuter_monitor:logs()}].
 -type mapping_logs() :: [{node(), maybe([cuter_symbolic:mapping()])}].
 -type int_logs() :: [{node(), maybe(int_process())}].
@@ -48,41 +45,38 @@
 %% Server's state
 %% ---------------
 %%
-%% super :: pid()
-%%   The coordinator process that spawned the monitor server.
+%% codeServer :: pid()
+%%   The main CodeServer.
+%% depth :: cuter:depth()
+%%   Number of branches to log per process.
+%%   Intended for the MonitorServer.
+%% exstatus :: execution_status()
+%%   Stores the status of the concolic execution.
+%% info :: logs()
+%%   Stores information about the concolic execution.
+%% int :: {pid(), running} | exited
+%%   The 1st interpreted process and its status.
 %% logdir :: nonempty_string()
 %%   Directory to store log files.
-%%   Intended for the monitor server.
-%% depth :: integer()
-%%   Number of constraints to log per process.
-%%   Intended for the monitor server.
+%%   Intended for the MonitorServer.
+%% mpids :: [{node(), pid()}]
+%%   Proplists of all the MonitorServers.
 %% prefix :: nonempty_string()
 %%   Unique prefix for the concolic execution.
-%%   Intended for the monitor server.
-%% cpids :: orddict:orddict()
-%%   Proplists of all the code servers
-%% mpids :: orddict:orddict()
-%%   Proplists of all the monitor servers
-%% info :: orddict:orddict()
-%%   Stores information about the concolic execution
-%% int :: {pid(), running} | exited
-%%   The 1st interpreted process and its status
-%% exstatus :: execution_status()
-%%   Stores the status of the concolic execution
+%%   Intended for the MonitorServer.
+%% super :: pid()
+%%   The coordinator process that spawned the InterpreterServer.
 
 -record(st, {
-  super         :: pid(),
-  logdir        :: nonempty_string(),
-  depth         :: cuter:depth(),
-  prefix        :: nonempty_string(),
-  cpids         :: [{node(), pid()}],
-  mpids         :: [{node(), pid()}],
-  info          :: logs(),
-  int           :: {pid(), 'running'} | 'exited',
-  exstatus      :: execution_status() | 'undefined',
-  stored_mods   :: cuter_codeserver:cached_modules(),
-  tags_added_no :: integer(),
-  with_pmatch   :: boolean()
+  codeServer :: pid(),
+  depth      :: cuter:depth(),
+  exstatus   :: execution_status() | 'undefined',
+  info       :: logs(),
+  int        :: {pid(), 'running'} | 'exited',
+  logdir     :: nonempty_string(),
+  mpids      :: [{node(), pid()}],
+  prefix     :: nonempty_string(),
+  super      :: pid()
 }).
 -type state() :: #st{}.
 
@@ -91,9 +85,9 @@
 %% ============================================================================
 
 %% Starts the interpreter server.
--spec start(module(), atom(), [any()], nonempty_string(), pos_integer(), cuter_codeserver:cached_modules(), integer(), boolean()) -> pid().
-start(M, F, As, LogDir, Depth, StoredMods, TagsN, WithPmatch) ->
-  Args = [M, F, As, LogDir, Depth, StoredMods, TagsN, WithPmatch, self()],
+-spec start(module(), atom(), [any()], nonempty_string(), pos_integer(), pid()) -> pid().
+start(M, F, As, LogDir, Depth, CodeServer) ->
+  Args = [M, F, As, LogDir, Depth, CodeServer, self()],
   case gen_server:start(?MODULE, Args, []) of
     {ok, IServer} -> IServer;
     {error, Reason} -> exit({iserver_start, Reason})
@@ -114,11 +108,6 @@ int_return(IServer, Return) ->
 send_error_report(IServer, Who, Error) ->
   gen_server:call(IServer, {error_report, Who, Error}).
 
-%% Send the logs of a code server
--spec code_logs(pid(), cuter_codeserver:logs()) -> ok.
-code_logs(IServer, Logs) ->
-  gen_server:call(IServer, {code_logs, Logs}).
-
 %% Send the logs of a monitor server
 -spec monitor_logs(pid(), cuter_monitor:logs()) -> ok.
 monitor_logs(IServer, Logs) ->
@@ -129,33 +118,28 @@ monitor_logs(IServer, Logs) ->
 send_mapping(IServer, Mapping) ->
   gen_server:call(IServer, {mapping, Mapping}).
 
-%% ============================================================================
+%% ----------------------------------------------------------------------------
 %% gen_server callbacks (Server Implementation)
-%% ============================================================================
+%% ----------------------------------------------------------------------------
 
 %% gen_server callback : init/1
--spec init([cuter:mod() | atom() | cuter:input() | nonempty_string() | cuter:depth() | integer() | cuter_codeserver:cached_modules() | boolean()]) ->
-        {ok, state()}.
-init([M, F, As, LogDir, Depth, CachedMods, TagsN, WithPmatch, Super]) ->
+-spec init([cuter:mod() | atom() | cuter:input() | nonempty_string() | cuter:depth() | pid()]) -> {ok, state()}.
+init([M, F, As, LogDir, Depth, CodeServer, Super]) ->
   link(Super),
   process_flag(trap_exit, true),
   Node = node(),
   Prefix = cuter_lib:unique_string() ++ "_",
-  CodeServer = cuter_codeserver:start(self(), CachedMods, TagsN, WithPmatch),
   MonitorServer = cuter_monitor:start(LogDir, self(), Depth, Prefix),
   Servers = #svs{code = CodeServer, monitor = MonitorServer},
   Ipid = cuter_eval:i(M, F, As, Servers),
-  InitState = #st{ super = Super
-                 , logdir = LogDir
+  InitState = #st{ codeServer = CodeServer
                  , depth = Depth
-                 , prefix = Prefix
-                 , cpids = [{Node, CodeServer}]
-                 , mpids = [{Node, MonitorServer}]
                  , info = dict:store(Node, #nlogs{int = {node(Ipid), Ipid}}, dict:new())
                  , int = {Ipid, running}
-                 , stored_mods = CachedMods
-                 , tags_added_no = TagsN
-                 , with_pmatch = WithPmatch},
+                 , logdir = LogDir
+                 , mpids = [{Node, MonitorServer}]
+                 , prefix = Prefix
+                 , super = Super},
   {ok, InitState}.
 
 %% gen_server callback : terminate/2
@@ -174,7 +158,6 @@ code_change(_OldVsn, State, _Extra) ->
                ; ({mapping, [cuter_symbolic:mapping()]}, {pid(), any()}, state()) -> {reply, (ok | mismatch), state()}
                ; ({error_report, pid(), cuter_eval:result()}, {pid(), any()}, state()) -> {reply, ok, state()}
                ; ({node_servers, node()}, {pid(), any()}, state()) -> {reply, servers(), state()} | {stop, error, normal, state()}
-               ; ({code_logs, cuter_codeserver:logs()}, {pid(), any()}, state()) -> {reply, ok, state()}
                ; ({monitor_logs, cuter_monitor:logs()}, {pid(), any()}, state()) -> {reply, ok, state()}.
 %% Log the result of the first spawned process
 handle_call({int_return, Return}, {From, _FromTag}, S=#st{int = Ipid, info = Info, exstatus = ExStatus}) ->
@@ -200,43 +183,36 @@ handle_call({mapping, Mapping}, {From, _FromTag}, S=#st{int = Ipid, info = Info}
       {reply, mismatch, S}
   end;
 %% Log a runtime error
-handle_call({error_report, Who, Error}, {From, _FromTag}, S=#st{cpids = Cs, mpids = Ms, info = Info}) ->
+handle_call({error_report, Who, Error}, {From, _FromTag}, S=#st{mpids = Ms, info = Info}) ->
   {Node, From} = NF = lists:keyfind(From, 2, Ms),  %% Process will never be registered
   %% Store Runtime Error's Info
   RuntimeError = {Node, Who, Error},
   Info1 = dict:update(Node, fun(Logs) -> Logs#nlogs{runtimeError = RuntimeError} end, Info),
   %% Shutdown execution tree
-  force_terminate(Cs, Ms -- [NF]),
+  force_terminate(Ms -- [NF]),
   ExStatus = {runtime_error, RuntimeError},
   {reply, ok, S#st{info = Info1, exstatus = ExStatus}};
 %% A request for the servers of a specific node
-handle_call({node_servers, Node}, {_From, _FromTag}, S=#st{cpids = Cs, mpids = Ms, logdir = LogDir, depth = Depth, prefix = Prefix,
-                                                           stored_mods = StoredMods, tags_added_no = TagsN, info = I, with_pmatch = WithPmatch}) ->
-  case node_monitored(Node, Cs, Ms) of
+handle_call({node_servers, Node}, {_From, _FromTag}, S=#st{codeServer = CServer, mpids = Ms, logdir = Dir, depth = Depth, prefix = Prefix, info = I}) ->
+  case node_monitored(Node, CServer, Ms) of
     {true, Servers} ->
       %% Servers are already up on the Node
       {reply, Servers, S};
     false ->
       %% No servers up on the Node / need to spawn them
-      case spawn_remote_servers(Node, self(), LogDir, Depth, Prefix, StoredMods, TagsN, WithPmatch) of
+      case spawn_remote_servers(Node, self(), Dir, Depth, Prefix, CServer) of
         error ->
           %% Error while spawning servers so shutdown processes and
           %% terminate immediately with internal error
-          force_terminate(Cs, Ms),
+          force_terminate(Ms),
           Error = {internal_error, {iserver, node(), spawn_remote_servers}},
           {stop, error, normal, S#st{exstatus = Error}};
         {ok, Servers} ->
-          NCs = [{Node, Servers#svs.code} | Cs],
           NMs = [{Node, Servers#svs.monitor} | Ms],
           Info = dict:store(Node, #nlogs{}, I),
-          {reply, Servers, S#st{cpids = NCs, mpids = NMs, info = Info}}
+          {reply, Servers, S#st{mpids = NMs, info = Info}}
       end
   end;
-%% Store the logs of a code server
-handle_call({code_logs, Logs}, {From, _FromTag}, S=#st{cpids = Cs, info = Info}) ->
-  {Node, From} = lists:keyfind(From, 2, Cs),  %% Process will never be registered
-  Info1 = dict:update(Node, fun(Ls) -> Ls#nlogs{codeLogs = Logs} end, Info),
-  {reply, ok, S#st{info = Info1}};
 %% Store the logs of a monitor server
 handle_call({monitor_logs, Logs}, {From, _FromTag}, S=#st{mpids = Ms, info = Info}) ->
   {Node, From} = lists:keyfind(From, 2, Ms),  %% Process will never be registered
@@ -251,18 +227,10 @@ handle_cast(_Msg, State) ->
 %% gen_server callback : handle_info/2
 -spec handle_info({'EXIT', pid(), normal}, state()) -> {stop, normal, state()} | {noreply, state()}.
 %% When a code server or monitor server have exited normally
-handle_info({'EXIT', Who, normal}, S=#st{cpids = Cs, mpids = Ms}) ->
-  case locate(Who, Cs, Ms) of
+handle_info({'EXIT', Who, normal}, S=#st{mpids = Ms}) ->
+  case locate(Who, Ms) of
     false -> {noreply, S};
-    {true, codeserver, Node} ->
-      %% A code server exited
-      NCs = Cs -- [{Node, Who}],
-      NState = S#st{cpids = NCs},
-      case execution_completed(NState) of
-        true  -> {stop, normal, NState};
-        false -> {noreply, NState}
-      end;
-    {true, monitorserver, Node} ->
+    {true, Node} ->
       %% A monitor server exited
       NMs = Ms -- [{Node, Who}],
       NState = S#st{mpids = NMs},
@@ -271,35 +239,19 @@ handle_info({'EXIT', Who, normal}, S=#st{cpids = Cs, mpids = Ms}) ->
           %% If all processes have finished then terminate
           {stop, normal, NState};
         false ->
-          %% else stop the code server of the node and wait for the rest
-          case lists:keyfind(Node, 1, Cs) of
-            false ->
-              {noreply, NState};
-            {Node, CodeServer} ->
-              cuter_codeserver:stop(CodeServer),
-              {noreply, NState}
-          end
+          %% else wait for the rest
+          {noreply, NState}
       end
   end;
 %% When a CodeServer or TraceServer have exited with exceptions
-handle_info({'EXIT', Who, Reason}, S=#st{cpids = Cs, mpids = Ms, info = Info}) ->
+handle_info({'EXIT', Who, Reason}, S=#st{mpids = Ms, info = Info}) ->
   %% locate the server that exited and shutdown the execution tree
-  case locate(Who, Cs, Ms) of
+  case locate(Who, Ms) of
     false ->
       {noreply, S};
-    {true, codeserver, Node} ->
-      NCs = Cs -- [{Node, Who}],
-      force_terminate(NCs, Ms),
-      Info1 = dict:update(Node, fun(Logs) -> Logs#nlogs{codeServerError = Reason} end, Info),
-      Exstatus = {internal_error, {codeserver, Node, Reason}},
-      NState = S#st{cpids = NCs, info = Info1, exstatus = Exstatus},
-      case execution_completed(NState) of
-        true  -> {stop, normal, NState};
-        false -> {noreply, NState}
-      end;
-    {true, monitorserver, Node} ->
+    {true, Node} ->
       NMs = Ms -- [{Node, Who}],
-      force_terminate(Cs, NMs),
+      force_terminate(NMs),
       Info1 = dict:update(Node, fun(Logs) -> Logs#nlogs{monitorServerError = Reason} end, Info),
       Exstatus = {internal_error, {monitorserver, Node, Reason}},
       NState = S#st{mpids = NMs, info = Info1, exstatus = Exstatus},
@@ -309,26 +261,24 @@ handle_info({'EXIT', Who, Reason}, S=#st{cpids = Cs, mpids = Ms, info = Info}) -
       end
   end.
 
-%% ============================================================================
-%% Internal functions (Helper methods)
-%% ============================================================================
+%% ----------------------------------------------------------------------------
+%% 
+%% ----------------------------------------------------------------------------
 
-%% Check whether a node has beend assigned a code and a monitor server
--spec node_monitored(node(), [ann_pid()], [ann_pid()]) -> {true, servers()} | false.
-node_monitored(Node, Cs, Ms) ->
-  case {lists:keyfind(Node, 1, Cs), lists:keyfind(Node, 1, Ms)} of
-    {false, false} -> false;
-    {{Node, CodeServer}, {Node, MonitorServer}} -> {true, #svs{code = CodeServer, monitor = MonitorServer}}
+%% Check whether a node has been assigned a MonitorServer.
+-spec node_monitored(node(), pid(), [ann_pid()]) -> {true, servers()} | false.
+node_monitored(Node, CodeServer, Ms) ->
+  case lists:keyfind(Node, 1, Ms) of
+    false -> false;
+    {Node, MonitorServer} -> {true, #svs{code = CodeServer, monitor = MonitorServer}}
   end.
 
-%% Spawn a code server and a monitor server at a remote node
--spec spawn_remote_servers(node(), pid(), nonempty_string(), cuter:depth(), nonempty_string(), cuter_codeserver:cached_modules(), integer(), boolean()) ->
-        {ok, servers()} | error.
-spawn_remote_servers(Node, Super, LogDir, Depth, Prefix, StoredMods, TagsN, WithPmatch) ->
+%% Spawns a MonitorServer at a remote node.
+-spec spawn_remote_servers(node(), pid(), nonempty_string(), cuter:depth(), nonempty_string(), pid()) -> {ok, servers()} | error.
+spawn_remote_servers(Node, Super, LogDir, Depth, Prefix, CodeServer) ->
   Me = self(),
   Setup = fun() ->
     process_flag(trap_exit, true),
-    CodeServer = cuter_codeserver:start(Super, StoredMods, TagsN, WithPmatch),
     MonitorServer = cuter_monitor:start(LogDir, Super, Depth, Prefix),
     Me ! {self(), #svs{code = CodeServer, monitor = MonitorServer}}
   end,
@@ -340,30 +290,25 @@ spawn_remote_servers(Node, Super, LogDir, Depth, Prefix, StoredMods, TagsN, With
     5000 -> error
   end.
 
-%% Send terminate requests to all the live code serves and monitor servers
--spec force_terminate([ann_pid()], [ann_pid()]) -> ok.
-force_terminate(Cs, Ms) ->
-  lists:foreach(fun({_Node, P}) -> cuter_codeserver:stop(P) end, Cs),
+%% Sends terminate requests to all the live MonitorServers.
+-spec force_terminate([ann_pid()]) -> ok.
+force_terminate(Ms) ->
   lists:foreach(fun({_Node, P}) -> cuter_monitor:stop(P) end, Ms).
 
-%% Locate and return the node info of a CodeServer or TraceServer
--spec locate(pid(), [ann_pid()], [ann_pid()]) -> {true, (codeserver | monitorserver), node()} | false.
-locate(Who, Cs, Ms) ->
-  case lists:keyfind(Who, 2, Cs) of
-    {Node, Who} -> {true, codeserver, Node};
-    false ->
-      case lists:keyfind(Who, 2, Ms) of
-        false -> false;
-        {Node, Who} -> {true, monitorserver, Node}
-      end
+%% Locates and returns the node info of a MonitorServer.
+-spec locate(pid(), [ann_pid()]) -> {true, node()} | false.
+locate(Who, Ms) ->
+  case lists:keyfind(Who, 2, Ms) of
+    false -> false;
+    {Node, Who} -> {true, Node}
   end.
 
-%% Determine whether the concolic execution has ended or not
+%% Determines whether the concolic execution has ended or not.
 -spec execution_completed(state()) -> boolean().
-execution_completed(#st{cpids = Cs, mpids = Ts}) ->
-  case {Cs, Ts} of
-    {[], []} -> true;
-    _ -> false
+execution_completed(#st{mpids = Ms}) ->
+  case Ms of
+    [] -> true;
+    _  -> false
   end.
 
 %% ----------------------------------------------------------------------------
@@ -374,10 +319,6 @@ execution_completed(#st{cpids = Cs, mpids = Ts}) ->
 logs_foreach(Fun, Logs) ->
   Fold = fun(Node, NodeLogs, _Ok) -> Fun(Node, NodeLogs) end,
   dict:fold(Fold, ok, Logs).
-
--spec codeLogs_of_logs(logs()) -> code_logs().
-codeLogs_of_logs(Logs) ->
-  dict:to_list(dict:map(fun(_Node, NodeLogs) -> NodeLogs#nlogs.codeLogs end, Logs)).
 
 -spec int_of_logs(logs()) -> int_logs().
 int_of_logs(Logs) ->
@@ -402,7 +343,3 @@ mapping_of_node_logs(Logs) ->
 -spec monitorLogs_of_node_logs(node_logs()) -> cuter_monitor:logs().
 monitorLogs_of_node_logs(Logs) ->
   Logs#nlogs.monitorLogs.
-
--spec codeLogs_of_node_logs(node_logs()) -> cuter_codeserver:logs().
-codeLogs_of_node_logs(Logs) ->
-  Logs#nlogs.codeLogs.

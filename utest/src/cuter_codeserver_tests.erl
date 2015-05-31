@@ -7,6 +7,7 @@
 -spec test() -> ok | {error | term()}. %% Silence dialyzer warning
 
 -define(MODS_LIST, [lists, dict, orddict, ets, os, string, filelib, beam_lib, cerl]).
+-define(Pmatch, false).
 
 %% Load modules
 -spec load_modules_test_() -> term().
@@ -14,7 +15,7 @@ load_modules_test_() ->
   Setup = fun setup/0,
   Cleanup = fun cleanup/1,
   Inst = fun(_) ->
-    Cs = cuter_codeserver:start(self(), cuter_codeserver:no_cached_modules(), cuter_codeserver:initial_branch_counter(), false),
+    Cs = cuter_codeserver:start(self(), ?Pmatch),
     As = [load_mod(Cs, M) || M <- ?MODS_LIST],
     Stop = cuter_codeserver:stop(Cs),
     [{"codeserver termination", ?_assertEqual(ok, Stop)},
@@ -32,7 +33,7 @@ load_and_retrieve_test_() ->
   Setup = fun setup/0,
   Cleanup = fun cleanup/1,
   Inst = fun(_) ->
-    Cs = cuter_codeserver:start(self(), cuter_codeserver:no_cached_modules(), cuter_codeserver:initial_branch_counter(), false),
+    Cs = cuter_codeserver:start(self(), ?Pmatch),
     R1 = cuter_codeserver:load(Cs, lists),
     R2 = cuter_codeserver:load(Cs, os),
     R3 = cuter_codeserver:load(Cs, lists),
@@ -49,7 +50,7 @@ error_load_test_() ->
   Setup = fun setup/0,
   Cleanup = fun cleanup/1,
   Inst = fun(_) ->
-    Cs = cuter_codeserver:start(self(), cuter_codeserver:no_cached_modules(), cuter_codeserver:initial_branch_counter(), false),
+    Cs = cuter_codeserver:start(self(), ?Pmatch),
     R1 = cuter_codeserver:load(Cs, erlang),
     R2 = cuter_codeserver:load(Cs, foobar),
     Stop = cuter_codeserver:stop(Cs),
@@ -63,10 +64,6 @@ error_load_test_() ->
 %% Helper functions
 %%====================================================================
 
-setup() ->
-  meck:new(cuter_iserver),
-  meck:expect(cuter_iserver, code_logs, fun(_, _) -> ok end),
-  {}.
+setup() -> {}.
 
-cleanup(_) ->
-  meck:unload(cuter_iserver).
+cleanup(_) -> ok.

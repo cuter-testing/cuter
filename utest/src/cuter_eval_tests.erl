@@ -12,6 +12,8 @@
 -include_lib("eunit/include/eunit.hrl").
 -include("include/eunit_config.hrl").
 
+-define(Pmatch, false).
+
 -spec test() -> ok | {error | term()}. %% Silence dialyzer warning
 
 -spec eval_cerl_test_() -> term().
@@ -38,9 +40,11 @@ eval_cerl_test_() ->
   [{"Basic Cerl Evaluation: " ++ C, {setup, Setup(I), Cleanup, Inst}} || {C, I} <- Is].
 
 eval_cerl({F, As, Result, Dir}) ->
-  Server = cuter_iserver:start(?MODULE, F, As, Dir, ?TRACE_DEPTH, cuter_codeserver:no_cached_modules(), cuter_codeserver:initial_branch_counter(), false),
+  CodeServer = cuter_codeserver:start(self(), ?Pmatch),
+  Server = cuter_iserver:start(?MODULE, F, As, Dir, ?TRACE_DEPTH, CodeServer),
   R = execution_result(Server),
   ok = wait_for_iserver(Server),
+  ok = cuter_codeserver:stop(CodeServer),
   [{atom_to_list(F), ?_assertMatch({success, {Result, _}}, R)}].
 
 execution_result(Server) -> 

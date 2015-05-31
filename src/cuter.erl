@@ -19,16 +19,15 @@
 
 -define(DEFAULT_DEPTH, 25).
 
+%% The configuration of the tool.
 -record(conf, {
+  codeServer    :: pid(),
   mod           :: mod(),
   func          :: atom(),
   dataDir       :: file:filename(),
   depth         :: depth(),
   no            :: integer(),
-  ppServer      :: pid(),
   scheduler     :: pid(),
-  storedMods    :: cuter_codeserver:cached_modules(),
-  tagsAddedNo   :: cuter_codeserver:counter(),
   pmatch        :: boolean()
 }).
 -type configuration() :: #conf{}.
@@ -44,6 +43,9 @@
                 | ?FULLY_VERBOSE_EXEC_INFO
                 .
 
+%% ----------------------------------------------------------------------------
+%% Public API
+%% ----------------------------------------------------------------------------
 
 -spec run_once(mod(), atom(), input(), depth()) -> erroneous_inputs().
 run_once(M, F, As, Depth) ->
@@ -67,15 +69,19 @@ run(M, F, As, Depth, Options) ->
   Conf = initialize_app(M, F, As, Depth, Options),
   loop(Conf, inf).
 
+%% ----------------------------------------------------------------------------
+%% 
+%% ----------------------------------------------------------------------------
+
 -spec loop(configuration(), loop_limit()) -> erroneous_inputs().
 loop(Conf, ?ZERO) -> stop(Conf);
 loop(Conf, Lmt) ->
   Scheduler = Conf#conf.scheduler,
   case cuter_scheduler_maxcover:request_input(Scheduler) of
     empty -> stop(Conf);
-    {Ref, As, StoredMods, TagsN} ->
+    {Ref, As} ->
       No = Conf#conf.no + 1,
-      Conf_n = Conf#conf{no = No, storedMods = StoredMods, tagsAddedNo = TagsN},
+      Conf_n = Conf#conf{no = No},
       case concolic_execute(Conf_n, Ref, As) of
         cuter_error ->
           stop(Conf_n);
@@ -90,32 +96,39 @@ loop(Conf, Lmt) ->
 tick(inf) -> inf;
 tick(?ONE) -> ?ZERO.
 
+-spec stop(configuration()) -> erroneous_inputs().
+stop(Conf) ->
+  Erroneous = cuter_scheduler_maxcover:stop(Conf#conf.scheduler),
+  CodeLogs = cuter_codeserver:get_logs(Conf#conf.codeServer),
+  cuter_codeserver:stop(Conf#conf.codeServer),
+  cuter_pp:code_logs(CodeLogs),
+  cuter_pp:errors_found(Erroneous),
+  cuter_pp:stop(),
+  cuter_lib:clear_and_delete_dir(Conf#conf.dataDir),
+  Erroneous.
+
+%% ----------------------------------------------------------------------------
+%% Initializations
+%% ----------------------------------------------------------------------------
+
 -spec initialize_app(mod(), atom(), input(), depth(), [option()]) -> configuration().
 initialize_app(M, F, As, Depth, Options) ->
   BaseDir = set_basedir(Options),
   process_flag(trap_exit, true),
   error_logger:tty(false),  %% disable error_logger
   WithPmatch = lists:member(?ENABLE_PMATCH, Options),
-  SchedPid = cuter_scheduler_maxcover:start(?PYTHON_CALL, Depth, As),
+  CodeServer = cuter_codeserver:start(self(), WithPmatch),
+  SchedPid = cuter_scheduler_maxcover:start(?PYTHON_CALL, Depth, As, CodeServer),
   ok = cuter_pp:start(reporting_level(Options)),
   cuter_pp:mfa({M, F, length(As)}),
-  #conf{mod = M,
-        func = F,
-        no = 0,
-        depth = Depth,
-        dataDir = cuter_lib:get_tmp_dir(BaseDir),
-        scheduler = SchedPid,
-        storedMods = cuter_codeserver:no_cached_modules(),
-        tagsAddedNo = cuter_codeserver:initial_branch_counter(),
-        pmatch = WithPmatch}.
-
--spec stop(configuration()) -> erroneous_inputs().
-stop(Conf) ->
-  Erroneous = cuter_scheduler_maxcover:stop(Conf#conf.scheduler),
-  cuter_pp:errors_found(Erroneous),
-  cuter_pp:stop(),
-  cuter_lib:clear_and_delete_dir(Conf#conf.dataDir),
-  Erroneous.
+  #conf{ codeServer = CodeServer
+       , mod = M
+       , func = F
+       , no = 0
+       , depth = Depth
+       , dataDir = cuter_lib:get_tmp_dir(BaseDir)
+       , scheduler = SchedPid
+       , pmatch = WithPmatch}.
 
 %% Set app parameters.
 -spec default_options() -> [default_option(), ...].
@@ -145,13 +158,7 @@ concolic_execute(Conf, Ref, Input) ->
   BaseDir = Conf#conf.dataDir,
   DataDir = cuter_lib:get_data_dir(BaseDir, Conf#conf.no),
   TraceDir = cuter_lib:get_trace_dir(DataDir),  % Directory to store process traces
-  M = Conf#conf.mod,
-  F = Conf#conf.func,
-  Depth = Conf#conf.depth,
-  StoredMods = Conf#conf.storedMods,
-  TagsN = Conf#conf.tagsAddedNo,
-  WithPmatch = Conf#conf.pmatch,
-  IServer = cuter_iserver:start(M, F, Input, TraceDir, Depth, StoredMods, TagsN, WithPmatch),
+  IServer = cuter_iserver:start(Conf#conf.mod, Conf#conf.func, Input, TraceDir, Conf#conf.depth, Conf#conf.codeServer),
   retrieve_info(IServer, Ref, DataDir).
 
 -spec retrieve_info(pid(), cuter_scheduler_maxcover:exec_handle(), file:filename()) -> cuter_analyzer:info() | cuter_error.
@@ -166,10 +173,7 @@ retrieve_info(IServer, Ref, DataDir) ->
           Mappings = cuter_analyzer:get_mapping(Logs),
           Traces = cuter_analyzer:get_traces(Logs),
           Int = cuter_analyzer:get_int_process(Logs),
-          Tags = cuter_analyzer:get_tags(Logs),
-          CachedMods = cuter_analyzer:get_cached_modules(Logs),
-          TagsN = cuter_analyzer:get_no_of_tags_added(Logs),
-          RawInfo = cuter_analyzer:mk_raw_info(Mappings, ExResult, Traces, Int, DataDir, Tags, CachedMods, TagsN),
+          RawInfo = cuter_analyzer:mk_raw_info(Mappings, ExResult, Traces, Int, DataDir),
           AnalyzedInfo = cuter_analyzer:process_raw_execution_info(RawInfo),
           cuter_pp:path_vertex(Ref, cuter_analyzer:pathVertex_of_info(AnalyzedInfo)),
           cuter_pp:flush(Ref),

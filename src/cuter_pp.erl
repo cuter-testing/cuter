@@ -4,14 +4,13 @@
 -behaviour(gen_server).
 
 %% gen_server callbacks
--export([init/1, terminate/2, code_change/3,
-         handle_info/2, handle_call/3, handle_cast/2]).
+-export([init/1, terminate/2, code_change/3, handle_info/2, handle_call/3, handle_cast/2]).
 -export([start/1, stop/0]).
 
 %% Report information about the concolic executions.
 -export([mfa/1, input/2, error_retrieving_spec/2, execution_status/2,
          execution_info/2, path_vertex/2, flush/1, errors_found/1,
-         form_has_unsupported_type/1, invalid_ast_with_pmatch/2]).
+         form_has_unsupported_type/1, invalid_ast_with_pmatch/2, code_logs/1]).
 
 %% Report information about solving.
 -export([solving_failed_notify/0]).
@@ -43,6 +42,7 @@
         , achieve_goal/2
         , open_pending_file/1
        ]).
+
 
 -include("include/cuter_macros.hrl").
 
@@ -169,6 +169,11 @@ solving_failed_notify() ->
 errors_found(Errors) ->
   gen_server:call(?PRETTY_PRINTER, {errors_found, Errors}).
 
+%% Prints the logs of a CodeServer.
+-spec code_logs(cuter_codeserver:logs()) -> ok.
+code_logs(Logs) ->
+  gen_server:call(?PRETTY_PRINTER, {code_logs, Logs}).
+
 %% ============================================================================
 %% gen_server callbacks (Server Implementation)
 %% ============================================================================
@@ -205,6 +210,7 @@ code_change(_OldVsn, State, _Extra) ->
                ; ({flush, cuter_scheduler_maxcover:exec_handle()}, from(), state()) -> {reply, ok, state()}
                ; (solving_failed_notify, from(), state()) -> {reply, ok, state()}
                ; ({errors_found, cuter:erroneous_inputs()}, from(), state()) -> {reply, ok, state()}
+               ; ({code_logs, cuter_codeserver:logs()}, from(), state()) -> {reply, ok, state()}
                .
 
 %% The MFA to be tested.
@@ -272,6 +278,10 @@ handle_call(solving_failed_notify, _From, State) ->
 %% Report the errors that were found.
 handle_call({errors_found, Errors}, _From, State=#st{mfa = MFA}) ->
   pp_erroneous_inputs(Errors, MFA),
+  {reply, ok, State#st{nl = false}};
+%% Prints the logs of a CodeServer.
+handle_call({code_logs, CodeLogs}, _From, State=#st{pplevel = PpLevel}) ->
+  pp_code_logs(CodeLogs, PpLevel#pp_level.execInfo),
   {reply, ok, State#st{nl = false}}.
 
 
@@ -323,7 +333,6 @@ pp_execution_info(Data, MFA, Nl, ?VERBOSE) ->
   pp_nl(Nl),
   pp_input_verbose(Data#info.input, MFA),
   pp_execution_status_verbose(Data#info.executionStatus),
-  pp_execution_logs_verbose(Data#info.executionInfo),
   pp_nl(true);
 pp_execution_info(Data, MFA, Nl, ?FULLY_VERBOSE) ->
   pp_nl(Nl),
@@ -401,15 +410,6 @@ pp_arguments([A|As]) ->
 %% Report the execution logs
 %% ----------------------------------------------------------------------------
 
--spec pp_execution_logs_verbose(cuter_iserver:logs()) -> ok.
-pp_execution_logs_verbose(Logs) ->
-  CodeLogs = cuter_iserver:codeLogs_of_logs(Logs),
-  Unsupported = [cuter_codeserver:unsupportedMfas_of_logs(Ls) || {_Node, Ls} <- CodeLogs],
-  case lists:flatten(Unsupported) of
-    [] -> ok;
-    MFAs -> io:format(" Unsupported: ~p", [MFAs])
-  end.
-
 -spec pp_execution_logs_fully_verbose(cuter_iserver:logs()) -> ok.
 pp_execution_logs_fully_verbose(Logs) ->
   io:format("EXECUTION INFO~n"),
@@ -438,14 +438,34 @@ pp_node_logs(Logs) ->
   io:format("        ~p~n", [Dir]),
   Procs = cuter_monitor:procs_of_logs(MonitorLogs),
   io:format("      PROCS~n"),
-  io:format("        ~p~n", [Procs]),
-  %% CodeServer logs
-  CodeLogs = cuter_iserver:codeLogs_of_node_logs(Logs),
-  io:format("    CODE LOGS~n"),
-  pp_code_logs(CodeLogs).
+  io:format("        ~p~n", [Procs]).
 
--spec pp_code_logs(cuter_codeserver:logs()) -> ok.
-pp_code_logs(Logs) ->
+%% ----------------------------------------------------------------------------
+%% Report the CodeServer's logs
+%% ----------------------------------------------------------------------------
+
+-spec pp_code_logs(cuter_codeserver:logs(), level()) -> ok.
+pp_code_logs(_Logs, ?MINIMAL) ->
+  ok;
+pp_code_logs(Logs, ?VERBOSE) ->
+  pp_code_logs_verbose(Logs);
+pp_code_logs(Logs, ?FULLY_VERBOSE) ->
+  pp_code_logs_fully_verbose(Logs).
+
+-spec pp_code_logs_verbose(cuter_codeserver:logs()) -> ok.
+pp_code_logs_verbose(Logs) ->
+  case cuter_codeserver:unsupportedMfas_of_logs(Logs) of
+    [] -> ok;
+    MFAs ->
+      io:format("~nUNSUPPORTED MFAS~n"),
+      io:format("  ~p~n", [MFAs])
+  end.
+
+-spec pp_code_logs_fully_verbose(cuter_codeserver:logs()) -> ok.
+pp_code_logs_fully_verbose(Logs) ->
+  io:format("~n"),
+  divider("-"),
+  io:format("CODE LOGS~n"),
   %% Cached modules.
   Cached = cuter_codeserver:cachedMods_of_logs(Logs),
   io:format("      CACHED MODS~n"),
@@ -493,10 +513,9 @@ pp_erroneous_inputs([I|Is], {M, F, _}=MFA, N) ->
   io:format("~n#~w ~p:~p(~s)", [N, M, F, pp_arguments(I)]),
   pp_erroneous_inputs(Is, MFA, N + 1).
 
-
-%%
-%% Remaining to be updated
-%%
+%% ----------------------------------------------------------------------------
+%% FIXME Remaining to be updated
+%% ----------------------------------------------------------------------------
 
 -spec reversible_operations(integer()) -> ok.
 reversible_operations(RvsCnt) ->

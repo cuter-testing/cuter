@@ -8,6 +8,8 @@
 -spec test() -> ok | {error | term()}. %% Silence dialyzer warning
 
 
+-define(Pmatch, true).
+
 %% Ensure start/stop runs properly
 -spec start_stop_test_() -> any().
 start_stop_test_() ->
@@ -23,8 +25,8 @@ start_stop_test_() ->
 setup() ->
   process_flag(trap_exit, true),
   Dir = cuter_tests_lib:setup_dir(),
-  Server = cuter_iserver:start(lists, reverse, [[42,17]], Dir, ?TRACE_DEPTH,
-                               cuter_codeserver:no_cached_modules(), cuter_codeserver:initial_branch_counter(), false),
+  CodeServer = cuter_codeserver:start(self(), ?Pmatch),
+  Server = cuter_iserver:start(lists, reverse, [[42,17]], Dir, ?TRACE_DEPTH, CodeServer),
   {Dir, Server}.
 
 cleanup({Dir, Server}) ->

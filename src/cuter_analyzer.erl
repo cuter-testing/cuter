@@ -2,14 +2,13 @@
 %%------------------------------------------------------------------------------
 -module(cuter_analyzer).
 
--export([get_result/1, get_mapping/1, get_traces/1, get_cached_modules/1,
-         get_int_process/1, process_raw_execution_info/1, get_tags/1,
-         get_no_of_tags_added/1,
+-export([get_result/1, get_mapping/1, get_traces/1,
+         get_int_process/1, process_raw_execution_info/1,
          %% Constructor & accessors for #raw{}
-         mk_raw_info/8, traces_of_raw_info/1, int_of_raw_info/1,
+         mk_raw_info/5, traces_of_raw_info/1, int_of_raw_info/1,
          %% Accessors for #info{}
          mappings_of_info/1, runtimeError_of_info/1, traceFile_of_info/1, reversible_of_info/1,
-         dir_of_info/1, tags_of_info/1, cachedMods_of_info/1, pathVertex_of_info/1, tagsAddedNo_of_info/1]).
+         dir_of_info/1, pathVertex_of_info/1]).
 
 -include("include/cuter_macros.hrl").
 
@@ -29,10 +28,7 @@
   result        :: execution_result(),
   traces        :: [node_trace()],
   int           :: cuter_iserver:int_process(),
-  dir           :: file:filename(),
-  tags          :: visited_tags(),
-  cachedMods    :: cuter_codeserver:cached_modules(),
-  tags_added_no :: integer()
+  dir           :: file:filename()
 }).
 -type raw_info() :: #raw{}.
 
@@ -43,9 +39,6 @@
   pathVertex   :: path_vertex(),
   reversible   :: reversible_with_tags(),
   runtimeError :: boolean(),
-  cachedMods   :: cuter_codeserver:cached_modules(),
-  tags         :: visited_tags(),
-  tagsAddedNo  :: integer(),
   traceFile    :: file:filename()
 }).
 -type info() :: #info{}.
@@ -87,28 +80,6 @@ get_int_process(Logs) ->
   [{_Node, Int}] = lists:filter(fun({_N, Data}) -> Data =/= undefined end, Ints),
   Int.
 
--spec get_tags(cuter_iserver:logs()) -> visited_tags().
-get_tags(Logs) ->
-  CodeLogs = cuter_iserver:codeLogs_of_logs(Logs),
-  AllNodes = [cuter_codeserver:visitedTags_of_logs(Data) || {_Node, Data} <- CodeLogs],
-  lists:foldl(fun(X, Ts) -> gb_sets:union(X, Ts) end,
-              gb_sets:new(),
-              AllNodes).
-
--spec get_cached_modules(cuter_iserver:logs()) -> cuter_codeserver:cached_modules().
-get_cached_modules(Logs) ->
-  CodeLogs = cuter_iserver:codeLogs_of_logs(Logs),
-  AllNodes = [cuter_codeserver:cachedMods_of_logs(Data) || {_Node, Data} <- CodeLogs],
-  %% FIXME Now expects just one node.
-  hd(AllNodes).
-
--spec get_no_of_tags_added(cuter_iserver:logs()) -> cuter_codeserver:counter().
-get_no_of_tags_added(Logs) ->
-  CodeLogs = cuter_iserver:codeLogs_of_logs(Logs),
-  AllNodes = [cuter_codeserver:tagsAddedNo_of_logs(Data) || {_Node, Data} <- CodeLogs],
-  %% FIXME Now expects just one node.
-  hd(AllNodes).
-
 -spec process_raw_execution_info(raw_info()) -> info().
 process_raw_execution_info(Info) ->
   DataDir = Info#raw.dir,
@@ -125,9 +96,6 @@ process_raw_execution_info(Info) ->
         pathVertex = PathVertex,
         reversible = Rvs,
         runtimeError = is_runtime_error(Info#raw.result),
-        cachedMods = Info#raw.cachedMods,
-        tags = Info#raw.tags,
-        tagsAddedNo = Info#raw.tags_added_no,
         traceFile = MergedTraceFile}.
 
 %% ----------------------------------------------------------------------------
@@ -135,17 +103,13 @@ process_raw_execution_info(Info) ->
 %% ----------------------------------------------------------------------------
 
 %% Creates a raw_info record.
--spec mk_raw_info([cuter_symbolic:mapping()], execution_result(), [node_trace()], cuter_iserver:int_process(),
-                  file:filename(), visited_tags(), cuter_codeserver:cached_modules(), integer()) -> raw_info().
-mk_raw_info(Mappings, Result, Traces, Int, Dir, Tags, CachedMods, TagsN) ->
+-spec mk_raw_info([cuter_symbolic:mapping()], execution_result(), [node_trace()], cuter_iserver:int_process(), file:filename()) -> raw_info().
+mk_raw_info(Mappings, Result, Traces, Int, Dir) ->
   #raw{mappings = Mappings,
        result = Result,
        traces = Traces,
        int = Int,
-       dir = Dir,
-       tags = Tags,
-       cachedMods = CachedMods,
-       tags_added_no = TagsN}.
+       dir = Dir}.
 
 %% Gets the traces from a raw_info record.
 -spec traces_of_raw_info(raw_info()) -> [node_trace()].
@@ -181,18 +145,6 @@ reversible_of_info(Info) ->
 dir_of_info(Info) ->
   Info#info.dir.
 
--spec tags_of_info(info()) -> visited_tags().
-tags_of_info(Info) ->
-  Info#info.tags.
-
--spec cachedMods_of_info(info()) -> cuter_codeserver:cached_modules().
-cachedMods_of_info(Info) ->
-  Info#info.cachedMods.
-
 -spec pathVertex_of_info(info()) -> path_vertex().
 pathVertex_of_info(Info) ->
   Info#info.pathVertex.
-
--spec tagsAddedNo_of_info(info()) -> integer().
-tagsAddedNo_of_info(Info) ->
-  Info#info.tagsAddedNo.

@@ -5,7 +5,7 @@
 
 %% external exports
 -export([start/2, start/4, stop/1, load/2, unsupported_mfa/2, retrieve_spec/2, visit_tag/2,
-         initial_branch_counter/0, get_visited_tags/1,
+         initial_branch_counter/0, get_visited_tags/1, get_logs/1,
          %% Work with module cache
          merge_dumped_cached_modules/2, no_cached_modules/0, modules_of_dumped_cache/1,
          lookup_in_module_cache/2, insert_in_module_cache/3,
@@ -53,31 +53,38 @@
 %% Server's state
 %% ---------------
 %%
-%% super :: pid()
-%%   The supervisor process that spawned the codeserver
 %% db :: ets:tid()
 %%   Acts as a reference table for looking up the ETS table that holds a module's extracted code.
 %%   It stores tuples {Module :: module(), ModuleDb :: ets:tid()}.
+%% super :: pid()
+%%   The supervisor process that spawned the codeserver.
+%% tags :: tags()
+%%   The visited tags.
 %% waiting :: orddict()
 %%   The processes that await a response and their requests.
-%%   Each element in the dictionary is {{Request :: atom(), Info :: tuple()}, Process :: pid()}
+%%   Each element in the dictionary is {{Request :: atom(), Info :: tuple()}, Process :: pid()}.
+%% withPmatch :: boolean()
+%%   Whether to use pattern matching compilation optimization or not.
 %% workers :: [pid()]
-%%   PIDs of all worker processes
+%%   PIDs of all worker processes.
+%% unsupportedMfas :: sets:set(mfa())
+%%   The set of mfa() that are not supported for symbolic execution and that were encountered
+%%   during the concolic executions.
 
 -record(st, {
-  super                          :: pid(),
-  db                             :: cache(),
-  waiting = orddict:new()        :: [{{atom(), tuple()}, pid()}],
-  workers = []                   :: [pid()],
-  unsupportedMfas = sets:new()   :: sets:set(mfa()),
-  tags = gb_sets:new()           :: tags(),
-  withPmatch                     :: boolean()
+  db                           :: cache(),
+  super                        :: pid(),
+  tags = gb_sets:new()         :: tags(),
+  waiting = orddict:new()      :: [{{atom(), tuple()}, pid()}],
+  withPmatch                   :: boolean(),
+  workers = []                 :: [pid()],
+  unsupportedMfas = sets:new() :: sets:set(mfa())
 }).
 -type state() :: #st{}.
 
-%% ============================================================================
-%% External exports (Public API)
-%% ============================================================================
+%% ----------------------------------------------------------------------------
+%% Public API
+%% ----------------------------------------------------------------------------
 
 %% Starts a CodeServer in the local node.
 -spec start(pid(), boolean()) -> pid().
@@ -127,9 +134,14 @@ visit_tag(CodeServer, Tag) ->
 get_visited_tags(CodeServer) ->
   gen_server:call(CodeServer, get_visited_tags).
 
-%% ============================================================================
+%% Gets the logs of the CodeServer.
+-spec get_logs(pid()) -> logs().
+get_logs(CodeServer) ->
+  gen_server:call(CodeServer, get_logs).
+
+%% ----------------------------------------------------------------------------
 %% gen_server callbacks (Server Implementation)
-%% ============================================================================
+%% ----------------------------------------------------------------------------
 
 %% gen_server callback : init/1
 -spec init([pid() | cached_modules() | counter() | boolean(), ...]) -> {ok, state()}.
@@ -138,15 +150,14 @@ init([Super, CachedMods, TagsN, WithPmatch]) ->
   Db = ets:new(?MODULE, [ordered_set, protected]),
   add_cached_modules(Db, CachedMods),
   _ = set_branch_counter(TagsN), %% Initialize the counter for the branch enumeration.
-  {ok, #st{db = Db, super = Super, withPmatch = WithPmatch}}.
+  {ok, #st{ db = Db
+          , super = Super
+          , withPmatch = WithPmatch}}.
 
 %% gen_server callback : terminate/2
 -spec terminate(any(), state()) -> ok.
-terminate(_Reason, #st{db = Db, super = Super, unsupportedMfas = Ms, tags = Tags}) ->
-  Cnt = get_branch_counter(),
-  CachedMods = dump_cached_modules(Db),
-  Logs = mk_logs(drop_module_cache(Db), sets:to_list(Ms), Tags, CachedMods, Cnt),
-  ok = cuter_iserver:code_logs(Super, Logs),  % Send logs to the supervisor
+terminate(_Reason, #st{db = Db}) ->
+  _ = drop_module_cache(Db),
   ok.
 
 %% gen_server callback : code_change/3
@@ -156,15 +167,14 @@ code_change(_OldVsn, State, _Extra) ->
 
 %% gen_server callback : handle_info/2
 -spec handle_info(any(), state()) -> {noreply, state()}.
-handle_info(Msg, State) ->
-  %% Just outputting unexpected messages for now
-  io:format("[~s]: Unexpected message ~p~n", [?MODULE, Msg]),
+handle_info(_Msg, State) ->
   {noreply, State}.
 
 %% gen_server callback : handle_call/3
 -spec handle_call({load, module()}, from(), state()) -> {reply, load_reply(), state()}
                ; ({get_spec, mfa()}, from(), state()) -> {reply, spec_reply(), state()}
                ; (get_visited_tags, from(), state()) -> {reply, tags(), state()}
+               ; (get_logs, from(), state()) -> {reply, logs(), state()}
                .
 handle_call({load, M}, _From, State) ->
   {reply, try_load(M, State), State};
@@ -196,7 +206,12 @@ handle_call({get_spec, {M, F, A}=MFA}, _From, State) ->
       {reply, error, State}
   end;
 handle_call(get_visited_tags, _From, State=#st{tags = Tags}) ->
-  {reply, Tags, State}.
+  {reply, Tags, State};
+handle_call(get_logs, _From, State=#st{db = Db, unsupportedMfas = Ms, tags = Tags}) ->
+  Cnt = get_branch_counter(),
+  CachedMods = dump_cached_modules(Db),
+  Logs = mk_logs(modules_in_cache(Db), sets:to_list(Ms), Tags, CachedMods, Cnt),
+  {reply, Logs, State}.
 
 %% gen_server callback : handle_cast/2
 -spec handle_cast({stop, pid()}, state()) -> {stop, normal, state()} | {noreply, state()}
@@ -214,24 +229,9 @@ handle_cast({visit_tag, Tag}, State=#st{tags = Tags}) ->
   Ts = gb_sets:add_element(cuter_cerl:id_of_tag(Tag), Tags),
   {noreply, State#st{tags = Ts}}.
 
-%% ============================================================================
-%% Internal functions (Helper methods)
-%% ============================================================================
-
-%% Populates the DB with the stored modules provided.
--spec add_cached_modules(cache(), cached_modules()) -> ok.
-add_cached_modules(Db, CachedMods) ->
-  dict:fold(
-    fun(M, Info, CDb) ->
-      MDb = ets:new(M, [ordered_set, protected]),
-      ets:insert(MDb, Info),
-      ets:insert(CDb, {M, MDb}),
-      CDb
-    end,
-    Db,
-    CachedMods
-  ),
-  ok.
+%% ----------------------------------------------------------------------------
+%% Load a module to the cache
+%% ----------------------------------------------------------------------------
 
 -spec try_load(module(), state()) -> load_reply().
 try_load(M, State) ->
@@ -324,6 +324,12 @@ drop_module_cache(Db) ->
   ets:delete(Db),
   ModNames.
 
+%% Returns the names of all the modules in the cache.
+-spec modules_in_cache(cache()) -> [module()].
+modules_in_cache(Db) ->
+  ModNames = ets:foldl(fun({M, _MDb}, Ms) -> [M|Ms] end, [], Db),
+  ModNames.
+
 %% Dumps the cached modules' info into a dict.
 -spec dump_cached_modules(cache()) -> cached_modules().
 dump_cached_modules(Db) ->
@@ -342,6 +348,21 @@ merge_dumped_cached_modules(Cached1, Cached2) ->
 -spec modules_of_dumped_cache(cached_modules()) -> modules().
 modules_of_dumped_cache(Cached) ->
   dict:fetch_keys(Cached).
+
+%% Populates the DB with the stored modules provided.
+-spec add_cached_modules(cache(), cached_modules()) -> ok.
+add_cached_modules(Db, CachedMods) ->
+  dict:fold(
+    fun(M, Info, CDb) ->
+      MDb = ets:new(M, [ordered_set, protected]),
+      ets:insert(MDb, Info),
+      ets:insert(CDb, {M, MDb}),
+      CDb
+    end,
+    Db,
+    CachedMods
+  ),
+  ok.
 
 %% ----------------------------------------------------------------------------
 %% Counter for branch enumeration
