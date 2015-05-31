@@ -37,7 +37,7 @@ merge_traces(Info, MergedLogFile) ->
   merge(Init).
 
 
--spec initialize([cuter_analyzer:node_trace()], cuter_analyzer:int_process(), file:name()) -> state().
+-spec initialize([cuter_analyzer:node_trace()], cuter_iserver:int_process(), file:name()) -> state().
 initialize(Dirs, {INode, IPid}, MergedLogFile) ->
   F = logfile_from_pid(INode, IPid, Dirs),
   Pending = all_logfiles(Dirs, []) -- [F],

@@ -130,10 +130,10 @@ form_has_unsupported_type(Info) ->
 execution_status(Ref, Status) ->
   gen_server:call(?PRETTY_PRINTER, {execution_status, Ref, Status}).
 
-%% The information of the given concolic execution.
--spec execution_info(cuter_scheduler_maxcover:exec_handle(), orddict:orddict()) -> ok.
-execution_info(Ref, Info) ->
-  gen_server:call(?PRETTY_PRINTER, {execution_info, Ref, Info}).
+%% The InterpreterServer's logs of the given concolic execution.
+-spec execution_info(cuter_scheduler_maxcover:exec_handle(), cuter_iserver:logs()) -> ok.
+execution_info(Ref, Logs) ->
+  gen_server:call(?PRETTY_PRINTER, {execution_info, Ref, Logs}).
 
 %% The path vertex of the given concolic execution.
 -spec path_vertex(cuter_scheduler_maxcover:exec_handle(), cuter_analyzer:path_vertex()) -> ok.
@@ -311,18 +311,18 @@ pp_execution_info(Info, MFA, Nl, ?FULLY_VERBOSE) ->
 -spec pp_execution_status_minimal(cuter_iserver:execution_status()) -> ok.
 pp_execution_status_minimal({success, _Result}) ->
   io:format(".");
-pp_execution_status_minimal({runtime_error, _Node, _Pid, _Error}) ->
+pp_execution_status_minimal({runtime_error, _RuntimeError}) ->
   io:format("E");
-pp_execution_status_minimal({internal_error, _Type, _Node, _Why}) ->
+pp_execution_status_minimal({internal_error, _InternalError}) ->
   io:format("I").
 
 -spec pp_execution_status_verbose(cuter_iserver:execution_status()) -> ok.
 
 pp_execution_status_verbose({success, _Result}) ->
   io:format("ok");
-pp_execution_status_verbose({runtime_error, _Node, _Pid, _Error}) ->
+pp_execution_status_verbose({runtime_error, _RuntimeError}) ->
   io:format("RUNTIME ERROR");
-pp_execution_status_verbose({internal_error, _Type, _Node, _Why}) ->
+pp_execution_status_verbose({internal_error, _InternalError}) ->
   io:format("INTERNAL ERROR").
 
 -spec pp_execution_status_fully_verbose(cuter_iserver:execution_status()) -> ok.
@@ -330,13 +330,13 @@ pp_execution_status_fully_verbose({success, {Cv, Sv}}) ->
   io:format("OK~n"),
   io:format("  CONCRETE: ~p~n", [Cv]),
   io:format("  SYMBOLIC: ~p~n", [Sv]);
-pp_execution_status_fully_verbose({runtime_error, Node, Pid, {Cv, Sv}}) ->
+pp_execution_status_fully_verbose({runtime_error, {Node, Pid, {Cv, Sv}}}) ->
   io:format("RUNTIME ERROR~n"),
   io:format("  NODE: ~p~n", [Node]),
   io:format("  PID: ~p~n", [Pid]),
   io:format("  CONCRETE: ~p~n", [Cv]),
   io:format("  SYMBOLIC: ~p~n", [Sv]);
-pp_execution_status_fully_verbose({internal_error, Type, Node, Why}) ->
+pp_execution_status_fully_verbose({internal_error, {Type, Node, Why}}) ->
   io:format("INTERNAL ERROR~n"),
   io:format("  TYPE: ~p~n", [Type]),
   io:format("  NODE: ~p~n", [Node]),
@@ -373,43 +373,48 @@ pp_arguments([A|As]) ->
 %% Report the execution logs
 %% ----------------------------------------------------------------------------
 
--spec pp_execution_logs_verbose(orddict:orddict()) -> ok.
-pp_execution_logs_verbose(Info) ->
-  CodeLogs = [orddict:fetch(code_logs, Data) || {_Node, Data} <- Info],
-  Unsupported = [cuter_codeserver:unsupportedMfas_of_logs(Ls) || Ls <- CodeLogs],
+-spec pp_execution_logs_verbose(cuter_iserver:logs()) -> ok.
+pp_execution_logs_verbose(Logs) ->
+  CodeLogs = cuter_iserver:codeLogs_of_logs(Logs),
+  Unsupported = [cuter_codeserver:unsupportedMfas_of_logs(Ls) || {_Node, Ls} <- CodeLogs],
   case lists:flatten(Unsupported) of
     [] -> ok;
     MFAs -> io:format(" Unsupported: ~p", [MFAs])
   end.
 
--spec pp_execution_logs_fully_verbose(orddict:orddict()) -> ok.
-pp_execution_logs_fully_verbose(Info) ->
+-spec pp_execution_logs_fully_verbose(cuter_iserver:logs()) -> ok.
+pp_execution_logs_fully_verbose(Logs) ->
   io:format("EXECUTION INFO~n"),
-  F = fun({Node, Data}) ->
+  F = fun(Node, NodeLogs) ->
     io:format("  ~p~n", [Node]),
-    lists:foreach(fun pp_node_data/1, Data)
+    pp_node_logs(NodeLogs)
   end,
-  lists:foreach(F, Info).
+  cuter_iserver:logs_foreach(F, Logs).
 
-pp_node_data({mapping, Ms}) ->
+-spec pp_node_logs(cuter_iserver:node_logs()) -> ok.
+pp_node_logs(Logs) ->
+  %% Int process
+  Int = cuter_iserver:int_of_node_logs(Logs),
+  io:format("    INT~n"),
+  io:format("      ~p~n", [Int]),
+  %% Mapping
+  Ms = cuter_iserver:mapping_of_node_logs(Logs),
   io:format("    MAPPING~n"),
   F = fun({Sv, Cv}) -> io:format("      ~p <=> ~p~n", [Sv, Cv]) end,
-  lists:foreach(F, Ms);
-pp_node_data({monitor_logs, Logs}) ->
+  lists:foreach(F, Ms),
+  %% MonitorServer logs
+  MonitorLogs = cuter_iserver:monitorLogs_of_node_logs(Logs),
   io:format("    MONITOR LOGS~n"),
-  Dir = cuter_monitor:dir_of_logs(Logs),
+  Dir = cuter_monitor:dir_of_logs(MonitorLogs),
   io:format("      DIR~n"),
   io:format("        ~p~n", [Dir]),
-  Procs = cuter_monitor:procs_of_logs(Logs),
+  Procs = cuter_monitor:procs_of_logs(MonitorLogs),
   io:format("      PROCS~n"),
-  io:format("        ~p~n", [Procs]);
-pp_node_data({code_logs, Logs}) ->
+  io:format("        ~p~n", [Procs]),
+  %% CodeServer logs
+  CodeLogs = cuter_iserver:codeLogs_of_node_logs(Logs),
   io:format("    CODE LOGS~n"),
-  pp_code_logs(Logs);
-pp_node_data({int, Pid}) ->
-  io:format("    INT~n"),
-  io:format("      ~p~n", [Pid]);
-pp_node_data(_Data) -> ok.
+  pp_code_logs(CodeLogs).
 
 -spec pp_code_logs(cuter_codeserver:logs()) -> ok.
 pp_code_logs(Logs) ->

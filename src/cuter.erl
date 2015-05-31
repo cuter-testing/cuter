@@ -4,12 +4,13 @@
 
 -export([run/3, run/4, run/5, run_once/4, run_once/5]).
 
--export_type([mod/0, input/0, erroneous_inputs/0]).
+-export_type([mod/0, input/0, erroneous_inputs/0, depth/0]).
 
 -include("include/cuter_macros.hrl").
 
 -type mod() :: atom().  % a subtype of module()
 -type input() :: [any()].
+-type depth() :: pos_integer().
 -type erroneous_inputs() :: [input()].
 
 -define(ZERO, 0).
@@ -41,11 +42,11 @@
                 .
 
 
--spec run_once(mod(), atom(), input(), pos_integer()) -> erroneous_inputs().
+-spec run_once(mod(), atom(), input(), depth()) -> erroneous_inputs().
 run_once(M, F, As, Depth) ->
   run_once(M, F, As, Depth, default_options()).
 
--spec run_once(mod(), atom(), input(), pos_integer(), [option()]) -> erroneous_inputs().
+-spec run_once(mod(), atom(), input(), depth(), [option()]) -> erroneous_inputs().
 run_once(M, F, As, Depth, Options) ->
   Conf = initialize_app(M, F, As, Depth, Options),
   loop(Conf, ?ONE).
@@ -54,11 +55,11 @@ run_once(M, F, As, Depth, Options) ->
 run(M, F, As) ->
   run(M, F, As, ?DEFAULT_DEPTH).
 
--spec run(mod(), atom(), input(), pos_integer()) -> erroneous_inputs().
+-spec run(mod(), atom(), input(), depth()) -> erroneous_inputs().
 run(M, F, As, Depth) ->
   run(M, F, As, Depth, default_options()).
 
--spec run(mod(), atom(), input(), pos_integer(), [option()]) -> erroneous_inputs().
+-spec run(mod(), atom(), input(), depth(), [option()]) -> erroneous_inputs().
 run(M, F, As, Depth, Options) ->
   Conf = initialize_app(M, F, As, Depth, Options),
   loop(Conf, inf).
@@ -86,7 +87,7 @@ loop(Conf, Lmt) ->
 tick(inf) -> inf;
 tick(?ONE) -> ?ZERO.
 
--spec initialize_app(mod(), atom(), input(), pos_integer(), [option()]) -> configuration().
+-spec initialize_app(mod(), atom(), input(), depth(), [option()]) -> configuration().
 initialize_app(M, F, As, Depth, Options) ->
   BaseDir = set_basedir(Options),
   process_flag(trap_exit, true),
@@ -153,18 +154,18 @@ concolic_execute(Conf, Ref, Input) ->
 -spec retrieve_info(pid(), cuter_scheduler_maxcover:exec_handle(), file:filename()) -> cuter_analyzer:info() | cuter_error.
 retrieve_info(IServer, Ref, DataDir) ->
   case wait_for_execution(IServer) of
-    {ok, ExStatus, Info} ->
+    {ok, ExStatus, Logs} ->
       cuter_pp:execution_status(Ref, ExStatus),
-      cuter_pp:execution_info(Ref, Info),
+      cuter_pp:execution_info(Ref, Logs),
       case cuter_analyzer:get_result(ExStatus) of
         internal_error -> cuter_error;
         ExResult ->
-          Mappings = cuter_analyzer:get_mapping(Info),
-          Traces = cuter_analyzer:get_traces(Info),
-          Int = cuter_analyzer:get_int_process(Info),
-          Tags = cuter_analyzer:get_tags(Info),
-          CachedMods = cuter_analyzer:get_cached_modules(Info),
-          TagsN = cuter_analyzer:get_no_of_tags_added(Info),
+          Mappings = cuter_analyzer:get_mapping(Logs),
+          Traces = cuter_analyzer:get_traces(Logs),
+          Int = cuter_analyzer:get_int_process(Logs),
+          Tags = cuter_analyzer:get_tags(Logs),
+          CachedMods = cuter_analyzer:get_cached_modules(Logs),
+          TagsN = cuter_analyzer:get_no_of_tags_added(Logs),
           RawInfo = cuter_analyzer:mk_raw_info(Mappings, ExResult, Traces, Int, DataDir, Tags, CachedMods, TagsN),
           AnalyzedInfo = cuter_analyzer:process_raw_execution_info(RawInfo),
           cuter_pp:path_vertex(Ref, cuter_analyzer:pathVertex_of_info(AnalyzedInfo)),
@@ -172,18 +173,18 @@ retrieve_info(IServer, Ref, DataDir) ->
           AnalyzedInfo
       end;
     {error, Why} ->
-      R = {internal_error, iserver, node(), Why},
+      R = {internal_error, {iserver, node(), Why}},
       cuter_pp:execution_status(Ref, R),
       cuter_pp:flush(Ref),
       cuter_error
   end.
 
--spec wait_for_execution(pid()) -> {ok, cuter_iserver:execution_status(), orddict:orddict()} | {error, any()}.
+-spec wait_for_execution(pid()) -> {ok, cuter_iserver:execution_status(), cuter_iserver:logs()} | {error, any()}.
 wait_for_execution(IServer) ->
   receive
-    {IServer, ExStatus, Info} ->
+    {IServer, ExStatus, Logs} ->
       ok = wait_for_iserver(IServer),
-      {ok, ExStatus, Info};
+      {ok, ExStatus, Logs};
     {'EXIT', IServer, Why} ->
       {error, Why}
   end.
