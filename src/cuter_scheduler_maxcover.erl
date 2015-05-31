@@ -87,14 +87,14 @@ stop(Scheduler) ->
   gen_server:call(Scheduler, stop).
 
 %% Request a new Input vertex for concolic execution
--spec request_input(pid()) -> {handle(), cuter:input()} | empty.
+-spec request_input(pid()) -> {handle(), cuter:input()} | empty | try_later.
 request_input(Scheduler) ->
   gen_server:call(Scheduler, request_input, infinity).
 
 %% Store the information of a concolic execution
 -spec store_execution(pid(), handle(), cuter_analyzer:info()) -> ok.
 store_execution(Scheduler, Handle, Info) ->
-  gen_server:call(Scheduler, {store_execution, Handle, Info}).
+  gen_server:call(Scheduler, {store_execution, Handle, Info}, infinity).
 
 %% ----------------------------------------------------------------------------
 %% gen_server callbacks (Server Implementation)
@@ -135,7 +135,7 @@ handle_info(_Msg, State) ->
   {noreply, State}.
 
 %% handle_call/3
--spec handle_call(request_input, from(), state()) -> {reply, (empty | {handle(), cuter:input()}), state()}
+-spec handle_call(request_input, from(), state()) -> {reply, (empty | try_later | {handle(), cuter:input()}), state()}
                ; ({store_execution, handle(), cuter_analyzer:info()}, from(), state()) -> {reply, ok, state()}
                ; (stop, from(), state()) -> {stop, normal, cuter:erroneous_inputs(), state()}.
 
@@ -144,7 +144,10 @@ handle_call(request_input, _From, S=#st{tagsQueue = TQ, infoTab = AllInfo, pytho
                                         running = Rn, firstOperation = FOp, inputsQueue = IQ}) ->
   case find_new_input(TQ, IQ, P, AllInfo, Vs) of
     empty ->
-      {reply, empty, S};
+      case dict:size(Rn) of
+        0 -> {reply, empty, S};
+        _ -> {reply, try_later, S}
+      end;
     {ok, Handle, Input, NAllowed, Rem} ->
       {reply, {Handle, Input}, S#st{ running = dict:store(Handle, Input, Rn)
                                    , firstOperation = dict:store(Handle, NAllowed, FOp)

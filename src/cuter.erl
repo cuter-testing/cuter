@@ -2,7 +2,7 @@
 %%------------------------------------------------------------------------------
 -module(cuter).
 
--export([run/3, run/4, run/5, run_once/4, run_once/5]).
+-export([run/3, run/4, run/5]).
 
 -export_type([mod/0, input/0, erroneous_inputs/0, depth/0]).
 
@@ -13,10 +13,6 @@
 -type depth() :: pos_integer().
 -type erroneous_inputs() :: [input()].
 
--define(ZERO, 0).
--define(ONE,  1).
--type loop_limit() :: ?ZERO | ?ONE | inf.
-
 -define(DEFAULT_DEPTH, 25).
 
 %% The configuration of the tool.
@@ -26,35 +22,28 @@
   func          :: atom(),
   dataDir       :: file:filename(),
   depth         :: depth(),
-  no            :: integer(),
-  scheduler     :: pid(),
-  pmatch        :: boolean()
+  scheduler     :: pid()
 }).
 -type configuration() :: #conf{}.
 
 %% Runtime Options
 -define(FULLY_VERBOSE_EXEC_INFO, fully_verbose_execution_info).
 -define(ENABLE_PMATCH, enable_pmatch).
+-define(POLLERS_NO, number_of_pollers).
 
--type default_option() :: ?ENABLE_PMATCH.
+-type default_option() :: ?ENABLE_PMATCH
+                        | {?POLLERS_NO, 1}
+                        .
 
 -type option() :: default_option()
                 | {basedir, file:filename()}
+                | {?POLLERS_NO, pos_integer()}
                 | ?FULLY_VERBOSE_EXEC_INFO
                 .
 
 %% ----------------------------------------------------------------------------
 %% Public API
 %% ----------------------------------------------------------------------------
-
--spec run_once(mod(), atom(), input(), depth()) -> erroneous_inputs().
-run_once(M, F, As, Depth) ->
-  run_once(M, F, As, Depth, default_options()).
-
--spec run_once(mod(), atom(), input(), depth(), [option()]) -> erroneous_inputs().
-run_once(M, F, As, Depth, Options) ->
-  Conf = initialize_app(M, F, As, Depth, Options),
-  loop(Conf, ?ONE).
 
 -spec run(mod(), atom(), input()) -> erroneous_inputs().
 run(M, F, As) ->
@@ -67,34 +56,34 @@ run(M, F, As, Depth) ->
 -spec run(mod(), atom(), input(), depth(), [option()]) -> erroneous_inputs().
 run(M, F, As, Depth, Options) ->
   Conf = initialize_app(M, F, As, Depth, Options),
-  loop(Conf, inf).
+  start(Conf, number_of_pollers(Options)).
 
 %% ----------------------------------------------------------------------------
-%% 
+%% Manage the concolic executions
 %% ----------------------------------------------------------------------------
 
--spec loop(configuration(), loop_limit()) -> erroneous_inputs().
-loop(Conf, ?ZERO) -> stop(Conf);
-loop(Conf, Lmt) ->
+-spec start(configuration(), 1) -> erroneous_inputs().
+start(Conf, N) ->
+  CodeServer = Conf#conf.codeServer,
   Scheduler = Conf#conf.scheduler,
-  case cuter_scheduler_maxcover:request_input(Scheduler) of
-    empty -> stop(Conf);
-    {Ref, As} ->
-      No = Conf#conf.no + 1,
-      Conf_n = Conf#conf{no = No},
-      case concolic_execute(Conf_n, Ref, As) of
-        cuter_error ->
-          stop(Conf_n);
-        Info ->
-          ok = cuter_scheduler_maxcover:store_execution(Scheduler, Ref, Info),
-          loop(Conf_n, tick(Lmt))
-      end
-  end.
+  M = Conf#conf.mod,
+  F = Conf#conf.func,
+  Dir = Conf#conf.dataDir,
+  Depth = Conf#conf.depth,
+  Pollers = [cuter_poller:start(CodeServer, Scheduler, M, F, Dir, Depth) || _ <- lists:seq(1, N)],
+  wait_for_pollers(Conf, Pollers).
 
--spec tick(inf) -> inf
-       ; (?ONE) -> ?ZERO.
-tick(inf) -> inf;
-tick(?ONE) -> ?ZERO.
+-spec wait_for_pollers(configuration(), [pid()]) -> erroneous_inputs().
+wait_for_pollers(Conf, []) ->
+  stop(Conf);
+wait_for_pollers(Conf, Pollers) ->
+  receive
+    {'EXIT', Who, normal} ->
+      wait_for_pollers(Conf, Pollers -- [Who]);
+    {'EXIT', Who, Why} ->
+      io:format("Poller ~p exited with ~p~n", [Who, Why]),
+      wait_for_pollers(Conf, Pollers -- [Who])
+  end.
 
 -spec stop(configuration()) -> erroneous_inputs().
 stop(Conf) ->
@@ -124,21 +113,23 @@ initialize_app(M, F, As, Depth, Options) ->
   #conf{ codeServer = CodeServer
        , mod = M
        , func = F
-       , no = 0
        , depth = Depth
        , dataDir = cuter_lib:get_tmp_dir(BaseDir)
-       , scheduler = SchedPid
-       , pmatch = WithPmatch}.
+       , scheduler = SchedPid}.
 
 %% Set app parameters.
 -spec default_options() -> [default_option(), ...].
 default_options() ->
-  [?ENABLE_PMATCH].
+  [?ENABLE_PMATCH, {?POLLERS_NO, 1}].
 
 -spec set_basedir([option()]) -> file:filename().
 set_basedir([]) -> {ok, CWD} = file:get_cwd(), CWD;
 set_basedir([{basedir, BaseDir}|_]) -> BaseDir;
 set_basedir([_|Rest]) -> set_basedir(Rest).
+
+-spec number_of_pollers([option()]) -> pos_integer().
+number_of_pollers([{?POLLERS_NO, N}|_Rest]) -> N;
+number_of_pollers([_|Rest]) -> number_of_pollers(Rest).
 
 -spec reporting_level([option()]) -> cuter_pp:pp_level().
 reporting_level(Options) ->
@@ -146,59 +137,5 @@ reporting_level(Options) ->
   case lists:member(?FULLY_VERBOSE_EXEC_INFO, Options) of
     false -> Default;
     true  -> cuter_pp:fully_verbose_exec_info(Default)
-  end.
-
-%% ------------------------------------------------------------------
-%% Concolic Execution
-%% ------------------------------------------------------------------
-
--spec concolic_execute(configuration(), cuter_scheduler_maxcover:handle(), input()) -> cuter_analyzer:info() | cuter_error.
-concolic_execute(Conf, Ref, Input) ->
-  cuter_pp:input(Ref, Input),
-  BaseDir = Conf#conf.dataDir,
-  DataDir = cuter_lib:get_data_dir(BaseDir, Conf#conf.no),
-  TraceDir = cuter_lib:get_trace_dir(DataDir),  % Directory to store process traces
-  IServer = cuter_iserver:start(Conf#conf.mod, Conf#conf.func, Input, TraceDir, Conf#conf.depth, Conf#conf.codeServer),
-  retrieve_info(IServer, Ref, DataDir).
-
--spec retrieve_info(pid(), cuter_scheduler_maxcover:handle(), file:filename()) -> cuter_analyzer:info() | cuter_error.
-retrieve_info(IServer, Ref, DataDir) ->
-  case wait_for_execution(IServer) of
-    {ok, ExStatus, Logs} ->
-      cuter_pp:execution_status(Ref, ExStatus),
-      cuter_pp:execution_info(Ref, Logs),
-      case cuter_analyzer:get_result(ExStatus) of
-        internal_error -> cuter_error;
-        ExResult ->
-          Mappings = cuter_analyzer:get_mapping(Logs),
-          Traces = cuter_analyzer:get_traces(Logs),
-          Int = cuter_analyzer:get_int_process(Logs),
-          RawInfo = cuter_analyzer:mk_raw_info(Mappings, ExResult, Traces, Int, DataDir),
-          AnalyzedInfo = cuter_analyzer:process_raw_execution_info(RawInfo),
-          cuter_pp:path_vertex(Ref, cuter_analyzer:pathVertex_of_info(AnalyzedInfo)),
-          cuter_pp:flush(Ref),
-          AnalyzedInfo
-      end;
-    {error, Why} ->
-      R = {internal_error, {iserver, node(), Why}},
-      cuter_pp:execution_status(Ref, R),
-      cuter_pp:flush(Ref),
-      cuter_error
-  end.
-
--spec wait_for_execution(pid()) -> {ok, cuter_iserver:execution_status(), cuter_iserver:logs()} | {error, any()}.
-wait_for_execution(IServer) ->
-  receive
-    {IServer, ExStatus, Logs} ->
-      ok = wait_for_iserver(IServer),
-      {ok, ExStatus, Logs};
-    {'EXIT', IServer, Why} ->
-      {error, Why}
-  end.
-
--spec wait_for_iserver(pid()) -> ok | not_ok.
-wait_for_iserver(IServer) ->
-  receive {'EXIT', IServer, normal} -> ok
-  after 10000 -> not_ok
   end.
 

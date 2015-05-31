@@ -59,6 +59,7 @@ SRC_MODULES = \
 	cuter_merger \
 	cuter_types \
 	cuter_minheap \
+	cuter_poller \
 	cerl_pmatch
 
 UTEST_MODULES = \

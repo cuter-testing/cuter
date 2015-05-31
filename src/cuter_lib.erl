@@ -35,9 +35,9 @@ get_tmp_dir(BaseDir) ->
   filename:absname(?RELATIVE_TMP_DIR, BaseDir).
 
 %% The directory to store the data of the specific execution
--spec get_data_dir(file:filename_all(), integer()) -> file:filename().
-get_data_dir(BaseDir, No) ->
-  filename:absname("exec" ++ integer_to_list(No), BaseDir).
+-spec get_data_dir(file:filename(), cuter_scheduler_maxcover:handle()) -> file:filename().
+get_data_dir(BaseDir, Handle) ->
+  filename:absname("exec" ++ Handle, BaseDir).
 
 %% The directory for all the trace files
 -spec get_trace_dir(file:filename_all()) -> file:filename().
