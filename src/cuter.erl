@@ -13,6 +13,7 @@
 -type depth() :: pos_integer().
 -type erroneous_inputs() :: [input()].
 
+-define(ONE, 1).
 -define(DEFAULT_DEPTH, 25).
 
 %% The configuration of the tool.
@@ -32,7 +33,7 @@
 -define(POLLERS_NO, number_of_pollers).
 
 -type default_option() :: ?ENABLE_PMATCH
-                        | {?POLLERS_NO, 1}
+                        | {?POLLERS_NO, ?ONE}
                         .
 
 -type option() :: default_option()
@@ -128,6 +129,7 @@ set_basedir([{basedir, BaseDir}|_]) -> BaseDir;
 set_basedir([_|Rest]) -> set_basedir(Rest).
 
 -spec number_of_pollers([option()]) -> pos_integer().
+number_of_pollers([]) -> ?ONE;
 number_of_pollers([{?POLLERS_NO, N}|_Rest]) -> N;
 number_of_pollers([_|Rest]) -> number_of_pollers(Rest).
 
