@@ -5,8 +5,10 @@
 
 %% external exports
 -export([start/2, start/4, stop/1, load/2, unsupported_mfa/2, retrieve_spec/2, visit_tag/2,
-         merge_dumped_cached_modules/2, no_cached_modules/0, initial_branch_counter/0,
-         lookup_in_module_cache/2, insert_in_module_cache/3, modules_of_dumped_cache/1,
+         initial_branch_counter/0, get_visited_tags/1,
+         %% Work with module cache
+         merge_dumped_cached_modules/2, no_cached_modules/0, modules_of_dumped_cache/1,
+         lookup_in_module_cache/2, insert_in_module_cache/3,
          %% Access logs
          cachedMods_of_logs/1, visitedTags_of_logs/1, tagsAddedNo_of_logs/1,
          unsupportedMfas_of_logs/1, loadedMods_of_logs/1]).
@@ -46,6 +48,7 @@
 %% Internal type declarations
 -type load_reply() :: {ok, module_cache()} | cuter_cerl:compile_error() | {error, (preloaded | cover_compiled | non_existing)}.
 -type spec_reply() :: {ok, cuter_types:erl_spec()} | error.
+-type from() :: {pid(), reference()}.
 
 %% Server's state
 %% ---------------
@@ -119,6 +122,11 @@ retrieve_spec(CodeServer, MFA) ->
 visit_tag(CodeServer, Tag) ->
   gen_server:cast(CodeServer, {visit_tag, Tag}).
 
+%% Gets the visited tags.
+-spec get_visited_tags(pid()) -> tags().
+get_visited_tags(CodeServer) ->
+  gen_server:call(CodeServer, get_visited_tags).
+
 %% ============================================================================
 %% gen_server callbacks (Server Implementation)
 %% ============================================================================
@@ -154,8 +162,10 @@ handle_info(Msg, State) ->
   {noreply, State}.
 
 %% gen_server callback : handle_call/3
--spec handle_call({load, module()}, {pid(), reference()}, state()) -> {reply, load_reply(), state()}
-               ; ({get_spec, mfa()}, {pid(), reference()}, state()) -> {reply, spec_reply(), state()}.
+-spec handle_call({load, module()}, from(), state()) -> {reply, load_reply(), state()}
+               ; ({get_spec, mfa()}, from(), state()) -> {reply, spec_reply(), state()}
+               ; (get_visited_tags, from(), state()) -> {reply, tags(), state()}
+               .
 handle_call({load, M}, _From, State) ->
   {reply, try_load(M, State), State};
 handle_call({get_spec, {M, F, A}=MFA}, _From, State) ->
@@ -184,7 +194,9 @@ handle_call({get_spec, {M, F, A}=MFA}, _From, State) ->
     Msg ->
       cuter_pp:error_retrieving_spec(MFA, Msg),
       {reply, error, State}
-  end.
+  end;
+handle_call(get_visited_tags, _From, State=#st{tags = Tags}) ->
+  {reply, Tags, State}.
 
 %% gen_server callback : handle_cast/2
 -spec handle_cast({stop, pid()}, state()) -> {stop, normal, state()} | {noreply, state()}
