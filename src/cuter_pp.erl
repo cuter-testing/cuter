@@ -54,10 +54,10 @@
 
 %% The data of each concolic execution.
 -record(info, {
-  executionInfo   :: cuter_iserver:logs(),
-  executionStatus :: cuter_iserver:execution_status(),
-  input           :: cuter:input(),
-  pathVertex      :: cuter_analyzer:path_vertex()
+  executionInfo = dict:new() :: cuter_iserver:logs(),
+  executionStatus            :: cuter_iserver:execution_status() | 'undefined',
+  input                      :: cuter:input(),
+  pathVertex = []            :: cuter_analyzer:path_vertex()
 }).
 -type execution_data() :: #info{}.
 

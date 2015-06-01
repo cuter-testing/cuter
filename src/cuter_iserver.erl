@@ -22,25 +22,26 @@
                           | {internal_error, internal_error()}
                           | {runtime_error, runtime_error()}.
 
--type internal_error() :: {(codeserver | monitorserver | iserver), node(), any()}.
--type runtime_error() :: {node(), pid(), cuter_eval:result()}.
+-type server()         :: 'codeserver' | 'monitorserver' | 'iserver'.
+-type internal_error() :: {server(), node(), any()}.
+-type runtime_error()  :: {node(), pid(), cuter_eval:result()}.
 
 -type maybe(X) :: X | undefined.
 
 -record(nlogs, {
   int                :: maybe(int_process()),
   mapping            :: maybe([cuter_symbolic:mapping()]),
-  monitorLogs        :: cuter_monitor:logs(),
+  monitorLogs        :: maybe(cuter_monitor:logs()),
   monitorServerError :: any(),
   result             :: any(),
-  runtimeError       :: runtime_error()
+  runtimeError       :: maybe(runtime_error())
 }).
-
 -type node_logs() :: #nlogs{}.
--type logs() :: dict:dict(node(), node_logs()).
+
+-type logs()         :: dict:dict(node(), node_logs()).
 -type monitor_logs() :: [{node(), cuter_monitor:logs()}].
 -type mapping_logs() :: [{node(), maybe([cuter_symbolic:mapping()])}].
--type int_logs() :: [{node(), maybe(int_process())}].
+-type int_logs()     :: [{node(), maybe(int_process())}].
 
 %% Server's state
 %% ---------------
