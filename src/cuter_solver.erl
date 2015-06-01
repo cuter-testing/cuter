@@ -246,7 +246,7 @@ stop_exec(Pid) ->
 %% ----------------------------------------------------------------------------
 
 %% init/1
--spec init(pid()) -> {ok, state(), fsm_state()}.
+-spec init(pid()) -> {ok, idle, fsm_state()}.
 init(Super) ->
   process_flag(trap_exit, true),
   {ok, idle, #fsm_state{super = Super}}.
