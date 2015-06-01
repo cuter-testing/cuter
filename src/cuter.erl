@@ -29,17 +29,17 @@
 
 %% Runtime Options
 -define(FULLY_VERBOSE_EXEC_INFO, fully_verbose_execution_info).
--define(ENABLE_PMATCH, enable_pmatch).
+-define(DISABLE_PMATCH, disable_pmatch).
 -define(POLLERS_NO, number_of_pollers).
 
--type default_option() :: ?ENABLE_PMATCH
-                        | {?POLLERS_NO, ?ONE}
+-type default_option() :: {?POLLERS_NO, ?ONE}
                         .
 
 -type option() :: default_option()
                 | {basedir, file:filename()}
                 | {?POLLERS_NO, pos_integer()}
                 | ?FULLY_VERBOSE_EXEC_INFO
+                | ?DISABLE_PMATCH
                 .
 
 %% ----------------------------------------------------------------------------
@@ -106,7 +106,7 @@ initialize_app(M, F, As, Depth, Options) ->
   BaseDir = set_basedir(Options),
   process_flag(trap_exit, true),
   error_logger:tty(false),  %% disable error_logger
-  WithPmatch = lists:member(?ENABLE_PMATCH, Options),
+  WithPmatch = with_pmatch(Options),
   CodeServer = cuter_codeserver:start(self(), WithPmatch),
   SchedPid = cuter_scheduler_maxcover:start(?PYTHON_CALL, Depth, As, CodeServer),
   ok = cuter_pp:start(reporting_level(Options)),
@@ -121,7 +121,7 @@ initialize_app(M, F, As, Depth, Options) ->
 %% Set app parameters.
 -spec default_options() -> [default_option(), ...].
 default_options() ->
-  [?ENABLE_PMATCH, {?POLLERS_NO, 1}].
+  [{?POLLERS_NO, 1}].
 
 -spec set_basedir([option()]) -> file:filename().
 set_basedir([]) -> {ok, CWD} = file:get_cwd(), CWD;
@@ -132,6 +132,9 @@ set_basedir([_|Rest]) -> set_basedir(Rest).
 number_of_pollers([]) -> ?ONE;
 number_of_pollers([{?POLLERS_NO, N}|_Rest]) -> N;
 number_of_pollers([_|Rest]) -> number_of_pollers(Rest).
+
+-spec with_pmatch([option()]) -> boolean().
+with_pmatch(Options) -> not lists:member(?DISABLE_PMATCH, Options).
 
 -spec reporting_level([option()]) -> cuter_pp:pp_level().
 reporting_level(Options) ->
