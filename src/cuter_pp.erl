@@ -538,7 +538,7 @@ pp_path_vertex_fully_verbose(Vertex) ->
 -spec pp_erroneous_inputs(cuter:erroneous_inputs(), mfa(), level()) -> ok.
 pp_erroneous_inputs([], _MFA, Level) ->
   pp_nl(true, Level =:= ?MINIMAL),
-  io:format("nNO RUNTIME ERRORS OCCURED~n");
+  io:format("NO RUNTIME ERRORS OCCURED~n");
 pp_erroneous_inputs(Errors, MFA, Level) ->
   pp_nl(true, Level =:= ?MINIMAL),
   io:format("INPUTS THAT LEAD TO RUNTIME ERRORS"),
