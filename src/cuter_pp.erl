@@ -281,12 +281,12 @@ handle_call({flush, Ref}, _From, State=#st{pplevel = PpLevel, info = Info, nl = 
     _ -> {reply, ok, State#st{info = Info1, nl = false}}
   end;
 %% Print a character to show that solving failed to product an output.
-handle_call(solving_failed_notify, _From, State) ->
-  io:format("x"),
+handle_call(solving_failed_notify, _From, State=#st{pplevel = PpLevel}) ->
+  pp_solving_failure(PpLevel#pp_level.execInfo),
   {reply, ok, State#st{nl = true}};
 %% Report the errors that were found.
-handle_call({errors_found, Errors}, _From, State=#st{mfa = MFA}) ->
-  pp_erroneous_inputs(Errors, MFA),
+handle_call({errors_found, Errors}, _From, State=#st{mfa = MFA, pplevel = PpLevel}) ->
+  pp_erroneous_inputs(Errors, MFA, PpLevel#pp_level.execInfo),
   {reply, ok, State#st{nl = false}};
 %% Prints the logs of a CodeServer.
 handle_call({code_logs, CodeLogs}, _From, State=#st{pplevel = PpLevel}) ->
@@ -340,24 +340,29 @@ unsupported_type_error(Form, _Level) ->
   io:format("~nWARNING: Encountered an unsupported type while parsing the types in Core Erlang forms!~n"),
   io:format("  Form: ~p~n~n", [Form]).
 
--spec pp_nl(boolean()) -> ok.
-pp_nl(true) -> io:format("~n");
-pp_nl(false) -> ok.
+-spec pp_nl(boolean(), boolean()) -> ok.
+pp_nl(true, true) -> io:format(standard_error, "~n", []);
+pp_nl(true, false) -> io:format("~n");
+pp_nl(false, _) -> ok.
+
+-spec pp_solving_failure(level()) -> ok.
+pp_solving_failure(?MINIMAL) -> io:format(standard_error, "x", []);
+pp_solving_failure(_) -> io:format("x").
 
 -spec pp_execution_info(execution_data(), mfa(), boolean(), level()) -> ok.
 pp_execution_info(Data, MFA, Nl, ?MINIMAL) ->
   ExecutionStatus = Data#info.executionStatus,
   case cuter_analyzer:is_runtime_error(ExecutionStatus) of
     false -> pp_execution_status_minimal(Data#info.executionStatus);
-    true  -> pp_nl(Nl), pp_input_minimal(Data#info.input, MFA)
+    true  -> pp_nl(Nl, true), pp_input_minimal(Data#info.input, MFA)
   end;
 pp_execution_info(Data, MFA, Nl, ?VERBOSE) ->
-  pp_nl(Nl),
+  pp_nl(Nl, false),
   pp_input_verbose(Data#info.input, MFA),
   pp_execution_status_verbose(Data#info.executionStatus),
-  pp_nl(true);
+  pp_nl(true, false);
 pp_execution_info(Data, MFA, Nl, ?FULLY_VERBOSE) ->
-  pp_nl(Nl),
+  pp_nl(Nl, false),
   pp_input_fully_verbose(Data#info.input, MFA),
   pp_execution_status_fully_verbose(Data#info.executionStatus),
   pp_execution_logs_fully_verbose(Data#info.executionInfo),
@@ -369,11 +374,11 @@ pp_execution_info(Data, MFA, Nl, ?FULLY_VERBOSE) ->
 
 -spec pp_execution_status_minimal(cuter_iserver:execution_status()) -> ok.
 pp_execution_status_minimal({success, _Result}) ->
-  io:format(".");
+  io:format(standard_error, ".", []);
 pp_execution_status_minimal({runtime_error, _RuntimeError}) ->
-  io:format("E");
+  io:format(standard_error, "E", []);
 pp_execution_status_minimal({internal_error, _InternalError}) ->
-  io:format("I").
+  io:format(standard_error, "I", []).
 
 -spec pp_execution_status_verbose(cuter_iserver:execution_status()) -> ok.
 
@@ -526,22 +531,24 @@ pp_path_vertex_fully_verbose(Vertex) ->
   io:format("PATH VERTEX~n"),
   io:format("  ~p (~w)~n", [Vertex, length(Vertex)]).
 
--spec pp_erroneous_inputs(cuter:erroneous_inputs(), mfa()) -> ok.
-pp_erroneous_inputs([], _MFA) ->
-  io:format("~nNO RUNTIME ERRORS OCCURED~n");
-pp_erroneous_inputs(Errors, MFA) ->
-  io:format("~nINPUTS THAT LEAD TO RUNTIME ERRORS"),
-  pp_erroneous_inputs(Errors, MFA, 1).
-
 %% ----------------------------------------------------------------------------
 %% Report the erroneous inputs
 %% ----------------------------------------------------------------------------
 
-pp_erroneous_inputs([], _MFA, _N) ->
+-spec pp_erroneous_inputs(cuter:erroneous_inputs(), mfa(), level()) -> ok.
+pp_erroneous_inputs([], _MFA, Level) ->
+  pp_nl(true, Level =:= ?MINIMAL),
+  io:format("nNO RUNTIME ERRORS OCCURED~n");
+pp_erroneous_inputs(Errors, MFA, Level) ->
+  pp_nl(true, Level =:= ?MINIMAL),
+  io:format("INPUTS THAT LEAD TO RUNTIME ERRORS"),
+  pp_erroneous_inputs_h(Errors, MFA, 1).
+
+pp_erroneous_inputs_h([], _MFA, _N) ->
   io:format("~n");
-pp_erroneous_inputs([I|Is], {M, F, _}=MFA, N) ->
+pp_erroneous_inputs_h([I|Is], {M, F, _}=MFA, N) ->
   io:format("~n#~w ~p:~p(~s)", [N, M, F, pp_arguments(I)]),
-  pp_erroneous_inputs(Is, MFA, N + 1).
+  pp_erroneous_inputs_h(Is, MFA, N + 1).
 
 %% ----------------------------------------------------------------------------
 %% FIXME Remaining to be updated
