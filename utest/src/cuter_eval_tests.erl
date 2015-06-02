@@ -61,7 +61,7 @@ wait_for_iserver(Server) ->
 
 setup({F, As, Result}) ->
   process_flag(trap_exit, true),
-  _ = cuter_pp:start(#{verbose_execution_info => false}),
+  _ = cuter_pp:start(cuter_pp:default_reporting_level()),
   Dir = cuter_tests_lib:setup_dir(),
   {F, As, Result, Dir}.
 

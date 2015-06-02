@@ -2,7 +2,7 @@
 %%------------------------------------------------------------------------------
 -module(cuter_analyzer).
 
--export([get_result/1, get_mapping/1, get_traces/1,
+-export([get_result/1, get_mapping/1, get_traces/1, is_runtime_error/1,
          get_int_process/1, process_raw_execution_info/1,
          %% Constructor & accessors for #raw{}
          mk_raw_info/5, traces_of_raw_info/1, int_of_raw_info/1,

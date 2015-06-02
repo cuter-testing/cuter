@@ -29,6 +29,7 @@
 
 %% Runtime Options
 -define(FULLY_VERBOSE_EXEC_INFO, fully_verbose_execution_info).
+-define(VERBOSE_EXEC_INFO, verbose_execution_info).
 -define(DISABLE_PMATCH, disable_pmatch).
 -define(POLLERS_NO, number_of_pollers).
 
@@ -39,6 +40,7 @@
                 | {basedir, file:filename()}
                 | {?POLLERS_NO, pos_integer()}
                 | ?FULLY_VERBOSE_EXEC_INFO
+                | ?VERBOSE_EXEC_INFO
                 | ?DISABLE_PMATCH
                 .
 
@@ -140,7 +142,11 @@ with_pmatch(Options) -> not lists:member(?DISABLE_PMATCH, Options).
 reporting_level(Options) ->
   Default = cuter_pp:default_reporting_level(),
   case lists:member(?FULLY_VERBOSE_EXEC_INFO, Options) of
-    false -> Default;
-    true  -> cuter_pp:fully_verbose_exec_info(Default)
+    true  -> cuter_pp:fully_verbose_exec_info(Default);
+    false ->
+      case lists:member(?VERBOSE_EXEC_INFO, Options) of
+        true  -> cuter_pp:verbose_exec_info(Default);
+        false -> Default
+      end
   end.
 

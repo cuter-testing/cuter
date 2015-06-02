@@ -18,6 +18,7 @@
 -export([ reversible_operations/1
         %% Execution info reporting level
         , default_reporting_level/0, minimal_exec_info/1, fully_verbose_exec_info/1
+        , verbose_exec_info/1
         %% Verbose File/Folder Deletion
         , delete_file/2
         %% Verbose solving
@@ -78,7 +79,7 @@
 -type level() :: ?MINIMAL | ?VERBOSE | ?FULLY_VERBOSE.
 
 -record(pp_level, {
-  execInfo = ?VERBOSE :: level()
+  execInfo = ?MINIMAL :: level()
 }).
 -type pp_level() :: #pp_level{}.
 
@@ -92,6 +93,10 @@ default_reporting_level() -> #pp_level{}.
 -spec minimal_exec_info(pp_level()) -> pp_level().
 minimal_exec_info(PpLevel) ->
   PpLevel#pp_level{execInfo = ?MINIMAL}.
+
+-spec verbose_exec_info(pp_level()) -> pp_level().
+verbose_exec_info(PpLevel) ->
+  PpLevel#pp_level{execInfo = ?VERBOSE}.
 
 -spec fully_verbose_exec_info(pp_level()) -> pp_level().
 fully_verbose_exec_info(PpLevel) ->
@@ -218,37 +223,37 @@ handle_call({mfa, {M, F, Ar}}, _From, State) ->
   io:format("Testing ~p:~p/~p ...~n", [M, F, Ar]),
   {reply, ok, State#st{mfa = {M, F, Ar}}};
 %% Generated invalid Core Erlang AST with pmatch.
-handle_call({invalid_ast_with_pmatch, Mod, Generated}, _From, State) ->
+handle_call({invalid_ast_with_pmatch, Mod, Generated}, _From, State=#st{pplevel = PpLevel}) ->
   case get(invalid_ast) of
     undefined ->
       put(invalid_ast, [Mod]),
-      invalid_ast(Mod, Generated),
+      invalid_ast(Mod, Generated, PpLevel#pp_level.execInfo),
       {reply, ok, State};
     Mods ->
       case lists:member(Mod, Mods) of
         true -> {reply, ok, State};
         false ->
-          invalid_ast(Mod, Generated),
+          invalid_ast(Mod, Generated, PpLevel#pp_level.execInfo),
           put(invalid_ast, [Mod|Mods]),
           {reply, ok, State}
       end
   end;
 %% Error retrieving the spec of the MFA.
-handle_call({error_retrieving_spec, MFA, Error}, _From, State) ->
+handle_call({error_retrieving_spec, MFA, Error}, _From, State=#st{pplevel = PpLevel}) ->
   case get(spec_error) of
     yes -> {reply, ok, State};
     undefined ->
       put(spec_error, yes),
-      spec_error(MFA, Error),
+      spec_error(MFA, Error, PpLevel#pp_level.execInfo),
       {reply, ok, State}
   end;
 %% Encountered an unsupported type
-handle_call({form_has_unsupported_type, Info}, _From, State) ->
+handle_call({form_has_unsupported_type, Info}, _From, State=#st{pplevel = PpLevel}) ->
   case get(type_error) of
     yes -> {reply, ok, State};
     undefined ->
       put(type_error, yes),
-      unsupported_type_error(Info),
+      unsupported_type_error(Info, PpLevel#pp_level.execInfo),
       {reply, ok, State}
   end;
 %% A new input to be tested.
@@ -270,7 +275,11 @@ handle_call({path_vertex, Ref, Vertex}, _From, State=#st{info = Info}) ->
 %% Display the information of the given concolic execution.
 handle_call({flush, Ref}, _From, State=#st{pplevel = PpLevel, info = Info, nl = Nl, mfa = MFA}) ->
   pp_execution_info(dict:fetch(Ref, Info), MFA, Nl, PpLevel#pp_level.execInfo),
-  {reply, ok, State#st{info = dict:erase(Ref, Info), nl = false}};
+  Info1 = dict:erase(Ref, Info),
+  case PpLevel#pp_level.execInfo of
+    ?MINIMAL -> {reply, ok, State#st{info = Info1, nl = true}};
+    _ -> {reply, ok, State#st{info = Info1, nl = false}}
+  end;
 %% Print a character to show that solving failed to product an output.
 handle_call(solving_failed_notify, _From, State) ->
   io:format("x"),
@@ -304,21 +313,30 @@ handle_info(_What, State) ->
 %% Internal functions
 %% ============================================================================
 
-spec_error(MFA, not_found) ->
+-spec spec_error(mfa(), any(), level()) -> ok.
+spec_error(_MFA, _Error, ?MINIMAL) ->
+  ok;
+spec_error(MFA, not_found, _Level) ->
   io:format("~nWARNING: Could not find the spec of ~p!~n~n", [MFA]);
-spec_error(MFA, has_remote_types) ->
+spec_error(MFA, has_remote_types, _Level) ->
   io:format("~nWARNING: The spec of ~p has a remote type and is not supported!~n~n", [MFA]);
-spec_error(MFA, recursive_type) ->
+spec_error(MFA, recursive_type, _Level) ->
   io:format("~nWARNING: The spec of ~p has a recursive type and is not supported!~n~n", [MFA]);
-spec_error(MFA, {unsupported_type, Name}) ->
+spec_error(MFA, {unsupported_type, Name}, _Level) ->
   io:format("~nWARNING: The spec of ~p uses the unsupported type ~p!~n~n", [MFA, Name]);
-spec_error(MFA, Error) ->
+spec_error(MFA, Error, _Level) ->
   io:format("~nWARNING: Error while retrieving the spec of ~p!~n  Error: ~p~n~n", [MFA, Error]).
 
-invalid_ast(Mod, Generated) ->
+-spec invalid_ast(module(), any(), level()) -> ok.
+invalid_ast(_Mod, _Generated, ?MINIMAL) ->
+  ok;
+invalid_ast(Mod, Generated, _Level) ->
   io:format("~nWARNING: Generated invalid Core Erlang AST for module ~p!~n  ~p~n~n", [Mod, Generated]).
 
-unsupported_type_error(Form) ->
+-spec unsupported_type_error(any(), level()) -> ok.
+unsupported_type_error(_Form, ?MINIMAL) ->
+  ok;
+unsupported_type_error(Form, _Level) ->
   io:format("~nWARNING: Encountered an unsupported type while parsing the types in Core Erlang forms!~n"),
   io:format("  Form: ~p~n~n", [Form]).
 
@@ -327,8 +345,12 @@ pp_nl(true) -> io:format("~n");
 pp_nl(false) -> ok.
 
 -spec pp_execution_info(execution_data(), mfa(), boolean(), level()) -> ok.
-pp_execution_info(Data, _MFA, _Nl, ?MINIMAL) ->
-  pp_execution_status_minimal(Data#info.executionStatus);
+pp_execution_info(Data, MFA, Nl, ?MINIMAL) ->
+  ExecutionStatus = Data#info.executionStatus,
+  case cuter_analyzer:is_runtime_error(ExecutionStatus) of
+    false -> pp_execution_status_minimal(Data#info.executionStatus);
+    true  -> pp_nl(Nl), pp_input_minimal(Data#info.input, MFA)
+  end;
 pp_execution_info(Data, MFA, Nl, ?VERBOSE) ->
   pp_nl(Nl),
   pp_input_verbose(Data#info.input, MFA),
@@ -382,6 +404,14 @@ pp_execution_status_fully_verbose({internal_error, {Type, Node, Why}}) ->
 %% ----------------------------------------------------------------------------
 %% Report the input
 %% ----------------------------------------------------------------------------
+
+-spec pp_input_minimal(cuter:input(), mfa()) -> ok.
+pp_input_minimal([], {M, F, _}) ->
+  io:format(standard_error, "~p:~p()~n", [M, F]);
+pp_input_minimal(Input, {M, F, _}) ->
+  io:format(standard_error, "~p:~p(", [M, F]),
+  S = pp_arguments(Input),
+  io:format(standard_error, "~s)~n", [S]).
 
 -spec pp_input_verbose(cuter:input(), mfa()) -> ok.
 pp_input_verbose([], {M, F, _}) ->
