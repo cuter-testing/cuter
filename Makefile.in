@@ -10,6 +10,9 @@ EBIN = ebin
 PRIV = $(PWD)/priv
 UTEST_SRC = utest/src
 UTEST_EBIN = utest/ebin
+SUITE_SRC = suite/src
+SUITE_EBIN = $(PWD)/suite/ebin
+SUITE_EXPECTED = $(PWD)/suite/expected
 LIB = $(PWD)/lib
 ERLC = @ERLC@
 MECK = $(realpath @MECK@)
@@ -74,13 +77,17 @@ UTEST_MODULES = \
 	cuter_solver_tests \
 	cuter_erlang_tests
 
+SUITE_MODULES = \
+	otp_int
+
 ###----------------------------------------------------------------------
 ### Targets
 ###----------------------------------------------------------------------
 
 ERL_DIRS = \
 	$(SRC) \
-	$(UTEST_SRC)
+	$(UTEST_SRC) \
+	$(SUITE_SRC)
 
 TARGETS = \
 	cuter_target \
@@ -98,7 +105,7 @@ all: $(TARGETS) dialyzer utest
 
 cuter_target: $(SRC_MODULES:%=$(EBIN)/%.beam)
 
-utest_target: $(UTEST_MODULES:%=$(UTEST_EBIN)/%.beam)
+utest_target: $(UTEST_MODULES:%=$(UTEST_EBIN)/%.beam) $(SUITE_MODULES:%=$(SUITE_EBIN)/%.beam)
 
 $(EBIN)/%.beam: %.erl
 	@echo "ERLC $<"
@@ -108,10 +115,15 @@ $(UTEST_EBIN)/%.beam: %.erl
 	@echo "ERLC $<"
 	@$(ERLC) $(ERLC_INCLUDE) $(ERLC_FLAGS) $(ERLC_MACROS) -o $(UTEST_EBIN) $<
 
+$(SUITE_EBIN)/%.beam: %.erl
+	@echo "ERLC $<"
+	@$(ERLC) $(ERLC_INCLUDE) $(ERLC_FLAGS) $(ERLC_MACROS) -o $(SUITE_EBIN) $<
+
 utest: $(TARGETS)
 	@(erl -noshell -pa $(EBIN) -pa $(UTEST_EBIN) \
 		-eval "eunit:test([cuter, cuter_cerl, cuter_iserver, cuter_eval, cuter_json, cuter_solver, cuter_erlang, cuter_codeserver, cuter_monitor], [verbose])" \
 		-s init stop)
+	@(./functional_test otp_int obsolete '[erlang, length, 1]' 3 otp_int-obsolete-3 $(SUITE_EBIN) $(SUITE_EXPECTED))
 
 dialyzer: cuter_target .cuter_plt
 	dialyzer --plt .cuter_plt $(DIALYZER_FLAGS) $(EBIN)/*.beam
