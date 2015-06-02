@@ -145,7 +145,7 @@ clean:
 	$(RM) $(EBIN)/*.beam
 
 clean_tests:
-	$(RM) $(UTEST_EBIN)/*.beam
+	$(RM) $(UTEST_EBIN)/*.beam $(SUITE_EBIN)/*.beam
 
 cleangen:
 	$(RM) .depend .cuter_plt
