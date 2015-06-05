@@ -327,6 +327,7 @@ class ErlangZ3:
       cc.OP_LT_FLOAT: self.lt_floats_toZ3,
       cc.OP_CONS: self.cons_toZ3,
       cc.OP_TCONS: self.tcons_toZ3,
+      cc.OP_POW: self.pow_toZ3,
     }
     
     opts_rev = {
@@ -1015,6 +1016,32 @@ class ErlangZ3:
       T.is_int(t1),
       T.int( - T.ival(t1) ),
       T.real( - T.rval(t1) )
+    ))
+  
+  ### Exponential
+  
+  ## FIXME Z3 only support nonlinear polynomial equations. Should look at http://www.cl.cam.ac.uk/~lp15/papers/Arith/.
+  def pow_toZ3(self, term, term1, term2):
+    T = self.Term
+    s = term["s"]
+    t1 = self.term_toZ3(term1)
+    t2 = self.term_toZ3(term2)
+    self.axs.extend([
+      Or(T.is_int(t1), T.is_real(t1)),
+      Or(T.is_int(t2), T.is_real(t2))
+    ])
+    self.env.bind(s, If(
+      And(T.is_int(t1), T.is_int(t2)),        # t1, t2: Int
+      T.real(T.ival(t1) ** T.ival(t2)),       # t = real(t1^t2)
+      If(
+        And(T.is_real(t1), T.is_real(t2)),    # t1, t2: Real
+        T.real(T.rval(t1) ** T.rval(t2)),     # t = real(t1^t2)
+        If(
+          And(T.is_int(t1), T.is_real(t2)),   # t1: Int, t2: Real
+          T.real(T.ival(t1) ** T.rval(t2)),   # t = real(t1^t2)
+          T.real(T.rval(t1) ** T.ival(t2))    # t1: Real, t2: Int, t = real(t1^t2)
+        )
+      )
     ))
   
   # ----------------------------------------------------------------------

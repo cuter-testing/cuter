@@ -153,6 +153,7 @@
 -define(OP_IDIV_NAT, 38).
 -define(OP_REM_NAT, 39).
 -define(OP_UNARY, 40).
+-define(OP_POW, 58).
 %% Operations on atoms.
 -define(OP_ATOM_NIL, 49).
 -define(OP_ATOM_HEAD, 50).
@@ -201,6 +202,7 @@
                  , { {erlang, '-',           1}, ?OP_UNARY         }
                  , { {erlang, '=:=',         2}, ?OP_EQUAL         }
                  , { {erlang, '=/=',         2}, ?OP_UNEQUAL       }
+                 , { {math, pow,             2}, ?OP_POW           }
                  ])).
 
 %% All the MFAs that are supported for symbolic evaluation.

@@ -89,6 +89,7 @@ OP_LT_INT = 54
 OP_LT_FLOAT = 55
 OP_CONS = 56
 OP_TCONS = 57
+OP_POW = 58
 
 def is_constraint_kind(tp):
   return tp == CONSTRAINT_TRUE or tp == CONSTRAINT_FALSE

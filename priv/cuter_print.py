@@ -41,6 +41,9 @@ def pretty(d):
     # Int
     if d['t'] == cc.JSON_TYPE_INT:
       return d['v']
+    # Float
+    if d['t'] == cc.JSON_TYPE_FLOAT:
+      return d['v']
     # Atom
     if d['t'] == cc.JSON_TYPE_ATOM:
       return "".join(map(chr, d['v']))
@@ -58,8 +61,6 @@ def pretty_type(d):
     return "atom"
   if tp == cc.JSON_ERLTYPE_ATOMLIT:
     return pretty(d["a"])
-  if tp == cc.JSON_ERLTYPE_BOOLEAN:
-    return "boolean"
   if tp == cc.JSON_ERLTYPE_FLOAT:
     return "float"
   if tp == cc.JSON_ERLTYPE_INTEGER:
@@ -308,6 +309,13 @@ for tp, tag, json_data, rev in cio.JsonReader(fname, 100000000):
     print "TO FLOAT"
     xs = json_data["a"]
     print "%s = float( %s )" % (pretty(xs[0]), pretty(xs[1]))
+  # Power
+  elif tp == cc.OP_POW:
+    xs = json_data["a"]
+    pprint([
+      "POW",
+      "%s = %s ** %s" % (pretty(xs[0]), pretty(xs[1]), pretty(xs[2]))
+    ], tag)
   else:
     print "UNKNOWN OPCODE", tp
     xs = json_data["a"]
