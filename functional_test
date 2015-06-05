@@ -11,5 +11,8 @@ if diff -q "$outfile" "$expected"; then
   rm -f "$outfile"
   exit 0
 else
+  echo "Result mismatch ..."
+  cat "$outfile"
+  rm -f "$outfile"
   exit 1
 fi
