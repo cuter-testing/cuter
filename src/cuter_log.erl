@@ -34,14 +34,17 @@
 -type opcode() :: byte().
 -type entry_type() :: ?CONSTRAINT_TRUE | ?CONSTRAINT_FALSE | ?NOT_CONSTRAINT.
 
-%% Opens a file for logging or reading terms
+%% Opens a file for logging or reading terms.
 -spec open_file(file:name(), mode()) -> {ok, file:io_device()}.
-open_file(F, M) when M =:= read; M =:= write ->
-  file:open(F, [M, raw, binary, compressed, {delayed_write, 262144, 2000}]).
+open_file(Fd, read) ->
+  file:open(Fd, [read, raw, binary, compressed, {read_ahead, 262144}]);
+open_file(Fd, write) ->
+  file:open(Fd, [write, raw, binary, compressed, {delayed_write, 262144, 2000}]).
 
-%% Closes a file
+%% Closes a file.
 -spec close_file(file:io_device()) -> ok.
-close_file(F) -> ok = file:close(F).
+close_file(Fd) ->
+  ok = file:close(Fd).
 
 %% ------------------------------------------------------------------
 %% Log a symbolic MFA operation
