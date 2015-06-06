@@ -70,7 +70,7 @@ Installing
         make depend
         make
 
-* **[Optional]** Now you can build and run the unit tests with `make utest`
+* **[Optional]** Now you can build and run the unit & functional tests with `make test`
 
 * **[Optional]** You can also run Dialyzer with `make dialyzer`
 
