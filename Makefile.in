@@ -1,4 +1,4 @@
-.PHONY: depend dialyzer clean cleandep distclean all utest suite
+.PHONY: depend dialyzer clean cleandep distclean all utest ftest test suite
 
 ###----------------------------------------------------------------------
 ### Orientation information
@@ -8,11 +8,11 @@ SRC  = src
 INCLUDE = include
 EBIN = ebin
 PRIV = $(PWD)/priv
-UTEST_SRC = utest/src
-UTEST_EBIN = utest/ebin
-FTEST_SRC = ftest/src
-FTEST_EBIN = $(PWD)/ftest/ebin
-FTEST_EXPECTED = $(PWD)/ftest/expected
+TEST = test
+UTEST_SRC = $(TEST)/utest/src
+UTEST_EBIN = $(TEST)/utest/ebin
+FTEST_SRC = $(TEST)/ftest/src
+FTEST_EBIN = $(TEST)/ftest/ebin
 LIB = $(PWD)/lib
 ERLC = @ERLC@
 MECK = $(realpath @MECK@)
@@ -102,6 +102,8 @@ default: cuter_target
 
 suite: utest_target ftest_target
 
+test: utest ftest
+
 all: $(TARGETS) dialyzer utest ftest
 
 cuter_target: $(SRC_MODULES:%=$(EBIN)/%.beam)
@@ -128,7 +130,7 @@ utest: $(TARGETS)
 		-s init stop)
 
 ftest: $(TARGETS)
-	@(./functional_test otp_int obsolete '[erlang, length, 1]' 3 otp_int-obsolete-3 $(FTEST_EBIN) $(FTEST_EXPECTED))
+	@(./$(TEST)/functional_test)
 
 dialyzer: cuter_target .cuter_plt
 	dialyzer --plt .cuter_plt $(DIALYZER_FLAGS) $(EBIN)/*.beam

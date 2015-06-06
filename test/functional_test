@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+
+DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+ebin=$DIR/ftest/ebin
+
+tests[0]="otp_int;obsolete;[erlang, length, 1];3;-p=2 -s=3;otp_int-obsolete-3"
+
+for element in "${tests[@]}"; do
+  IFS=';' read -a t <<< "$element"
+
+  outfile=$DIR/${t[5]}
+  expected=$DIR/ftest/expected/${t[5]}.expected
+
+  echo -e "\nRunning ./cuter ${t[0]} ${t[1]} ${t[2]} ${t[3]} ${t[4]} ..."
+  cd "$ebin" && $DIR/../cuter ${t[0]} ${t[1]} "${t[2]}" ${t[3]} ${t[4]} > "$outfile"
+  if diff -q "$outfile" "$expected"; then
+    rm -f "$outfile"
+  else
+    echo "================================================================="
+    cat "$outfile"
+    echo "================================================================="
+    rm -f "$outfile"
+    exit 1
+  fi
+done
+exit 0
+
