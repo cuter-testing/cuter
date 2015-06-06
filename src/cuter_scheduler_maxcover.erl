@@ -5,13 +5,13 @@
 
 -export([ %% external API
           start/4, stop/1,
-          request_input/1, store_execution/3,
+          request_input/1, store_execution/3, request_operation/1, solver_reply/2,
           %% gen_server callbacks
           init/1, terminate/2, code_change/3, handle_info/2, handle_call/3, handle_cast/2]).
 
 -include("include/cuter_macros.hrl").
 
--export_type([handle/0]).
+-export_type([handle/0, operationId/0]).
 
 -type visited() :: boolean().
 -type operationId() :: integer().
@@ -57,16 +57,18 @@
 %%   The visited tags of the concolic executions.
 
 -record(st, {
-  codeServer     :: pid(),
-  depth          :: cuter:depth(),
-  erroneous      :: cuter:erroneous_inputs(),
-  firstOperation :: dict:dict(handle(), operationId()),
-  infoTab        :: execution_info_tab(),
-  inputsQueue    :: inputs_queue(),
-  python         :: string(),
-  running        :: dict:dict(handle(), cuter:input()),
-  tagsQueue      :: cuter_minheap:minheap(),
-  visitedTags    :: cuter_cerl:visited_tags()}).
+  codeServer      :: pid(),
+  depth           :: cuter:depth(),
+  erroneous       :: cuter:erroneous_inputs(),
+  firstOperation  :: dict:dict(handle(), operationId()),
+  infoTab         :: execution_info_tab(),
+  inputsQueue     :: inputs_queue(),
+  inputsGenerated :: gb_sets:set(integer()),
+  python          :: string(),
+  running         :: dict:dict(handle(), cuter:input()),
+  solving         :: dict:dict(pid(), operationId()),
+  tagsQueue       :: cuter_minheap:minheap(),
+  visitedTags     :: cuter_cerl:visited_tags()}).
 -type state() :: #st{}.
 
 %% ----------------------------------------------------------------------------
@@ -96,6 +98,14 @@ request_input(Scheduler) ->
 store_execution(Scheduler, Handle, Info) ->
   gen_server:call(Scheduler, {store_execution, Handle, Info}, infinity).
 
+-spec request_operation(pid()) -> cuter_solver:solver_input() | try_later.
+request_operation(Scheduler) ->
+  gen_server:call(Scheduler, request_operation, infinity).
+
+-spec solver_reply(pid(), cuter_solver:solver_result()) -> ok.
+solver_reply(Scheduler, Result) ->
+  gen_server:call(Scheduler, {solver_reply, Result}, infinity).
+
 %% ----------------------------------------------------------------------------
 %% gen_server callbacks (Server Implementation)
 %% ----------------------------------------------------------------------------
@@ -115,6 +125,7 @@ init([Python, Depth, SeedInput, CodeServer]) ->
           , firstOperation = dict:new()
           , erroneous = []
           , inputsQueue = InpQueue
+          , solving = dict:new()
           , tagsQueue = TagsQueue}}.
 
 %% terminate/2
@@ -137,20 +148,24 @@ handle_info(_Msg, State) ->
 %% handle_call/3
 -spec handle_call(request_input, from(), state()) -> {reply, (empty | try_later | {handle(), cuter:input()}), state()}
                ; ({store_execution, handle(), cuter_analyzer:info()}, from(), state()) -> {reply, ok, state()}
+               ; ({solver_reply, cuter_solver:solver_result()}, from(), state()) -> {reply, ok, state()}
+               ; (request_operation, from(), state()) -> {reply, cuter_solver:solver_input() | try_later, state()}
                ; (stop, from(), state()) -> {stop, normal, cuter:erroneous_inputs(), state()}.
 
 %% Ask for a new input to execute.
-handle_call(request_input, _From, S=#st{tagsQueue = TagsQueue, infoTab = Info, python = P, visitedTags = Visited,
-                                        running = Running, firstOperation = FirstOperation, inputsQueue = InputsQueue}) ->
-  case find_new_input(TagsQueue, InputsQueue, P, Info, Visited) of
-    %% No input could be generated and both queues ended up empty.
-    empty ->
-      case dict:size(Running) of
-        0 -> {reply, empty, S};     % There are no active executions, so the queues will remain empty.
-        _ -> {reply, try_later, S}  % There are active executions, so the queues may later have some entries.
+handle_call(request_input, _From, S=#st{running = Running, firstOperation = FirstOperation, inputsQueue = InputsQueue, tagsQueue = TagsQueue,
+                                        solving = Solving}) ->
+  %% Check the queue for inputs that wait to be executed.
+  case queue:out(InputsQueue) of
+    %% Empty queue.
+    {empty, InputsQueue} ->
+      case dict:is_empty(Running) andalso cuter_minheap:is_empty(TagsQueue) andalso dict:is_empty(Solving) of
+        true  -> {reply, empty, S};     % There are no active executions, so the queues will remain empty.
+        false -> {reply, try_later, S}  % There are active executions, so the queues may later have some entries.
       end;
-    %% A new input was generated.
-    {ok, Handle, Input, OperationAllowed, RemainingQueue} ->
+    %% Retrieved an input.
+    {{value, {OperationAllowed, Input}}, RemainingQueue} ->
+      Handle = fresh_execution_handle(),
       {reply, {Handle, Input}, S#st{ running = dict:store(Handle, Input, Running)
                                    , firstOperation = dict:store(Handle, OperationAllowed, FirstOperation)
                                    , inputsQueue = RemainingQueue}}
@@ -179,6 +194,32 @@ handle_call({store_execution, Handle, Info}, _From, S=#st{tagsQueue = TQ, infoTa
                   , firstOperation = dict:erase(Handle, FOp)
                   , erroneous = NErr}};
 
+%% Report the result of an SMT solving.
+handle_call({solver_reply, Reply}, {Who, _Ref}, S=#st{solving = Solving, inputsQueue = InputsQueue}) ->
+  case Reply of
+    %% The model could not be satisfied.
+    error ->
+      cuter_pp:solving_failed_notify(),
+      {reply, ok, S#st{solving = dict:erase(Who, Solving)}};
+    %% The modal was satisfied and a new input was generated.
+    {ok, Input} ->
+      OperationId = dict:fetch(Who, Solving),
+      {reply, ok, S#st{ inputsQueue = queue:in({OperationId+1, Input}, InputsQueue)  % Queue the input
+                      , solving = dict:erase(Who, Solving)}}
+  end;
+
+%% Request an operation to reverse.
+handle_call(request_operation, {Who, _Ref}, S=#st{tagsQueue = TagsQueue, infoTab = Info, visitedTags = Visited, python = Python, solving = Solving}) ->
+  case locate_next_reversible(TagsQueue, Visited) of
+    %% The queue is empty.
+    empty -> {reply, try_later, S};
+    %% Located an operation to reverse.
+    {ok, OperationId, Handle} ->
+      ExecInfo = dict:fetch(Handle, Info),
+      Reply = {Python, ExecInfo#info.mappings, ExecInfo#info.traceFile, OperationId},
+      {reply, Reply, S#st{solving = dict:store(Who, OperationId, Solving)}}
+  end;
+
 %% Stops the server.
 handle_call(stop, _From, S=#st{erroneous = Err}) ->
   {stop, normal, lists:reverse(Err), S}.
@@ -189,49 +230,14 @@ handle_cast(_Msg, State) ->
   {noreply, State}.
 
 %% ----------------------------------------------------------------------------
-%% Generate new input
+%% Functions for tags
 %% ----------------------------------------------------------------------------
 
--spec find_new_input(cuter_minheap:minheap(), inputs_queue(), string(), execution_info_tab(), cuter_cerl:visited_tags()) ->
-        {ok, handle(), cuter:input(), integer(), inputs_queue()} | empty.
-find_new_input(TagsQueue, InpQueue, Python, Info, Visited) ->
-  %% First, search if there are any inputs waiting in the inputs queue.
-  case queue:out(InpQueue) of
-    %% Found an input in the queue, so return it.
-    {{value, {N, Input}}, RemInpQueue} ->
-      H = fresh_execution_handle(),
-      {ok, H, Input, N, RemInpQueue};
-    %% The inputs queue is empty, so try to reverse a constraint
-    %% so as to generate a new input.
-    {empty, InpQueue} ->
-      case generate_new_input(TagsQueue, Python, Info, Visited) of
-        %% No new input could be generated and the tags queue was depleted.
-        empty -> empty;
-        %% Generated a new input, so return it.
-        {ok, H, Input, N} -> {ok, H, Input, N, InpQueue}
-      end
-  end.
-
--spec generate_new_input(cuter_minheap:minheap(), string(), execution_info_tab(), cuter_cerl:visited_tags()) ->
-        {ok, handle(), cuter:input(), operationId()} | empty.
-generate_new_input(Queue, Python, Info, Visited) ->
-  case locate_next_reversible(Queue, Visited) of
-    %% The queue is empty.
-    empty -> empty;
-    %% Retrieve a constraint to reverse.
-    {ok, N, Handle} ->
-      I = dict:fetch(Handle, Info),
-      case cuter_solver:solve(Python, I#info.mappings, I#info.traceFile, N) of
-        %% Solving failed.
-        error ->
-          cuter_pp:solving_failed_notify(),
-          generate_new_input(Queue, Python, Info, Visited);
-        %% Successful solving.
-        {ok, Input} ->
-          H = fresh_execution_handle(),
-          {ok, H, Input, N+1}
-      end
-  end.
+%% Each item in the heap is in the form {Visited, OperationId, TagId, Handle}
+%% where Visited     : if the tag has already been visited during an execution
+%%       OperationId : the cardinality of the constraint in the path vertex
+%%       TagId       : the Id of the tag that will be visited
+%%       Handle      : the unique identifier of the concolic execution
 
 -spec locate_next_reversible(cuter_minheap:minheap(), cuter_cerl:visited_tags()) -> {ok, integer(), handle()} | empty.
 locate_next_reversible(Queue, Visited) ->
@@ -258,30 +264,6 @@ locate_next_reversible(Queue, Visited, M) ->
       end
   end.
 
-%% ----------------------------------------------------------------------------
-%% Generate handles for executions
-%% ----------------------------------------------------------------------------
-
--spec set_execution_counter(integer()) -> integer() | undefined.
-set_execution_counter(N) ->
-  put(?EXECUTION_COUNTER_PREFIX, N).
-
--spec fresh_execution_handle() -> handle().
-fresh_execution_handle() ->
-  N = get(?EXECUTION_COUNTER_PREFIX) + 1,
-  put(?EXECUTION_COUNTER_PREFIX, N),
-  "exec" ++ integer_to_list(N).
-
-%% ----------------------------------------------------------------------------
-%% Functions for tags
-%% ----------------------------------------------------------------------------
-
-%% Each item in the heap is in the form {Visited, OperationId, TagId, Handle}
-%% where Visited     : if the tag has already been visited during an execution
-%%       OperationId : the cardinality of the constraint in the path vertex
-%%       TagId       : the Id of the tag that will be visited
-%%       Handle      : the unique identifier of the concolic execution
-
 -spec generate_queue_items(cuter_analyzer:reversible_with_tags(), handle(), cuter_cerl:visited_tags(), operationId(), cuter:depth()) -> [item()].
 generate_queue_items(Rvs, Handle, Visited, N, Depth) ->
   generate_queue_items(Rvs, Handle, Visited, N, Depth, []).
@@ -301,6 +283,20 @@ maybe_item({Id, TagID}, Handle, Visited, N) ->
     true  -> false;
     false -> {ok, {gb_sets:is_element(TagID, Visited), Id, TagID, Handle}}
   end.
+
+%% ----------------------------------------------------------------------------
+%% Generate handles for executions
+%% ----------------------------------------------------------------------------
+
+-spec set_execution_counter(integer()) -> integer() | undefined.
+set_execution_counter(N) ->
+  put(?EXECUTION_COUNTER_PREFIX, N).
+
+-spec fresh_execution_handle() -> handle().
+fresh_execution_handle() ->
+  N = get(?EXECUTION_COUNTER_PREFIX) + 1,
+  put(?EXECUTION_COUNTER_PREFIX, N),
+  "exec" ++ integer_to_list(N).
 
 %% ----------------------------------------------------------------------------
 %% Erroneous inputs

@@ -32,6 +32,7 @@
 -define(VERBOSE_EXEC_INFO, verbose_execution_info).
 -define(DISABLE_PMATCH, disable_pmatch).
 -define(POLLERS_NO, number_of_pollers).
+-define(SOLVERS_NO, number_of_solvers).
 
 -type default_option() :: {?POLLERS_NO, ?ONE}
                         .
@@ -39,6 +40,7 @@
 -type option() :: default_option()
                 | {basedir, file:filename()}
                 | {?POLLERS_NO, pos_integer()}
+                | {?SOLVERS_NO, pos_integer()}
                 | ?FULLY_VERBOSE_EXEC_INFO
                 | ?VERBOSE_EXEC_INFO
                 | ?DISABLE_PMATCH
@@ -59,33 +61,37 @@ run(M, F, As, Depth) ->
 -spec run(mod(), atom(), input(), depth(), [option()]) -> erroneous_inputs().
 run(M, F, As, Depth, Options) ->
   Conf = initialize_app(M, F, As, Depth, Options),
-  start(Conf, number_of_pollers(Options)).
+  start(Conf, number_of_pollers(Options), number_of_solvers(Options)).
 
 %% ----------------------------------------------------------------------------
 %% Manage the concolic executions
 %% ----------------------------------------------------------------------------
 
--spec start(configuration(), 1) -> erroneous_inputs().
-start(Conf, N) ->
+-spec start(configuration(), pos_integer(), pos_integer()) -> erroneous_inputs().
+start(Conf, N_Pollers, N_Solvers) ->
   CodeServer = Conf#conf.codeServer,
   Scheduler = Conf#conf.scheduler,
   M = Conf#conf.mod,
   F = Conf#conf.func,
   Dir = Conf#conf.dataDir,
   Depth = Conf#conf.depth,
-  Pollers = [cuter_poller:start(CodeServer, Scheduler, M, F, Dir, Depth) || _ <- lists:seq(1, N)],
-  wait_for_pollers(Conf, Pollers).
+  Pollers = [cuter_poller:start(CodeServer, Scheduler, M, F, Dir, Depth) || _ <- lists:seq(1, N_Pollers)],
+  Solvers = [cuter_solver:start(Scheduler) || _ <- lists:seq(1, N_Solvers)],
+  ok = wait_for_processes(Pollers),
+  lists:foreach(fun cuter_solver:send_stop_message/1, Solvers),
+  ok = wait_for_processes(Solvers),
+  stop(Conf).
 
--spec wait_for_pollers(configuration(), [pid()]) -> erroneous_inputs().
-wait_for_pollers(Conf, []) ->
-  stop(Conf);
-wait_for_pollers(Conf, Pollers) ->
+-spec wait_for_processes([pid()]) -> ok.
+wait_for_processes([]) ->
+  ok;
+wait_for_processes(Procs) ->
   receive
     {'EXIT', Who, normal} ->
-      wait_for_pollers(Conf, Pollers -- [Who]);
+      wait_for_processes(Procs -- [Who]);
     {'EXIT', Who, Why} ->
-      io:format("Poller ~p exited with ~p~n", [Who, Why]),
-      wait_for_pollers(Conf, Pollers -- [Who])
+      io:format("Proccess ~p exited with ~p~n", [Who, Why]),
+      wait_for_processes(Procs -- [Who])
   end.
 
 -spec stop(configuration()) -> erroneous_inputs().
@@ -134,6 +140,11 @@ set_basedir([_|Rest]) -> set_basedir(Rest).
 number_of_pollers([]) -> ?ONE;
 number_of_pollers([{?POLLERS_NO, N}|_Rest]) -> N;
 number_of_pollers([_|Rest]) -> number_of_pollers(Rest).
+
+-spec number_of_solvers([option()]) -> pos_integer().
+number_of_solvers([]) -> ?ONE;
+number_of_solvers([{?SOLVERS_NO, N}|_Rest]) -> N;
+number_of_solvers([_|Rest]) -> number_of_solvers(Rest).
 
 -spec with_pmatch([option()]) -> boolean().
 with_pmatch(Options) -> not lists:member(?DISABLE_PMATCH, Options).

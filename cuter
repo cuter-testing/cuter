@@ -57,6 +57,9 @@ if [ $# -ge 3 ]; then
             -p | --pollers)
                 opts=$(add_opt "$opts" "{number_of_pollers, $VALUE}")
                 ;;
+            -s | --solvers)
+                opts=$(add_opt "$opts" "{number_of_solvers, $VALUE}")
+                ;;
             -v | --verbose)
                 opts=$(add_opt "$opts" "verbose_execution_info")
                 ;;

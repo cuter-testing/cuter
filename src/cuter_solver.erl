@@ -7,9 +7,11 @@
 
 -export([
   %% external exports
-    start/0
-  , lookup_in_model/2
-  , solve/4
+    lookup_in_model/2
+  , start/1
+  , poll/2
+  , send_stop_message/1
+  , solve/1
   %% gen_fsm callbacks
   , init/1
   , handle_event/3
@@ -42,7 +44,9 @@
   , failed/3
 ]).
 
--export_type([model/0, state/0]).
+-export_type([model/0, state/0, solver_input/0, solver_result/0]).
+
+-define(SLEEP, 100).
 
 -type state()     :: idle
                    | python_started
@@ -60,7 +64,6 @@
 -type err_async() :: {stop, {unexpected_event, any()}, fsm_state()}.
 -type err_sync()  :: {stop, {unexpected_event, any()}, ok, fsm_state()}.
 -type model()     :: #{cuter_symbolic:symbolic() => any()}.
--type solver_result() :: {ok, [any()]} | error.
 -type simplifier_conf() :: bitstring().
 
 %% fsm state datatype
@@ -74,19 +77,74 @@
 -type fsm_state() :: #fsm_state{}.
 
 -type mappings() :: [cuter_symbolic:mapping()].
+-type solver_input() :: {string(), mappings(), file:name(), cuter_scheduler_maxcover:operationId()}.
+-type solver_result() :: {ok, cuter:input()} | error.
+
+%% ----------------------------------------------------------------------------
+%% Start a Solver process
+%% ----------------------------------------------------------------------------
+
+%% Starts a Solver process.
+-spec start(pid()) -> pid().
+start(Scheduler) ->
+  spawn_link(?MODULE, poll, [self(), Scheduler]).
+
+%% Initializes and starts the loop.
+-spec poll(pid(), pid()) -> ok.
+poll(Parent, Scheduler) ->
+  process_flag(trap_exit, true),
+  loop(Parent, Scheduler).
+
+%% Enters the loop where it will query the scheduler for an operation to
+%% reverse and then report the result.
+-spec loop(pid(), pid()) -> ok.
+loop(Parent, Scheduler) ->
+  case got_stop_message(Parent) of
+    true -> stop();
+    false ->
+      %% Query the scheduler.
+      case cuter_scheduler_maxcover:request_operation(Scheduler) of
+        %% No operation is currently available.
+        try_later ->
+          timer:sleep(?SLEEP),
+          loop(Parent, Scheduler);
+        %% Got an operation to solve.
+        {Python, Mappings, File, N} ->
+          Result = solve({Python, Mappings, File, N}),
+          ok = cuter_scheduler_maxcover:solver_reply(Scheduler, Result),
+          loop(Parent, Scheduler)
+      end
+  end.
+
+%% Stops a Solver process.
+-spec send_stop_message(pid()) -> ok.
+send_stop_message(Solver) ->
+  Solver ! {self(), stop},
+  ok.
+
+%% Checks if the solver process should stop.
+-spec got_stop_message(pid()) -> boolean().
+got_stop_message(Parent) ->
+  receive {Parent, stop} -> true
+  after 0 -> false
+  end.
+
+%% Cleans up before exiting.
+-spec stop() -> ok.
+stop() ->
+  ok.
 
 %% ----------------------------------------------------------------------------
 %% Query the Z3 SMT Solver
 %% ----------------------------------------------------------------------------
 
--spec solve(string(), mappings(), file:name(), integer()) -> solver_result().
-solve(Python, Mappings, File, N) ->
-  FSM = start(),
+-spec solve(solver_input()) -> solver_result().
+solve({Python, Mappings, File, N}) ->
+  FSM = start_fsm(),
   ok = exec(FSM, Python),
   ok = load_trace_file(FSM, {File, N}),
   Setting = initial_setting(length(Mappings)),
   query_solver(FSM, Mappings, Setting).
-
 
 -spec query_solver(pid(), mappings(), bitstring()) -> solver_result().
 query_solver(FSM, Mappings, CurrSetting) ->
@@ -193,8 +251,8 @@ load_setting(<<F:1, Rest/bitstring>>, [M|Ms], FSM) ->
 %% ----------------------------------------------------------------------------
 
 %% Start the FSM
--spec start() -> pid() | {error, term()}.
-start() ->
+-spec start_fsm() -> pid() | {error, term()}.
+start_fsm() ->
   case gen_fsm:start_link(?MODULE, self(), []) of
     {ok, Pid} -> Pid;
     {error, _Reason} = R -> R

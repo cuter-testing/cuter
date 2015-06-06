@@ -15,7 +15,7 @@
 }).
 -type configuration() :: #conf{}.
 
--define(SLEEP, 300).
+-define(SLEEP, 50).
 
 %% ------------------------------------------------------------------
 %% Main functions of the poller
