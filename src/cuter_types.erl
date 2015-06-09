@@ -200,6 +200,9 @@ t_from_form({type, _, neg_integer, []}) ->
 %% char()
 t_from_form({type, _, char, []}) ->
   t_char();
+%% arity()
+t_from_form({type, _, arity, []}) ->
+  t_byte();
 %% byte()
 t_from_form({type, _, byte, []}) ->
   t_byte();
