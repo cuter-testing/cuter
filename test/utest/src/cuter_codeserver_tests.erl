@@ -64,6 +64,11 @@ error_load_test_() ->
 %% Helper functions
 %%====================================================================
 
-setup() -> {}.
+setup() ->
+  ok = cuter_pp:start(cuter_pp:default_reporting_level()),
+  {}.
 
-cleanup(_) -> ok.
+cleanup(_) ->
+  cuter_pp:stop(),
+  timer:sleep(200),
+  ok.
