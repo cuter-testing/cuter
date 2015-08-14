@@ -252,7 +252,7 @@ t_from_form({type, _, record, [{atom, _, Name} | FieldTypes]}) ->
 t_from_form({type, _, map, _}=X) ->
   throw({unsupported, X});
 %% local type
-t_from_form({type, _, Name, Types}) ->
+t_from_form({Tag, _, Name, Types}) when Tag =:= type; Tag =:= user_type ->
   Ts = [t_from_form(T) || T <- Types],
   t_local(Name, Ts);
 %% Type Variable
