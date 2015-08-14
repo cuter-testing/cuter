@@ -47,7 +47,7 @@
 %% inputsQueue :: inputs_queue()
 %%   A queue for all the generated inputs that wait to be executed.
 %%   Used for the seed inputs (for now).
-%% python :: string()
+%% python :: file:filename()
 %%   The path to the python script that will invoke the solver.
 %% running :: dict:dict(handle(), cuter:input())
 %%   The currently running concolic executions and their inputs.
@@ -63,8 +63,7 @@
   firstOperation  :: dict:dict(handle(), operationId()),
   infoTab         :: execution_info_tab(),
   inputsQueue     :: inputs_queue(),
-  inputsGenerated :: gb_sets:set(integer()),
-  python          :: string(),
+  python          :: file:filename(),
   running         :: dict:dict(handle(), cuter:input()),
   solving         :: dict:dict(pid(), operationId()),
   tagsQueue       :: cuter_minheap:minheap(),
@@ -76,7 +75,7 @@
 %% ----------------------------------------------------------------------------
 
 %% Starts the Scheduler.
--spec start(string(), integer(), cuter:input(), pid()) -> pid().
+-spec start(file:filename(), integer(), cuter:input(), pid()) -> pid().
 start(Python, Depth, SeedInput, CodeServer) ->
   case gen_server:start_link(?MODULE, [Python, Depth, SeedInput, CodeServer], []) of
     {ok, Scheduler} -> Scheduler;
@@ -111,7 +110,8 @@ solver_reply(Scheduler, Result) ->
 %% ----------------------------------------------------------------------------
 
 %% init/1
--spec init([string() | integer() | cuter:input() | pid(), ...]) -> {ok, state()}.
+-type init_arg() :: [file:filename() | integer() | cuter:input() | pid(), ...].
+-spec init(init_arg()) -> {ok, state()}.
 init([Python, Depth, SeedInput, CodeServer]) ->
   _ = set_execution_counter(0),
   TagsQueue = cuter_minheap:new(fun erlang:'<'/2),
