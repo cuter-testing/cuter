@@ -485,7 +485,8 @@ decode_value(?JSON_TYPE_ATOM, JSON, Dec=#decoder{state = value_start})  -> decod
 decode_value(?JSON_TYPE_LIST, JSON, Dec=#decoder{state = value_start})  -> decode_list(JSON, Dec);
 decode_value(?JSON_TYPE_TUPLE, JSON, Dec=#decoder{state = value_start}) -> decode_tuple(JSON, Dec);
 decode_value(?JSON_TYPE_PID, JSON, Dec=#decoder{state = value_start})   -> decode_pid(JSON, Dec);
-decode_value(?JSON_TYPE_REF, JSON, Dec=#decoder{state = value_start})   -> decode_reference(JSON, Dec).
+decode_value(?JSON_TYPE_REF, JSON, Dec=#decoder{state = value_start})   -> decode_reference(JSON, Dec);
+decode_value(?JSON_TYPE_BITSTRING, JSON, Dec=#decoder{state = value_start}) -> decode_bitstring(JSON, Dec).
 
 %% Decode an integer
 decode_int(JSON, Dec=#decoder{state = value_start}) ->
@@ -553,6 +554,38 @@ decode_atom(JSON, Dec=#decoder{state = value_next_or_end}) ->
     _ ->
       parse_error(parse_error, Dec)
   end.
+
+%% Decode a bitstring
+decode_bitstring(JSON, Dec=#decoder{state = value_start}) ->
+  case trim_whitespace(JSON) of
+    <<$\[, Rest/binary>> ->
+      decode_bitstring(Rest, Dec#decoder{state = value_next_or_end, acc = []});
+    _ ->
+      parse_error(parse_error, Dec)
+  end;
+decode_bitstring(JSON, Dec=#decoder{state = value_next_or_end}) ->
+  case trim_whitespace(JSON) of
+    <<I, Rest/binary>> when I =:= $0; I =:= $1; I =:= $, ->
+      decode_bitstring(Rest, ?PUSH(I, Dec));
+    <<$\], Rest/binary>> ->
+      Ts = string:tokens(Dec#decoder.acc, ","),
+      A = bits_to_bitstring(Ts),
+      {A, Rest};
+    _ ->
+      parse_error(parse_error, Dec)
+  end.
+
+%% Convert the list of bit representation to a bitstring
+%% i.e. ["0", "1"] to <<1:2>>.
+bits_to_bitstring(Bits) ->
+  bits_to_bitstring(Bits, <<>>).
+
+bits_to_bitstring([], Bin) ->
+  Bin;
+bits_to_bitstring(["0"|Bits], Bin) ->
+  bits_to_bitstring(Bits, <<0:1, Bin/bitstring>>);
+bits_to_bitstring(["1"|Bits], Bin) ->
+  bits_to_bitstring(Bits, <<1:1, Bin/bitstring>>).
 
 %% Decode a pid
 decode_pid(JSON, Dec=#decoder{state = value_start}) ->
@@ -630,17 +663,21 @@ json_encode(Term) ->
 json_encode_symbolic(Term) ->
   ?ENCODE_SYMBOLIC(cuter_symbolic:serialize(Term)).
 
-%% Encode a non-symbolic value to JSON
+%% Encode a non-symbolic value to JSON.
 json_encode_concrete(Term) ->
+  %% Find the shared subterms.
   Seen = ets:new(?MODULE, [set, protected]),
   Shared = ets:new(?MODULE, [set, protected]),
   scan_term(Term, Seen, Shared),
+  %% Encode the structure of the term to a JSON object.
   T = encode_term(Term, Seen),
+  %% Encode the shared subterms as the attribute of a JSON object.
   Dict = encode_shared(Shared, Seen),
   lists:foreach(fun ets:delete/1, [Seen, Shared]),
+  %% Add the representation of the shared subterms to the encoded term.
   merge_dict_term(Dict, T).
 
-merge_dict_term([], T) -> T;
+merge_dict_term([], T) -> T;  %% There are no shared subterms.
 merge_dict_term(D, [$\{ | T]) ->
   PD = [$\{, D, $,],
   [PD | T].
@@ -670,14 +707,17 @@ scan_term(Term, Seen, Shared) ->
 %% Update Seen and Shared dictionaries
 remember_term(Term, Seen, Shared) ->
   case ets:lookup(Seen, Term) of
+    %% 1st time of encountering a term.
     [] ->
       ets:insert(Seen, {Term, init}),
       false;
+    %% 2nd time of encountering a term.
     [{Term, init}] ->
       R = erlang:ref_to_list(erlang:make_ref()) -- "#Ref<>",
       ets:insert(Seen, {Term, R}),
       ets:insert(Shared, {R, Term}),
       true;
+    %% Nth time of encountering a term.
     [{Term, _R}] -> true
   end.
 
@@ -717,6 +757,10 @@ encode_term(Pid, _Seen) when is_pid(Pid) ->
 %% reference
 encode_term(Ref, _Seen) when is_reference(Ref) ->
   ?ENCODE(integer_to_list(?JSON_TYPE_REF), [?Q, erlang:ref_to_list(Ref), ?Q]);
+%% bitstring & binary
+encode_term(Ref, _Seen) when is_bitstring(Ref) ->
+  Es = encode_bitstring(Ref),
+  ?ENCODE(integer_to_list(?JSON_TYPE_BITSTRING), Es);
 encode_term(Term, _Seen) ->
   throw({unsupported_term, Term}).
 
@@ -748,3 +792,14 @@ encode_shared(Shared, Seen) ->
       ?ENCODE_DICT(Es)
   end.
 
+%% Encode a bitstring to an ASCII list of bits.
+%% i.e. <<1:2>> will become [$0,$1].
+encode_bitstring(Bin) ->
+  encode_bitstring(Bin, []).
+
+encode_bitstring(<<>>, []) ->
+  [$\[, $\]];
+encode_bitstring(<<>>, [$, | Bits]) ->
+  [$\[, lists:reverse(Bits), $\]];
+encode_bitstring(<<B:1, Rest/bitstring>>, Bits) ->
+  encode_bitstring(Rest, [$,, integer_to_list(B) | Bits]).

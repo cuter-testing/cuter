@@ -41,6 +41,10 @@ encdec_test_() ->
     {"References", [
       {"Make reference", erlang:make_ref()}
     ]},
+    {"Bitstrings", [
+      {"binary", <<42>>},
+      {"bitstring", <<42:42>>}
+    ]},
     {"Symbolic Variables", [
       {"Simple", cuter_symbolic:fresh_symbolic_var()}
     ]},
@@ -68,7 +72,6 @@ maybe(T) -> T.
 enc_fail_test_() ->
   Enc = fun cuter_json:term_to_json/1,
   Ts = [
-    {"Binary", <<42>>},
     {"Map", #{ok=>42}},
     {"Fun", fun() -> ok end}
   ],
