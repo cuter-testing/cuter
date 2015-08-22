@@ -1,26 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import json, sys, datetime
+import json
 from z3 import *
 import cuter_global as cglb
+import cuter_logger as clg
 import cuter_common as cc
 
-import struct, sys
-def prnt(data):
-  try:
-    sz = len(data)
-    x = struct.pack('!h', sz)
-    sys.stdout.write(x)
-    sys.stdout.write(data)
-  except:
-    pass
-
 set_param(max_lines=1, max_width=1000000, max_depth=10000000, max_visited=1000000)
-tmp = open('unknown.log', 'a')
-def log(data):
-  tmp.write(str(data) + ",\n")
-  tmp.flush()
 
 class Env:
   def __init__(self):
@@ -225,10 +212,6 @@ class ErlangZ3:
   
   # Add the axioms to the solver
   def add_axioms(self):
-#    for ax in self.axs:
-#      log(ax)
-#    import sys
-#    sys.exit(0)
     self.slv.add(simplify(And(*self.quantifier_axs)))
     self.slv.add(simplify(And(*self.axs)))
   
@@ -240,10 +223,7 @@ class ErlangZ3:
       return True
     else:
       if self.check == unknown:
-        log("### " + str(datetime.datetime.now()))
-        log(simplify(And(*self.quantifier_axs)))
-        log(simplify(And(*self.axs)))
-#        sys.exit(1)
+        clg.model_unknown(And(*self.quantifier_axs), And(*self.axs))
       return False
   
   # Fix a symbolic variable to a specific value
@@ -502,10 +482,8 @@ class ErlangZ3:
     axms = []
     for cl in spec:
       xs = self.spec_clause_toZ3(cl)
-      prnt("CL  " + str(xs))
       axms.append(xs)
     ax = Or(*axms)
-    prnt(str(ax))
     self.axs.append(ax)
   
   def spec_clause_toZ3(self, cl):
@@ -513,9 +491,7 @@ class ErlangZ3:
     axms = []
     for pm, tp in zip(pms, cl["p"]):
       s = self.env.lookup(pm)
-      prnt(str(s))
       xs = self.typedef_toZ3(s, tp)
-      prnt("  " + str(xs))
       if xs != None:
         axms.append(xs)
     return And(*axms)

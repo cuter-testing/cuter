@@ -3,6 +3,7 @@
 
 import gzip, json, struct, sys
 import cuter_global as cglb
+import cuter_logger as clg
 import cuter_common as cc
 
 class BinaryEOF(Exception):
@@ -56,20 +57,17 @@ class JsonReader:
     try:
       k = self.kind()
       tp = self.entry_type()
-      if cglb.__TTY__:
-        print "\n", tp
       tag = self.tag()
       sz = self.size()
       data = self.read(sz)
       rev = False
       if (cc.is_reversible(k, tp)):
         self.cnt += 1
-        if cglb.__TTY__:
-          print "RVS -- %s" % self.cnt
         if self.cnt == self.end:
           rev = True
       
       json_data = json.loads(data)
+      clg.json_loaded(self.cnt, k, tp, tag, json_data, rev)
       return tp, tag, json_data, rev
     except BinaryEOF:
       raise StopIteration
