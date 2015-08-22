@@ -126,6 +126,7 @@ class TermDecoder:
         cc.JSON_TYPE_LIST: self.list_toZ3,
         cc.JSON_TYPE_TUPLE: self.tuple_toZ3,
         cc.JSON_TYPE_ATOM: self.atom_toZ3,
+        cc.JSON_TYPE_BITSTRING: self.bitstring_toZ3
       }
       return opts[t["t"]](t["v"], dct)
   
@@ -164,11 +165,19 @@ class TermDecoder:
       t = eZ3.Atom.acons(hd, t)
     return eZ3.Term.atm(t)
 
+  def bitstring_toZ3(self, v, dct):
+    v.reverse()
+    eZ3 = self.eZ3
+    t = eZ3.BitStr.bnil
+    while v != []:
+      hd, v = BitVecVal(v[0], 1), v[1:]
+      t = eZ3.BitStr.bcons(hd, t)
+    return eZ3.Term.bin(t)
 
 
 class ErlangZ3:
   def __init__(self):
-    self.Term, self.List, self.Atom = self.erlang_type_system()
+    self.Term, self.List, self.Atom, self.BitStr = self.erlang_type_system()
     self.env = Env()
     self.axs = []
     self.quantifier_axs = []
@@ -191,20 +200,25 @@ class ErlangZ3:
     List = Datatype('List')
     Tuple = Datatype('Tuple')
     Atom = Datatype('Atom')
+    BitStr = Datatype('BitStr')
     # Term
     Term.declare('int', ('ival', IntSort()))
     Term.declare('real', ('rval', RealSort()))
     Term.declare('lst', ('lval', List))
     Term.declare('tpl', ('tval', List))
     Term.declare('atm', ('aval', Atom))
+    Term.declare('bin', ('bval', BitStr))
     # List
     List.declare('nil')
     List.declare('cons', ('hd', Term), ('tl', List))
     # Atom
     Atom.declare('anil')
     Atom.declare('acons', ('ahd', IntSort()), ('atl', Atom))
+    # Bitstring
+    BitStr.declare('bnil')
+    BitStr.declare('bcons', ('bhd', BitVecSort(1)), ('btl', BitStr))
     # Return Datatypes
-    return CreateDatatypes(Term, List, Atom)
+    return CreateDatatypes(Term, List, Atom, BitStr)
   
   # Reset the solver
   def reset_solver(self):
@@ -1183,7 +1197,7 @@ class ErlangZ3:
 
 def test_decoder_simple():
   erlz3 = ErlangZ3()
-  T, L, A = erlz3.Term, erlz3.List, erlz3.Atom
+  T, L, A, B = erlz3.Term, erlz3.List, erlz3.Atom, erlz3.BitStr
   terms = [
     ( # 42
       {"t":cc.JSON_TYPE_INT,"v":42},
@@ -1209,12 +1223,16 @@ def test_decoder_simple():
       {"d":{"0.0.0.46":{"t":cc.JSON_TYPE_LIST,"v":[{"t":cc.JSON_TYPE_INT,"v":1}]}},"t":cc.JSON_TYPE_LIST,"v":[{"l":"0.0.0.46"},{"l":"0.0.0.46"}]},
       T.lst(L.cons(T.lst(L.cons(T.int(1),L.nil)),L.cons(T.lst(L.cons(T.int(1),L.nil)),L.nil)))
     ),
+    ( # <<1:2>>
+      {"t":cc.JSON_TYPE_BITSTRING,"v":[0,1]},
+      T.bin(B.bcons(BitVecVal(0,1),B.bcons(BitVecVal(1,1),B.bnil)))
+    )
   ]
   decode_and_check(erlz3, terms)
 
 def test_decoder_complex():
   erlz3 = ErlangZ3()
-  T, L, A = erlz3.Term, erlz3.List, erlz3.Atom
+  T, L = erlz3.Term, erlz3.List
   s1, s2 = "0.0.0.39316", "0.0.0.39317"
   erlz3.env.bind(s1, T.int(1))
   erlz3.env.bind(s2, T.int(2))
