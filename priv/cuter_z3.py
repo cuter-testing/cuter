@@ -62,6 +62,8 @@ class TermEncoder:
       return self.toTuple(T.tval(t))
     elif (is_true(simplify(T.is_atm(t)))):
       return self.toAtom(T.aval(t))
+    elif (is_true(simplify(T.is_bin(t)))):
+      return self.toBitstring(T.bval(t))
   
   def toInt(self, t):
     return {"t": cc.JSON_TYPE_INT, "v": simplify(t).as_long()}
@@ -100,6 +102,17 @@ class TermEncoder:
       s = simplify(A.atl(s))
       r.append(simplify(hd).as_long())
     return {"t": cc.JSON_TYPE_ATOM, "v": r}
+
+  def toBitstring(self, t):
+    B = self.eZ3.BitStr
+    s = simplify(t)
+    r = []
+    while (is_true(simplify(B.is_bcons(s)))):
+      hd = simplify(B.bhd(s))
+      s = simplify(B.btl(s))
+      r.append(simplify(hd).as_long())
+    return {"t": cc.JSON_TYPE_BITSTRING, "v": r}
+
 
 class TermDecoder:
   def __init__(self, eZ3):
@@ -1259,7 +1272,41 @@ def decode_and_check(erlz3, terms):
     s.add(z == y)
     assert s.check() == sat, "Decoded {} is not {} but {}".format(x, y, z)
 
+def test_encoder():
+  erlz3 = ErlangZ3()
+  T, L, A, B = erlz3.Term, erlz3.List, erlz3.Atom, erlz3.BitStr
+  terms = [
+    ( # 4242424242
+      T.int(4242424242),
+      {"t":cc.JSON_TYPE_INT,"v":4242424242}
+    ),
+    ( # 3.14159
+      T.real(3.14159),
+      {"t":cc.JSON_TYPE_FLOAT,"v":3.14159},
+    ),
+    ( # foo
+      T.atm(A.acons(102,A.acons(111,A.acons(111,A.anil)))),
+      {"t":cc.JSON_TYPE_ATOM,"v":[102,111,111]}
+    ),
+    ( # [42, 3.14]
+      T.lst(L.cons(T.int(42),L.cons(T.real(3.14),L.nil))),
+      {"t":cc.JSON_TYPE_LIST,"v":[{"t":cc.JSON_TYPE_INT,"v":42},{"t":cc.JSON_TYPE_FLOAT,"v":3.14}]}
+    ),
+    ( # {foo, 42}
+      T.tpl(L.cons(T.atm(A.acons(102,A.acons(111,A.acons(111,A.anil)))),L.cons(T.int(42),L.nil))),
+      {"t":cc.JSON_TYPE_TUPLE,"v":[{"t":cc.JSON_TYPE_ATOM,"v":[102,111,111]},{"t":cc.JSON_TYPE_INT,"v":42}]}
+    ),
+    ( # <<5:3>>
+      T.bin(B.bcons(BitVecVal(1,1),B.bcons(BitVecVal(0,1),B.bcons(BitVecVal(1,1),B.bnil)))),
+      {"t":cc.JSON_TYPE_BITSTRING,"v":[1,0,1]}
+    )
+  ]
+  for x, y in terms:
+    z = TermEncoder(erlz3).fromZ3(x)
+    assert z == y, "Encoded {} is not {} but {}".format(x, y, z)
+
 if __name__ == '__main__':
   cglb.init()
   test_decoder_simple()
   test_decoder_complex()
+  test_encoder()
