@@ -1176,3 +1176,72 @@ class ErlangZ3:
     self.env.bind(s,
       T.atm(A.atl(T.aval(t1)))
     )
+
+###############################################################################
+# Unit Tests
+###############################################################################
+
+def test_decoder_simple():
+  erlz3 = ErlangZ3()
+  T, L, A = erlz3.Term, erlz3.List, erlz3.Atom
+  terms = [
+    ( # 42
+      {"t":cc.JSON_TYPE_INT,"v":42},
+      T.int(42)
+    ),
+    ( # 42.42
+      {"t":cc.JSON_TYPE_FLOAT,"v":42.42},
+      T.real(42.42)
+    ),
+    ( # ok
+      {"t":cc.JSON_TYPE_ATOM,"v":[111,107]},
+      T.atm(A.acons(111,A.acons(107,A.anil)))
+    ),
+    ( # [1,2]
+      {"t":cc.JSON_TYPE_LIST,"v":[{"t":cc.JSON_TYPE_INT,"v":1},{"t":cc.JSON_TYPE_INT,"v":2}]},
+      T.lst(L.cons(T.int(1),L.cons(T.int(2),L.nil)))
+    ),
+    ( # {1,2}
+      {"t":cc.JSON_TYPE_TUPLE,"v":[{"t":cc.JSON_TYPE_INT,"v":1},{"t":cc.JSON_TYPE_INT,"v":2}]},
+      T.tpl(L.cons(T.int(1),L.cons(T.int(2),L.nil)))
+    ),
+    ( # {[1],[1]}
+      {"d":{"0.0.0.46":{"t":cc.JSON_TYPE_LIST,"v":[{"t":cc.JSON_TYPE_INT,"v":1}]}},"t":cc.JSON_TYPE_LIST,"v":[{"l":"0.0.0.46"},{"l":"0.0.0.46"}]},
+      T.lst(L.cons(T.lst(L.cons(T.int(1),L.nil)),L.cons(T.lst(L.cons(T.int(1),L.nil)),L.nil)))
+    ),
+  ]
+  decode_and_check(erlz3, terms)
+
+def test_decoder_complex():
+  erlz3 = ErlangZ3()
+  T, L, A = erlz3.Term, erlz3.List, erlz3.Atom
+  s1, s2 = "0.0.0.39316", "0.0.0.39317"
+  erlz3.env.bind(s1, T.int(1))
+  erlz3.env.bind(s2, T.int(2))
+  terms = [
+    ( # [1,2]
+      {"t":cc.JSON_TYPE_LIST,"v":[{"s":s1},{"s":s2}]},
+      T.lst(L.cons(T.int(1),L.cons(T.int(2),L.nil)))
+    ),
+    ( # {1,2}
+      {"t":cc.JSON_TYPE_TUPLE,"v":[{"t":cc.JSON_TYPE_INT,"v":1},{"s":s2}]},
+      T.tpl(L.cons(T.int(1),L.cons(T.int(2),L.nil)))
+    ),
+    ( # {[1],[1]}
+      {"d":{"0.0.0.46":{"t":cc.JSON_TYPE_LIST,"v":[{"s":s1}]}},"t":cc.JSON_TYPE_LIST,"v":[{"l":"0.0.0.46"},{"l":"0.0.0.46"}]},
+      T.lst(L.cons(T.lst(L.cons(T.int(1),L.nil)),L.cons(T.lst(L.cons(T.int(1),L.nil)),L.nil)))
+    ),
+  ]
+  decode_and_check(erlz3, terms)
+
+def decode_and_check(erlz3, terms):
+  for x, y in terms:
+    z = TermDecoder(erlz3).toZ3(x, x["d"] if "d" in x else {})
+    s = Solver()
+    s.add(z == y)
+    assert s.check() == sat, "Decoded {} is not {} but {}".format(x, y, z)
+
+if __name__ == '__main__':
+  cglb.init()
+  test_decoder_simple()
+  test_decoder_complex()

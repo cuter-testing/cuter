@@ -128,9 +128,11 @@ utest: $(TARGETS)
 	@(erl -noshell -pa $(EBIN) -pa $(UTEST_EBIN) \
 		-eval "eunit:test([cuter, cuter_cerl, cuter_iserver, cuter_eval, cuter_json, cuter_solver, cuter_erlang, cuter_codeserver, cuter_monitor], [verbose])" \
 		-s init stop)
-	@echo "Testing python modules..."
-	@echo "cuter_io... "
+	@echo "Testing python modules ..."
+	@echo "cuter_io ... "
 	@(python $(PRIV)/cuter_io.py)
+	@echo "cuter_z3 ... "
+	@(python $(PRIV)/cuter_z3.py)
 
 ftest: $(TARGETS)
 	@(./$(TEST)/functional_test)

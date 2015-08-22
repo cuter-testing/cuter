@@ -133,7 +133,6 @@ def test_reader():
     fd.close()
 
     # Test the JsonReader.
-    cglb.init()
     i = 0
     for tp, tag, data, _ in JsonReader(fname, 10000):
       e = es[i]
@@ -146,4 +145,5 @@ def test_reader():
 
 if __name__ == '__main__':
   import os
+  cglb.init()
   test_reader()
