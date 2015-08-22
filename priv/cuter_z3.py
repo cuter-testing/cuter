@@ -694,10 +694,13 @@ class ErlangZ3:
   # Entry Point MFA's symbolic parameters
   def params_toZ3(self, *args):
     e = self.env
+    pms = []
     for x in args:
       s = x["s"]
       p = e.fresh_var(s, self.Term)
+      pms.append(p)
       e.add_param(s)
+    return pms
   
   # Unfold a symbolic tuple
   def unfold_tuple_toZ3(self, *terms):
@@ -1305,8 +1308,33 @@ def test_encoder():
     z = TermEncoder(erlz3).fromZ3(x)
     assert z == y, "Encoded {} is not {} but {}".format(x, y, z)
 
+def test_model():
+  erlz3 = ErlangZ3()
+  T, L, A, B = erlz3.Term, erlz3.List, erlz3.Atom, erlz3.BitStr
+  s1, s2, s3, s4 = "0.0.0.39316", "0.0.0.39317", "0.0.0.39318", "0.0.0.39319"
+  expected = {
+    s1: {"t":cc.JSON_TYPE_INT,"v":42},
+    s2: {"t":cc.JSON_TYPE_ATOM,"v":[111,107]},
+    s3: {"t":cc.JSON_TYPE_LIST,"v":[{"t":cc.JSON_TYPE_BITSTRING,"v":[]},{"t":cc.JSON_TYPE_INT,"v":2}]},
+    s4: {"t":cc.JSON_TYPE_ANY}
+  }
+  [p1, p2, p3, p4] = erlz3.params_toZ3({"s":s1}, {"s":s2}, {"s":s3}, {"s":s4})
+  erlz3.axs.extend([
+    p1 == T.int(42),
+    p2 == T.atm(A.acons(111,A.acons(107,A.anil))),
+    p3 == T.lst(L.cons(T.bin(B.bnil),L.cons(T.int(2),L.nil)))
+  ])
+  erlz3.add_axioms()
+  assert erlz3.solve() == True, "Model in unsatisfiable"
+  model = erlz3.encode_model()
+  assert model != [], "The model is empty"
+  for smb, v in model:
+    s = smb["s"]
+    assert expected[s] == v, "{} is {} instead of {}".format(s, expected[s], v)
+
 if __name__ == '__main__':
   cglb.init()
   test_decoder_simple()
   test_decoder_complex()
   test_encoder()
+  test_model()
