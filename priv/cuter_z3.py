@@ -1332,9 +1332,111 @@ def test_model():
     s = smb["s"]
     assert expected[s] == v, "{} is {} instead of {}".format(s, expected[s], v)
 
+def test_commands():
+  ss = [{"s":"0.0.0.{0:05d}".format(i)} for i in range(50)]
+  anyTerm = {"t":cc.JSON_TYPE_ANY}
+  trueTerm = {"t":cc.JSON_TYPE_ATOM,"v":[116,114,117,101]}
+  falseTerm = {"t":cc.JSON_TYPE_ATOM,"v":[102,97,108,115,101]}
+  cmds = [
+    ## Defining ss[0]
+    ({"c":cc.OP_IS_INTEGER, "a":[ss[2], ss[0]]}, False),
+    ({"c":cc.OP_MATCH_EQUAL_TRUE,"a":[deepcopy(trueTerm), ss[2]]}, False),
+    ({"c":cc.OP_PLUS, "a":[ss[3], ss[0], {"t":cc.JSON_TYPE_INT,"v":1}]}, False),
+    ({"c":cc.OP_EQUAL, "a":[ss[4], ss[3], {"t":cc.JSON_TYPE_INT,"v":3}]}, False),
+    ({"c":cc.OP_GUARD_TRUE, "a":[ss[4]]}, False),
+    ({"c":cc.OP_GUARD_TRUE, "a":[deepcopy(falseTerm)]}, True),
+    ## Defining ss[1]
+    ({"c":cc.OP_TUPLE_NOT_TPL, "a":[ss[1], {"t":cc.JSON_TYPE_INT,"v":1}]}, False),
+    ({"c":cc.OP_TUPLE_SZ, "a":[ss[1], {"t":cc.JSON_TYPE_INT,"v":1}]}, True),
+    ({"c":cc.OP_IS_FLOAT, "a":[ss[5], ss[1]]}, False),
+    ({"c":cc.OP_GUARD_FALSE, "a":[ss[5]]}, True),
+    ({"c":cc.OP_RDIV, "a":[ss[6], ss[1], {"t":cc.JSON_TYPE_INT,"v":2}]}, False),
+    ({"c":cc.OP_UNARY, "a":[ss[7], ss[6]]}, False),
+    ({"c":cc.OP_MATCH_EQUAL_TRUE, "a":[ss[7], {"t":cc.JSON_TYPE_FLOAT,"v":-10.25}]}, False),
+    ## Defining ss[8]
+    ({"c":cc.OP_IS_ATOM, "a":[ss[9], ss[8]]}, False),
+    ({"c":cc.OP_ATOM_NIL, "a":[ss[10], ss[8]]}, False),
+    ({"c":cc.OP_GUARD_FALSE, "a":[ss[10]]}, False),
+    ({"c":cc.OP_ATOM_HEAD, "a":[ss[11], ss[8]]}, False),
+    ({"c":cc.OP_ATOM_TAIL, "a":[ss[12], ss[8]]}, False),
+    ({"c":cc.OP_MINUS, "a":[ss[13], ss[11], {"t":cc.JSON_TYPE_INT,"v":10}]}, False),
+    ({"c":cc.OP_UNEQUAL, "a":[ss[14], ss[13], {"t":cc.JSON_TYPE_INT,"v":101}]}, False),
+    ({"c":cc.OP_MATCH_EQUAL_TRUE, "a":[ss[14], deepcopy(trueTerm)]}, True),
+    ({"c":cc.OP_MATCH_EQUAL_FALSE, "a":[ss[12], {"t":cc.JSON_TYPE_ATOM,"v":[107]}]}, True),
+    ## Defining ss[15]
+    ({"c":cc.OP_IS_LIST, "a":[ss[16], ss[15]]}, False),
+    ({"c":cc.OP_GUARD_TRUE, "a":[ss[16]]}, False),
+    ({"c":cc.OP_LIST_NON_EMPTY, "a":[ss[15]]}, False),
+    ({"c":cc.OP_LIST_EMPTY, "a":[ss[15]]}, True),
+    ({"c":cc.OP_LIST_NOT_LST, "a":[ss[15]]}, True),
+    ({"c":cc.OP_HD, "a":[ss[17], ss[15]]}, False),
+    ({"c":cc.OP_TL, "a":[ss[18], ss[15]]}, False),
+    ({"c":cc.OP_LIST_EMPTY, "a":[ss[18]]}, False),
+    ({"c":cc.OP_LIST_NON_EMPTY, "a":[ss[18]]}, True),
+    ({"c":cc.OP_IS_BOOLEAN, "a":[ss[19], ss[17]]}, False),
+    ({"c":cc.OP_MATCH_EQUAL_FALSE, "a":[ss[19], deepcopy(falseTerm)]}, False),
+    ({"c":cc.OP_GUARD_TRUE, "a":[ss[17]]}, False),
+    ({"c":cc.OP_LIST_NOT_LST, "a":[ss[17]]}, False),
+    ({"c":cc.OP_TUPLE_SZ, "a":[ss[17], {"t":cc.JSON_TYPE_INT,"v":2}]}, True),
+    ## Defining ss[20]
+    ({"c":cc.OP_IS_TUPLE, "a":[ss[21], ss[20]]}, False),
+    ({"c":cc.OP_GUARD_TRUE, "a":[ss[21]]}, False),
+    ({"c":cc.OP_TUPLE_SZ, "a":[ss[20], {"t":cc.JSON_TYPE_INT,"v":2}]}, False),
+    ({"c":cc.OP_TUPLE_NOT_SZ, "a":[ss[20], {"t":cc.JSON_TYPE_INT,"v":2}]}, True),
+    ({"c":cc.OP_UNFOLD_TUPLE, "a":[ss[20], ss[22], ss[23]]}, False),
+    ({"c":cc.OP_MATCH_EQUAL_TRUE, "a":[ss[22], {"t":cc.JSON_TYPE_INT,"v":42}]}, False),
+    ({"c":cc.OP_TIMES, "a":[ss[24], ss[23], {"t":cc.JSON_TYPE_INT,"v":2}]}, False),
+    ({"c":cc.OP_MATCH_EQUAL_TRUE, "a":[ss[24], {"t":cc.JSON_TYPE_INT,"v":10}]}, False),
+    ({"c":cc.OP_IS_NUMBER, "a":[ss[25], ss[24]]}, False),
+    ({"c":cc.OP_GUARD_TRUE, "a":[ss[25]]}, False),
+    ({"c":cc.OP_TUPLE_NOT_TPL, "a":[ss[20], {"t":cc.JSON_TYPE_INT,"v":2}]}, True),
+    ({"c":cc.OP_FLOAT, "a":[ss[26], ss[22]]}, False),
+    ({"c":cc.OP_MATCH_EQUAL_TRUE, "a":[ss[26], {"t":cc.JSON_TYPE_FLOAT,"v":42.0}]}, False),
+    ({"c":cc.OP_BOGUS, "a":[ss[26], ss[26]]}, False),
+    ## Defining ss[27]
+    ({"c":cc.OP_IDIV_NAT, "a":[ss[28], {"t":cc.JSON_TYPE_INT,"v":5}, {"t":cc.JSON_TYPE_INT,"v":2}]}, False),
+    ({"c":cc.OP_REM_NAT, "a":[ss[29], {"t":cc.JSON_TYPE_INT,"v":5}, {"t":cc.JSON_TYPE_INT,"v":2}]}, False),
+    ({"c":cc.OP_PLUS, "a":[ss[30], ss[28], ss[29]]}, False),
+    ({"c":cc.OP_MATCH_EQUAL_TRUE, "a":[ss[30], {"t":cc.JSON_TYPE_INT,"v":3}]}, False),
+    ({"c":cc.OP_MATCH_EQUAL_TRUE, "a":[ss[27], ss[30]]}, False),
+    ({"c":cc.OP_LT_INT, "a":[ss[31], {"t":cc.JSON_TYPE_INT,"v":2}, ss[27]]}, False),
+    ({"c":cc.OP_GUARD_TRUE, "a":[ss[31]]}, False),
+    ({"c":cc.OP_LT_FLOAT, "a":[ss[32], {"t":cc.JSON_TYPE_FLOAT,"v":3.14}, {"t":cc.JSON_TYPE_FLOAT,"v":1.42}]}, False),
+    ({"c":cc.OP_GUARD_FALSE, "a":[ss[32]]}, False),
+    ## Defining ss[33]
+    ({"c":cc.OP_UNFOLD_LIST, "a":[ss[33], ss[34], ss[35]]}, False),
+    ({"c":cc.OP_TCONS, "a":[ss[36], ss[34], ss[35]]}, False),
+    ({"c":cc.OP_LIST_TO_TUPLE, "a":[ss[36], ss[33]]}, False),
+    ({"c":cc.OP_CONS, "a":[ss[37], ss[34], ss[35]]}, False),
+    ({"c":cc.OP_MATCH_EQUAL_TRUE, "a":[ss[35], {"t":cc.JSON_TYPE_LIST,"v":[]}]}, False),
+    ({"c":cc.OP_MATCH_EQUAL_TRUE, "a":[ss[34], {"t":cc.JSON_TYPE_INT,"v":2}]}, False),
+  ]
+  expected = {
+    ss[0]["s"]: {"t":cc.JSON_TYPE_INT,"v":2},
+    ss[1]["s"]: {"t":cc.JSON_TYPE_FLOAT,"v":20.5},
+    ss[8]["s"]: {"t":cc.JSON_TYPE_ATOM,"v":[111,107]},
+    ss[15]["s"]: {"t":cc.JSON_TYPE_LIST,"v":[deepcopy(trueTerm)]},
+    ss[20]["s"]: {"t":cc.JSON_TYPE_TUPLE,"v":[{"t":cc.JSON_TYPE_INT,"v":42}, {"t":cc.JSON_TYPE_INT,"v":5}]},
+    ss[27]["s"]: {"t":cc.JSON_TYPE_INT,"v":3},
+    ss[33]["s"]: {"t":cc.JSON_TYPE_LIST,"v":[{"t":cc.JSON_TYPE_INT,"v":2}, {"t":cc.JSON_TYPE_LIST,"v":[]}]},
+  }
+  erlz3 = ErlangZ3()
+  erlz3.params_toZ3(ss[0], ss[1], ss[8], ss[15], ss[20], ss[27], ss[33])
+  for cmd, rvs in cmds:
+    erlz3.command_toZ3(cmd["c"], cmd, rvs)
+  erlz3.add_axioms()
+  assert erlz3.solve() == True, "Model in unsatisfiable"
+  model = erlz3.encode_model()
+  assert model != [], "The model is empty"
+  for smb, v in model:
+    assert v == expected[smb["s"]], "{} is {} instead of {}".format(smb["s"], v, expected[smb["s"]])
+
 if __name__ == '__main__':
+  import json
+  from copy import deepcopy
   cglb.init()
   test_decoder_simple()
   test_decoder_complex()
   test_encoder()
   test_model()
+  test_commands()
