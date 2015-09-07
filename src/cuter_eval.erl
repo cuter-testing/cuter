@@ -1082,17 +1082,17 @@ bit_pattern_match([{c_bitstr, Anno, {c_literal, _, LVal}, Sz, Unit, Tp, Fgs}|Bs]
       false
   end;
 
-bit_pattern_match([{c_bitstr, _, {c_var, _, VarName}, Sz, Unit, Tp, Fgs}|Bs], {M, Cenv, Senv}, Mode, Cv, Sv, CMaps, SMaps, Svs, Fd) ->
+bit_pattern_match([{c_bitstr, Anno, {c_var, _, VarName}, Sz, Unit, Tp, Fgs}|Bs], {M, Cenv, Senv}, Mode, Cv, Sv, CMaps, SMaps, Svs, Fd) ->
   {Size_c, Size_s} = eval_expr(Sz, M, Cenv, Senv, Svs, Fd),
   {Unit_c, Unit_s} = eval_expr(Unit, M, Cenv, Senv, Svs, Fd),
   {Type_c, Type_s} = eval_expr(Tp, M, Cenv, Senv, Svs, Fd),
   {Flags_c, Flags_s} = eval_expr(Fgs, M, Cenv, Senv, Svs, Fd),
   Enc_s = {Size_s, Unit_s, Type_s, Flags_s},
+  Tags = cuter_cerl:get_tags(Anno),
   try cuter_binlib:match_bitstring_var(Size_c, Unit_c, Type_c, Flags_c, Cv) of
     {X_c, Rest_c} ->
-      {X_s, Rest_s} = cuter_symbolic:match_bitstring_var(Enc_s, Sv, X_c, Rest_c, Fd),
-      %% CONSTRAINT: Match
-      %% FIXME Log the 'match' contraint between {Sx, Rest_s} and Sv
+      visit_tag(Svs#svs.code, Tags#tags.this),
+      {X_s, Rest_s} = cuter_symbolic:match_bitstring_var_true(Enc_s, Sv, X_c, Rest_c, Tags#tags.next, Fd),
       {CMs, SMs} =
         case lists:keymember(VarName, 1, CMaps) of
           true ->
@@ -1102,14 +1102,13 @@ bit_pattern_match([{c_bitstr, _, {c_var, _, VarName}, Sz, Unit, Tp, Fgs}|Bs], {M
             {[{VarName, X_c} | CMaps],
              [{VarName, X_s} | SMaps]}
         end,
-      
       NCenv = cuter_env:add_binding(VarName, X_c, Cenv),
       NSenv = cuter_env:add_binding(VarName, X_s, Senv),
       bit_pattern_match(Bs, {M, NCenv, NSenv}, Mode, Rest_c, Rest_s, CMs, SMs, Svs, Fd)
   catch
     error:_E ->
-      %% CONSTRAINT: Not Match
-      %% FIXME Log the 'not match' contraint between Enc_s and Sv
+      visit_tag(Svs#svs.code, Tags#tags.next),
+      cuter_symbolic:match_bitstring_var_false(Enc_s, Sv, Tags#tags.this, Fd),
       false
   end.
 

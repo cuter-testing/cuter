@@ -177,6 +177,8 @@
 -define(OP_CONCAT_SEGS, 62).
 -define(OP_BITMATCH_CONST_TRUE, 63).
 -define(OP_BITMATCH_CONST_FALSE, 64).
+-define(OP_BITMATCH_VAR_TRUE, 65).
+-define(OP_BITMATCH_VAR_FALSE, 66).
 
 %% Maps MFAs to their JSON Opcodes
 -define(OPCODE_MAPPING,

@@ -6,8 +6,9 @@
   fresh_symbolic_var/0, abstract/1, evaluate_mfa/6, generate_new_input/2,
   is_symbolic/1, serialize/1, deserialize/1, is_supported_mfa/1,
   ensure_list/3, tpl_to_list/3, head/2, tail/2, cons/4, make_tuple/3,
-  make_bitstring/4, match_bitstring_const_true/6, match_bitstring_var/5,
-  non_empty_binary/2, concat_segments/3, match_bitstring_const_false/5
+  make_bitstring/4, match_bitstring_const_true/6, match_bitstring_var_true/6,
+  non_empty_binary/2, concat_segments/3, match_bitstring_const_false/5,
+  match_bitstring_var_false/4
 ]).
 
 -include("include/cuter_macros.hrl").
@@ -224,8 +225,41 @@ match_bitstring_const_false(Cnst, {Size, _Unit, _Type, _Flags}, Sv, Tag, Fd) ->
 
 %% Symbolic representation of pattern matching a symbolic bitstring
 %% to an encoded term and return the matched value and the
-%% rest of the symbolic bitstring
--spec match_bitstring_var(bencoding(), maybe_s(bitstring()), bitstring(), bitstring(), file:io_device()) -> 
+%% rest of the symbolic bitstring.
+%% TODO For now, ignore the case where the size is a symbolic variable.
+%% Also, ignoring Unit, Type and Flags.
+
+%% Match succeeded.
+-spec match_bitstring_var_true(bencoding(), maybe_s(bitstring()), bitstring(), bitstring(), cuter_cerl:tag(), file:io_device()) -> 
   {maybe_s(bitstring()), maybe_s(bitstring())}.
-match_bitstring_var(_Enc, _Sv, X_c, Rest_c, _Fd) ->
-  {X_c, Rest_c}.
+match_bitstring_var_true({Size, _Unit, _Type, _Flags}, Sv, X_c, Rest_c, Tag, Fd) ->
+  case is_symbolic(Size) of
+    true -> {X_c, Rest_c};
+    false ->
+      case Size of
+        all ->
+          {Sv, <<>>};
+        _ ->
+          case is_symbolic(Sv) of
+            false -> {X_c, Rest_c};
+            true ->
+              Sv1 = fresh_symbolic_var(),
+              Sv2 = fresh_symbolic_var(),
+              cuter_log:log_bitmatch_var_true(Fd, Sv1, Sv2, Size, Sv, Tag),
+              {Sv1, Sv2}
+          end
+      end
+  end.
+
+-spec match_bitstring_var_false(bencoding(), maybe_s(bitstring()), cuter_cerl:tag(), file:io_device()) -> ok.
+match_bitstring_var_false({Size, _Unit, _Type, _Flags}, Sv, Tag, Fd) ->
+  case is_symbolic(Size) of
+    true -> ok;
+    false ->
+      case is_symbolic(Sv) of
+        false -> ok;
+        true ->
+          cuter_log:log_bitmatch_var_false(Fd, Size, Sv, Tag),
+          ok
+      end
+  end.
