@@ -1575,6 +1575,7 @@ split_symbolic_segment(<<>>, Sv, Acc, Fd) ->
   cuter_log:log_empty_bitstring(Fd, Sv),
   lists:reverse(Acc);
 split_symbolic_segment(<<_:1, Bits/bitstring>>, Sv, Acc, Fd) ->
+  cuter_log:reduce_constraint_counter(),
   {SB, SBits} = cuter_symbolic:non_empty_binary(Sv, Fd),
   split_symbolic_segment(Bits, SBits, [SB|Acc], Fd).
 

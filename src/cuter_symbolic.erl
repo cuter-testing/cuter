@@ -6,7 +6,7 @@
   fresh_symbolic_var/0, abstract/1, evaluate_mfa/6, generate_new_input/2,
   is_symbolic/1, serialize/1, deserialize/1, is_supported_mfa/1,
   ensure_list/3, tpl_to_list/3, head/2, tail/2, cons/4, make_tuple/3,
-  append_segments/3, make_bitstring/4, match_bitstring_const/5, match_bitstring_var/5,
+  make_bitstring/4, match_bitstring_const/5, match_bitstring_var/5,
   non_empty_binary/2, concat_segments/3
 ]).
 
@@ -156,17 +156,6 @@ make_tuple(Xs, Cv, Fd) ->
 %% Symbolic representation of binaries and binary operations
 %% TODO
 %% =============================================================
-
-%% Symbolically represent bitstring concatenation
--spec append_segments(bitstring(), [maybe_s(bitstring())], file:io_device()) -> maybe_s(bitstring()).
-append_segments(Cv, Segs, Fd) ->
-  case lists:any(fun is_symbolic/1, Segs) of
-    false -> Cv;
-    true ->
-      Sv = fresh_symbolic_var(),
-      cuter_log:log_append_segments(Fd, Sv, Segs),
-      Sv
-  end.
 
 %% Encode a symbolic term into a bitstring.
 %% For now, ignore the case where the size is a symbolic variable.
