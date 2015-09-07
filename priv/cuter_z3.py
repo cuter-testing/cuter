@@ -312,6 +312,8 @@ class ErlangZ3:
       cc.OP_LIST_NOT_LST: self.list_not_lst_toZ3,
       cc.OP_EMPTY_BITSTR: self.empty_bitstr_toZ3,
       cc.OP_NONEMPTY_BITSTR: self.nonempty_bitstr_toZ3,
+      cc.OP_BITMATCH_CONST_TRUE: self.bitmatch_const_true_toZ3,
+      cc.OP_BITMATCH_CONST_FALSE: self.bitmatch_const_false_toZ3,
       # Other important commands
       cc.OP_PARAMS: self.params_toZ3,
       cc.OP_SPEC: self.spec_toZ3,
@@ -366,6 +368,8 @@ class ErlangZ3:
       cc.OP_LIST_NOT_LST: self.list_not_lst_toZ3_RV,
       cc.OP_EMPTY_BITSTR: self.empty_bitstr_toZ3_RV,
       cc.OP_NONEMPTY_BITSTR: self.nonempty_bitstr_toZ3_RV,
+      cc.OP_BITMATCH_CONST_TRUE: self.bitmatch_const_true_toZ3_RV,
+      cc.OP_BITMATCH_CONST_FALSE: self.bitmatch_const_false_toZ3_RV,
       # Erlang BIFs
       cc.OP_HD: self.hd_toZ3_RV,
       cc.OP_TL: self.tl_toZ3_RV,
@@ -474,6 +478,34 @@ class ErlangZ3:
     self.env.bind(s1, B.bhd(T.bval(t)))
     self.env.bind(s2, T.bin(B.btl(T.bval(t))))
   
+  # Bitmach const true
+  # TODO For now, expects size to be a concrete integer and encodedValue to be an integer.
+  def bitmatch_const_true_toZ3(self, termRest, cnstValue, size, termBitstr):
+    s = termRest["s"]
+    t = self.bitmatch_const_false_toZ3_RV(cnstValue, size, termBitstr)
+    self.env.bind(s, t)
+  
+  # Bitmach const false
+  # TODO For now, expects size to be a concrete integer and encodedValue to be an integer.
+  def bitmatch_const_false_toZ3(self, cnstValue, size, termBitstr):
+    T, B = self.Term, self.BitStr
+    axs = []
+    cnst = self.term_toZ3(cnstValue)
+    szTerm = self.term_toZ3(size)
+    sz = int(str(simplify(T.ival(szTerm)))) # Expect size to represent an Integer
+    t = self.term_toZ3(termBitstr)
+    axs.append(T.is_bin(t))
+    t = T.bval(t)
+    bits = []
+    for _ in range(sz):
+      axs.append(B.is_bcons(t))
+      bits.append(B.bhd(t))
+      t = B.btl(t)
+    concBits = Concat(*bits) if len(bits) > 1 else bits[0]
+    concHelper = self.env.generate_bitvec(sz)
+    axs.extend([T.is_int(cnst), T.ival(cnst) == BV2Int(concHelper), concHelper == concBits])
+    self.axs.append(Not(And(*axs)))
+  
   ### Reversed ###
   
   # NonEmpty List (Reversed)
@@ -558,6 +590,31 @@ class ErlangZ3:
       B.is_bnil(T.bval(t))
     ])
   
+  # Bitmach const true (reversed)
+  # TODO For now, expects size to be a concrete integer and encodedValue to be an integer.
+  def bitmatch_const_true_toZ3_RV(self, termRest, cnstValue, size, termBitstr):
+    self.bitmatch_const_false_toZ3(cnstValue, size, termBitstr)
+  
+  # Bitmach const false (reversed)
+  # TODO For now, expects size to be a concrete integer and encodedValue to be an integer.
+  def bitmatch_const_false_toZ3_RV(self, cnstValue, size, termBitstr):
+    T, B = self.Term, self.BitStr
+    cnst = self.term_toZ3(cnstValue)
+    szTerm = self.term_toZ3(size)
+    sz = int(str(simplify(T.ival(szTerm)))) # Expect size to represent an Integer
+    t = self.term_toZ3(termBitstr)
+    self.axs.append(T.is_bin(t))
+    t = T.bval(t)
+    bits = []
+    for _ in range(sz):
+      self.axs.append(B.is_bcons(t))
+      bits.append(B.bhd(t))
+      t = B.btl(t)
+    concBits = Concat(*bits) if len(bits) > 1 else bits[0]
+    concHelper = self.env.generate_bitvec(sz)
+    self.axs.extend([T.is_int(cnst), T.ival(cnst) == BV2Int(concHelper), concHelper == concBits])
+    return T.bin(t)
+  
   # ----------------------------------------------------------------------
   # Define Type Specs
   # ----------------------------------------------------------------------
@@ -613,7 +670,7 @@ class ErlangZ3:
   
   def type_bitstring_toZ3(self, s, arg):
     sz = self.term_toZ3(arg)
-    return None  # TODO Do sth with bitstrings
+    return self.Term.is_bin(s)  # TODO Do sth with binaries
   
   def type_float_toZ3(self, s, arg):
     return self.Term.is_real(s)

@@ -30,6 +30,8 @@
   , log_empty_bitstring/2
   , log_nonempty_bitstring/4
   , log_concat_segments/4
+  , log_bitmatch_const_true/6
+  , log_bitmatch_const_false/5
 ]).
 
 -export_type([opcode/0]).
@@ -136,9 +138,18 @@ log_empty_bitstring(Fd, Sv) ->
 log_nonempty_bitstring(Fd, H, T, Sv) ->
   log(Fd, ?OP_NONEMPTY_BITSTR, ?EMPTY_TAG_ID, [H, T, Sv]).
 
+%% TODO Use a proper tags.
 -spec log_concat_segments(file:io_device(), cuter_symbolic:symbolic(), [any()], any()) -> ok.
 log_concat_segments(Fd, Sv1, Bits, Sv) ->
   log(Fd, ?OP_CONCAT_SEGS, ?EMPTY_TAG_ID, [Sv1, Sv | Bits]).
+
+-spec log_bitmatch_const_true(file:io_device(), any(), integer(), any(), cuter_symbolic:symbolic(), cuter_cerl:tag()) -> ok.
+log_bitmatch_const_true(Fd, Cnst, Size, Sv, Sv1, Tag) ->
+  log(Fd, ?OP_BITMATCH_CONST_TRUE, cuter_cerl:id_of_tag(Tag), [Sv1, Cnst, Size, Sv]).
+
+-spec log_bitmatch_const_false(file:io_device(), any(), integer(), any(), cuter_cerl:tag()) -> ok.
+log_bitmatch_const_false(Fd, Cnst, Size, Sv, Tag) ->
+  log(Fd, ?OP_BITMATCH_CONST_FALSE, cuter_cerl:id_of_tag(Tag), [Cnst, Size, Sv]).
 
 %% ------------------------------------------------------------------
 %% Log Constraints
@@ -256,6 +267,8 @@ entry_type(?OP_LIST_EMPTY)     -> ?CONSTRAINT_FALSE;
 entry_type(?OP_LIST_NOT_LST)   -> ?CONSTRAINT_FALSE;
 entry_type(?OP_EMPTY_BITSTR)   -> ?CONSTRAINT_FALSE;
 entry_type(?OP_NONEMPTY_BITSTR) -> ?CONSTRAINT_TRUE;
+entry_type(?OP_BITMATCH_CONST_TRUE)  -> ?CONSTRAINT_TRUE;
+entry_type(?OP_BITMATCH_CONST_FALSE) -> ?CONSTRAINT_FALSE;
 entry_type(_) -> ?NOT_CONSTRAINT.
 
 %% Reduce the counter that controls the logging of constraints.

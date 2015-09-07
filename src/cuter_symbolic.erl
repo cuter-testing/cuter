@@ -6,8 +6,8 @@
   fresh_symbolic_var/0, abstract/1, evaluate_mfa/6, generate_new_input/2,
   is_symbolic/1, serialize/1, deserialize/1, is_supported_mfa/1,
   ensure_list/3, tpl_to_list/3, head/2, tail/2, cons/4, make_tuple/3,
-  make_bitstring/4, match_bitstring_const/5, match_bitstring_var/5,
-  non_empty_binary/2, concat_segments/3
+  make_bitstring/4, match_bitstring_const_true/6, match_bitstring_var/5,
+  non_empty_binary/2, concat_segments/3, match_bitstring_const_false/5
 ]).
 
 -include("include/cuter_macros.hrl").
@@ -158,8 +158,8 @@ make_tuple(Xs, Cv, Fd) ->
 %% =============================================================
 
 %% Encode a symbolic term into a bitstring.
-%% For now, ignore the case where the size is a symbolic variable.
-%% Also, ignoreing Unit, Type and Flags.
+%% TODO For now, ignore the case where the size is a symbolic variable.
+%% Also, ignoring Unit, Type and Flags.
 -spec make_bitstring(maybe_s(bitstring()), bencoding(), bitstring(), file:io_device()) -> maybe_s(bitstring()).
 make_bitstring(Sv, {Size, _Unit, _Type, _Flags}, Cv, Fd) ->
   case is_symbolic(Size) of
@@ -190,10 +190,37 @@ concat_segments(Bits, Sv, Fd) ->
 
 %% Symbolic representation of pattern matching a symbolic bitstring
 %% to an encoded term and return the rest of the symbolic bitstring
--spec match_bitstring_const(any(), bencoding(), maybe_s(bitstring()), bitstring(), file:io_device()) ->
-  {maybe_s(any()), maybe_s(bitstring())}.
-match_bitstring_const(Cnst, {_Size, _Unit, _Type, _Flags}, _Sv, Rest_c, _Fd) ->
-  {Cnst, Rest_c}.
+%% TODO For now, ignore the case where the size is a symbolic variable.
+%% Also, ignoring Unit, Type and Flags.
+
+%% Match succeeded.
+-spec match_bitstring_const_true(any(), bencoding(), maybe_s(bitstring()), bitstring(), cuter_cerl:tag(), file:io_device()) -> maybe_s(bitstring()).
+match_bitstring_const_true(Cnst, {Size, _Unit, _Type, _Flags}, Sv, Rest_c, Tag, Fd) ->
+  case is_symbolic(Size) of
+    true -> Rest_c;
+    false ->
+      case not is_symbolic(Cnst) andalso not is_symbolic(Sv) of
+        true -> Rest_c;
+        false ->
+          Sv1 = fresh_symbolic_var(),
+          cuter_log:log_bitmatch_const_true(Fd, Cnst, Size, Sv, Sv1, Tag),
+          Sv1
+      end
+  end.
+
+%% Match failed.
+-spec match_bitstring_const_false(any(), bencoding(), maybe_s(bitstring()), cuter_cerl:tag(), file:io_device()) -> ok.
+match_bitstring_const_false(Cnst, {Size, _Unit, _Type, _Flags}, Sv, Tag, Fd) ->
+  case is_symbolic(Size) of
+    true -> ok;
+    false ->
+      case not is_symbolic(Cnst) andalso not is_symbolic(Sv) of
+        true -> ok;
+        false ->
+          cuter_log:log_bitmatch_const_false(Fd, Cnst, Size, Sv, Tag),
+          ok
+      end
+  end.
 
 %% Symbolic representation of pattern matching a symbolic bitstring
 %% to an encoded term and return the matched value and the

@@ -1063,22 +1063,22 @@ bit_pattern_match([], _BitInfo, _Mode, _Cv, Sv, _CMaps, _SMaps, _Servers, Fd) ->
   cuter_log:log_equal(Fd, false, <<>>, Sv, cuter_cerl:empty_tag()),
   false;
 
-bit_pattern_match([{c_bitstr, _, {c_literal, _, LVal}, Sz, Unit, Tp, Fgs}|Bs], {M, Cenv, Senv} = Bnfo, Mode, Cv, Sv, CMaps, SMaps, Svs, Fd) ->
+bit_pattern_match([{c_bitstr, Anno, {c_literal, _, LVal}, Sz, Unit, Tp, Fgs}|Bs], {M, Cenv, Senv} = Bnfo, Mode, Cv, Sv, CMaps, SMaps, Svs, Fd) ->
   {Size_c, Size_s} = eval_expr(Sz, M, Cenv, Senv, Svs, Fd),
   {Unit_c, Unit_s} = eval_expr(Unit, M, Cenv, Senv, Svs, Fd),
   {Type_c, Type_s} = eval_expr(Tp, M, Cenv, Senv, Svs, Fd),
   {Flags_c, Flags_s} = eval_expr(Fgs, M, Cenv, Senv, Svs, Fd),
   Enc_s = {Size_s, Unit_s, Type_s, Flags_s},
+  Tags = cuter_cerl:get_tags(Anno),
   try cuter_binlib:match_bitstring_const(LVal, Size_c, Unit_c, Type_c, Flags_c, Cv) of
     Rest_c ->
-      {_Sx, Rest_s} = cuter_symbolic:match_bitstring_const(LVal, Enc_s, Sv, Rest_c, Fd),
-      %% CONSTRAINT: Match
-      %% FIXME Log the 'match' contraint between {Sx, Rest_s} and Sv
+      visit_tag(Svs#svs.code, Tags#tags.this),
+      Rest_s = cuter_symbolic:match_bitstring_const_true(LVal, Enc_s, Sv, Rest_c, Tags#tags.next, Fd),
       bit_pattern_match(Bs, Bnfo, Mode,  Rest_c, Rest_s, CMaps, SMaps, Svs, Fd)
   catch
     error:_e ->
-      %% CONSTRAINT: Not Match
-      %% FIXME Log the 'not match' contraint between {LVal, Enc_s} and Sv
+      visit_tag(Svs#svs.code, Tags#tags.next),
+      cuter_symbolic:match_bitstring_const_false(LVal, Enc_s, Sv, Tags#tags.this, Fd),
       false
   end;
 

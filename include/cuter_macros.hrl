@@ -175,6 +175,8 @@
 -define(OP_EMPTY_BITSTR, 60).
 -define(OP_NONEMPTY_BITSTR, 61).
 -define(OP_CONCAT_SEGS, 62).
+-define(OP_BITMATCH_CONST_TRUE, 63).
+-define(OP_BITMATCH_CONST_FALSE, 64).
 
 %% Maps MFAs to their JSON Opcodes
 -define(OPCODE_MAPPING,
