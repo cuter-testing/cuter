@@ -7,13 +7,16 @@ import cuter_global as cglb
 import cuter_logger as clg
 import cuter_common as cc
 
+# Set Z3Py params.
 set_param(max_lines=1, max_width=1000000, max_depth=10000000, max_visited=1000000)
+set_param('smt.bv.enable_int2bv', True)
 
 class Env:
   def __init__(self):
     self.cnt = 0
     self.func_cnt = 0
     self.const_cnt = 0
+    self.bitv_cnt = 0
     self.e = {}
     self.params = []
   
@@ -37,6 +40,14 @@ class Env:
     self.const_cnt += 1
     x = Const("c%s" % self.const_cnt, Type)
     return x
+  
+  def generate_bitvec(self, size):
+    self.bitv_cnt += 1
+    x = BitVec("b%s" % self.bitv_cnt, size)
+    return x
+  
+  def store_bits(self, s, bits):
+    self.bve[s] = bits
   
   def generate_func(self, T1, T2):
     self.func_cnt += 1
@@ -299,11 +310,15 @@ class ErlangZ3:
       cc.OP_LIST_NON_EMPTY: self.list_nonempty_toZ3,
       cc.OP_LIST_EMPTY: self.list_empty_toZ3,
       cc.OP_LIST_NOT_LST: self.list_not_lst_toZ3,
+      cc.OP_EMPTY_BITSTR: self.empty_bitstr_toZ3,
+      cc.OP_NONEMPTY_BITSTR: self.nonempty_bitstr_toZ3,
       # Other important commands
       cc.OP_PARAMS: self.params_toZ3,
       cc.OP_SPEC: self.spec_toZ3,
       cc.OP_UNFOLD_TUPLE: self.unfold_tuple_toZ3,
       cc.OP_UNFOLD_LIST: self.unfold_list_toZ3,
+      cc.OP_MAKE_BITSTR: self.make_bitstr_toZ3,
+      cc.OP_CONCAT_SEGS: self.concat_segs_toZ3,
       # Erlang BIFs
       cc.OP_HD: self.hd_toZ3,
       cc.OP_TL: self.tl_toZ3,
@@ -349,6 +364,8 @@ class ErlangZ3:
       cc.OP_LIST_NON_EMPTY: self.list_nonempty_toZ3_RV,
       cc.OP_LIST_EMPTY: self.list_empty_toZ3_RV,
       cc.OP_LIST_NOT_LST: self.list_not_lst_toZ3_RV,
+      cc.OP_EMPTY_BITSTR: self.empty_bitstr_toZ3_RV,
+      cc.OP_NONEMPTY_BITSTR: self.nonempty_bitstr_toZ3_RV,
       # Erlang BIFs
       cc.OP_HD: self.hd_toZ3_RV,
       cc.OP_TL: self.tl_toZ3_RV,
@@ -435,6 +452,28 @@ class ErlangZ3:
     t = self.term_toZ3(term)
     self.axs.append(self.Term.is_tpl(t) == False)
   
+  # Empty bitstring
+  def empty_bitstr_toZ3(self, term):
+    T, B = self.Term, self.BitStr
+    t = self.term_toZ3(term)
+    self.axs.extend([
+      T.is_bin(t),
+      B.is_bnil(T.bval(t))
+    ])
+  
+  # Nonempty bitstring
+  def nonempty_bitstr_toZ3(self, term1, term2, term):
+    T, B = self.Term, self.BitStr
+    s1 = term1["s"]
+    s2 = term2["s"]
+    t = self.term_toZ3(term)
+    self.axs.extend([
+      T.is_bin(t),
+      B.is_bcons(T.bval(t))
+    ])
+    self.env.bind(s1, B.bhd(T.bval(t)))
+    self.env.bind(s2, T.bin(B.btl(T.bval(t))))
+  
   ### Reversed ###
   
   # NonEmpty List (Reversed)
@@ -500,6 +539,24 @@ class ErlangZ3:
       self.axs.append(self.List.is_cons(t))
       t = self.List.tl(t)
     self.axs.append(t == self.List.nil)
+  
+  # Empty bitstring
+  def empty_bitstr_toZ3_RV(self, term):
+    T, B = self.Term, self.BitStr
+    t = self.term_toZ3(term)
+    self.axs.extend([
+      T.is_bin(t),
+      B.is_bcons(T.bval(t))
+    ])
+  
+  # Nonempty bitstring
+  def nonempty_bitstr_toZ3_RV(self, term1, term2, term):
+    T, B = self.Term, self.BitStr
+    t = self.term_toZ3(term)
+    self.axs.extend([
+      T.is_bin(t),
+      B.is_bnil(T.bval(t))
+    ])
   
   # ----------------------------------------------------------------------
   # Define Type Specs
@@ -725,6 +782,41 @@ class ErlangZ3:
       self.env.bind(s, self.List.hd(t))
       t = self.List.tl(t)
     self.axs.append(t == self.List.nil)
+  
+  # Encode a value to a bitstring.
+  # TODO For now, expects size to be a concrete integer and encodedValue to be an integer.
+  def make_bitstr_toZ3(self, symb, encodedValue, size):
+    T, B = self.Term, self.BitStr
+    s = symb["s"]
+    enc = self.term_toZ3(encodedValue)
+    szTerm = self.term_toZ3(size)
+    sz = int(str(simplify(T.ival(szTerm)))) # Expect size to represent an Integer
+    # Add axioms.
+    bits = [self.env.generate_bitvec(1) for _ in range(sz)]
+    concBits = Concat(*bits) if len(bits) > 1 else bits[0]
+    concHelper = self.env.generate_bitvec(sz)
+    self.axs.extend([T.is_int(enc), T.ival(enc) == BV2Int(concHelper), concHelper == concBits])
+    # Bind the symbolic result.
+    b = B.bnil
+    for bit in reversed(bits):
+      b = B.bcons(bit, b)
+    self.env.bind(s, T.bin(b))
+  
+  def concat_segs_toZ3(self, *terms):
+    T, B = self.Term, self.BitStr
+    term1, term2, ts = terms[0], terms[1], terms[2:]
+    s = term1["s"]
+    t = self.term_toZ3(term2)
+    self.axs.append(T.is_bin(t))
+    t = T.bval(t)
+    for x in reversed(ts):
+      if "s" in x:
+        t = B.bcons(self.term_toZ3(x), t)
+      else:
+        nTerm = self.term_toZ3(x)
+        n = int(str(simplify(T.ival(nTerm))))
+        t = B.bcons(BitVecVal(n, 1), t)
+    self.env.bind(s, T.bin(t))
   
   # ----------------------------------------------------------------------
   # Operations on tuples
@@ -1410,6 +1502,9 @@ def test_commands():
     ({"c":cc.OP_CONS, "a":[ss[37], ss[34], ss[35]]}, False),
     ({"c":cc.OP_MATCH_EQUAL_TRUE, "a":[ss[35], {"t":cc.JSON_TYPE_LIST,"v":[]}]}, False),
     ({"c":cc.OP_MATCH_EQUAL_TRUE, "a":[ss[34], {"t":cc.JSON_TYPE_INT,"v":2}]}, False),
+    ## Defining ss[38]
+    ({"c":cc.OP_MAKE_BITSTR, "a":[ss[39], ss[38], {"t":cc.JSON_TYPE_INT,"v":3}]}, False),
+    ({"c":cc.OP_MATCH_EQUAL_TRUE, "a":[ss[39], {"t":cc.JSON_TYPE_BITSTRING,"v":[1,0,1]}]}, False),
   ]
   expected = {
     ss[0]["s"]: {"t":cc.JSON_TYPE_INT,"v":2},
@@ -1419,9 +1514,10 @@ def test_commands():
     ss[20]["s"]: {"t":cc.JSON_TYPE_TUPLE,"v":[{"t":cc.JSON_TYPE_INT,"v":42}, {"t":cc.JSON_TYPE_INT,"v":5}]},
     ss[27]["s"]: {"t":cc.JSON_TYPE_INT,"v":3},
     ss[33]["s"]: {"t":cc.JSON_TYPE_LIST,"v":[{"t":cc.JSON_TYPE_INT,"v":2}, {"t":cc.JSON_TYPE_LIST,"v":[]}]},
+    ss[38]["s"]: {"t":cc.JSON_TYPE_INT,"v":5},
   }
   erlz3 = ErlangZ3()
-  erlz3.params_toZ3(ss[0], ss[1], ss[8], ss[15], ss[20], ss[27], ss[33])
+  erlz3.params_toZ3(ss[0], ss[1], ss[8], ss[15], ss[20], ss[27], ss[33], ss[38])
   for cmd, rvs in cmds:
     erlz3.command_toZ3(cmd["c"], cmd, rvs)
   erlz3.add_axioms()

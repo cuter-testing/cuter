@@ -6,7 +6,8 @@
   fresh_symbolic_var/0, abstract/1, evaluate_mfa/6, generate_new_input/2,
   is_symbolic/1, serialize/1, deserialize/1, is_supported_mfa/1,
   ensure_list/3, tpl_to_list/3, head/2, tail/2, cons/4, make_tuple/3,
-  append_segments/3, make_bitstring/4, match_bitstring_const/5, match_bitstring_var/5
+  append_segments/3, make_bitstring/4, match_bitstring_const/5, match_bitstring_var/5,
+  non_empty_binary/2, concat_segments/3
 ]).
 
 -include("include/cuter_macros.hrl").
@@ -158,13 +159,45 @@ make_tuple(Xs, Cv, Fd) ->
 
 %% Symbolically represent bitstring concatenation
 -spec append_segments(bitstring(), [maybe_s(bitstring())], file:io_device()) -> maybe_s(bitstring()).
-append_segments(Cv, _Segs, _Fd) ->
-  Cv.
+append_segments(Cv, Segs, Fd) ->
+  case lists:any(fun is_symbolic/1, Segs) of
+    false -> Cv;
+    true ->
+      Sv = fresh_symbolic_var(),
+      cuter_log:log_append_segments(Fd, Sv, Segs),
+      Sv
+  end.
 
-%% Encode a symbolic term into a bitstring
+%% Encode a symbolic term into a bitstring.
+%% For now, ignore the case where the size is a symbolic variable.
+%% Also, ignoreing Unit, Type and Flags.
 -spec make_bitstring(maybe_s(bitstring()), bencoding(), bitstring(), file:io_device()) -> maybe_s(bitstring()).
-make_bitstring(_Sv, {_Size, _Unit, _Type, _Flags}, Cv, _Fd) ->
-  Cv.
+make_bitstring(Sv, {Size, _Unit, _Type, _Flags}, Cv, Fd) ->
+  case is_symbolic(Size) of
+    true -> Cv;
+    false ->
+      case Size of
+        all ->
+          Sv;
+        _ ->
+          FreshSv = fresh_symbolic_var(),
+          cuter_log:log_make_bitstring(Fd, FreshSv, Sv, Size),
+          FreshSv
+      end
+  end.
+
+-spec non_empty_binary(symbolic(), file:io_device()) -> {symbolic(), symbolic()}.
+non_empty_binary(Sv, Fd) ->
+  H = fresh_symbolic_var(),
+  T = fresh_symbolic_var(),
+  cuter_log:log_nonempty_bitstring(Fd, H, T, Sv),
+  {H, T}.
+
+-spec concat_segments([maybe_s(integer())], maybe_s(bitstring()), file:io_device()) -> symbolic().
+concat_segments(Bits, Sv, Fd) ->
+  Sv1 = fresh_symbolic_var(),
+  cuter_log:log_concat_segments(Fd, Sv1, Bits, Sv),
+  Sv1.
 
 %% Symbolic representation of pattern matching a symbolic bitstring
 %% to an encoded term and return the rest of the symbolic bitstring

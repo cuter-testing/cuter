@@ -448,6 +448,7 @@ eval_expr({c_apply, Anno, Op, Args}, M, Cenv, Senv, Servers, Fd) ->
   end;
 
 %% c_binary
+%% TODO Use the tags of segments.
 eval_expr({c_binary, _Anno, Segments}, M, Cenv, Senv, Servers, Fd) ->
   Segs = [eval_expr(S, M, Cenv, Senv, Servers, Fd) || S <- Segments],
   {Cs, Ss} = lists:unzip(Segs),
@@ -1536,13 +1537,46 @@ is_patlist_compatible(Pats, Values) ->
 %% --------------------------------------------------------
 %% Concatenate a list of bistrings
 %% --------------------------------------------------------
+append_segments([], [], _Fd) ->
+  {<<>>, <<>>};
+append_segments([Cv], [Sv], _Fd) ->
+  {Cv, Sv};
 append_segments(Cs, Ss, Fd) ->
-  Cv = lists:foldl(
-    fun(Seg, Bin) -> <<Seg/bitstring, Bin/bitstring>> end,
-    <<>>, lists:reverse(Cs)
-  ),
-  Sv = cuter_symbolic:append_segments(Cv, Ss, Fd),
-  {Cv, Sv}.
+  [Cv|RCs] = lists:reverse(Cs),
+  [Sv|RSs] = lists:reverse(Ss),
+  append_segments(RCs, Cv, RSs, Sv, Fd).
+
+append_segments([], CAcc, [], SAcc, _Fd) ->
+  {CAcc, SAcc};
+append_segments([Cv|Cs], CAcc, [Sv|Ss], SAcc, Fd) ->
+  case not cuter_symbolic:is_symbolic(Sv) andalso not cuter_symbolic:is_symbolic(SAcc) of
+    true ->
+      append_segments(Cs, <<Cv/bitstring, CAcc/bitstring>>, Ss, <<Sv/bitstring, SAcc/bitstring>>, Fd);
+    false ->
+      case cuter_symbolic:is_symbolic(Sv) of
+        false ->
+          Bits = split_concrete_segment(Cv, []),
+          SAcc1 = cuter_symbolic:concat_segments(Bits, SAcc, Fd),
+          append_segments(Cs, <<Cv/bitstring, CAcc/bitstring>>, Ss, SAcc1, Fd);
+        true ->
+          Bits = split_symbolic_segment(Cv, Sv, [], Fd),
+          SAcc1 = cuter_symbolic:concat_segments(Bits, SAcc, Fd),
+          append_segments(Cs, <<Cv/bitstring, CAcc/bitstring>>, Ss, SAcc1, Fd)
+      end
+  end.
+
+split_concrete_segment(Seg, Acc) ->
+  case Seg of
+    <<>> -> lists:reverse(Acc);
+    <<B:1, Bits/bitstring>> -> split_concrete_segment(Bits, [B|Acc])
+  end.
+
+split_symbolic_segment(<<>>, Sv, Acc, Fd) ->
+  cuter_log:log_empty_bitstring(Fd, Sv),
+  lists:reverse(Acc);
+split_symbolic_segment(<<_:1, Bits/bitstring>>, Sv, Acc, Fd) ->
+  {SB, SBits} = cuter_symbolic:non_empty_binary(Sv, Fd),
+  split_symbolic_segment(Bits, SBits, [SB|Acc], Fd).
 
 %% --------------------------------------------------------
 %% Validate the timeout value of a receive expression

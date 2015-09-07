@@ -11,6 +11,7 @@
   , log_guard/4
   , log_list/4
   , log_make_tuple/3
+  , log_make_bitstring/4
   , log_mfa/5
   , log_message_consumed/3
   , log_message_received/3
@@ -26,6 +27,9 @@
   , path_vertex/1
   , reduce_constraint_counter/0
   , write_data/5
+  , log_empty_bitstring/2
+  , log_nonempty_bitstring/4
+  , log_concat_segments/4
 ]).
 
 -export_type([opcode/0]).
@@ -113,6 +117,28 @@ log_unfold_symbolic(Fd, break_list, Sv, Vs) ->
 -spec log_make_tuple(file:io_device(), cuter_symbolic:symbolic(), [any()]) -> ok.
 log_make_tuple(Fd, Sv, Xs) ->
   log(Fd, ?OP_TCONS, ?EMPTY_TAG_ID, [Sv | Xs]).
+
+%% ------------------------------------------------------------------
+%% Log binary / bitstring creation.
+%% ------------------------------------------------------------------
+
+-spec log_make_bitstring(file:io_device(), cuter_symbolic:symbolic(), any(), integer()) -> ok.
+log_make_bitstring(Fd, Sv, V, Sz) ->
+  log(Fd, ?OP_MAKE_BITSTR, ?EMPTY_TAG_ID, [Sv, V, Sz]).
+
+%% TODO Use a proper tags.
+-spec log_empty_bitstring(file:io_device(), cuter_symbolic:symbolic()) -> ok.
+log_empty_bitstring(Fd, Sv) ->
+  log(Fd, ?OP_EMPTY_BITSTR, ?EMPTY_TAG_ID, [Sv]).
+
+%% TODO Use a proper tags.
+-spec log_nonempty_bitstring(file:io_device(), cuter_symbolic:symbolic(), cuter_symbolic:symbolic(), cuter_symbolic:symbolic()) -> ok.
+log_nonempty_bitstring(Fd, H, T, Sv) ->
+  log(Fd, ?OP_NONEMPTY_BITSTR, ?EMPTY_TAG_ID, [H, T, Sv]).
+
+-spec log_concat_segments(file:io_device(), cuter_symbolic:symbolic(), [any()], any()) -> ok.
+log_concat_segments(Fd, Sv1, Bits, Sv) ->
+  log(Fd, ?OP_CONCAT_SEGS, ?EMPTY_TAG_ID, [Sv1, Sv | Bits]).
 
 %% ------------------------------------------------------------------
 %% Log Constraints
@@ -228,6 +254,8 @@ entry_type(?OP_TUPLE_NOT_TPL)  -> ?CONSTRAINT_FALSE;
 entry_type(?OP_LIST_NON_EMPTY) -> ?CONSTRAINT_TRUE;
 entry_type(?OP_LIST_EMPTY)     -> ?CONSTRAINT_FALSE;
 entry_type(?OP_LIST_NOT_LST)   -> ?CONSTRAINT_FALSE;
+entry_type(?OP_EMPTY_BITSTR)   -> ?CONSTRAINT_FALSE;
+entry_type(?OP_NONEMPTY_BITSTR) -> ?CONSTRAINT_TRUE;
 entry_type(_) -> ?NOT_CONSTRAINT.
 
 %% Reduce the counter that controls the logging of constraints.

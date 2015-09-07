@@ -170,6 +170,11 @@
 -define(OP_UNEQUAL, 42).
 -define(OP_LT_INT, 54).
 -define(OP_LT_FLOAT, 55).
+%% Make binaries & bitstrings.
+-define(OP_MAKE_BITSTR, 59).
+-define(OP_EMPTY_BITSTR, 60).
+-define(OP_NONEMPTY_BITSTR, 61).
+-define(OP_CONCAT_SEGS, 62).
 
 %% Maps MFAs to their JSON Opcodes
 -define(OPCODE_MAPPING,
