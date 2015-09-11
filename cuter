@@ -6,9 +6,23 @@
 ## ARGS=$3
 ## DEPTH=$4 (optional)
 
-DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+function usage() {
+    echo "Usage: cuter M F '[A1,...,An]' Depth [ options ]"
+    echo "PARAMETERS"
+    echo "	M				the module"
+    echo "	F				the function"
+    echo "	'[A1,...,An]'			the arguments of the functions as a list"
+    echo "	Depth				the depth limit of the search"
+    echo "OPTIONS"
+    echo "	-p=N, --pollers=N		use N pollers"
+    echo "	-s=N, --solvers=N		use N solvers"
+    echo "	-v, --verbose			verbose execution"
+    echo "	-d, --disable-pmatch		disable pmatch compilation"
+    echo "	-r, --recompile			recompile the module"
+    exit 1
+}
 
-add_opt(){
+function add_opt(){
     if [ "$1" != "" ]; then
         echo "$1,$2"
     else
@@ -16,16 +30,8 @@ add_opt(){
     fi
 }
 
-if [ $# -ge 3 ]; then
-    mod=$1
-    func=$2
-    args=$3
-    depth=25
-    opts=
-
-    export ERL_LIBS=${DIR}:${ERL_LIBS}
-
-    beamfile=$mod.beam
+function compile_erl() {
+    beamfile=$1.beam
     if [ ! -f $beamfile ]; then
         echo -n "File ""$beamfile" "does not exist, "
         erlfile=$mod.erl
@@ -37,6 +43,20 @@ if [ $# -ge 3 ]; then
         erlc +debug_info $erlfile
         echo "done"
     fi
+}
+
+DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+
+if [ $# -ge 3 ]; then
+    mod=$1
+    func=$2
+    args=$3
+    depth=25
+    opts=
+
+    export ERL_LIBS=${DIR}:${ERL_LIBS}
+
+    compile_erl "$mod"
 
     shift
     shift
@@ -63,6 +83,14 @@ if [ $# -ge 3 ]; then
             -v | --verbose)
                 opts=$(add_opt "$opts" "verbose_execution_info")
                 ;;
+            -d | --disable-pmatch)
+                opts=$(add_opt "$opts" "disable_pmatch")
+                ;;
+            -r | --recompile)
+                rm -f "$mod.beam"
+                echo "Recompiling module..."
+                echo $(compile_erl "$mod")
+                ;;
             *)
                 ;;
         esac
@@ -71,5 +99,5 @@ if [ $# -ge 3 ]; then
 
     erl -noshell -eval "cuter:run($mod, $func, $args, $depth, [$opts])" -s init stop
 else
-    echo "Usage: cuter M F '[A1,...,An]' Depth"
+    usage
 fi

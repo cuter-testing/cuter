@@ -462,7 +462,7 @@ eval_expr({c_bitstr, _Anno, Val, Size, Unit, Type, Flags}, M, Cenv, Senv, Server
   {Type_c, Type_s} = eval_expr(Type, M, Cenv, Senv, Servers, Fd),
   {Flags_c, Flags_s} = eval_expr(Flags, M, Cenv, Senv, Servers, Fd),
   Bin_c = cuter_binlib:make_bitstring(Cv, Size_c, Unit_c, Type_c, Flags_c),
-  Bin_s = cuter_symbolic:make_bitstring(Sv, {Size_s, Unit_s, Type_s, Flags_s}, Bin_c, Fd),
+  Bin_s = cuter_symbolic:make_bitstring(Sv, {Size_s, Unit_s, Type_s, Flags_s}, Bin_c, Size_c, Fd),
   {Bin_c, Bin_s};
 
 %% c_call
@@ -1073,12 +1073,12 @@ bit_pattern_match([{c_bitstr, Anno, {c_literal, _, LVal}, Sz, Unit, Tp, Fgs}|Bs]
   try cuter_binlib:match_bitstring_const(LVal, Size_c, Unit_c, Type_c, Flags_c, Cv) of
     Rest_c ->
       visit_tag(Svs#svs.code, Tags#tags.this),
-      Rest_s = cuter_symbolic:match_bitstring_const_true(LVal, Enc_s, Sv, Rest_c, Tags#tags.next, Fd),
+      Rest_s = cuter_symbolic:match_bitstring_const_true(LVal, Enc_s, Sv, Rest_c, Size_c, Tags#tags.next, Fd),
       bit_pattern_match(Bs, Bnfo, Mode,  Rest_c, Rest_s, CMaps, SMaps, Svs, Fd)
   catch
     error:_e ->
       visit_tag(Svs#svs.code, Tags#tags.next),
-      cuter_symbolic:match_bitstring_const_false(LVal, Enc_s, Sv, Tags#tags.this, Fd),
+      cuter_symbolic:match_bitstring_const_false(LVal, Enc_s, Sv, Size_c, Tags#tags.this, Fd),
       false
   end;
 
@@ -1092,7 +1092,7 @@ bit_pattern_match([{c_bitstr, Anno, {c_var, _, VarName}, Sz, Unit, Tp, Fgs}|Bs],
   try cuter_binlib:match_bitstring_var(Size_c, Unit_c, Type_c, Flags_c, Cv) of
     {X_c, Rest_c} ->
       visit_tag(Svs#svs.code, Tags#tags.this),
-      {X_s, Rest_s} = cuter_symbolic:match_bitstring_var_true(Enc_s, Sv, X_c, Rest_c, Tags#tags.next, Fd),
+      {X_s, Rest_s} = cuter_symbolic:match_bitstring_var_true(Enc_s, Sv, X_c, Rest_c, Size_c, Tags#tags.next, Fd),
       {CMs, SMs} =
         case lists:keymember(VarName, 1, CMaps) of
           true ->
@@ -1108,7 +1108,7 @@ bit_pattern_match([{c_bitstr, Anno, {c_var, _, VarName}, Sz, Unit, Tp, Fgs}|Bs],
   catch
     error:_E ->
       visit_tag(Svs#svs.code, Tags#tags.next),
-      cuter_symbolic:match_bitstring_var_false(Enc_s, Sv, Tags#tags.this, Fd),
+      cuter_symbolic:match_bitstring_var_false(Enc_s, Sv, Size_c, Tags#tags.this, Fd),
       false
   end.
 

@@ -519,18 +519,22 @@ class ErlangZ3:
     szTerm = self.term_toZ3(size)
     sz = int(str(simplify(T.ival(szTerm)))) # Expect size to represent an Integer
     t = self.term_toZ3(termBitstr)
-    self.axs.append(T.is_bin(t))
-    t = T.bval(t)
-    bits = []
-    for _ in range(sz):
-      self.axs.append(B.is_bcons(t))
-      bits.append(B.bhd(t))
-      t = B.btl(t)
-    concBits = Concat(*bits) if len(bits) > 1 else bits[0]
-    concHelper = self.env.generate_bitvec(sz)
-    self.axs.extend([concHelper == concBits])
-    self.env.bind(s1, T.int(BV2Int(concHelper)))
-    self.env.bind(s2, T.bin(t))
+    if sz == 0:
+      self.env.bind(s1, T.int(0)) # FIXME
+      self.env.bind(s2, t)
+    else:
+      self.axs.append(T.is_bin(t))
+      t = T.bval(t)
+      bits = []
+      for _ in range(sz):
+        self.axs.append(B.is_bcons(t))
+        bits.append(B.bhd(t))
+        t = B.btl(t)
+      concBits = Concat(*bits) if len(bits) > 1 else bits[0]
+      concHelper = self.env.generate_bitvec(sz)
+      self.axs.extend([concHelper == concBits])
+      self.env.bind(s1, T.int(BV2Int(concHelper)))
+      self.env.bind(s2, T.bin(t))
   
   # Bitmach var false
   # TODO For now, expects size to be a concrete integer and encodedValue to be an integer.
@@ -643,18 +647,21 @@ class ErlangZ3:
     cnst = self.term_toZ3(cnstValue)
     szTerm = self.term_toZ3(size)
     sz = int(str(simplify(T.ival(szTerm)))) # Expect size to represent an Integer
-    t = self.term_toZ3(termBitstr)
-    self.axs.append(T.is_bin(t))
-    t = T.bval(t)
-    bits = []
-    for _ in range(sz):
-      self.axs.append(B.is_bcons(t))
-      bits.append(B.bhd(t))
-      t = B.btl(t)
-    concBits = Concat(*bits) if len(bits) > 1 else bits[0]
-    concHelper = self.env.generate_bitvec(sz)
-    self.axs.extend([T.is_int(cnst), T.ival(cnst) == BV2Int(concHelper), concHelper == concBits])
-    return T.bin(t)
+    if sz == 0:
+      return T.bin(B.bnil)
+    else:
+      t = self.term_toZ3(termBitstr)
+      self.axs.append(T.is_bin(t))
+      t = T.bval(t)
+      bits = []
+      for _ in range(sz):
+        self.axs.append(B.is_bcons(t))
+        bits.append(B.bhd(t))
+        t = B.btl(t)
+      concBits = Concat(*bits) if len(bits) > 1 else bits[0]
+      concHelper = self.env.generate_bitvec(sz)
+      self.axs.extend([T.is_int(cnst), T.ival(cnst) == BV2Int(concHelper), concHelper == concBits])
+      return T.bin(t)
   
   # Bitmatch var true (reversed)
   # TODO For now, expects size to be a concrete integer and encodedValue to be an integer.
@@ -909,16 +916,19 @@ class ErlangZ3:
     enc = self.term_toZ3(encodedValue)
     szTerm = self.term_toZ3(size)
     sz = int(str(simplify(T.ival(szTerm)))) # Expect size to represent an Integer
-    # Add axioms.
-    bits = [self.env.generate_bitvec(1) for _ in range(sz)]
-    concBits = Concat(*bits) if len(bits) > 1 else bits[0]
-    concHelper = self.env.generate_bitvec(sz)
-    self.axs.extend([T.is_int(enc), T.ival(enc) == BV2Int(concHelper), concHelper == concBits])
-    # Bind the symbolic result.
-    b = B.bnil
-    for bit in reversed(bits):
-      b = B.bcons(bit, b)
-    self.env.bind(s, T.bin(b))
+    if sz == 0:
+      self.env.bind(s, T.bin(B.bnil))
+    else:
+      # Add axioms.
+      bits = [self.env.generate_bitvec(1) for _ in range(sz)]
+      concBits = Concat(*bits) if len(bits) > 1 else bits[0]
+      concHelper = self.env.generate_bitvec(sz)
+      self.axs.extend([T.is_int(enc), T.ival(enc) == BV2Int(concHelper), concHelper == concBits])
+      # Bind the symbolic result.
+      b = B.bnil
+      for bit in reversed(bits):
+        b = B.bcons(bit, b)
+      self.env.bind(s, T.bin(b))
   
   def concat_segs_toZ3(self, *terms):
     T, B = self.Term, self.BitStr

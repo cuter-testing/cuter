@@ -34,6 +34,8 @@
   , log_bitmatch_const_false/5
   , log_bitmatch_var_true/6
   , log_bitmatch_var_false/4
+  , log_bitsize_not_equal/3
+  , log_bitsize_equal/3
 ]).
 
 -export_type([opcode/0]).
@@ -161,6 +163,14 @@ log_bitmatch_var_true(Fd, Sv1, Sv2, Size, Sv, Tag) ->
 -spec log_bitmatch_var_false(file:io_device(), integer(), cuter_symbolic:symbolic(), cuter_cerl:tag()) -> ok.
 log_bitmatch_var_false(Fd, Size, Sv, Tag) ->
   log(Fd, ?OP_BITMATCH_VAR_FALSE, cuter_cerl:id_of_tag(Tag), [Size, Sv]).
+
+-spec log_bitsize_equal(file:io_device(), cuter_symbolic:symbolic(), integer()) -> ok.
+log_bitsize_equal(Fd, Sv, Cv) ->
+  log_equal(Fd, true, Sv, Cv, cuter_cerl:empty_tag()).
+
+-spec log_bitsize_not_equal(file:io_device(), cuter_symbolic:symbolic(), integer()) -> ok.
+log_bitsize_not_equal(Fd, Sv, Cv) ->
+  log_equal(Fd, false, Sv, Cv, cuter_cerl:empty_tag()).
 
 %% ------------------------------------------------------------------
 %% Log Constraints
