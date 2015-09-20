@@ -354,6 +354,7 @@ class ErlangZ3:
       cc.OP_CONS: self.cons_toZ3,
       cc.OP_TCONS: self.tcons_toZ3,
       cc.OP_POW: self.pow_toZ3,
+      cc.OP_IS_BITSTRING: self.is_bitstring_toZ3,
     }
     
     opts_rev = {
@@ -1088,6 +1089,17 @@ class ErlangZ3:
     t2 = self.term_toZ3(term2)
     self.env.bind(s, If(
       Or(self.Term.is_real(t2), self.Term.is_int(t2)),
+      self.atmTrue,
+      self.atmFalse
+    ))
+  
+  ### Is a term a bitstring ###
+  
+  def is_bitstring_toZ3(self, term1, term2):
+    s = term1["s"]
+    t2 = self.term_toZ3(term2)
+    self.env.bind(s, If(
+      self.Term.is_bin(t2),
       self.atmTrue,
       self.atmFalse
     ))

@@ -146,6 +146,7 @@
 -define(OP_IS_TUPLE, 31).
 -define(OP_IS_BOOLEAN, 32).
 -define(OP_IS_NUMBER, 33).
+-define(OP_IS_BITSTRING, 67).
 %% Arithmetic operations.
 -define(OP_PLUS, 34).
 -define(OP_MINUS, 35).
@@ -213,6 +214,7 @@
                  , { {erlang, '=:=',         2}, ?OP_EQUAL         }
                  , { {erlang, '=/=',         2}, ?OP_UNEQUAL       }
                  , { {math, pow,             2}, ?OP_POW           }
+                 , { {erlang, is_bitstring,  1}, ?OP_IS_BITSTRING  }
                  ])).
 
 %% All the MFAs that are supported for symbolic evaluation.
