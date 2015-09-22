@@ -188,6 +188,12 @@ t_from_form({type, _, number, []}) ->
 %% Erlang_Integer..Erlang_Integer
 t_from_form({type, _, range, [{integer, _, I1}, {integer, _, I2}]}) ->
   t_range(t_integer_lit(I1), t_integer_lit(I2));
+t_from_form({type, _, range, [{op, _, '-', {integer, _, I1}}, {integer, _, I2}]}) ->
+  t_range(t_integer_lit(-I1), t_integer_lit(I2));
+t_from_form({type, _, range, [{integer, _, I1}, {op, _, '-', {integer, _, I2}}]}) ->
+  t_range(t_integer_lit(I1), t_integer_lit(-I2));
+t_from_form({type, _, range, [{op, _, '-', {integer, _, I1}}, {op, _, '-', {integer, _, I2}}]}) ->
+  t_range(t_integer_lit(I1), t_integer_lit(-I2));
 %% non_neg_integer()
 t_from_form({type, _, non_neg_integer, []}) ->
   t_range(t_integer_lit(0), t_pos_inf());

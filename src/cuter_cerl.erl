@@ -3,7 +3,9 @@
 -module(cuter_cerl).
 
 %% External exports
--export([load/4, retrieve_spec/2, get_tags/1, id_of_tag/1, tag_from_id/1, empty_tag/0, get_stored_types/1]).
+-export([load/4, retrieve_spec/2, get_tags/1, id_of_tag/1, tag_from_id/1, empty_tag/0, get_stored_types/1,
+         %% Exported for debugging use.
+         classify_attributes/1]).
 
 %% We are using the records representation of the Core Erlang Abstract
 %% Syntax Tree as they are defined in core_parse.hrl
