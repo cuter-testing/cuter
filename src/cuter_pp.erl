@@ -32,6 +32,7 @@
         , undecoded_msg/2
         , fsm_started/1
         , send_cmd/3
+        , debug_unexpected_solver_message/1
         %% Verbose merging
         , file_finished/1
         , set_goal/2
@@ -660,6 +661,10 @@ send_cmd(State, Cmd, Descr) ->
 -else.
 send_cmd(_State, _Cmd, _Descr) -> ok.
 -endif.
+
+-spec debug_unexpected_solver_message(any()) -> ok.
+debug_unexpected_solver_message(Info) ->
+  io:format("[SOLVER ERROR] ~p~n", [Info]).
 
 %%
 %% Verbose Merging

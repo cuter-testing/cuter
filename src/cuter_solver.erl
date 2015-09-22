@@ -72,7 +72,8 @@
   from = null   :: from() | null,
   port = null   :: port() | null,
   sol = #{}     :: model(),
-  var = null    :: cuter_symbolic:symbolic() | null
+  var = null    :: cuter_symbolic:symbolic() | null,
+  debug         :: solver_input()
 }).
 -type fsm_state() :: #fsm_state{}.
 
@@ -139,8 +140,8 @@ stop() ->
 %% ----------------------------------------------------------------------------
 
 -spec solve(solver_input()) -> solver_result().
-solve({Python, Mappings, File, N}) ->
-  FSM = start_fsm(),
+solve({Python, Mappings, File, N}=Args) ->
+  FSM = start_fsm(Args),
   ok = exec(FSM, Python),
   ok = load_trace_file(FSM, {File, N}),
   Setting = initial_setting(length(Mappings)),
@@ -251,9 +252,9 @@ load_setting(<<F:1, Rest/bitstring>>, [M|Ms], FSM) ->
 %% ----------------------------------------------------------------------------
 
 %% Start the FSM
--spec start_fsm() -> pid() | {error, term()}.
-start_fsm() ->
-  case gen_fsm:start_link(?MODULE, self(), []) of
+-spec start_fsm(solver_input()) -> pid() | {error, term()}.
+start_fsm(Args) ->
+  case gen_fsm:start_link(?MODULE, [self(), Args], []) of
     {ok, Pid} -> Pid;
     {error, _Reason} = R -> R
   end.
@@ -304,10 +305,10 @@ stop_exec(Pid) ->
 %% ----------------------------------------------------------------------------
 
 %% init/1
--spec init(pid()) -> {ok, idle, fsm_state()}.
-init(Super) ->
+-spec init([pid()| solver_input(), ...]) -> {ok, idle, fsm_state()}.
+init([Super, Debug]) ->
   process_flag(trap_exit, true),
-  {ok, idle, #fsm_state{super = Super}}.
+  {ok, idle, #fsm_state{super = Super, debug = Debug}}.
 
 %% terminate/3
 -spec terminate(term(), state(), fsm_state()) -> ok.
@@ -396,7 +397,8 @@ handle_info({Port, {data, Bin}}, State, Data=#fsm_state{port = Port}) ->
   cuter_pp:undecoded_msg(Bin, State),
   {next_state, State, Data};
 %% Unknown message
-handle_info(Info, _StateName, Data) ->
+handle_info(Info, _State, Data) ->
+  cuter_pp:debug_unexpected_solver_message(Data#fsm_state.debug),
   {stop, {unexpected_info, Info}, Data}.
 
 
