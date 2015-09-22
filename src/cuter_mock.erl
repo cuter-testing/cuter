@@ -86,6 +86,8 @@ simulate_behaviour(binary, decode_unsigned, 2) -> bif;
 %% Module epp
 %% XXX Not BIF but with unsupported primops
 simulate_behaviour(epp, _F, _A) -> bif;
+%% Module crypto
+simulate_behaviour(crypto, md5, 1) -> bif;
 %% Module ets
 simulate_behaviour(ets, all, 0) -> bif;
 simulate_behaviour(ets, new, 2) -> bif;
