@@ -217,6 +217,21 @@ class ErlangZ3:
     
     self.check = None
     self.model = None
+    
+    self.added_bv_len = False
+    self.bv_len_f = None
+  
+  def bv_length(self):
+    T, B = self.Term, self.BitStr
+    f = self.env.generate_func(B, IntSort())
+    x = self.env.generate_const(B)
+    ax_forall = ForAll(x, If(
+      B.is_bnil(x),
+      f(x) == 0,
+      f(x) == f(B.btl(x)) + 1
+    ))
+    self.bv_len_f = f
+    self.quantifier_axs.append(ax_forall)
   
   ## Define the Erlang Type System
   def erlang_type_system(*args):
@@ -738,8 +753,16 @@ class ErlangZ3:
     return (s == atm)
   
   def type_bitstring_toZ3(self, s, arg):
-    sz = self.term_toZ3(arg)
-    return self.Term.is_bin(s)  # TODO Do sth with binaries
+    T = self.Term
+    sz = arg['v']  # Assume it's an integer
+    if sz > 0: # TODO Do sth with binaries
+      return T.is_bin(s)
+    else:
+      if not self.added_bv_len:
+        self.bv_length()
+        self.added_bv_len = True
+      len_f = self.bv_len_f
+      return And(T.is_bin(s), len_f(T.bval(s)) % 8 == 0)
   
   def type_float_toZ3(self, s, arg):
     return self.Term.is_real(s)
