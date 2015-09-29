@@ -24,6 +24,7 @@
         , '<'/2, '=<'/2, '>'/2, '>='/2
         , '+'/2, '-'/2, '*'/2, '/'/2
         , '++'/2, '--'/2, reverse/2, member/2, keyfind/3
+        , is_binary/1
         ]).
 
 %% ----------------------------------------------------------------------------
@@ -831,4 +832,19 @@ keyfind(Key, N, [H|T]) when is_tuple(H) ->
   case erlang:element(N, H) of
     Key -> H;
     _   -> keyfind(Key, N, T)
+  end.
+
+%% ----------------------------------------------------------------------------
+%% BINARY / BITSTRING OPERATIONS
+%% ----------------------------------------------------------------------------
+
+-spec is_binary(bitstring()) -> boolean().
+is_binary(Bin) -> is_binary(Bin, 0).
+
+is_binary(<<>>, 0) -> true;
+is_binary(<<>>, _) -> false;
+is_binary(<<_:1, Bin/bitstring>>, N) ->
+  case N of
+    7 -> is_binary(Bin, 0);
+    _ -> is_binary(Bin, N+1)
   end.
