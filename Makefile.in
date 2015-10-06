@@ -79,7 +79,9 @@ UTEST_MODULES = \
 	cuter_erlang_tests
 
 FTEST_MODULES = \
+	bitstr \
 	otp_int
+
 
 ###----------------------------------------------------------------------
 ### Targets
