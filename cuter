@@ -17,6 +17,7 @@ function usage() {
     echo "	-p=N, --pollers=N		use N pollers"
     echo "	-s=N, --solvers=N		use N solvers"
     echo "	-v, --verbose			verbose execution"
+    echo "	-fv --fully-verbose		fully verbose execution (for debugging)"
     echo "	-d, --disable-pmatch		disable pmatch compilation"
     echo "	-r, --recompile			recompile the module"
     exit 1
@@ -82,6 +83,9 @@ if [ $# -ge 3 ]; then
                 ;;
             -v | --verbose)
                 opts=$(add_opt "$opts" "verbose_execution_info")
+                ;;
+            -fv | --fully-verbose)
+                opts=$(add_opt "$opts" "fully_verbose_execution_info")
                 ;;
             -d | --disable-pmatch)
                 opts=$(add_opt "$opts" "disable_pmatch")
