@@ -48,6 +48,13 @@
 
 -define(SLEEP, 100).
 
+-define(SOLVER_STATUS_SAT, <<"sat">>).
+-define(SOLVER_STATUS_UNSAT, <<"unsat">>).
+-define(SOLVER_STATUS_TIMEOUT, <<"timeout">>).
+-define(SOLVER_STATUS_UNKNOWN, <<"unknown">>).
+
+-type solver_status() :: binary().
+
 -type state()     :: idle
                    | python_started
                    | trace_loaded
@@ -152,9 +159,11 @@ query_solver(FSM, Mappings, CurrSetting) ->
   ok = add_axioms(FSM),
   load_setting(CurrSetting, Mappings, FSM),
   case check_model(FSM) of
-    true ->
+    ?SOLVER_STATUS_SAT ->
       get_solution(FSM, Mappings);
-    false ->
+    ?SOLVER_STATUS_UNSAT ->
+      stop_fsm(FSM, error);  %% RETURN ERROR
+    _ ->
       NextSetting = generate_next_setting(CurrSetting, length(Mappings)),
       query_with_new_setting(NextSetting, FSM, Mappings)
   end.
@@ -165,6 +174,10 @@ get_solution(FSM, Mappings) ->
   ok = stop_exec(FSM),
   Inp = cuter_symbolic:generate_new_input(Mappings, M),
   wait_for_fsm(FSM, {ok, Inp}).
+
+stop_fsm(FSM, Ret) ->
+  ok = stop_exec(FSM),
+  wait_for_fsm(FSM, Ret).
 
 -spec wait_for_fsm(pid(), solver_result()) -> solver_result().
 wait_for_fsm(FSM, Ret) ->
@@ -177,8 +190,7 @@ wait_for_fsm(FSM, Ret) ->
 -spec query_with_new_setting(error, pid(), mappings()) -> error
                           ; ({ok, simplifier_conf()}, pid(), mappings()) -> solver_result().
 query_with_new_setting(error, FSM, _Mappings) ->
-  ok = stop_exec(FSM),
-  wait_for_fsm(FSM, error);
+  stop_fsm(FSM, error);
 query_with_new_setting({ok, Setting}, FSM, Mappings) ->
   ok = reset_solver(FSM),
   query_solver(FSM, Mappings, Setting).
@@ -281,7 +293,7 @@ fix_variable(Pid, Mapping) ->
   gen_fsm:sync_send_event(Pid, {fix_variable, Mapping}).
 
 %% Check the model for satisfiability
--spec check_model(pid()) -> boolean().
+-spec check_model(pid()) -> solver_status().
 check_model(Pid) ->
   gen_fsm:sync_send_event(Pid, check_model, 500000).
 
@@ -341,18 +353,23 @@ handle_sync_event(Event, _From, _StateName, Data) ->
 %% Useful to handle messages from the port
 -spec handle_info({port(), {data, binary()}}, state(), fsm_state()) -> {next_state, state(), fsm_state()}
                                                                      | {stop, {unexpected_info, any()}, fsm_state()}.
+
 %% The model is satisfiable and the solver has generated a solution
 %% solving --> solved
-handle_info({Port, {data, <<"True">>}}, solving, Data=#fsm_state{from = From, port = Port}) ->
-  cuter_pp:sat(),
-  gen_fsm:reply(From, true),
-  {next_state, solved, Data#fsm_state{from = null}};
 %% The solver did not manage to satisfy the model
 %% solving --> failed
-handle_info({Port, {data, <<"False">>}}, solving, Data=#fsm_state{from = From, port = Port}) ->
-  cuter_pp:not_sat(),
-  gen_fsm:reply(From, false),
-  {next_state, failed, Data#fsm_state{from = null}};
+handle_info({Port, {data, Status}}, solving, Data=#fsm_state{from = From, port = Port}) when Status =:= ?SOLVER_STATUS_SAT;
+                                                                                             Status =:= ?SOLVER_STATUS_UNSAT;
+                                                                                             Status =:= ?SOLVER_STATUS_TIMEOUT;
+                                                                                             Status =:= ?SOLVER_STATUS_UNKNOWN->
+  pp_solver_status(Status),
+  gen_fsm:reply(From, Status),
+  case Status of
+    ?SOLVER_STATUS_SAT ->
+      {next_state, solved, Data#fsm_state{from = null}};
+    _ ->
+      {next_state, failed, Data#fsm_state{from = null}}
+  end;
 %% Delimit the start of the solution
 %% generating_model --> expecting_var
 handle_info({Port, {data, ?RSP_MODEL_DELIMITER_START}}, generating_model, Data=#fsm_state{port = Port}) ->
@@ -591,3 +608,8 @@ finished(Event, _From, Data) ->
   {stop, {unexpected_event, Event}, ok, Data}.
 
 
+%% Dispatcher for pretty printing the status of the solver.
+pp_solver_status(?SOLVER_STATUS_SAT) -> ok;
+pp_solver_status(?SOLVER_STATUS_UNSAT) -> cuter_pp:solving_failed_unsat();
+pp_solver_status(?SOLVER_STATUS_TIMEOUT) -> cuter_pp:solving_failed_timeout();
+pp_solver_status(?SOLVER_STATUS_UNKNOWN) -> cuter_pp:solving_failed_unknown().

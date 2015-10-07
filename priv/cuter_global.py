@@ -24,5 +24,5 @@ def init():
   # Logging flags
   __LOG_DATA_RECEIVED__ = False
   __LOG_JSON_LOADED__ = False
-  __LOG_MODEL_UNKNOWN__ = True
+  __LOG_MODEL_UNKNOWN__ = False
 

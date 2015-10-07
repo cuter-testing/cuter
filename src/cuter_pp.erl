@@ -13,7 +13,7 @@
          form_has_unsupported_type/1, invalid_ast_with_pmatch/2, code_logs/1]).
 
 %% Report information about solving.
--export([solving_failed_notify/0]).
+-export([solving_failed_unsat/0, solving_failed_timeout/0, solving_failed_unknown/0]).
 
 -export([ reversible_operations/1
         %% Execution info reporting level
@@ -22,8 +22,8 @@
         %% Verbose File/Folder Deletion
         , delete_file/2
         %% Verbose solving
-        , sat/0
-        , not_sat/0
+%%        , sat/0
+%%        , not_sat/0
         , model_start/0
         , model_end/0
         , received_var/1
@@ -165,10 +165,20 @@ path_vertex(Ref, Vertex) ->
 flush(Ref) ->
   gen_server:call(?PRETTY_PRINTER, {flush, Ref}).
 
-%% Print a character to show that solving failed to product an output.
--spec solving_failed_notify() -> ok.
-solving_failed_notify() ->
-  gen_server:call(?PRETTY_PRINTER, solving_failed_notify).
+%% Print a character to show that solving was unsatisfiable.
+-spec solving_failed_unsat() -> ok.
+solving_failed_unsat() ->
+  gen_server:call(?PRETTY_PRINTER, solving_failed_unsat).
+
+%% Print a character to show that solving timed out.
+-spec solving_failed_timeout() -> ok.
+solving_failed_timeout() ->
+  gen_server:call(?PRETTY_PRINTER, solving_failed_timeout).
+
+%% Print a character to show that solving was unknown.
+-spec solving_failed_unknown() -> ok.
+solving_failed_unknown() ->
+  gen_server:call(?PRETTY_PRINTER, solving_failed_unknown).
 
 %% Print the erroneous input that were found.
 -spec errors_found(cuter:erroneous_inputs()) -> ok.
@@ -214,7 +224,9 @@ code_change(_OldVsn, State, _Extra) ->
                ; ({execution_info, cuter_scheduler_maxcover:handle(), cuter_iserver:logs()}, from(), state()) -> {reply, ok, state()}
                ; ({path_vertex, cuter_scheduler_maxcover:handle(), cuter_analyzer:path_vertex()}, from(), state()) -> {reply, ok, state()}
                ; ({flush, cuter_scheduler_maxcover:handle()}, from(), state()) -> {reply, ok, state()}
-               ; (solving_failed_notify, from(), state()) -> {reply, ok, state()}
+               ; (solving_failed_unsat, from(), state()) -> {reply, ok, state()}
+               ; (solving_failed_timeout, from(), state()) -> {reply, ok, state()}
+               ; (solving_failed_unknown, from(), state()) -> {reply, ok, state()}
                ; ({errors_found, cuter:erroneous_inputs()}, from(), state()) -> {reply, ok, state()}
                ; ({code_logs, cuter_codeserver:logs()}, from(), state()) -> {reply, ok, state()}
                .
@@ -282,8 +294,10 @@ handle_call({flush, Ref}, _From, State=#st{pplevel = PpLevel, info = Info, nl = 
     _ -> {reply, ok, State#st{info = Info1, nl = false}}
   end;
 %% Print a character to show that solving failed to product an output.
-handle_call(solving_failed_notify, _From, State=#st{pplevel = PpLevel}) ->
-  pp_solving_failure(PpLevel#pp_level.execInfo),
+handle_call(SlvFail, _From, State=#st{pplevel = PpLevel}) when SlvFail =:= solving_failed_unsat;
+                                                               SlvFail =:= solving_failed_timeout;
+                                                               SlvFail =:= solving_failed_unknown ->
+  pp_solving_failure(SlvFail, PpLevel#pp_level.execInfo),
   {reply, ok, State#st{nl = true}};
 %% Report the errors that were found.
 handle_call({errors_found, Errors}, _From, State=#st{mfa = MFA, pplevel = PpLevel}) ->
@@ -346,9 +360,13 @@ pp_nl(true, true) -> io:format(standard_error, "~n", []);
 pp_nl(true, false) -> io:format("~n");
 pp_nl(false, _) -> ok.
 
--spec pp_solving_failure(level()) -> ok.
-pp_solving_failure(?MINIMAL) -> io:format(standard_error, "x", []);
-pp_solving_failure(_) -> io:format("x").
+-spec pp_solving_failure(solving_failed_unsat | solving_failed_timeout | solving_failed_unknown, level()) -> ok.
+pp_solving_failure(solving_failed_unsat, ?MINIMAL) -> io:format(standard_error, "x", []);
+pp_solving_failure(solving_failed_unsat, _) -> io:format("x");
+pp_solving_failure(solving_failed_timeout, ?MINIMAL) -> io:format(standard_error, "t", []);
+pp_solving_failure(solving_failed_timeout, _) -> io:format("t");
+pp_solving_failure(solving_failed_unknown, ?MINIMAL) -> io:format(standard_error, "u", []);
+pp_solving_failure(solving_failed_unknown, _) -> io:format("u").
 
 -spec pp_execution_info(execution_data(), mfa(), boolean(), level()) -> ok.
 pp_execution_info(Data, MFA, Nl, ?MINIMAL) ->
@@ -582,21 +600,21 @@ delete_file(_F, _Intact) -> ok.
 %% Verbose solving
 %%
 
--spec sat() -> ok.
--ifdef(VERBOSE_SOLVING).
-sat() ->
-  io:format("[SLV] (solving) SAT~n").
--else.
-sat() -> ok.
--endif.
+%%-spec sat() -> ok.
+%%-ifdef(VERBOSE_SOLVING).
+%%sat() ->
+%%  io:format("[SLV] (solving) SAT~n").
+%%-else.
+%%sat() -> ok.
+%%-endif.
 
--spec not_sat() -> ok.
--ifdef(VERBOSE_SOLVING).
-not_sat() ->
-  io:format("[SLV] (solving) NOT SAT~n").
--else.
-not_sat() -> ok.
--endif.
+%%-spec not_sat() -> ok.
+%%-ifdef(VERBOSE_SOLVING).
+%%not_sat() ->
+%%  io:format("[SLV] (solving) NOT SAT~n").
+%%-else.
+%%not_sat() -> ok.
+%%-endif.
 
 -spec model_start() -> ok.
 -ifdef(VERBOSE_SOLVING).

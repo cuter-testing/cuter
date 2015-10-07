@@ -199,7 +199,6 @@ handle_call({solver_reply, Reply}, {Who, _Ref}, S=#st{solving = Solving, inputsQ
   case Reply of
     %% The model could not be satisfied.
     error ->
-      cuter_pp:solving_failed_notify(),
       {reply, ok, S#st{solving = dict:erase(Who, Solving)}};
     %% The modal was satisfied and a new input was generated.
     {ok, Input} ->

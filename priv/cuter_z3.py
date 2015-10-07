@@ -205,7 +205,9 @@ class ErlangZ3:
     self.env = Env()
     self.axs = []
     self.quantifier_axs = []
-    self.slv = Solver()
+    self.slv = Then('simplify', 'normalize-bounds', 'solve-eqs', 'bit-blast', 'aig', 'qflra', 'qfnia', 'qfnra', 'qfbv',
+                    'qfufnra', 'qflia', 'nlsat', 'qfnra-nlsat', 'qe', 'sat', 'smt').solver()
+    self.slv.set('timeout', 10000)
     if cglb.__LISTS_INTERP__ == cglb.LISTS_FORALL_PATS:
       self.slv.set(mbqi=False)
     else:
@@ -271,13 +273,14 @@ class ErlangZ3:
   # Solve a Constraint Set
   def solve(self):
     self.check = self.slv.check()
-    if (self.check == sat):
+    if self.check == sat:
       self.model = self.slv.model()
-      return True
-    else:
-      if self.check == unknown:
-        clg.model_unknown(And(*self.quantifier_axs), And(*self.axs))
-      return False
+      return cc.SOLVER_STATUS_SAT
+    elif self.check == unsat:
+      return cc.SOLVER_STATUS_UNSAT
+    elif self.check == unknown:
+      clg.model_unknown(And(*self.quantifier_axs), And(*self.axs))
+      return cc.SOLVER_STATUS_UNKNOWN
   
   # Fix a symbolic variable to a specific value
   def fix_parameter(self, p, v):
@@ -1580,7 +1583,7 @@ def test_model():
     p3 == T.lst(L.cons(T.bin(B.bnil),L.cons(T.int(2),L.nil)))
   ])
   erlz3.add_axioms()
-  assert erlz3.solve() == True, "Model in unsatisfiable"
+  assert erlz3.solve() == cc.SOLVER_STATUS_SAT, "Model in unsatisfiable"
   model = erlz3.encode_model()
   assert model != [], "The model is empty"
   for smb, v in model:
@@ -1684,7 +1687,7 @@ def test_commands():
   for cmd, rvs in cmds:
     erlz3.command_toZ3(cmd["c"], cmd, rvs)
   erlz3.add_axioms()
-  assert erlz3.solve() == True, "Model in unsatisfiable"
+  assert erlz3.solve() == cc.SOLVER_STATUS_SAT, "Model in unsatisfiable"
   model = erlz3.encode_model()
   assert model != [], "The model is empty"
   for smb, v in model:
