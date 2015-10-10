@@ -47,10 +47,10 @@ In order to use the tool, you need the following programs:
 
 3. **Z3 Theorem Prover**
 
-  Download the latest [Z3 release](https://github.com/Z3Prover/z3/releases)
-  or clone the master branch of Z3 from its git repository:
+  Download the v4.4.1 [Z3 release](https://github.com/Z3Prover/z3/releases/tag/z3-4.4.1)
+  or clone the `z3-4.4.1` tag of Z3 from its git repository:
 
-        git clone https://github.com/Z3Prover/z3.git
+        git clone -b z3-4.4.1 --depth 1 https://github.com/Z3Prover/z3.git
 
   To install Z3, follow the instructions in its [README
   file](https://github.com/Z3Prover/z3/blob/master/README).
