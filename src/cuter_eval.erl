@@ -43,9 +43,16 @@ i(M, F, As, Servers) ->
       cuter_iserver:send_mapping(Root, Mapping),
       NMF = {named, M, F},
       Tag = cuter_cerl:empty_tag(),
-      Ret = eval(NMF, As, SymbAs, external, Servers, Tag, Fd),
-      cuter_log:close_file(Fd),
-      cuter_iserver:int_return(Root, Ret)
+      try
+        Ret = eval(NMF, As, SymbAs, external, Servers, Tag, Fd),
+        cuter_iserver:int_return(Root, Ret)
+      catch
+        throw:Throw -> throw(Throw);
+        exit:Exit -> exit(Exit);
+        error:Error -> error(Error)
+      after
+        cuter_log:close_file(Fd)
+      end
     end,
   erlang:spawn(I).
 
@@ -1433,8 +1440,15 @@ subscribe_and_apply(MonitorServer, Parent, Args, Ref) ->
     {ok, Fd} = cuter_monitor:subscribe(MonitorServer, Parent),
     cuter_log:log_spawned(Fd, Parent, Ref),
     Parent ! {self(), registered},
-    erlang:apply(?MODULE, eval, Args ++ [Fd]),
-    cuter_log:close_file(Fd)
+    try
+      erlang:apply(?MODULE, eval, Args ++ [Fd])
+    catch
+      throw:Throw -> throw(Throw);
+      exit:Exit -> exit(Exit);
+      error:Error -> error(Error)
+    after
+      cuter_log:close_file(Fd)
+    end
   end.
 
 %% --------------------------------------------------------
