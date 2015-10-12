@@ -23,7 +23,7 @@ function usage() {
     exit 1
 }
 
-function add_opt(){
+function add_opt() {
     if [ "$1" != "" ]; then
         echo "$1,$2"
     else
@@ -57,8 +57,6 @@ if [ $# -ge 3 ]; then
 
     export ERL_LIBS=${DIR}:${ERL_LIBS}
 
-    compile_erl "$mod"
-
     shift
     shift
     shift
@@ -91,15 +89,29 @@ if [ $# -ge 3 ]; then
                 opts=$(add_opt "$opts" "disable_pmatch")
                 ;;
             -r | --recompile)
-                rm -f "$mod.beam"
-                echo "Recompiling module..."
-                echo $(compile_erl "$mod")
+		## if the .beam file does not exist, it's pointless to
+		## re-compile it; it will be created by compile_erl below
+                if [ -f $mod.beam ]; then
+                  erlfile=$mod.erl
+                  if [ ! -f $erlfile ]; then
+                    echo "Error: cannot locate" "$erlfile" " in order to recompile it... exiting"
+                    exit 1
+                  else
+                    echo -n "Recompiling $erlfile... "
+                    erlc +debug_info $erlfile
+                    echo "done"
+                  fi
+                fi
                 ;;
             *)
                 ;;
         esac
         shift
     done
+
+    if [ ! -f $mod.beam ]; then
+      compile_erl "$mod"
+    fi
 
     erl -noshell -eval "cuter:run($mod, $func, $args, $depth, [$opts])" -s init stop
 else
