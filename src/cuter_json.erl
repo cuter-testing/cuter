@@ -31,6 +31,7 @@
 -define(Q, $\").
 
 -define(ENCODE(T, V), [$\{, ?Q, $t, ?Q, $:, T, $,, ?Q, $v, ?Q, $:, V, $\}]). %% {"t":T, "v":V}
+-define(ENCODEX(T, V, X), [$\{, ?Q, $t, ?Q, $:, T, $,, ?Q, $v, ?Q, $:, V, $,, ?Q, $x, ?Q, $:, X, $\}]). %% {"t":T, "v":V, "x":X}
 -define(ENCODE_SYMBOLIC(V), [$\{, ?Q, $s, ?Q, $:, ?Q, V, ?Q, $\}]).          %% {"s":"V"}
 -define(ENCODE_ALIAS(V), [$\{, ?Q, $l, ?Q, $:, ?Q, V, ?Q, $\}]).             %% {"l":"V"}
 -define(ENCODE_DICT_ENTRY(K, V), [?Q, K, ?Q, $:, V]).    %% "K":V
@@ -522,10 +523,24 @@ decode_list(JSON, Dec=#decoder{state = value_start}) ->
 decode_list(JSON, Dec=#decoder{state = value_next_or_end}) ->
   case trim_whitespace(JSON) of
     <<$\], Rest/binary>> ->
-      {lists:reverse(Dec#decoder.acc), Rest};
+      case trim_whitespace(Rest) of
+        <<$,, RestTrm/binary>> ->
+          decode_list(RestTrm, Dec#decoder{state = termination});
+        _ ->
+          {lists:reverse(Dec#decoder.acc), Rest}
+      end;
     <<$,, Rest/binary>> ->
       {Obj, Rem} = decode_object(Rest, Dec#decoder{state = start}),
       decode_list(Rem, ?PUSH(Obj, Dec));
+    _ ->
+      parse_error(parse_error, Dec)
+  end;
+decode_list(JSON, Dec=#decoder{state = termination}) ->
+  case trim_whitespace(JSON) of
+    <<?Q, $x, ?Q, Rest/binary>> ->
+      R = trim_whitespace(trim_separator(Rest, $:, Dec)),  %% Ensure we pass a trimmed JSON string
+      {Obj, Rem} = decode_object(R, Dec#decoder{state = start}),
+      {cuter_lib:create_improper_list(Dec#decoder.acc, Obj), Rem};
     _ ->
       parse_error(parse_error, Dec)
   end.
@@ -533,7 +548,10 @@ decode_list(JSON, Dec=#decoder{state = value_next_or_end}) ->
 %% Decode a tuple
 decode_tuple(JSON, Dec=#decoder{state = value_start}) ->
   {L, Rem} = decode_list(JSON, Dec#decoder{state = value_start}),
-  {list_to_tuple(L), Rem}.
+  case cuter_lib:is_improper_list(L) of
+    false -> {list_to_tuple(L), Rem};
+    true  -> parse_error(parse_error, Dec)
+  end.
 
 %% Decode an atom
 decode_atom(JSON, Dec=#decoder{state = value_start}) ->
@@ -741,8 +759,16 @@ encode_term([], _Seen) ->
   ?ENCODE(integer_to_list(?JSON_TYPE_LIST), [$\[, $\]]);
 encode_term(L, Seen) when is_list(L) ->
   F = fun(X, Acc) -> [$,, encode_maybe_shared_term(X, Seen) | Acc] end,
-  [$, | Es] = lists:foldl(F, [], lists:reverse(L)),
-  ?ENCODE(integer_to_list(?JSON_TYPE_LIST), [$\[, Es, $\]]);
+  case cuter_lib:is_improper_list(L) of
+    false ->
+      [$, | Es] = lists:foldl(F, [], lists:reverse(L)),
+      ?ENCODE(integer_to_list(?JSON_TYPE_LIST), [$\[, Es, $\]]);
+    true ->
+      {Xs, Trm} = cuter_lib:get_parts_of_list(L),
+      [$, | Es] = lists:foldl(F, [], lists:reverse(Xs)),
+      T = encode_maybe_shared_term(Trm, Seen),
+      ?ENCODEX(integer_to_list(?JSON_TYPE_LIST), [$\[, Es, $\]], T)
+    end;
 %% tuple
 encode_term({}, _Seen) ->
   ?ENCODE(integer_to_list(?JSON_TYPE_TUPLE), [$\[, $\]]);

@@ -27,6 +27,7 @@ encdec_test_() ->
       {"Empty", []},
       {"Simple", [1,2,3]},
       {"With shared subterms", [1,2,[1,2],[3,1,2]] },
+      {"Improper Lists", [1,2,3,4|ok]},
       {"Random alphanumeric string", binary_to_list(base64:encode(crypto:strong_rand_bytes(42)))}
     ]},
     {"Tuples", [

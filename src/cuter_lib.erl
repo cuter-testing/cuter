@@ -8,7 +8,8 @@
 -export([get_tmp_dir/1, get_data_dir/2, get_trace_dir/1,
          get_merged_tracefile/1, get_monitor_dir/1, logfile_name/2,
          clear_and_delete_dir/1, clear_and_delete_dir/2, list_dir/1,
-         unique_string/0, ensure_port_or_pid/1]).
+         unique_string/0, ensure_port_or_pid/1, is_improper_list/1,
+         get_parts_of_list/1, create_improper_list/2]).
 
 
 %% Generate a unique string
@@ -100,3 +101,20 @@ list_dir(Dir) ->
   {ok, Fs} = file:list_dir(Dir),
   [filename:absname(F, Dir) || F <- lists:sort(fun erlang:'<'/2, Fs)].
 
+%% Checks if a list is nil terminated.
+-spec is_improper_list(list()) -> boolean().
+is_improper_list([]) -> false;
+is_improper_list([_|T]) -> is_improper_list(T);
+is_improper_list(_) -> true.
+
+-spec get_parts_of_list(list()) -> {list(), any()}.
+get_parts_of_list(L) -> get_parts_of_list(L, []).
+
+get_parts_of_list([H|T], Acc) ->
+  get_parts_of_list(T, [H|Acc]);
+get_parts_of_list(T, Acc) ->
+  {lists:reverse(Acc), T}.
+
+-spec create_improper_list(list(), any()) -> list().
+create_improper_list([], Acc) -> Acc;
+create_improper_list([H|T], Acc) -> create_improper_list(T, [H|Acc]).
