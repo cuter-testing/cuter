@@ -7,7 +7,15 @@ import cuter_global as cglb
 DATA_RECEIVED_LOG = "data_received.log"
 JSON_LOADED_LOG = "json_loaded.log"
 MODEL_UNKNOWN = "model_unknown.log"
+DEBUG_LOG = "debug.log"
 
+
+def debug_info(data):
+  if cglb.__LOG_DEBUG_INFO__:
+    fd = open(DEBUG_LOG, "a")
+    fd.write("{}\n".format(data))
+    fd.flush()
+    fd.close()
 
 def data_received(data):
   if cglb.__LOG_DATA_RECEIVED__:

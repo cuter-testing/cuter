@@ -15,6 +15,7 @@ def init():
   global __LOG_DATA_RECEIVED__
   global __LOG_JSON_LOADED__
   global __LOG_MODEL_UNKNOWN__
+  global __LOG_DEBUG_INFO__
 
   __TTY__ = "tty" in sys.argv
   __RUN__ = True
@@ -22,6 +23,7 @@ def init():
   __WPATS__ = True
 
   # Logging flags
+  __LOG_DEBUG_INFO__ = True
   __LOG_DATA_RECEIVED__ = False
   __LOG_JSON_LOADED__ = False
   __LOG_MODEL_UNKNOWN__ = False
