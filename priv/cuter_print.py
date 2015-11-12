@@ -100,8 +100,8 @@ for tp, tag, json_data, rev in cio.JsonReader(fname, 100000000):
   # Symbolic parameters
   elif tp == cc.OP_SPEC:
     msg = ["SPEC"]
-    for sp in json_data["a"]:
-      msg.append("(%s) -> %s" % (pretty_list(sp["p"]), pretty(sp["r"])))
+#    for sp in json_data["a"]:
+#      msg.append("(%s) -> %s" % (pretty_list(sp["p"]), pretty(sp["r"])))
     pprint(msg, tag)
   # True guard constraint
   elif tp == cc.OP_GUARD_TRUE:
@@ -315,6 +315,27 @@ for tp, tag, json_data, rev in cio.JsonReader(fname, 100000000):
     pprint([
       "POW",
       "%s = %s ** %s" % (pretty(xs[0]), pretty(xs[1]), pretty(xs[2]))
+    ], tag)
+  # Bitmatch const true
+  elif tp == cc.OP_BITMATCH_CONST_TRUE:
+    xs = json_data["a"]
+    pprint([
+      "BITMATCH CONST TRUE",
+      "%s:%s ++ %s = %s " % (pretty(xs[1]), pretty(xs[2]), pretty(xs[0]), pretty(xs[3]))
+    ], tag)
+  # Bitmatch const false
+  elif tp == cc.OP_BITMATCH_CONST_FALSE:
+    xs = json_data["a"]
+    pprint([
+      "BITMATCH CONST FALSE",
+      "%s:%s is not head of %s " % (pretty(xs[0]), pretty(xs[1]), pretty(xs[2]))
+    ], tag)
+  # Bitmatch var true
+  elif tp == cc.OP_BITMATCH_VAR_TRUE:
+    xs = json_data["a"]
+    pprint([
+      "BITMATCH VAR TRUE",
+      "%s with size %s + %s = %s " % (pretty(xs[0]), pretty(xs[2]), pretty(xs[1]), pretty(xs[3]))
     ], tag)
   else:
     print "UNKNOWN OPCODE", tp
