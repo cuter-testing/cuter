@@ -74,7 +74,7 @@ class TermEncoder:
     elif (is_true(simplify(T.is_atm(t)))):
       return self.toAtom(T.aval(t))
     elif (is_true(simplify(T.is_bin(t)))):
-      return self.toBitstring(T.bval(t))
+      return self.toBitstring(T.bsz(t), T.bval(t))
   
   def toInt(self, t):
     return {"t": cc.JSON_TYPE_INT, "v": simplify(t).as_long()}
@@ -114,14 +114,20 @@ class TermEncoder:
       r.append(simplify(hd).as_long())
     return {"t": cc.JSON_TYPE_ATOM, "v": r}
 
-  def toBitstring(self, t):
+  def toBitstring(self, n, t):
+    sz = simplify(n).as_long()
+    if sz < 0:
+      sz = 0
     B = self.eZ3.BitStr
     s = simplify(t)
     r = []
-    while (is_true(simplify(B.is_bcons(s)))):
+    while (is_true(simplify(B.is_bcons(s)))) and sz > 0:
+      sz -= 1
       hd = simplify(B.bhd(s))
       s = simplify(B.btl(s))
       r.append(simplify(hd).as_long())
+    if sz > 0:
+      r.extend([0] * sz)
     return {"t": cc.JSON_TYPE_BITSTRING, "v": r}
 
 
@@ -193,10 +199,11 @@ class TermDecoder:
     v.reverse()
     eZ3 = self.eZ3
     t = eZ3.BitStr.bnil
+    sz = len(v)
     while v != []:
       hd, v = BitVecVal(v[0], 1), v[1:]
       t = eZ3.BitStr.bcons(hd, t)
-    return eZ3.Term.bin(t)
+    return eZ3.Term.bin(sz, t)
 
 
 class ErlangZ3:
@@ -248,7 +255,7 @@ class ErlangZ3:
     Term.declare('lst', ('lval', List))
     Term.declare('tpl', ('tval', List))
     Term.declare('atm', ('aval', Atom))
-    Term.declare('bin', ('bval', BitStr))
+    Term.declare('bin', ('bsz', IntSort()), ('bval', BitStr))
     # List
     List.declare('nil')
     List.declare('cons', ('hd', Term), ('tl', List))
@@ -485,7 +492,8 @@ class ErlangZ3:
     t = self.term_toZ3(term)
     self.axs.extend([
       T.is_bin(t),
-      B.is_bnil(T.bval(t))
+      B.is_bnil(T.bval(t)),
+      T.bsz(t) == 0
     ])
   
   # Nonempty bitstring
@@ -496,10 +504,11 @@ class ErlangZ3:
     t = self.term_toZ3(term)
     self.axs.extend([
       T.is_bin(t),
-      B.is_bcons(T.bval(t))
+      B.is_bcons(T.bval(t)),
+      T.bsz(t) > 0
     ])
     self.env.bind(s1, B.bhd(T.bval(t)))
-    self.env.bind(s2, T.bin(B.btl(T.bval(t))))
+    self.env.bind(s2, T.bin(T.bsz(t) - 1, B.btl(T.bval(t))))
   
   # Bitmach const true
   # TODO For now, expects size to be a concrete integer and encodedValue to be an integer.
@@ -517,11 +526,11 @@ class ErlangZ3:
     szTerm = self.term_toZ3(size)
     sz = int(str(simplify(T.ival(szTerm)))) # Expect size to represent an Integer
     t = self.term_toZ3(termBitstr)
-    axs.append(T.is_bin(t))
+    axs.extend([T.is_bin(t), T.bsz(t) >= sz])
     t = T.bval(t)
     bits = []
     for _ in range(sz):
-      axs.append(B.is_bcons(t))
+#      axs.append(B.is_bcons(t))
       bits.append(B.bhd(t))
       t = B.btl(t)
     concBits = Concat(*bits) if len(bits) > 1 else bits[0]
@@ -538,11 +547,12 @@ class ErlangZ3:
     szTerm = self.term_toZ3(size)
     sz = int(str(simplify(T.ival(szTerm)))) # Expect size to represent an Integer
     t = self.term_toZ3(termBitstr)
+    origSz = T.bsz(t)
     if sz == 0:
       self.env.bind(s1, T.int(0)) # FIXME
       self.env.bind(s2, t)
     else:
-      self.axs.append(T.is_bin(t))
+      self.axs.extend([T.is_bin(t), origSz >= sz])
       t = T.bval(t)
       bits = []
       for _ in range(sz):
@@ -553,7 +563,7 @@ class ErlangZ3:
       concHelper = self.env.generate_bitvec(sz)
       self.axs.extend([concHelper == concBits])
       self.env.bind(s1, T.int(BV2Int(concHelper)))
-      self.env.bind(s2, T.bin(t))
+      self.env.bind(s2, T.bin(origSz - sz, t))
   
   # Bitmach var false
   # TODO For now, expects size to be a concrete integer and encodedValue to be an integer.
@@ -563,11 +573,7 @@ class ErlangZ3:
     szTerm = self.term_toZ3(size)
     sz = int(str(simplify(T.ival(szTerm)))) # Expect size to represent an Integer
     t = self.term_toZ3(termBitstr)
-    axs.append(T.is_bin(t))
-    t = T.bval(t)
-    for _ in range(sz):
-      axs.append(B.is_bcons(t))
-      t = B.btl(t)
+    axs.extend([T.is_bin(t), T.bsz(t) >= sz])
     self.axs.append(Not(And(*axs)))
   
   ### Reversed ###
@@ -642,6 +648,7 @@ class ErlangZ3:
     t = self.term_toZ3(term)
     self.axs.extend([
       T.is_bin(t),
+      T.bsz(t) > 0,
       B.is_bcons(T.bval(t))
     ])
   
@@ -651,13 +658,33 @@ class ErlangZ3:
     t = self.term_toZ3(term)
     self.axs.extend([
       T.is_bin(t),
+      T.bsz(t) == 0,
       B.is_bnil(T.bval(t))
     ])
   
   # Bitmach const true (reversed)
   # TODO For now, expects size to be a concrete integer and encodedValue to be an integer.
   def bitmatch_const_true_toZ3_RV(self, termRest, cnstValue, size, termBitstr):
-    self.bitmatch_const_false_toZ3(cnstValue, size, termBitstr)
+    T, B = self.Term, self.BitStr
+    axs = []
+    cnst = self.term_toZ3(cnstValue)
+    szTerm = self.term_toZ3(size)
+    sz = int(str(simplify(T.ival(szTerm)))) # Expect size to represent an Integer
+    t = self.term_toZ3(termBitstr)
+    axs.extend([T.is_bin(t), T.bsz(t) >= sz])
+    t = T.bval(t)
+    bits = []
+    for _ in range(sz):
+#      axs.append(B.is_bcons(t))
+      bits.append(B.bhd(t))
+      t = B.btl(t)
+    concBits = Concat(*bits) if len(bits) > 1 else bits[0]
+    concHelper = self.env.generate_bitvec(sz)
+    axs.extend([T.is_int(cnst), T.ival(cnst) == BV2Int(concHelper), concHelper == concBits])
+    self.axs.append(Not(And(*axs)))
+#    axs.extend([T.is_int(cnst), concHelper == concBits])
+#    self.axs.append(And(*axs))
+#    self.axs.append(T.ival(cnst) != BV2Int(concHelper))
   
   # Bitmach const false (reversed)
   # TODO For now, expects size to be a concrete integer and encodedValue to be an integer.
@@ -667,20 +694,21 @@ class ErlangZ3:
     szTerm = self.term_toZ3(size)
     sz = int(str(simplify(T.ival(szTerm)))) # Expect size to represent an Integer
     if sz == 0:
-      return T.bin(B.bnil)
+      return T.bin(0, B.bnil)
     else:
       t = self.term_toZ3(termBitstr)
-      self.axs.append(T.is_bin(t))
+      origSz = simplify(T.bsz(t))
+      self.axs.extend([simplify(T.is_bin(t)), origSz >= sz])
       t = T.bval(t)
       bits = []
       for _ in range(sz):
         self.axs.append(B.is_bcons(t))
-        bits.append(B.bhd(t))
+        bits.append(simplify(B.bhd(t)))
         t = B.btl(t)
       concBits = Concat(*bits) if len(bits) > 1 else bits[0]
       concHelper = self.env.generate_bitvec(sz)
-      self.axs.extend([T.is_int(cnst), T.ival(cnst) == BV2Int(concHelper), concHelper == concBits])
-      return T.bin(t)
+      self.axs.extend([simplify(T.is_int(cnst)), T.ival(cnst) == BV2Int(concHelper), concHelper == concBits])
+      return T.bin(origSz - sz, t)
   
   # Bitmatch var true (reversed)
   # TODO For now, expects size to be a concrete integer and encodedValue to be an integer.
@@ -695,11 +723,7 @@ class ErlangZ3:
     szTerm = self.term_toZ3(size)
     sz = int(str(simplify(T.ival(szTerm)))) # Expect size to represent an Integer
     t = self.term_toZ3(termBitstr)
-    axs.append(T.is_bin(t))
-    t = T.bval(t)
-    for _ in range(sz):
-      axs.append(B.is_bcons(t))
-      t = B.btl(t)
+    axs.extend([T.is_bin(t), T.bsz(t) >= sz])
     self.axs.append(And(*axs))
   
   # ----------------------------------------------------------------------
@@ -758,14 +782,10 @@ class ErlangZ3:
   def type_bitstring_toZ3(self, s, arg):
     T = self.Term
     sz = arg['v']  # Assume it's an integer
-    if sz > 0: # TODO Do sth with binaries
+    if sz == 1: # TODO Do sth with binaries
       return T.is_bin(s)
     else:
-      if not self.added_bv_len:
-        self.bv_length()
-        self.added_bv_len = True
-      len_f = self.bv_len_f
-      return And(T.is_bin(s), len_f(T.bval(s)) % 8 == 0)
+      return And(T.is_bin(s), simplify(T.bsz(s)) % sz == 0)
   
   def type_float_toZ3(self, s, arg):
     return self.Term.is_real(s)
@@ -944,7 +964,7 @@ class ErlangZ3:
     szTerm = self.term_toZ3(size)
     sz = int(str(simplify(T.ival(szTerm)))) # Expect size to represent an Integer
     if sz == 0:
-      self.env.bind(s, T.bin(B.bnil))
+      self.env.bind(s, T.bin(0, B.bnil))
     else:
       # Add axioms.
       bits = [self.env.generate_bitvec(1) for _ in range(sz)]
@@ -955,13 +975,14 @@ class ErlangZ3:
       b = B.bnil
       for bit in reversed(bits):
         b = B.bcons(bit, b)
-      self.env.bind(s, T.bin(b))
+      self.env.bind(s, T.bin(sz, b))
   
   def concat_segs_toZ3(self, *terms):
     T, B = self.Term, self.BitStr
     term1, term2, ts = terms[0], terms[1], terms[2:]
     s = term1["s"]
     t = self.term_toZ3(term2)
+    sz = T.bsz(t)
     self.axs.append(T.is_bin(t))
     t = T.bval(t)
     for x in reversed(ts):
@@ -971,7 +992,7 @@ class ErlangZ3:
         nTerm = self.term_toZ3(x)
         n = int(str(simplify(T.ival(nTerm))))
         t = B.bcons(BitVecVal(n, 1), t)
-    self.env.bind(s, T.bin(t))
+    self.env.bind(s, T.bin(sz + len(ts), t))
   
   # ----------------------------------------------------------------------
   # Operations on tuples
@@ -1499,7 +1520,7 @@ def test_decoder_simple():
     ),
     ( # <<1:2>>
       {"t":cc.JSON_TYPE_BITSTRING,"v":[0,1]},
-      T.bin(B.bcons(BitVecVal(0,1),B.bcons(BitVecVal(1,1),B.bnil)))
+      T.bin(2, B.bcons(BitVecVal(0,1),B.bcons(BitVecVal(1,1),B.bnil)))
     )
   ]
   decode_and_check(erlz3, terms)
@@ -1558,9 +1579,18 @@ def test_encoder():
       {"t":cc.JSON_TYPE_TUPLE,"v":[{"t":cc.JSON_TYPE_ATOM,"v":[102,111,111]},{"t":cc.JSON_TYPE_INT,"v":42}]}
     ),
     ( # <<5:3>>
-      T.bin(B.bcons(BitVecVal(1,1),B.bcons(BitVecVal(0,1),B.bcons(BitVecVal(1,1),B.bnil)))),
+      T.bin(3, B.bcons(BitVecVal(1,1),B.bcons(BitVecVal(0,1),B.bcons(BitVecVal(1,1),B.bnil)))),
       {"t":cc.JSON_TYPE_BITSTRING,"v":[1,0,1]}
-    )
+    ),
+    ( # <<5:3>>
+      T.bin(3, B.bcons(BitVecVal(1,1),B.bcons(BitVecVal(0,1),B.bcons(BitVecVal(1,1),B.bcons(BitVecVal(1,1),B.bnil))))),
+      {"t":cc.JSON_TYPE_BITSTRING,"v":[1,0,1]}
+    ),
+    ( # <<4:3>>
+      T.bin(3, B.bcons(BitVecVal(1,1),B.bcons(BitVecVal(0,1),B.bnil))),
+      {"t":cc.JSON_TYPE_BITSTRING,"v":[1,0,0]}
+    ),
+    
   ]
   for x, y in terms:
     z = TermEncoder(erlz3).fromZ3(x)
@@ -1580,7 +1610,7 @@ def test_model():
   erlz3.axs.extend([
     p1 == T.int(42),
     p2 == T.atm(A.acons(111,A.acons(107,A.anil))),
-    p3 == T.lst(L.cons(T.bin(B.bnil),L.cons(T.int(2),L.nil)))
+    p3 == T.lst(L.cons(T.bin(0, B.bnil),L.cons(T.int(2),L.nil)))
   ])
   erlz3.add_axioms()
   assert erlz3.solve() == cc.SOLVER_STATUS_SAT, "Model in unsatisfiable"
