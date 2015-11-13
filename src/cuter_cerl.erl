@@ -291,7 +291,8 @@ annotate_pats({c_alias, Anno, Var, Pat}, TagGen, InPats) ->
 annotate_pats({c_apply, Anno, Op, Args}, TagGen, InPats) ->
   {c_apply, [TagGen()|Anno], annotate_pats(Op, TagGen, InPats), [annotate_pats(A, TagGen, InPats) || A <- Args]};
 annotate_pats({c_binary, Anno, Segs}, TagGen, InPats) ->
-  {c_binary, Anno, [annotate_pats(S, TagGen, InPats) || S <- Segs]};
+  WithTags = [{next_tag, TagGen()}, TagGen() | Anno],
+  {c_binary, WithTags, [annotate_pats(S, TagGen, InPats) || S <- Segs]};
 annotate_pats({c_bitstr, Anno, Val, Sz, Unit, Type, Flags}, TagGen, InPats) ->
   WithTags = [{next_tag, TagGen()}, TagGen() | Anno],
   {c_bitstr, WithTags, annotate_pats(Val, TagGen, InPats), annotate_pats(Sz, TagGen, InPats),

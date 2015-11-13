@@ -1053,24 +1053,26 @@ pattern_match({c_alias, _Anno, Var, Pat}, BitInfo, Mode, Cv, Sv, CMaps, SMaps, S
   end;
 
 %% Binary pattern
-pattern_match({c_binary, _Anno, Segments}, BitInfo, Mode, Cv, Sv, CMaps, SMaps, Servers, Fd) ->
-  bit_pattern_match(Segments, BitInfo, Mode, Cv, Sv, CMaps, SMaps, Servers, Fd).
+pattern_match({c_binary, Anno, Segments}, BitInfo, Mode, Cv, Sv, CMaps, SMaps, Servers, Fd) ->
+  bit_pattern_match(Anno, Segments, BitInfo, Mode, Cv, Sv, CMaps, SMaps, Servers, Fd).
 
 %% --------------------------------------------------------
 %% bit_pattern_match
 %% 
 %% --------------------------------------------------------
 
-bit_pattern_match([], _BitInfo, _Mode, <<>>, Sv, CMaps, SMaps, _Servers, Fd) ->
+bit_pattern_match(BinAnno, [], _BitInfo, _Mode, <<>>, Sv, CMaps, SMaps, _Servers, Fd) ->
   %% CONSTRAINT: Sv =:= <<>>
-  cuter_log:log_equal(Fd, true, <<>>, Sv, cuter_cerl:empty_tag()),
+  Tags = cuter_cerl:get_tags(BinAnno),
+  cuter_log:log_equal(Fd, true, <<>>, Sv, Tags#tags.next),
   {true, {CMaps, SMaps}};
-bit_pattern_match([], _BitInfo, _Mode, _Cv, Sv, _CMaps, _SMaps, _Servers, Fd) ->
+bit_pattern_match(BinAnno, [], _BitInfo, _Mode, _Cv, Sv, _CMaps, _SMaps, _Servers, Fd) ->
   %% CONSTRAINT: Sv =/= <<>>
-  cuter_log:log_equal(Fd, false, <<>>, Sv, cuter_cerl:empty_tag()),
+  Tags = cuter_cerl:get_tags(BinAnno),
+  cuter_log:log_equal(Fd, false, <<>>, Sv, Tags#tags.this),
   false;
 
-bit_pattern_match([{c_bitstr, Anno, {c_literal, _, LVal}, Sz, Unit, Tp, Fgs}|Bs], {M, Cenv, Senv} = Bnfo, Mode, Cv, Sv, CMaps, SMaps, Svs, Fd) ->
+bit_pattern_match(BinAnno, [{c_bitstr, Anno, {c_literal, _, LVal}, Sz, Unit, Tp, Fgs}|Bs], {M, Cenv, Senv} = Bnfo, Mode, Cv, Sv, CMaps, SMaps, Svs, Fd) ->
   {Size_c, Size_s} = eval_expr(Sz, M, Cenv, Senv, Svs, Fd),
   {Unit_c, Unit_s} = eval_expr(Unit, M, Cenv, Senv, Svs, Fd),
   {Type_c, Type_s} = eval_expr(Tp, M, Cenv, Senv, Svs, Fd),
@@ -1081,7 +1083,7 @@ bit_pattern_match([{c_bitstr, Anno, {c_literal, _, LVal}, Sz, Unit, Tp, Fgs}|Bs]
     Rest_c ->
       visit_tag(Svs#svs.code, Tags#tags.this),
       Rest_s = cuter_symbolic:match_bitstring_const_true(LVal, Enc_s, Sv, Rest_c, Size_c, Tags#tags.next, Fd),
-      bit_pattern_match(Bs, Bnfo, Mode,  Rest_c, Rest_s, CMaps, SMaps, Svs, Fd)
+      bit_pattern_match(BinAnno, Bs, Bnfo, Mode,  Rest_c, Rest_s, CMaps, SMaps, Svs, Fd)
   catch
     error:_e ->
       visit_tag(Svs#svs.code, Tags#tags.next),
@@ -1089,7 +1091,7 @@ bit_pattern_match([{c_bitstr, Anno, {c_literal, _, LVal}, Sz, Unit, Tp, Fgs}|Bs]
       false
   end;
 
-bit_pattern_match([{c_bitstr, Anno, {c_var, _, VarName}, Sz, Unit, Tp, Fgs}|Bs], {M, Cenv, Senv}, Mode, Cv, Sv, CMaps, SMaps, Svs, Fd) ->
+bit_pattern_match(BinAnno, [{c_bitstr, Anno, {c_var, _, VarName}, Sz, Unit, Tp, Fgs}|Bs], {M, Cenv, Senv}, Mode, Cv, Sv, CMaps, SMaps, Svs, Fd) ->
   {Size_c, Size_s} = eval_expr(Sz, M, Cenv, Senv, Svs, Fd),
   {Unit_c, Unit_s} = eval_expr(Unit, M, Cenv, Senv, Svs, Fd),
   {Type_c, Type_s} = eval_expr(Tp, M, Cenv, Senv, Svs, Fd),
@@ -1111,7 +1113,7 @@ bit_pattern_match([{c_bitstr, Anno, {c_var, _, VarName}, Sz, Unit, Tp, Fgs}|Bs],
         end,
       NCenv = cuter_env:add_binding(VarName, X_c, Cenv),
       NSenv = cuter_env:add_binding(VarName, X_s, Senv),
-      bit_pattern_match(Bs, {M, NCenv, NSenv}, Mode, Rest_c, Rest_s, CMs, SMs, Svs, Fd)
+      bit_pattern_match(BinAnno, Bs, {M, NCenv, NSenv}, Mode, Rest_c, Rest_s, CMs, SMs, Svs, Fd)
   catch
     error:_E ->
       visit_tag(Svs#svs.code, Tags#tags.next),
