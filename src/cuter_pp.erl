@@ -43,6 +43,9 @@
         , open_file/2
         , achieve_goal/2
         , open_pending_file/1
+        %% Pre-run checks
+        , module_non_existing/1
+        , mfa_non_existing/3
        ]).
 
 
@@ -190,6 +193,18 @@ errors_found(Errors) ->
 code_logs(Logs) ->
   gen_server:call(?PRETTY_PRINTER, {code_logs, Logs}).
 
+%% ----------------------------------------------------------------------------
+%% Failed pre-run checks.
+%% ----------------------------------------------------------------------------
+
+-spec module_non_existing(atom()) -> ok.
+module_non_existing(M) ->
+  gen_server:call(?PRETTY_PRINTER, {module_non_existing, M}).
+
+-spec mfa_non_existing(atom(), atom(), byte()) -> ok.
+mfa_non_existing(M, F, Arity) ->
+  gen_server:call(?PRETTY_PRINTER, {mfa_non_existing, {M, F, Arity}}).
+
 %% ============================================================================
 %% gen_server callbacks (Server Implementation)
 %% ============================================================================
@@ -215,7 +230,9 @@ code_change(_OldVsn, State, _Extra) ->
   {ok, State}.  %% No change planned.
 
 %% gen_server callback : handle_call/3
--spec handle_call({mfa, mfa()}, from(), state()) -> {reply, ok, state()}
+-spec handle_call({module_non_existing, atom()}, from(), state()) -> {reply, ok, state()}
+               ; ({mfa_non_existing, mfa()}, from(), state()) -> {reply, ok, state()}
+               ; ({mfa, mfa()}, from(), state()) -> {reply, ok, state()}
                ; ({invalid_ast_with_pmatch, module(), any()}, from(), state()) -> {reply, ok, state()}
                ; ({error_retrieving_spec, mfa(), any()}, from(), state()) -> {reply, ok, state()}
                ; ({form_has_unsupported_type, any()}, from(), state()) -> {reply, ok, state()}
@@ -231,6 +248,14 @@ code_change(_OldVsn, State, _Extra) ->
                ; ({code_logs, cuter_codeserver:logs()}, from(), state()) -> {reply, ok, state()}
                .
 
+%% Pre-run check: Non-existing module.
+handle_call({module_non_existing, M}, _From, State) ->
+  io:format("Module ~p does not exist.~n", [M]),
+  {reply, ok, State};
+%% Pre-run check: Non-existing mfa.
+handle_call({mfa_non_existing, {M, F, Arity}}, _From, State) ->
+  io:format("MFA ~p:~p/~w does not exist or is not exported.~n", [M, F, Arity]),
+  {reply, ok, State};
 %% The MFA to be tested.
 handle_call({mfa, {M, F, Ar}}, _From, State) ->
   io:format("Testing ~p:~p/~p ...~n", [M, F, Ar]),

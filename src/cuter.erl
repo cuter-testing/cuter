@@ -61,7 +61,29 @@ run(M, F, As, Depth) ->
 -spec run(mod(), atom(), input(), depth(), [option()]) -> erroneous_inputs().
 run(M, F, As, Depth, Options) ->
   Conf = initialize_app(M, F, As, Depth, Options),
-  start(Conf, number_of_pollers(Options), number_of_solvers(Options)).
+  case pre_run_checks(M, F, As) of
+    ok -> start(Conf, number_of_pollers(Options), number_of_solvers(Options));
+    error -> stop(Conf)
+  end.
+
+%% ----------------------------------------------------------------------------
+%% Pre-run checks
+%% ----------------------------------------------------------------------------
+
+pre_run_checks(M, F, As) ->
+  case code:which(M) of
+    non_existing ->
+      cuter_pp:module_non_existing(M),
+      error;
+    _ ->
+      Exports = M:module_info(exports),
+      case lists:member({F, length(As)}, Exports) of
+        true -> ok;
+        false ->
+          cuter_pp:mfa_non_existing(M, F, length(As)),
+          error
+      end
+  end.
 
 %% ----------------------------------------------------------------------------
 %% Manage the concolic executions
