@@ -33,6 +33,7 @@
 -define(DISABLE_PMATCH, disable_pmatch).
 -define(POLLERS_NO, number_of_pollers).
 -define(SOLVERS_NO, number_of_solvers).
+-define(WHITELISTED_MFAS, whitelist).
 
 -type default_option() :: {?POLLERS_NO, ?ONE}
                         .
@@ -44,6 +45,7 @@
                 | ?FULLY_VERBOSE_EXEC_INFO
                 | ?VERBOSE_EXEC_INFO
                 | ?DISABLE_PMATCH
+                | {?WHITELISTED_MFAS, file:filename()}
                 .
 
 %% ----------------------------------------------------------------------------
@@ -136,10 +138,11 @@ initialize_app(M, F, As, Depth, Options) ->
   BaseDir = set_basedir(Options),
   process_flag(trap_exit, true),
   error_logger:tty(false),  %% disable error_logger
-  WithPmatch = with_pmatch(Options),
-  CodeServer = cuter_codeserver:start(self(), WithPmatch),
-  SchedPid = cuter_scheduler_maxcover:start(?PYTHON_CALL, Depth, As, CodeServer),
   ok = cuter_pp:start(reporting_level(Options)),
+  WithPmatch = with_pmatch(Options),
+  Whitelist = get_whitelist(Options),
+  CodeServer = cuter_codeserver:start(self(), WithPmatch, Whitelist),
+  SchedPid = cuter_scheduler_maxcover:start(?PYTHON_CALL, Depth, As, CodeServer),
   cuter_pp:mfa({M, F, length(As)}),
   #conf{ codeServer = CodeServer
        , mod = M
@@ -170,6 +173,22 @@ number_of_solvers([_|Rest]) -> number_of_solvers(Rest).
 
 -spec with_pmatch([option()]) -> boolean().
 with_pmatch(Options) -> not lists:member(?DISABLE_PMATCH, Options).
+
+-spec get_whitelist([option()]) -> cuter_mock:whitelist().
+get_whitelist([]) ->
+  cuter_mock:empty_whitelist();
+get_whitelist([{?WHITELISTED_MFAS, File}|_]) ->
+  case file:consult(File) of
+    {ok, LoadedData} ->
+      Whitelist = cuter_mock:parse_whitelist(LoadedData),
+      cuter_pp:loaded_whitelist(File, Whitelist),
+      Whitelist;
+    Error ->
+      cuter_pp:error_loading_whitelist(File, Error),
+      cuter_mock:empty_whitelist()
+  end;
+get_whitelist([_|Rest]) ->
+  get_whitelist(Rest).
 
 -spec reporting_level([option()]) -> cuter_pp:pp_level().
 reporting_level(Options) ->

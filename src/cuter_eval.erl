@@ -24,6 +24,7 @@
 }).
 -type valuelist() :: #valuelist{}.
 
+-define(WHITELIST_PREFIX, '__whitelisted_mfas').
 
 %% -------------------------------------------------------------------
 %% Wrapper exported function that spawns an interpreter process 
@@ -739,14 +740,30 @@ evaluate_bif_concrete({M, F, _A}=MFA, As, CodeServer, Tag) ->
 %% Try to retrieve the code of an MFA
 %% --------------------------------------------------------
 -spec access_mfa_code(mfa(), servers()) -> {cerl:c_fun(), boolean()} | error.
-access_mfa_code({Mod, Fun, Arity}, Servers) ->
-  case cuter_mock:simulate_behaviour(Mod, Fun, Arity) of
-    bif -> error;
-    {ok, {M, _F, Arity} = MFA} ->
-      case get_module_cache(M, Servers#svs.code) of
-        {error, _} -> error;
-        {ok, Cache} -> {M, retrieve_function_code(MFA, Cache)}
+access_mfa_code({Mod, Fun, Arity} = MFA, Servers) ->
+  Whitelist = get_whitelist(Servers#svs.code),
+  case cuter_mock:is_whitelisted(MFA, Whitelist) of
+    true ->
+      error;
+    false ->
+      case cuter_mock:simulate_behaviour(Mod, Fun, Arity) of
+        bif -> error;
+        {ok, {M, _F, Arity} = Simulator} ->
+          case get_module_cache(M, Servers#svs.code) of
+            {error, _} -> error;
+            {ok, Cache} -> {M, retrieve_function_code(Simulator, Cache)}
+          end
       end
+  end.
+
+get_whitelist(CodeServer) ->
+  case get(?WHITELIST_PREFIX) of
+    undefined ->
+      Whitelist = cuter_codeserver:get_whitelist(CodeServer),
+      put(?WHITELIST_PREFIX, Whitelist),
+      Whitelist;
+    Whitelist ->
+      Whitelist
   end.
 
 %% --------------------------------------------------------

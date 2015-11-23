@@ -2,9 +2,14 @@
 %%------------------------------------------------------------------------------
 -module(cuter_mock).
 
--export([simulate_behaviour/3]).
+-export([simulate_behaviour/3, is_whitelisted/2, parse_whitelist/1,
+         get_whitelisted_mfas/1, empty_whitelist/0]).
+
+-export_type([whitelist/0]).
 
 -include("include/cuter_macros.hrl").
+
+-type whitelist() :: sets:set(mfa()).
 
 %% BIFs I found during testing, may be more out there
 %% Returns bif if an MFA is an Erlang BIF
@@ -239,5 +244,37 @@ simulate_behaviour(io, printable_range, 0) -> bif;
 %% that creates a new node and thus cannot work by just overriding
 %% the register/1 and unregister/1 commands
 simulate_behaviour(slave, start, _A) -> bif;
+
+%simulate_behaviour(whitelist, just_loop, _) -> bif;
+
 %% Rest MFAs are not BIFs
 simulate_behaviour(M, F, A) -> {ok, {M, F, A}}.
+
+%% ----------------------------------------------------------------------------
+%% Whitelisted MFAs that will be treated as BIFs and their code will not be
+%% accessed by CutEr.
+%% These MFAs need to be exported.
+%% ----------------------------------------------------------------------------
+
+%% Checks if an MFA is whitelisted.
+-spec is_whitelisted(mfa(), whitelist()) -> boolean().
+is_whitelisted(MFA, Whitelist) ->
+  sets:is_element(MFA, Whitelist).
+
+%% Generate the whitelist from the data loaded from the file.
+-spec parse_whitelist(list()) -> whitelist().
+parse_whitelist(LoadedData) -> parse_whitelist(LoadedData, empty_whitelist()).
+
+parse_whitelist([], Acc) ->
+  Acc;
+parse_whitelist([{M, F, A}=MFA|Rest], Acc) when is_atom(M), is_atom(F), is_integer(A), A >= 0 ->
+  parse_whitelist(Rest, sets:add_element(MFA, Acc));
+parse_whitelist([_|Rest], Acc) ->
+  parse_whitelist(Rest, Acc).
+
+-spec get_whitelisted_mfas(whitelist()) -> [mfa()].
+get_whitelisted_mfas(Whitelist) -> sets:to_list(Whitelist).
+
+%% Create an empty set of whitelisted MFAs.
+-spec empty_whitelist() -> whitelist().
+empty_whitelist() -> sets:new().

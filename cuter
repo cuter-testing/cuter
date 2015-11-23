@@ -20,6 +20,7 @@ function usage() {
     echo "	-fv --fully-verbose		fully verbose execution (for debugging)"
     echo "	-d, --disable-pmatch		disable pmatch compilation"
     echo "	-r, --recompile			recompile the module"
+    echo "	-w, --whitelist			path of the file with the whitelisted MFAs (Each MFA in one line ending with a dot)"
     exit 1
 }
 
@@ -82,11 +83,14 @@ if [ $# -ge 3 ]; then
             -v | --verbose)
                 opts=$(add_opt "$opts" "verbose_execution_info")
                 ;;
-            -fv | --fully-verbose)
+           -fv | --fully-verbose)
                 opts=$(add_opt "$opts" "fully_verbose_execution_info")
                 ;;
             -d | --disable-pmatch)
                 opts=$(add_opt "$opts" "disable_pmatch")
+                ;;
+            -w | --whitelist)
+                opts=$(add_opt "$opts" "{whitelist, '$VALUE'}")
                 ;;
             -r | --recompile)
 		## if the .beam file does not exist, it's pointless to
