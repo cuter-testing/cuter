@@ -33,6 +33,7 @@
 -define(DISABLE_PMATCH, disable_pmatch).
 -define(POLLERS_NO, number_of_pollers).
 -define(SOLVERS_NO, number_of_solvers).
+-define(WHITELISTED_MFAS, whitelist).
 
 -type default_option() :: {?POLLERS_NO, ?ONE}
                         .
@@ -44,6 +45,7 @@
                 | ?FULLY_VERBOSE_EXEC_INFO
                 | ?VERBOSE_EXEC_INFO
                 | ?DISABLE_PMATCH
+                | {?WHITELISTED_MFAS, file:filename()}
                 .
 
 %% ----------------------------------------------------------------------------

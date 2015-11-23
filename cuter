@@ -82,11 +82,14 @@ if [ $# -ge 3 ]; then
             -v | --verbose)
                 opts=$(add_opt "$opts" "verbose_execution_info")
                 ;;
-            -fv | --fully-verbose)
+           -fv | --fully-verbose)
                 opts=$(add_opt "$opts" "fully_verbose_execution_info")
                 ;;
             -d | --disable-pmatch)
                 opts=$(add_opt "$opts" "disable_pmatch")
+                ;;
+            -w | --whitelist)
+                opts=$(add_opt "$opts" "{whitelist, '$VALUE'}")
                 ;;
             -r | --recompile)
 		## if the .beam file does not exist, it's pointless to
