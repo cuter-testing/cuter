@@ -20,6 +20,7 @@ function usage() {
     echo "	-fv --fully-verbose		fully verbose execution (for debugging)"
     echo "	-d, --disable-pmatch		disable pmatch compilation"
     echo "	-r, --recompile			recompile the module"
+    echo "	-w, --whitelist			path of the file with the whitelisted MFAs (Each MFA in one line ending with a dot)"
     exit 1
 }
 
