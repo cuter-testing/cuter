@@ -4,8 +4,8 @@
 -behaviour(gen_server).
 
 %% external exports
--export([start/2, start/4, stop/1, load/2, unsupported_mfa/2, retrieve_spec/2, visit_tag/2,
-         initial_branch_counter/0, get_visited_tags/1, get_logs/1,
+-export([start/3, start/5, stop/1, load/2, unsupported_mfa/2, retrieve_spec/2, visit_tag/2,
+         initial_branch_counter/0, get_visited_tags/1, get_logs/1, get_whitelist/1,
          %% Work with module cache
          merge_dumped_cached_modules/2, no_cached_modules/0, modules_of_dumped_cache/1,
          lookup_in_module_cache/2, insert_in_module_cache/3,
@@ -78,7 +78,8 @@
   waiting = orddict:new()      :: [{{atom(), tuple()}, pid()}],
   withPmatch                   :: boolean(),
   workers = []                 :: [pid()],
-  unsupportedMfas = sets:new() :: sets:set(mfa())
+  unsupportedMfas = sets:new() :: sets:set(mfa()),
+  whitelist                    :: cuter_mock:whitelist()
 }).
 -type state() :: #st{}.
 
@@ -87,20 +88,20 @@
 %% ----------------------------------------------------------------------------
 
 %% Starts a CodeServer in the local node.
--spec start(pid(), boolean()) -> pid().
-start(Super, WithPmatch) ->
-  start(Super, no_cached_modules(), initial_branch_counter(), WithPmatch).
+-spec start(pid(), boolean(), cuter_mock:whitelist()) -> pid().
+start(Super, WithPmatch, Whitelist) ->
+  start(Super, no_cached_modules(), initial_branch_counter(), WithPmatch, Whitelist).
 
 %% Starts a CodeServer in the local node with an initialized
 %% modules' cache and tag counter.
--spec start(pid(), cached_modules(), counter(), boolean()) -> pid().
-start(Super, StoredMods, TagsN, WithPmatch) ->
-  case gen_server:start(?MODULE, [Super, StoredMods, TagsN, WithPmatch], []) of
+-spec start(pid(), cached_modules(), counter(), boolean(), cuter_mock:whitelist()) -> pid().
+start(Super, StoredMods, TagsN, WithPmatch, Whitelist) ->
+  case gen_server:start(?MODULE, [Super, StoredMods, TagsN, WithPmatch, Whitelist], []) of
     {ok, CodeServer} -> CodeServer;
     {error, Reason}  -> exit({codeserver_start, Reason})
   end.
 
-%% Stops a CodeServers
+%% Stops a CodeServer.
 -spec stop(pid()) -> ok.
 stop(CodeServer) ->
   gen_server:cast(CodeServer, {stop, self()}).
@@ -139,20 +140,26 @@ get_visited_tags(CodeServer) ->
 get_logs(CodeServer) ->
   gen_server:call(CodeServer, get_logs).
 
+%% Gets the whitelisted MFAs.
+-spec get_whitelist(pid()) -> cuter_mock:whitelist().
+get_whitelist(CodeServer) ->
+  gen_server:call(CodeServer, get_whitelist).
+
 %% ----------------------------------------------------------------------------
 %% gen_server callbacks (Server Implementation)
 %% ----------------------------------------------------------------------------
 
 %% gen_server callback : init/1
--spec init([pid() | cached_modules() | counter() | boolean(), ...]) -> {ok, state()}.
-init([Super, CachedMods, TagsN, WithPmatch]) ->
+-spec init([pid() | cached_modules() | counter() | boolean() | cuter_mock:whitelist(), ...]) -> {ok, state()}.
+init([Super, CachedMods, TagsN, WithPmatch, Whitelist]) ->
   link(Super),
   Db = ets:new(?MODULE, [ordered_set, protected]),
   add_cached_modules(Db, CachedMods),
   _ = set_branch_counter(TagsN), %% Initialize the counter for the branch enumeration.
   {ok, #st{ db = Db
           , super = Super
-          , withPmatch = WithPmatch}}.
+          , withPmatch = WithPmatch
+          , whitelist = Whitelist}}.
 
 %% gen_server callback : terminate/2
 -spec terminate(any(), state()) -> ok.
@@ -175,6 +182,7 @@ handle_info(_Msg, State) ->
                ; ({get_spec, mfa()}, from(), state()) -> {reply, spec_reply(), state()}
                ; (get_visited_tags, from(), state()) -> {reply, tags(), state()}
                ; (get_logs, from(), state()) -> {reply, logs(), state()}
+               ; (get_whitelist, from(), state()) -> {reply, cuter_mock:whitelist(), state()}
                .
 handle_call({load, M}, _From, State) ->
   {reply, try_load(M, State), State};
@@ -211,7 +219,9 @@ handle_call(get_logs, _From, State=#st{db = Db, unsupportedMfas = Ms, tags = Tag
   Cnt = get_branch_counter(),
   CachedMods = dump_cached_modules(Db),
   Logs = mk_logs(modules_in_cache(Db), sets:to_list(Ms), Tags, CachedMods, Cnt),
-  {reply, Logs, State}.
+  {reply, Logs, State};
+handle_call(get_whitelist, _From, State=#st{whitelist = Whitelist}) ->
+  {reply, Whitelist, State}.
 
 %% gen_server callback : handle_cast/2
 -spec handle_cast({stop, pid()}, state()) -> {stop, normal, state()} | {noreply, state()}

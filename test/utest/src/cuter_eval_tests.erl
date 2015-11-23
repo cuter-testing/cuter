@@ -40,7 +40,7 @@ eval_cerl_test_() ->
   [{"Basic Cerl Evaluation: " ++ C, {setup, Setup(I), Cleanup, Inst}} || {C, I} <- Is].
 
 eval_cerl({F, As, Result, Dir}) ->
-  CodeServer = cuter_codeserver:start(self(), ?Pmatch),
+  CodeServer = cuter_codeserver:start(self(), ?Pmatch, cuter_mock:empty_whitelist()),
   Server = cuter_iserver:start(?MODULE, F, As, Dir, ?TRACE_DEPTH, CodeServer),
   R = execution_result(Server),
   ok = wait_for_iserver(Server),

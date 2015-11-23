@@ -15,6 +15,9 @@
 %% Report information about solving.
 -export([solving_failed_unsat/0, solving_failed_timeout/0, solving_failed_unknown/0]).
 
+%% Parsing of options.
+-export([loaded_whitelist/2, error_loading_whitelist/2]).
+
 -export([ reversible_operations/1
         %% Execution info reporting level
         , default_reporting_level/0, minimal_exec_info/1, fully_verbose_exec_info/1
@@ -75,6 +78,28 @@
   info    :: dict:dict(cuter_scheduler_maxcover:handle(), execution_data())
 }).
 -type state() :: #st{}.
+
+%% Types for calls, casts, & replies.
+
+-type call() :: {whitelist_loaded, file:name(), cuter_mock:whitelist()}
+              | {whitelist_error, file:name(), any()}
+              | {module_non_existing, atom()}
+              | {mfa_non_existing, mfa()}
+              | {mfa, mfa()}
+              | {invalid_ast_with_pmatch, module(), any()}
+              | {error_retrieving_spec, mfa(), any()}
+              | {form_has_unsupported_type, any()}
+              | {input, cuter_scheduler_maxcover:handle(), cuter:input()}
+              | {execution_status, cuter_scheduler_maxcover:handle(), cuter_iserver:execution_status()}
+              | {execution_info, cuter_scheduler_maxcover:handle(), cuter_iserver:logs()}
+              | {path_vertex, cuter_scheduler_maxcover:handle(), cuter_analyzer:path_vertex()}
+              | {flush, cuter_scheduler_maxcover:handle()}
+              | solving_failed_unsat
+              | solving_failed_timeout
+              | solving_failed_unknown
+              | {errors_found, cuter:erroneous_inputs()}
+              | {code_logs, cuter_codeserver:logs()}
+              .
 
 %% Reporting levels.
 -define(MINIMAL, 0).
@@ -194,6 +219,18 @@ code_logs(Logs) ->
   gen_server:call(?PRETTY_PRINTER, {code_logs, Logs}).
 
 %% ----------------------------------------------------------------------------
+%% Parsing of options.
+%% ----------------------------------------------------------------------------
+
+-spec loaded_whitelist(file:name(), cuter_mock:whitelist()) -> ok.
+loaded_whitelist(File, Whitelist) ->
+  gen_server:call(?PRETTY_PRINTER, {whitelist_loaded, File, Whitelist}).
+
+-spec error_loading_whitelist(file:name(), any()) -> ok.
+error_loading_whitelist(File, Error) ->
+  gen_server:call(?PRETTY_PRINTER, {whitelist_error, File, Error}).
+
+%% ----------------------------------------------------------------------------
 %% Failed pre-run checks.
 %% ----------------------------------------------------------------------------
 
@@ -230,23 +267,25 @@ code_change(_OldVsn, State, _Extra) ->
   {ok, State}.  %% No change planned.
 
 %% gen_server callback : handle_call/3
--spec handle_call({module_non_existing, atom()}, from(), state()) -> {reply, ok, state()}
-               ; ({mfa_non_existing, mfa()}, from(), state()) -> {reply, ok, state()}
-               ; ({mfa, mfa()}, from(), state()) -> {reply, ok, state()}
-               ; ({invalid_ast_with_pmatch, module(), any()}, from(), state()) -> {reply, ok, state()}
-               ; ({error_retrieving_spec, mfa(), any()}, from(), state()) -> {reply, ok, state()}
-               ; ({form_has_unsupported_type, any()}, from(), state()) -> {reply, ok, state()}
-               ; ({input, cuter_scheduler_maxcover:handle(), cuter:input()}, from(), state()) -> {reply, ok, state()}
-               ; ({execution_status, cuter_scheduler_maxcover:handle(), cuter_iserver:execution_status()}, from(), state()) -> {reply, ok, state()}
-               ; ({execution_info, cuter_scheduler_maxcover:handle(), cuter_iserver:logs()}, from(), state()) -> {reply, ok, state()}
-               ; ({path_vertex, cuter_scheduler_maxcover:handle(), cuter_analyzer:path_vertex()}, from(), state()) -> {reply, ok, state()}
-               ; ({flush, cuter_scheduler_maxcover:handle()}, from(), state()) -> {reply, ok, state()}
-               ; (solving_failed_unsat, from(), state()) -> {reply, ok, state()}
-               ; (solving_failed_timeout, from(), state()) -> {reply, ok, state()}
-               ; (solving_failed_unknown, from(), state()) -> {reply, ok, state()}
-               ; ({errors_found, cuter:erroneous_inputs()}, from(), state()) -> {reply, ok, state()}
-               ; ({code_logs, cuter_codeserver:logs()}, from(), state()) -> {reply, ok, state()}
-               .
+-spec handle_call(call(), from(), state()) -> {reply, ok, state()}.
+
+%% Parsing of options.
+
+handle_call({whitelist_loaded, File, Whitelist}, _From, State=#st{pplevel = PpLevel}) ->
+  case PpLevel#pp_level.execInfo of
+    ?MINIMAL -> io:format(standard_error, "Loaded whitelisted MFAs from ~p.~n", [File]);
+    ?VERBOSE -> io:format("Loaded whitelisted MFAs from ~p.~n", [File]);
+    ?FULLY_VERBOSE ->
+      MFAs = cuter_mock:get_whitelisted_mfas(Whitelist),
+      io:format("Loaded the following whitelisted MFAs from ~p.~n  ~p~n", [File, MFAs])
+  end,
+  {reply, ok, State};
+handle_call({whitelist_error, File, Error}, _From, State=#st{pplevel = PpLevel}) ->
+  case PpLevel#pp_level.execInfo of
+    ?MINIMAL -> io:format(standard_error, "Error ~p occured when loading whitelisted MFAs from ~p.~n", [Error, File]);
+    _ -> io:format("Error ~p occured when loading whitelisted MFAs from ~p.~n", [Error, File])
+  end,
+  {reply, ok, State};
 
 %% Pre-run check: Non-existing module.
 handle_call({module_non_existing, M}, _From, State) ->
