@@ -9,7 +9,8 @@
 
 -include("include/cuter_macros.hrl").
 
--type whitelist() :: sets:set(mfa()).
+-type entry() :: {atom(), atom(), byte()} | {atom(), atom(), '*'} | {atom(), '*', '*'}.
+-type whitelist() :: sets:set(entry()).
 
 %% BIFs I found during testing, may be more out there
 %% Returns bif if an MFA is an Erlang BIF
@@ -258,8 +259,15 @@ simulate_behaviour(M, F, A) -> {ok, {M, F, A}}.
 
 %% Checks if an MFA is whitelisted.
 -spec is_whitelisted(mfa(), whitelist()) -> boolean().
-is_whitelisted(MFA, Whitelist) ->
-  sets:is_element(MFA, Whitelist).
+is_whitelisted({M, F, _A}=MFA, Whitelist) ->
+  case sets:is_element(MFA, Whitelist) of
+    true -> true;
+    false ->
+      case sets:is_element({M, F, '*'}, Whitelist) of
+        true -> true;
+        false -> sets:is_element({M, '*', '*'}, Whitelist)
+      end
+  end.
 
 %% Generate the whitelist from the data loaded from the file.
 -spec parse_whitelist(list()) -> whitelist().
@@ -267,10 +275,22 @@ parse_whitelist(LoadedData) -> parse_whitelist(LoadedData, empty_whitelist()).
 
 parse_whitelist([], Acc) ->
   Acc;
-parse_whitelist([{M, F, A}=MFA|Rest], Acc) when is_atom(M), is_atom(F), is_integer(A), A >= 0 ->
-  parse_whitelist(Rest, sets:add_element(MFA, Acc));
+parse_whitelist([{M, F, A}=MFA|Rest], Acc) ->
+  case is_mfa(M, F, A) orelse is_any_arity(M, F, A) orelse is_any_fun(M, F, A) of
+    true  -> parse_whitelist(Rest, sets:add_element(MFA, Acc));
+    false -> parse_whitelist(Rest, Acc)
+  end;
 parse_whitelist([_|Rest], Acc) ->
   parse_whitelist(Rest, Acc).
+
+is_mfa(M, F, A) when is_atom(M), is_atom(F), is_integer(A), A >= 0 -> true;
+is_mfa(_, _, _) -> false.
+
+is_any_arity(M, F, A) when is_atom(M), is_atom(F), A =:= '*' -> true;
+is_any_arity(_, _, _) -> false.
+
+is_any_fun(M, F, A) when is_atom(M), F =:= '*', A =:= '*' -> true;
+is_any_fun(_, _, _) -> false.
 
 -spec get_whitelisted_mfas(whitelist()) -> [mfa()].
 get_whitelisted_mfas(Whitelist) -> sets:to_list(Whitelist).
