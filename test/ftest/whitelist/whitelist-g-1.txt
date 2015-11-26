@@ -1,0 +1,2 @@
+{whitelist,just_loop2,'*'}.
+{lists,'*','*'}.

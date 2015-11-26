@@ -14,6 +14,7 @@ tests[7]="bitstr;f32;[<<>>,0,3];3;-p=2 -s=3;bitstr-f32-3;no-whitelist"
 tests[8]="bitstr;f33;[<<>>,0,0,<<>>];5;-p=2 -s=3;bitstr-f33-4;no-whitelist"
 tests[9]="otp_int;obsolete;[erlang, length, 1];3;-p=2 -s=3;otp_int-obsolete-3;no-whitelist"
 tests[10]="whitelist;f;[1000];3;-p=2 -s=3;whitelist-f-1;whitelist-f-1"
+tests[11]="whitelist;g;[1000];3;-p=2 -s=3;whitelist-g-1;whitelist-g-1"
 
 for element in "${tests[@]}"; do
   IFS=';' read -a t <<< "$element"
