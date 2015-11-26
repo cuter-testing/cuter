@@ -9,7 +9,8 @@
 
 -include("include/cuter_macros.hrl").
 
--type whitelist() :: sets:set(mfa()).
+-type entry() :: {atom(), atom(), byte()} | {atom(), atom(), '*'} | {atom(), '*', '*'}.
+-type whitelist() :: sets:set(entry()).
 
 %% BIFs I found during testing, may be more out there
 %% Returns bif if an MFA is an Erlang BIF
@@ -278,7 +279,9 @@ parse_whitelist([{M, F, A}=MFA|Rest], Acc) ->
   case is_mfa(M, F, A) orelse is_any_arity(M, F, A) orelse is_any_fun(M, F, A) of
     true  -> parse_whitelist(Rest, sets:add_element(MFA, Acc));
     false -> parse_whitelist(Rest, Acc)
-  end.
+  end;
+parse_whitelist([_|Rest], Acc) ->
+  parse_whitelist(Rest, Acc).
 
 is_mfa(M, F, A) when is_atom(M), is_atom(F), is_integer(A), A >= 0 -> true;
 is_mfa(_, _, _) -> false.
