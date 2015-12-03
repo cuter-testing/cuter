@@ -6,53 +6,12 @@ from z3 import *
 import cuter_global as cglb
 import cuter_logger as clg
 import cuter_common as cc
+import cuter_env as cenv
+import cuter_types as ctp
 
 # Set Z3Py params.
 set_param(max_lines=1, max_width=1000000, max_depth=10000000, max_visited=1000000)
 set_param('smt.bv.enable_int2bv', True)
-
-class Env:
-  def __init__(self):
-    self.cnt = 0
-    self.func_cnt = 0
-    self.const_cnt = 0
-    self.bitv_cnt = 0
-    self.e = {}
-    self.params = []
-  
-  def add_param(self, x):
-    self.params.append(x)
-  
-  def bind(self, s, v):
-    self.e[s] = v
-  
-  def lookup(self, x):
-    e = self.e
-    return None if x not in e else e[x]
-  
-  def fresh_var(self, s, Type):
-    self.cnt += 1
-    x = Const("x%s" % self.cnt, Type)
-    self.e[s] = x
-    return x
-  
-  def generate_const(self, Type):
-    self.const_cnt += 1
-    x = Const("c%s" % self.const_cnt, Type)
-    return x
-  
-  def generate_bitvec(self, size):
-    self.bitv_cnt += 1
-    x = BitVec("b%s" % self.bitv_cnt, size)
-    return x
-  
-  def store_bits(self, s, bits):
-    self.bve[s] = bits
-  
-  def generate_func(self, T1, T2):
-    self.func_cnt += 1
-    f = Function("f%s" % self.func_cnt, T1, T2)
-    return f
 
 class TermEncoder:
   def __init__(self, eZ3):
@@ -209,7 +168,7 @@ class TermDecoder:
 class ErlangZ3:
   def __init__(self):
     self.Term, self.List, self.Atom, self.BitStr = self.erlang_type_system()
-    self.env = Env()
+    self.env = cenv.Env()
     self.axs = []
     self.quantifier_axs = []
     self.slv = Then('simplify', 'normalize-bounds', 'solve-eqs', 'bit-blast', 'aig', 'qflra', 'qfnia', 'qfnra', 'qfbv',
@@ -226,22 +185,7 @@ class ErlangZ3:
     
     self.check = None
     self.model = None
-    
-    self.added_bv_len = False
-    self.bv_len_f = None
-  
-  def bv_length(self):
-    T, B = self.Term, self.BitStr
-    f = self.env.generate_func(B, IntSort())
-    x = self.env.generate_const(B)
-    ax_forall = ForAll(x, If(
-      B.is_bnil(x),
-      f(x) == 0,
-      f(x) == f(B.btl(x)) + 1
-    ))
-    self.bv_len_f = f
-    self.quantifier_axs.append(ax_forall)
-  
+
   ## Define the Erlang Type System
   def erlang_type_system(*args):
     Term = Datatype('Term')
@@ -926,9 +870,9 @@ class ErlangZ3:
     pms = []
     for x in args:
       s = x["s"]
-      p = e.fresh_var(s, self.Term)
+      p = e.freshVar(s, self.Term)
       pms.append(p)
-      e.add_param(s)
+      e.addParam(s)
     return pms
   
   # Unfold a symbolic tuple
