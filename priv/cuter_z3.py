@@ -1428,8 +1428,9 @@ class ErlangZ3:
     t1 = self.term_toZ3(term1)
     self.axs.append(T.is_lst(t1))
     self.env.bind(s, T.tpl(T.lval(t1)))
-    # TODO Maybe elaborate type?
-  
+    typ = self.env.lookupType(term1["s"])
+    self.env.bindType(term["s"], ctp.Type.listToTuple(typ))
+
   ## Convert a tuple to a list
   
   def tuple_to_list_toZ3(self, term, term1):
@@ -1438,7 +1439,8 @@ class ErlangZ3:
     t1 = self.term_toZ3(term1)
     self.axs.append(T.is_tpl(t1))
     self.env.bind(s, T.lst(T.tval(t1)))
-    # TODO Maybe elaborate type?
+    typ = self.env.lookupType(term1["s"])
+    self.env.bindType(term["s"], ctp.Type.tupleToList(typ))
   
   # ----------------------------------------------------------------------
   # Bogus operations

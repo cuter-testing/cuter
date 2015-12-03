@@ -21,9 +21,9 @@ f12(X, Y, Z) ->
 %% with the current implementation).
 -spec f13(integer(), integer(), integer()) -> ok.
 f13(X, Y, Z) ->
-  case <<5:3, X:Y, 2:Z>> =:= <<186>> of
-    true -> error(not_ok);
-    false -> ok
+  case <<5:3, X:Y, 2:Z>> of
+    <<186>> -> error(not_ok);
+    _ -> ok
   end.
 
 %% Match against a constant value.

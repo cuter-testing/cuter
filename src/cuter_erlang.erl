@@ -20,6 +20,7 @@
         , length/1, tuple_size/1
         , make_tuple/2
         , max/2, min/2
+        , basic_eq/2, '=:='/2, '=/='/2
         , '=='/2, '/='/2
         , '<'/2, '=<'/2, '>'/2, '>='/2
         , '+'/2, '-'/2, '*'/2, '/'/2
@@ -485,6 +486,27 @@ safe_pos_rem(X, Y) -> X rem Y.
 %% The global term order is
 %% number < atom < reference < fun < port < pid < tuple < map < list < bit string
 %% ----------------------------------------------------------------------------
+
+
+-spec basic_eq(any(), any()) -> boolean().
+basic_eq(X, Y) -> X =:= Y.
+
+-spec '=:='(any(), any()) -> boolean().
+'=:='([], []) ->
+  true;
+'=:='([H1|T1], [H2|T2]) ->
+  '=:='(H1, H2) andalso '=:='(T1, T2);
+'=:='(L1, L2) when is_list(L1); is_list(L2) ->
+  false;
+'=:='(T1, T2) when is_tuple(T1), is_tuple(T2) ->
+  '=:='(erlang:tuple_to_list(T1), erlang:tuple_to_list(T2));
+'=:='(T1, T2) when is_tuple(T1); is_tuple(T2) ->
+  false;
+'=:='(X, Y) ->
+  basic_eq(X, Y).
+
+-spec '=/='(any(), any()) -> boolean().
+'=/='(X, Y) -> not '=:='(X, Y).
 
 %%
 %% Simulate erlang:'=='/2

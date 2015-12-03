@@ -199,6 +199,7 @@
                  , { {cuter_erlang, safe_float,         1}, ?OP_FLOAT         }
                  , { {cuter_erlang, safe_list_to_tuple, 1}, ?OP_LIST_TO_TUPLE }
                  , { {cuter_erlang, safe_tuple_to_list, 1}, ?OP_TUPLE_TO_LIST }
+                 , { {cuter_erlang, basic_eq,           2}, ?OP_EQUAL         }
                  , { {bogus_erlang, cons,               2}, ?OP_CONS          }
                    %% Actual erlang BIFs
                  , { {erlang, hd,            1}, ?OP_HD            }
@@ -211,8 +212,6 @@
                  , { {erlang, is_tuple,      1}, ?OP_IS_TUPLE      }
                  , { {erlang, is_number,     1}, ?OP_IS_NUMBER     }
                  , { {erlang, '-',           1}, ?OP_UNARY         }
-                 , { {erlang, '=:=',         2}, ?OP_EQUAL         }
-                 , { {erlang, '=/=',         2}, ?OP_UNEQUAL       }
                  , { {math, pow,             2}, ?OP_POW           }
                  , { {erlang, is_bitstring,  1}, ?OP_IS_BITSTRING  }
                  ])).

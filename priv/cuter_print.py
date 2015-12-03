@@ -337,6 +337,13 @@ for tp, tag, json_data, rev in cio.JsonReader(fname, 100000000):
       "BITMATCH VAR TRUE",
       "%s with size %s + %s = %s " % (pretty(xs[0]), pretty(xs[2]), pretty(xs[1]), pretty(xs[3]))
     ], tag)
+  # Tcons
+  elif tp == cc.OP_TCONS:
+    xs = json_data["a"]
+    pprint([
+      "TCONS",
+      "%s = [ %s ] " % (pretty(xs[0]), pretty_list(xs[1:]))
+    ], tag)
   else:
     print "UNKNOWN OPCODE", tp
     xs = json_data["a"]

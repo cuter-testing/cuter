@@ -32,6 +32,19 @@ class ErlType:
     return tp
 
   @classmethod
+  def generateTupleType(cls):
+    tp = {}
+    cls.setType(tp, cc.JSON_ERLTYPE_TUPLE)
+    return tp
+
+  @classmethod
+  def generateListAnyType(cls):
+    tp = {}
+    cls.setType(tp, cc.JSON_ERLTYPE_LIST)
+    cls.setArgs(tp, cls.generateAnyType())
+    return tp
+
+  @classmethod
   def generateNTupleType(cls, sz):
     tp = {}
     cls.setNTupleType(tp, sz)
@@ -157,6 +170,41 @@ class Type:
   def generateAny(cls):
     return Type(ErlType.generateAnyType())
 
+  @classmethod
+  def listToTuple(cls, tp):
+    # FIXME Retain the type of the list.
+    return Type(ErlType.generateTupleType())
+
+  @classmethod
+  def tupleToList(cls, tp):
+    if tp.isFinal:
+      return Type(ErlType.generateListAnyType())
+    else:
+      # preprocess unions
+      if ErlType.isUnion(tp.typ):
+        isCnd = lambda x: ErlType.isTuple(x) or ErlType.isTupleDet(x)
+        candidates = [t for t in ErlType.getArgs(tp.typ) if isCnd(t)]
+        if len(candidates) > 0:
+          tp.typ = candidates[0]
+          if ErlType.isTupleDet(tp.typ):
+            sz = len(ErlType.getArgs(tp.typ))
+            tp.matchNTuple(sz)
+        else:
+          # TODO Log inconsistency
+          pass
+      # actual type elaborations
+      if ErlType.isTuple(tp.typ):
+        return Type(ErlType.generateListAnyType())
+      elif ErlType.isTupleDet(tp.typ):
+        children = tp.getChildren()
+        t = Type(ErlType.generateListAnyType())
+        for child in reversed(children):
+          t = cls.makeCons(child, t)
+        return t
+      else:
+        # TODO Log inconsistency (if is not any())
+        return Type(ErlType.generateListAnyType())
+
   def matchCons(self):
     if not self.isFinal:
       # preprocess unions
@@ -273,7 +321,7 @@ class Type:
       elif ErlType.isTupleDet(self.typ) and len(ErlType.getArgs(self.typ)) == sz:
         self.isFinal = True
         self.children = [Type(dict(tp)) for tp in ErlType.getArgs(self.typ)]
-        ErlType.setNTupleType(self.tp, sz)
+        ErlType.setNTupleType(self.typ, sz)
       elif ErlType.isAny(self.typ):
         pass
       else:

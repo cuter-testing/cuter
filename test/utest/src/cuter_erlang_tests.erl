@@ -17,6 +17,8 @@ props_test_() ->
   , {"erlang:'>='/2 => cuter_erlang:'>='/2", prop_gteq(), 2000}
   , {"erlang:'++'/2 => cuter_erlang:'++'/2", prop_lappend(), 1000}
   , {"erlang:'--'/2 => cuter_erlang:'--'/2", prop_lsubtract(), 1000}
+  , {"erlang:'=:='/2 => cuter_erlang:'=:='/2", prop_eq(), 4000}
+  , {"erlang:'=/='/2 => cuter_erlang:'=/='/2", prop_neq(), 4000}
   , {"lists:reverse/2 => cuter_erlang:reverse/2", prop_lreverse(), 1000}
   , {"lists:member/2 => cuter_erlang:member/2", prop_lmember(), 1000}
   ],
@@ -45,6 +47,14 @@ prop_lappend() ->
 -spec prop_lsubtract() -> proper:outer_test().
 prop_lsubtract() ->
   ?FORALL({X,Y}, {list(),list()}, (X -- Y) =:= cuter_erlang:'--'(X, Y)).
+
+-spec prop_eq() -> proper:outer_test().
+prop_eq() ->
+  ?FORALL({X,Y}, {any(),any()}, (X =:= Y) =:= cuter_erlang:'=:='(X, Y)).
+
+-spec prop_neq() -> proper:outer_test().
+prop_neq() ->
+  ?FORALL({X,Y}, {any(),any()}, (X =/= Y) =:= cuter_erlang:'=/='(X, Y)).
 
 -spec prop_lreverse() -> proper:outer_test().
 prop_lreverse() ->
