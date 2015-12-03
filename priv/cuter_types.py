@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+from copy import deepcopy
 import cuter_global as cglb
 import cuter_logger as clg
 import cuter_common as cc
@@ -141,7 +142,7 @@ class ErlType:
 
   @classmethod
   def getListTypeFromNonemptyList(cls, typ):
-    tp = dict(typ)
+    tp = deepcopy(typ)
     cls.setType(tp, cc.JSON_ERLTYPE_LIST)
     return tp
 
@@ -150,11 +151,11 @@ class Type:
   Representation of Erlang datatypes used for generating type constraints incrementally.
   """
   def __init__(self, typ):
-    self.typ = dict(typ)
+    self.typ = deepcopy(typ)
     self.isFinal = self.isFinalType(typ)
     self.children = None
     if ErlType.isNonemptyList(typ):
-      h = Type(dict(ErlType.getArgs(self.typ)))
+      h = Type(deepcopy(ErlType.getArgs(self.typ)))
       t = Type(ErlType.getListTypeFromNonemptyList(self.typ))
       ErlType.setConsType(self.typ)
       self.isFinal = True
@@ -218,13 +219,13 @@ class Type:
           pass
       # actual type elaborations
       if ErlType.isList(self.typ):
-        h = Type(dict(ErlType.getArgs(self.typ)))
-        t = Type(dict(self.typ))
+        h = Type(deepcopy(ErlType.getArgs(self.typ)))
+        t = Type(deepcopy(self.typ))
         ErlType.setConsType(self.typ)
         self.isFinal = True
         self.children = [h, t]
       elif ErlType.isNonemptyList(self.typ):
-        h = Type(dict(ErlType.getArgs(self.typ)))
+        h = Type(deepcopy(ErlType.getArgs(self.typ)))
         t = Type(ErlType.getListTypeFromNonemptyList(self.typ))
         ErlType.setConsType(self.typ)
         self.isFinal = True
@@ -320,7 +321,7 @@ class Type:
         pass
       elif ErlType.isTupleDet(self.typ) and len(ErlType.getArgs(self.typ)) == sz:
         self.isFinal = True
-        self.children = [Type(dict(tp)) for tp in ErlType.getArgs(self.typ)]
+        self.children = [Type(deepcopy(tp)) for tp in ErlType.getArgs(self.typ)]
         ErlType.setNTupleType(self.typ, sz)
       elif ErlType.isAny(self.typ):
         pass
@@ -356,7 +357,7 @@ class Type:
           # TODO Log inconsistency
           pass
       # actual type elaborations
-      if ErlType.isTupleDet(self.typ) or ErlType.isTyple(self.typ):
+      if ErlType.isTupleDet(self.typ) or ErlType.isTuple(self.typ):
         # TODO Log inconsistency
         pass
 
