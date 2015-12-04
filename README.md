@@ -107,7 +107,7 @@ bar([X|Xs], [Y|Ys]) -> X * Y + bar(Xs, Ys).
 For single file tests, such as the above, the simplest way to run CutEr
 is to use the `cuter` script as follows:
 
-    ./cuter foo erl '[[1], [2]]'
+    ./cuter foo bar '[[1], [2]]'
 
 i.e. supply it with three arguments: the module name, the function name,
 and the list of arguments for the call that will act as a seed for the
