@@ -994,7 +994,7 @@ class ErlangZ3:
       t = L.cons(x, t)
     self.env.bind(s, T.tpl(t))
     # Elaborate the type
-    tps = [self.env.lookupType(x["s"]) for x in terms[1:]]
+    tps = [self.env.lookupType(x["s"]) if "s" in x else ctp.Type.generateAny() for x in terms[1:]]
     tp = ctp.Type.makeNTuple(len(terms[1:]), tps)
     self.env.bindType(terms[0]["s"], tp)
   
