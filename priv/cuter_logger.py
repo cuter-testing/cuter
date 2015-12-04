@@ -36,11 +36,10 @@ def json_loaded(i, k, opcode, tag, json_data, rev):
     fd.flush()
     fd.close()
 
-def model_unknown(quantifier_axs, axs):
+def model_unknown(axs):
   if cglb.__LOG_MODEL_UNKNOWN__:
     fd = open(MODEL_UNKNOWN, "a")
     fd.write("{}\n".format(datetime.datetime.now()))
-    fd.write("  QAXS {}\n".format(quantifier_axs))
     fd.write("  AXS {}\n".format(axs))
     fd.flush()
     fd.close()

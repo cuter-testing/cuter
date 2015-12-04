@@ -81,7 +81,8 @@ UTEST_MODULES = \
 FTEST_MODULES = \
 	bitstr \
 	whitelist \
-	otp_int
+	otp_int \
+	complex_spec
 
 
 ###----------------------------------------------------------------------

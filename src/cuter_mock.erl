@@ -41,6 +41,8 @@ simulate_behaviour(erlang, tuple_to_list,   1) -> {ok, {cuter_erlang, tuple_to_l
 simulate_behaviour(erlang, 'xor',           2) -> {ok, {cuter_erlang, 'xor',           2}};
 simulate_behaviour(erlang, '++',            2) -> {ok, {cuter_erlang, '++',            2}};
 simulate_behaviour(erlang, '--',            2) -> {ok, {cuter_erlang, '--',            2}};
+simulate_behaviour(erlang, '=:=',           2) -> {ok, {cuter_erlang, '=:=',           2}};
+simulate_behaviour(erlang, '=/=',           2) -> {ok, {cuter_erlang, '=/=',           2}};
 simulate_behaviour(erlang, '==',            2) -> {ok, {cuter_erlang, '==',            2}};
 simulate_behaviour(erlang, '/=',            2) -> {ok, {cuter_erlang, '/=',            2}};
 simulate_behaviour(erlang, '<',             2) -> {ok, {cuter_erlang, '<',             2}};
