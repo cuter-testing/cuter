@@ -64,6 +64,7 @@ SRC_MODULES = \
 	cuter_minheap \
 	cuter_poller \
 	cuter_debug \
+	cuter_callgraph \
 	cerl_pmatch
 
 UTEST_MODULES = \

@@ -18,6 +18,10 @@
 %% Parsing of options.
 -export([loaded_whitelist/2, error_loading_whitelist/2]).
 
+%% Format errors.
+-export([abstract_code_missing/1, cover_compiled_module/1, non_existing_module/1,
+         compilation_errors/2, non_existing_mfa/1]).
+
 -export([ reversible_operations/1
         %% Execution info reporting level
         , default_reporting_level/0, minimal_exec_info/1, fully_verbose_exec_info/1
@@ -632,6 +636,31 @@ pp_erroneous_inputs_h([], _MFA, _N) ->
 pp_erroneous_inputs_h([I|Is], {M, F, _}=MFA, N) ->
   io:format("~n#~w ~p:~p(~s)", [N, M, F, pp_arguments(I)]),
   pp_erroneous_inputs_h(Is, MFA, N + 1).
+
+
+%% ----------------------------------------------------------------------------
+%% Format errors.
+%% ----------------------------------------------------------------------------
+
+-spec abstract_code_missing(cuter:mod()) -> string().
+abstract_code_missing(M) ->
+  lists:flatten(io_lib:format("Could not retrieve the Abstract Code for module ~p.", [M])).
+
+-spec cover_compiled_module(cuter:mod()) -> string().
+cover_compiled_module(M) ->
+  lists:flatten(io_lib:format("Module ~p is cover compiled.", [M])).
+
+-spec non_existing_module(cuter:mod()) -> string().
+non_existing_module(M) ->
+  lists:flatten(io_lib:format("Could not find module ~p.", [M])).
+
+-spec compilation_errors(cuter:mod(), any()) -> string().
+compilation_errors(M, Errors) ->
+  lists:flatten(io_lib:format("Compilation of module ~p failed with ~p.", [M, Errors])).
+
+-spec non_existing_mfa(mfa()) -> string().
+non_existing_mfa(Mfa) ->
+  lists:flatten(io_lib:format("Could not find module mfa ~p.", [Mfa])).
 
 %% ----------------------------------------------------------------------------
 %% FIXME Remaining to be updated

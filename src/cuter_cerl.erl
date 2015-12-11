@@ -3,9 +3,11 @@
 -module(cuter_cerl).
 
 %% External exports
--export([load/4, retrieve_spec/2, get_tags/1, id_of_tag/1, tag_from_id/1, empty_tag/0, get_stored_types/1,
-         %% Exported for debugging use.
-         classify_attributes/1]).
+-export([retrieve_spec/2, get_tags/1, id_of_tag/1, tag_from_id/1, empty_tag/0, get_stored_types/1]).
+%% Core AST extraction.
+-export([load/4, get_core/2]).
+%% Exported for debugging use.
+-export([classify_attributes/1]).
 
 %% We are using the records representation of the Core Erlang Abstract
 %% Syntax Tree as they are defined in core_parse.hrl
@@ -19,10 +21,8 @@
               cerl_attr_spec/0, cerl_spec_func/0]).
 
 -type info()          :: anno | attributes | exports | name.
--type code_error()    :: {error, {loaded_ret_atoms(), cuter:mod()}}.
--type abs_code_error():: {error, {missing_abstract_code, cuter:mod()}}.
--type compile_error() :: {error, {compile, {cuter:mod(), term()}}}.
--type load_error()    :: code_error() | abs_code_error() | compile_error().
+-type compile_error() :: {error, string()}.
+-type load_error()    :: {error, preloaded} | compile_error().
 
 -type tagID() :: integer().
 -opaque tag() :: {?BRANCH_TAG_PREFIX, tagID()}.
@@ -120,18 +120,18 @@
 %%====================================================================
 -spec load(M, cuter_codeserver:module_cache(), tag_generator(), boolean()) -> {ok, M} | load_error() when M :: cuter:mod().
 load(Mod, Cache, TagGen, WithPmatch) ->
-case get_core_ast(Mod, WithPmatch) of
-  {ok, AST} ->
-    case is_valid_ast(WithPmatch, AST) of
-      false ->
-        cuter_pp:invalid_ast_with_pmatch(Mod, AST),
-        load(Mod, Cache, TagGen, false);
-      true ->
-        store_module(Mod, AST, Cache, TagGen),
-        {ok, Mod}
-    end;
-  {error, _} = Error -> Error
-end.
+  case get_core(Mod, WithPmatch) of
+    {ok, AST} ->
+      case is_valid_ast(WithPmatch, AST) of
+        false ->
+          cuter_pp:invalid_ast_with_pmatch(Mod, AST),
+          load(Mod, Cache, TagGen, false);
+        true ->
+          store_module(Mod, AST, Cache, TagGen),
+          {ok, Mod}
+      end;
+    {error, _} = Error -> Error
+  end.
 
 is_valid_ast(false, _AST) ->
   true;
@@ -171,20 +171,21 @@ store_module(M, AST, Cache, TagGen) ->
   store_module_funs(M, AST, Cache, TagGen).
 
 %% Gets the Core Erlang AST of a module.
--spec get_core_ast(cuter:mod(), boolean()) -> {ok, cerl:cerl()} | load_error().
-get_core_ast(M, WithPmatch) ->
-  case mod_beam_path(M) of
-    {ok, BeamPath} ->
-      case extract_abstract_code(M, BeamPath) of
-        {ok, AbstractCode} ->
-          case compile:forms(AbstractCode, compile_options(WithPmatch)) of
-            {ok, M, AST} -> {ok, AST};
-            {ok, M, AST, _Warns} -> {ok, AST};
-            Errors -> {error, {compile, {M, Errors}}}
-         end;
-        {error, _} = Error -> Error
-      end;
-    {error, _} = Error -> Error
+-spec get_core(cuter:mod(), boolean()) -> {ok, cerl:cerl()} | load_error().
+get_core(M, WithPmatch) ->
+  try
+    case beam_path(M) of
+      {ok, BeamPath} ->
+        AbstractCode = get_abstract_code(M, BeamPath),
+        case compile:forms(AbstractCode, compile_options(WithPmatch)) of
+          {ok, M, AST} -> {ok, AST};
+          {ok, M, AST, _Warns} -> {ok, AST};
+          Errors -> {error, cuter_pp:compilation_errors(M, Errors)}
+        end;
+      preloaded -> {error, preloaded}
+    end
+  catch
+    throw:Reason -> {error, Reason}
   end.
 
 %% The compilation options.
@@ -192,25 +193,21 @@ compile_options(true) -> [to_core, {core_transform, cerl_pmatch}];
 compile_options(false) -> [to_core].
 
 %% Gets the path of the module's beam file, if such one exists.
--spec mod_beam_path(cuter:mod()) -> {ok, file:filename()} | code_error().
-mod_beam_path(M) ->
+-spec beam_path(cuter:mod()) -> {ok, file:filename()} | preloaded.
+beam_path(M) ->
   case code:which(M) of
-    non_existing   -> {error, {non_existing, M}};
-    preloaded      -> {error, {preloaded, M}};
-    cover_compiled -> {error, {cover_compiled, M}};
+    preloaded      -> preloaded;
+    non_existing   -> throw(cuter_pp:non_existing_module(M));
+    cover_compiled -> throw(cuter_pp:cover_compiled_module(M));
     Path -> {ok, Path}
   end.
 
 %% Gets the abstract code from a module's beam file, if possible.
--spec extract_abstract_code(cuter:mod(), file:name()) -> {ok, list()} | abs_code_error().
-extract_abstract_code(Mod, Beam) ->
+-spec get_abstract_code(cuter:mod(), file:name()) -> list().
+get_abstract_code(Mod, Beam) ->
   case beam_lib:chunks(Beam, [abstract_code]) of
-    {error, beam_lib, _} ->
-      {error, {missing_abstract_code, Mod}};
-    {ok, {Mod, [{abstract_code, no_abstract_code}]}} ->
-      {error, {missing_abstract_code, Mod}};
-    {ok, {Mod, [{abstract_code, {_, AbstractCode}}]}} ->
-      {ok, AbstractCode}
+    {ok, {Mod, [{abstract_code, {_, AbstractCode}}]}} -> AbstractCode;
+    _ -> throw(cuter_pp:abstract_code_missing(Mod))
   end.
 
 %% Store module information
