@@ -175,39 +175,53 @@ for tp, tag, json_data, rev in cio.JsonReader(fname, 100000000):
     ], tag)
   # Spawn a process
   elif tp == cc.OP_SPAWN:
-    print "SPAWN"
     xs = json_data["a"]
-    print "spawn child %s at node %s with ref %s" % (xs[1]["v"], "".join(chr(i) for i in xs[0]["v"]), xs[2]["v"])
+    pprint([
+      "SPAWN",
+      "spawn child %s at node %s with ref %s" % (xs[1]["v"], "".join(chr(i) for i in xs[0]["v"]), xs[2]["v"])
+    ], tag)
   # Spawned by a process
   elif tp == cc.OP_SPAWNED:
-    print "SPAWNED"
     xs = json_data["a"]
-    print "spawned by %s at node %s with ref %s" % (xs[1]["v"], "".join(chr(i) for i in xs[0]["v"]), xs[2]["v"])
+    pprint([
+      "SPAWNED",
+      "spawned by %s at node %s with ref %s" % (xs[1]["v"], "".join(chr(i) for i in xs[0]["v"]), xs[2]["v"])
+    ], tag)
   # Send a message
   elif tp == cc.OP_MSG_SEND:
-    print "MSG SEND"
     xs = json_data["a"]
-    print "send msg to %s at node %s with ref %s" % (xs[1]["v"], "".join(chr(i) for i in xs[0]["v"]), xs[2]["v"])
+    pprint([
+      "MSG SEND",
+      "send msg to %s at node %s with ref %s" % (xs[1]["v"], "".join(chr(i) for i in xs[0]["v"]), xs[2]["v"])
+    ], tag)
   # Receive a message
   elif tp == cc.OP_MSG_RECEIVE:
-    print "MSG RECEIVE"
     xs = json_data["a"]
-    print "receive msg from %s at node %s with ref %s" % (xs[1]["v"], "".join(chr(i) for i in xs[0]["v"]), xs[2]["v"])
+    pprint([
+      "MSG RECEIVE",
+      "receive msg from %s at node %s with ref %s" % (xs[1]["v"], "".join(chr(i) for i in xs[0]["v"]), xs[2]["v"])
+    ], tag)
   # Consume a message
   elif tp == cc.OP_MSG_CONSUME:
-    print "MSG CONSUME"
     xs = json_data["a"]
-    print "consume msg from %s at node %s with ref %s" % (xs[1]["v"], "".join(chr(i) for i in xs[0]["v"]), xs[2]["v"])
+    pprint([
+      "MSG CONSUME",
+      "consume msg from %s at node %s with ref %s" % (xs[1]["v"], "".join(chr(i) for i in xs[0]["v"]), xs[2]["v"])
+    ], tag)
   # Unfold a symbolic tuple
   elif tp == cc.OP_UNFOLD_TUPLE:
-    print "UNFOLD TUPLE"
     xs = json_data["a"]
-    print "%s =:= { %s }" % (pretty(xs[0]), pretty_list(xs[1:]))
+    pprint([
+      "UNFOLD TUPLE",
+      "%s =:= { %s }" % (pretty(xs[0]), pretty_list(xs[1:]))
+    ], tag)
   # Unfold a symbolic list
   elif tp == cc.OP_UNFOLD_LIST:
-    print "UNFOLD LIST"
     xs = json_data["a"]
-    print "%s =:= [ %s ]" % (pretty(xs[0]), pretty_list(xs[1:]))
+    pprint([
+      "UNFOLD LIST",
+      "%s =:= [ %s ]" % (pretty(xs[0]), pretty_list(xs[1:]))
+    ], tag)
   # Get the head of a list
   elif tp == cc.OP_HD:
     xs = json_data["a"]
@@ -224,74 +238,102 @@ for tp, tag, json_data, rev in cio.JsonReader(fname, 100000000):
     ], tag)
   # Is a term an integer
   elif tp == cc.OP_IS_INTEGER:
-    print "IS INTEGER"
     xs = json_data["a"]
-    print "%s = is_integer( %s )" % (pretty(xs[0]), pretty(xs[1]))
+    pprint([
+      "IS INTEGER",
+      "%s = is_integer( %s )" % (pretty(xs[0]), pretty(xs[1]))
+    ], tag)
   # Is term an atom
   elif tp == cc.OP_IS_ATOM:
-    print "IS ATOM"
     xs = json_data["a"]
-    print "%s = is_atom( %s )" % (pretty(xs[0]), pretty(xs[1]))
+    pprint([
+      "IS ATOM",
+      "%s = is_atom( %s )" % (pretty(xs[0]), pretty(xs[1]))
+    ], tag)
   # Is term a float
   elif tp == cc.OP_IS_FLOAT:
-    print "IS FLOAT"
     xs = json_data["a"]
-    print "%s = is_float( %s )" % (pretty(xs[0]), pretty(xs[1]))
+    pprint([
+      "IS FLOAT",
+      "%s = is_float( %s )" % (pretty(xs[0]), pretty(xs[1]))
+    ], tag)
   # Is term a list
   elif tp == cc.OP_IS_LIST:
-    print "IS LIST"
     xs = json_data["a"]
-    print "%s = is_list( %s )" % (pretty(xs[0]), pretty(xs[1]))
+    pprint([
+      "IS LIST",
+      "%s = is_list( %s )" % (pretty(xs[0]), pretty(xs[1]))
+    ], tag)
   # Is term a tuple
   elif tp == cc.OP_IS_TUPLE:
-    print "IS TUPLE"
     xs = json_data["a"]
-    print "%s = is_tuple( %s )" % (pretty(xs[0]), pretty(xs[1]))
+    pprint([
+      "IS TUPLE",
+      "%s = is_tuple( %s )" % (pretty(xs[0]), pretty(xs[1]))
+    ], tag)
   # Is term a boolean
   elif tp == cc.OP_IS_BOOLEAN:
-    print "IS BOOLEAN"
     xs = json_data["a"]
-    print "%s = is_boolean( %s )" % (pretty(xs[0]), pretty(xs[1]))
+    pprint([
+      "IS BOOLEAN",
+      "%s = is_boolean( %s )" % (pretty(xs[0]), pretty(xs[1]))
+    ], tag)
   # Is term a number
   elif tp == cc.OP_IS_NUMBER:
-    print "IS NUMBER"
     xs = json_data["a"]
-    print "%s = is_number( %s )" % (pretty(xs[0]), pretty(xs[1]))
+    pprint([
+      "IS NUMBER",
+      "%s = is_number( %s )" % (pretty(xs[0]), pretty(xs[1]))
+    ], tag)
   # Add two numbers
   elif tp == cc.OP_PLUS:
-    print "PLUS"
     xs = json_data["a"]
-    print "%s = %s + %s" % (pretty(xs[0]), pretty(xs[1]), pretty(xs[2]))
+    pprint([
+      "PLUS",
+      "%s = %s + %s" % (pretty(xs[0]), pretty(xs[1]), pretty(xs[2]))
+    ], tag)
   # Subtract two numbers
   elif tp == cc.OP_MINUS:
-    print "MINUS"
     xs = json_data["a"]
-    print "%s = %s - %s" % (pretty(xs[0]), pretty(xs[1]), pretty(xs[2]))
+    pprint([
+      "MINUS",
+      "%s = %s - %s" % (pretty(xs[0]), pretty(xs[1]), pretty(xs[2]))
+    ], tag)
   # Multiply two numbers
   elif tp == cc.OP_TIMES:
-    print "TIMES"
     xs = json_data["a"]
-    print "%s = %s * %s" % (pretty(xs[0]), pretty(xs[1]), pretty(xs[2]))
+    pprint([
+      "TIMES",
+      "%s = %s * %s" % (pretty(xs[0]), pretty(xs[1]), pretty(xs[2]))
+    ], tag)
   # Divide two numbers
   elif tp == cc.OP_RDIV:
-    print "REAL DIVISION"
     xs = json_data["a"]
-    print "%s = %s / %s" % (pretty(xs[0]), pretty(xs[1]), pretty(xs[2]))
+    pprint([
+      "REAL DIVISION",
+      "%s = %s / %s" % (pretty(xs[0]), pretty(xs[1]), pretty(xs[2]))
+    ], tag)
   # Integer division of natural numbers
   elif tp == cc.OP_IDIV_NAT:
-    print "INTEGER DIVISION OF NAT"
     xs = json_data["a"]
-    print "%s = %s div %s" % (pretty(xs[0]), pretty(xs[1]), pretty(xs[2]))
+    pprint([
+      "INTEGER DIVISION OF NAT",
+      "%s = %s div %s" % (pretty(xs[0]), pretty(xs[1]), pretty(xs[2]))
+    ], tag)
   # Remainder of integer division of natural numbers
   elif tp == cc.OP_REM_NAT:
-    print "REMAINDER OF INTEGER DIVISION OF NAT"
     xs = json_data["a"]
-    print "%s = %s rem %s" % (pretty(xs[0]), pretty(xs[1]), pretty(xs[2]))
+    pprint([
+      "REMAINDER OF INTEGER DIVISION OF NAT",
+      "%s = %s rem %s" % (pretty(xs[0]), pretty(xs[1]), pretty(xs[2]))
+    ], tag)
   # Unary operation
   elif tp == cc.OP_UNARY:
-    print "UNARY"
     xs = json_data["a"]
-    print "%s = - %s" % (pretty(xs[0]), pretty(xs[1]))
+    pprint([
+      "UNARY",
+      "%s = - %s" % (pretty(xs[0]), pretty(xs[1]))
+    ], tag)
   # Equality of terms
   elif tp == cc.OP_EQUAL:
     xs = json_data["a"]
@@ -301,14 +343,18 @@ for tp, tag, json_data, rev in cio.JsonReader(fname, 100000000):
     ], tag)
   # Inequality of terms
   elif tp == cc.OP_UNEQUAL:
-    print "UNEQUAL"
     xs = json_data["a"]
-    print "%s = %s =/= %s" % (pretty(xs[0]), pretty(xs[1]), pretty(xs[2]))
+    pprint([
+      "UNEQUAL",
+      "%s = %s =/= %s" % (pretty(xs[0]), pretty(xs[1]), pretty(xs[2]))
+    ], tag)
   # Convert a number to float
   elif tp == cc.OP_FLOAT:
-    print "TO FLOAT"
     xs = json_data["a"]
-    print "%s = float( %s )" % (pretty(xs[0]), pretty(xs[1]))
+    pprint([
+      "TO FLOAT",
+      "%s = float( %s )" % (pretty(xs[0]), pretty(xs[1]))
+    ], tag)
   # Power
   elif tp == cc.OP_POW:
     xs = json_data["a"]
@@ -343,6 +389,13 @@ for tp, tag, json_data, rev in cio.JsonReader(fname, 100000000):
     pprint([
       "TCONS",
       "%s = [ %s ] " % (pretty(xs[0]), pretty_list(xs[1:]))
+    ], tag)
+  # Less than (with integers)
+  elif tp == cc.OP_LT_INT:
+    xs = json_data["a"]
+    pprint([
+      "LT INT",
+      "%s = %s < %s" % (pretty(xs[0]), pretty(xs[1]), pretty(xs[2]))
     ], tag)
   else:
     print "UNKNOWN OPCODE", tp
