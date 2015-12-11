@@ -301,15 +301,12 @@ erlang_hd({_Dir, Fname, Python}) ->
   As = [p1],  % One argument (the type is irrelevant)
   Mapping = create_logfile(Fname, As, fun erlang_hd_logs/2),
   {ok, [SolNormal]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
-  {ok, [SolRev]} = cuter_solver:solve({Python, Mapping, Fname, 1}),
-  [ {"It's a list with the proper head", ?_assertEqual([ok], SolNormal)}
-  , {"Make it throw an exception", ?_assertError(badarg, erlang:hd(SolRev))}
-  ].
+  [{"It's a list with the proper head", ?_assertEqual([ok], SolNormal)}].
 
 erlang_hd_logs(Fd, SAs) ->
   cuter_log:log_symb_params(Fd, SAs),
   X = cuter_symbolic:fresh_symbolic_var(),
-  cuter_log:log_mfa(Fd, {erlang, hd, 1}, SAs, X, cuter_cerl:empty_tag()),
+  cuter_log:log_mfa(Fd, {cuter_erlang, safe_hd, 1}, SAs, X, cuter_cerl:empty_tag()),
   cuter_log:log_equal(Fd, true, X, ok, cuter_cerl:empty_tag()).
 
 %% Tail of a list.
@@ -318,15 +315,12 @@ erlang_tl({_Dir, Fname, Python}) ->
   As = [p1],  % One argument (the type is irrelevant)
   Mapping = create_logfile(Fname, As, fun erlang_tl_logs/2),
   {ok, [SolNormal]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
-  {ok, [SolRev]} = cuter_solver:solve({Python, Mapping, Fname, 1}),
-  [ {"It's a list with the proper tail", ?_assertMatch([_], SolNormal)}
-  , {"Make it throw an exception", ?_assertError(badarg, erlang:tl(SolRev))}
-  ].
+  [{"It's a list with the proper tail", ?_assertMatch([_], SolNormal)}].
 
 erlang_tl_logs(Fd, SAs) ->
   cuter_log:log_symb_params(Fd, SAs),
   X = cuter_symbolic:fresh_symbolic_var(),
-  cuter_log:log_mfa(Fd, {erlang, tl, 1}, SAs, X, cuter_cerl:empty_tag()),
+  cuter_log:log_mfa(Fd, {cuter_erlang, safe_tl, 1}, SAs, X, cuter_cerl:empty_tag()),
   cuter_log:log_equal(Fd, true, X, [], cuter_cerl:empty_tag()).
 
 %% Is an integer.

@@ -25,6 +25,7 @@ simulate_behaviour(erlang, atom_to_list,    1) -> {ok, {cuter_erlang, atom_to_li
 simulate_behaviour(erlang, 'div',           2) -> {ok, {cuter_erlang, 'div',           2}};
 simulate_behaviour(erlang, element,         2) -> {ok, {cuter_erlang, element,         2}};
 simulate_behaviour(erlang, float,           1) -> {ok, {cuter_erlang, float,           1}};
+simulate_behaviour(erlang, hd,              1) -> {ok, {cuter_erlang, hd,              1}};
 simulate_behaviour(erlang, integer_to_list, 1) -> {ok, {cuter_erlang, integer_to_list, 1}};
 simulate_behaviour(erlang, length,          1) -> {ok, {cuter_erlang, length,          1}};
 simulate_behaviour(erlang, list_to_tuple,   1) -> {ok, {cuter_erlang, list_to_tuple,   1}};
@@ -36,6 +37,7 @@ simulate_behaviour(erlang, 'rem',           2) -> {ok, {cuter_erlang, 'rem',    
 simulate_behaviour(erlang, 'or',            2) -> {ok, {cuter_erlang, 'or',            2}};
 simulate_behaviour(erlang, 'orelse',        2) -> {ok, {cuter_erlang, 'orelse',        2}};
 simulate_behaviour(erlang, setelement,      3) -> {ok, {cuter_erlang, setelement,      3}};
+simulate_behaviour(erlang, tl,              1) -> {ok, {cuter_erlang, tl,              1}};
 simulate_behaviour(erlang, tuple_size,      1) -> {ok, {cuter_erlang, tuple_size,      1}};
 simulate_behaviour(erlang, tuple_to_list,   1) -> {ok, {cuter_erlang, tuple_to_list,   1}};
 simulate_behaviour(erlang, 'xor',           2) -> {ok, {cuter_erlang, 'xor',           2}};

@@ -115,14 +115,14 @@ ensure_list(SVs, N, Fd) ->
 -spec head(maybe_s([any()]), file:io_device()) -> maybe_s(any()).
 head(Sv, _Fd) when is_list(Sv) -> erlang:hd(Sv);
 head(Sv, Fd) ->
-  evaluate_supported_mfa({erlang, hd, 1}, [Sv], cuter_cerl:empty_tag(), Fd).
+  evaluate_supported_mfa({cuter_erlang, safe_hd, 1}, [Sv], cuter_cerl:empty_tag(), Fd).
 
 %% Return the tail of a symbolic term that represents a list
 %% (Used when matching lists)
 -spec tail(maybe_s([any()]), file:io_device()) -> maybe_s([any()]).
 tail(Sv, _Fd) when is_list(Sv) -> erlang:tl(Sv);
 tail(Sv, Fd) ->
-  evaluate_supported_mfa({erlang, tl, 1}, [Sv], cuter_cerl:empty_tag(), Fd).
+  evaluate_supported_mfa({cuter_erlang, safe_tl, 1}, [Sv], cuter_cerl:empty_tag(), Fd).
 
 %% Returns the cons of two terms. Either can be a symbolic value.
 %% (Used when creating lists).

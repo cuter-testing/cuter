@@ -199,11 +199,11 @@
                  , { {cuter_erlang, safe_float,         1}, ?OP_FLOAT         }
                  , { {cuter_erlang, safe_list_to_tuple, 1}, ?OP_LIST_TO_TUPLE }
                  , { {cuter_erlang, safe_tuple_to_list, 1}, ?OP_TUPLE_TO_LIST }
+                 , { {cuter_erlang, safe_hd,            1}, ?OP_HD            }
+                 , { {cuter_erlang, safe_tl,            1}, ?OP_TL            }
                  , { {cuter_erlang, basic_eq,           2}, ?OP_EQUAL         }
                  , { {bogus_erlang, cons,               2}, ?OP_CONS          }
                    %% Actual erlang BIFs
-                 , { {erlang, hd,            1}, ?OP_HD            }
-                 , { {erlang, tl,            1}, ?OP_TL            }
                  , { {erlang, is_integer,    1}, ?OP_IS_INTEGER    }
                  , { {erlang, is_atom,       1}, ?OP_IS_ATOM       }
                  , { {erlang, is_boolean,    1}, ?OP_IS_BOOLEAN    }
@@ -221,8 +221,3 @@
 
 -define(UNSUPPORTED_MFAS,
   gb_sets:from_list([ {cuter_erlang, unsupported_lt, 2} ])).
-
-%% The set of all the built-in operations that the solver can try to reverse.
--define (REVERSIBLE_OPERATIONS,
-  gb_sets:from_list([ ?OP_HD, ?OP_TL
-                    ])).

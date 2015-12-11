@@ -354,21 +354,8 @@ locate_reversible(Fd, N, Acc) ->
     eof -> lists:reverse(Acc);
     {?CONSTRAINT_TRUE, _Op, TagID}  -> locate_reversible(Fd, N1, [{N1, TagID}|Acc]);
     {?CONSTRAINT_FALSE, _Op, TagID} -> locate_reversible(Fd, N1, [{N1, TagID}|Acc]);
-    {?NOT_CONSTRAINT, Op, TagID} ->
-      case is_reversible_operation(Op) of
-        false -> locate_reversible(Fd, N, Acc);
-        true ->
-          case TagID =:= ?EMPTY_TAG_ID of
-            true  -> locate_reversible(Fd, N1, Acc);
-            false -> locate_reversible(Fd, N1, [{N1, TagID}|Acc])
-          end
-      end
+    {?NOT_CONSTRAINT, _Op, _TagID}    -> locate_reversible(Fd, N, Acc)
   end.
-
-%% Returns whether a command can be reversed by the solver or not.
--spec is_reversible_operation(opcode()) -> boolean().
-is_reversible_operation(OpCode) ->
-  gb_sets:is_member(OpCode, ?REVERSIBLE_OPERATIONS).
 
 -spec next_entry(file:io_device(), true) -> {entry_type(), opcode(), cuter_cerl:tagID(), binary()} | eof
               ; (file:io_device(), false) -> {entry_type(), opcode(), cuter_cerl:tagID()} | eof.
