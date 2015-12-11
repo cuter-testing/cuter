@@ -170,9 +170,11 @@ class ErlangZ3:
     self.Term, self.List, self.Atom, self.BitStr = self.erlang_type_system()
     self.env = cenv.Env()
     self.axs = []
-    self.slv = Then('simplify', 'normalize-bounds', 'solve-eqs', 'bit-blast', 'aig', 'qflra', 'qfnia', 'qfnra', 'qfbv',
-                    'qfufnra', 'qflia', 'nlsat', 'qfnra-nlsat', 'qe', 'sat', 'smt').solver()
-    self.slv.set('timeout', 10000)
+#    self.slv = Then('simplify', 'normalize-bounds', 'solve-eqs', 'bit-blast', 'aig', 'qflra', 'qfnia', 'qfnra', 'qfbv',
+#                    'qfufnra', 'qflia', 'nlsat', 'qfnra-nlsat', 'qe', 'sat', 'smt').solver()
+#    self.slv.set('timeout', 10000)
+    self.slv = Solver()
+    self.slv.set(timeout=10000)
     if cglb.__LISTS_INTERP__ == cglb.LISTS_FORALL_PATS:
       self.slv.set(mbqi=False)
     else:
