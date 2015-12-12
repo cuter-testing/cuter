@@ -56,7 +56,7 @@ generate_and_collect_tags({M, Cache}) ->
   FoldFn = fun(Elem, Acc) ->
       case Elem of
         {{_,_,_}, {Def, _}} ->
-          Tags = cuter_cerl:collect_feasible_tags(Def),
+          Tags = cuter_cerl:collect_feasible_tags(Def, all),
           gb_sets:union(Acc, Tags);
         _ -> Acc
       end

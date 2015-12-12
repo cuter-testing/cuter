@@ -4,7 +4,7 @@
 
 %% External exports
 -export([retrieve_spec/2, get_tags/1, id_of_tag/1, tag_from_id/1, empty_tag/0,
-         get_stored_types/1, empty_tagId/0, collect_feasible_tags/1]).
+         get_stored_types/1, empty_tagId/0, collect_feasible_tags/2]).
 %% Core AST extraction.
 -export([load/4, get_core/2]).
 %% Exported for debugging use.
@@ -29,6 +29,7 @@
 -opaque tag() :: {?BRANCH_TAG_PREFIX, tagID()}.
 -type tag_generator() :: fun(() -> tag()).
 -type visited_tags() :: gb_sets:set(tagID()).
+-type node_types() :: [{atom(), {boolean(), boolean()}}] | all.
 
 -type lineno() :: integer().
 -type name() :: atom().
@@ -402,138 +403,156 @@ annotate_all(Trees, TagGen, InPats) ->
 %% Collect tags from AST for a specific mfa.
 %% ----------------------------------------------------------------------------
 
--spec collect_feasible_tags(cerl:cerl()) -> visited_tags().
-collect_feasible_tags(Tree) ->
-  TagIDs = lists:flatten(collect(Tree)),
+-spec collect_feasible_tags(cerl:cerl(), node_types()) -> visited_tags().
+collect_feasible_tags(Tree, NodeTypes) ->
+  TagIDs = lists:flatten(collect(Tree, NodeTypes)),
   gb_sets:from_list(TagIDs).
 
-collect(Tree) ->
+collect(Tree, NodeTypes) ->
   case cerl:type(Tree) of
     alias ->
-      [ collect_tagIDs(Tree)
-      , collect(cerl:alias_var(Tree))
-      , collect(cerl:alias_pat(Tree))
+      [ collect_tagIDs(Tree, NodeTypes)
+      , collect(cerl:alias_var(Tree), NodeTypes)
+      , collect(cerl:alias_pat(Tree), NodeTypes)
       ];
     'apply' ->
-      [ collect_tagIDs(Tree)
-      , collect(cerl:apply_op(Tree))
-      , collect_all(cerl:apply_args(Tree))
+      [ collect_tagIDs(Tree, NodeTypes)
+      , collect(cerl:apply_op(Tree), NodeTypes)
+      , collect_all(cerl:apply_args(Tree), NodeTypes)
       ];
     binary ->
-      [ collect_tagIDs(Tree)
-      , collect_all(cerl:binary_segments(Tree))
+      [ collect_tagIDs(Tree, NodeTypes)
+      , collect_all(cerl:binary_segments(Tree), NodeTypes)
       ];
     bitstr ->
-      [ collect_tagIDs(Tree)
-      , collect(cerl:bitstr_val(Tree))
-      , collect(cerl:bitstr_size(Tree))
-      , collect(cerl:bitstr_unit(Tree))
-      , collect(cerl:bitstr_type(Tree))
-      , collect(cerl:bitstr_flags(Tree))
+      [ collect_tagIDs(Tree, NodeTypes)
+      , collect(cerl:bitstr_val(Tree), NodeTypes)
+      , collect(cerl:bitstr_size(Tree), NodeTypes)
+      , collect(cerl:bitstr_unit(Tree), NodeTypes)
+      , collect(cerl:bitstr_type(Tree), NodeTypes)
+      , collect(cerl:bitstr_flags(Tree), NodeTypes)
       ];
     call ->
-      [ collect_tagIDs(Tree)
-      , collect(cerl:call_module(Tree))
-      , collect(cerl:call_name(Tree))
-      , collect_all(cerl:call_args(Tree))
+      [ collect_tagIDs(Tree, NodeTypes)
+      , collect(cerl:call_module(Tree), NodeTypes)
+      , collect(cerl:call_name(Tree), NodeTypes)
+      , collect_all(cerl:call_args(Tree), NodeTypes)
       ];
     'case' ->
-      [ collect_tagIDs(Tree)
-      , collect(cerl:case_arg(Tree))
-      , collect_all(cerl:case_clauses(Tree))
+      [ collect_tagIDs(Tree, NodeTypes)
+      , collect(cerl:case_arg(Tree), NodeTypes)
+      , collect_all(cerl:case_clauses(Tree), NodeTypes)
       ];
     'catch' ->
-      [ collect_tagIDs(Tree)
-      , collect(cerl:catch_body(Tree))
+      [ collect_tagIDs(Tree, NodeTypes)
+      , collect(cerl:catch_body(Tree), NodeTypes)
       ];
     clause ->
-      [ collect_tagIDs(Tree)
-      , collect_all(cerl:clause_pats(Tree))
-      , collect(cerl:clause_guard(Tree))
-      , collect(cerl:clause_body(Tree))
+      [ collect_tagIDs(Tree, NodeTypes)
+      , collect_all(cerl:clause_pats(Tree), NodeTypes)
+      , collect(cerl:clause_guard(Tree), NodeTypes)
+      , collect(cerl:clause_body(Tree), NodeTypes)
       ];
     cons ->
-      [ collect_tagIDs(Tree)
-      , collect(cerl:cons_hd(Tree))
-      , collect(cerl:cons_tl(Tree))
+      [ collect_tagIDs(Tree, NodeTypes)
+      , collect(cerl:cons_hd(Tree), NodeTypes)
+      , collect(cerl:cons_tl(Tree), NodeTypes)
       ];
     'fun' ->
-      [ collect_tagIDs(Tree)
-      , collect_all(cerl:fun_vars(Tree))
-      , collect(cerl:fun_body(Tree))
+      [ collect_tagIDs(Tree, NodeTypes)
+      , collect_all(cerl:fun_vars(Tree), NodeTypes)
+      , collect(cerl:fun_body(Tree), NodeTypes)
       ];
     'let' ->
-      [ collect_tagIDs(Tree)
-      , collect_all(cerl:let_vars(Tree))
-      , collect(cerl:let_arg(Tree))
-      , collect(cerl:let_body(Tree))
+      [ collect_tagIDs(Tree, NodeTypes)
+      , collect_all(cerl:let_vars(Tree), NodeTypes)
+      , collect(cerl:let_arg(Tree), NodeTypes)
+      , collect(cerl:let_body(Tree), NodeTypes)
       ];
     letrec ->
-      [ collect_tagIDs(Tree)
-      , [[collect(N), collect(D)] || {N, D} <- cerl:letrec_defs(Tree)]
-      , collect(cerl:letrec_body(Tree))
+      [ collect_tagIDs(Tree, NodeTypes)
+      , [[collect(N, NodeTypes), collect(D, NodeTypes)] || {N, D} <- cerl:letrec_defs(Tree)]
+      , collect(cerl:letrec_body(Tree), NodeTypes)
       ];
     literal ->
-      collect_tagIDs(Tree);
+      collect_tagIDs(Tree, NodeTypes);
     primop ->
-      [ collect_tagIDs(Tree)
-      , collect(cerl:primop_name(Tree))
-      , collect_all(cerl:primop_args(Tree))
+      [ collect_tagIDs(Tree, NodeTypes)
+      , collect(cerl:primop_name(Tree), NodeTypes)
+      , collect_all(cerl:primop_args(Tree), NodeTypes)
       ];
     'receive' ->
-      [ collect_tagIDs(Tree)
-      , collect_all(cerl:receive_clauses(Tree))
-      , collect(cerl:receive_timeout(Tree))
-      , collect(cerl:receive_action(Tree))
+      [ collect_tagIDs(Tree, NodeTypes)
+      , collect_all(cerl:receive_clauses(Tree), NodeTypes)
+      , collect(cerl:receive_timeout(Tree), NodeTypes)
+      , collect(cerl:receive_action(Tree), NodeTypes)
       ];
     seq ->
-      [ collect_tagIDs(Tree)
-      , collect(cerl:seq_arg(Tree))
-      , collect(cerl:seq_body(Tree))
+      [ collect_tagIDs(Tree, NodeTypes)
+      , collect(cerl:seq_arg(Tree), NodeTypes)
+      , collect(cerl:seq_body(Tree), NodeTypes)
       ];
     'try' ->
-      [ collect_tagIDs(Tree)
-      , collect(cerl:try_arg(Tree))
-      , collect_all(cerl:try_vars(Tree))
-      , collect(cerl:try_body(Tree))
-      , collect_all(cerl:try_evars(Tree))
-      , collect(cerl:try_handler(Tree))
+      [ collect_tagIDs(Tree, NodeTypes)
+      , collect(cerl:try_arg(Tree), NodeTypes)
+      , collect_all(cerl:try_vars(Tree), NodeTypes)
+      , collect(cerl:try_body(Tree), NodeTypes)
+      , collect_all(cerl:try_evars(Tree), NodeTypes)
+      , collect(cerl:try_handler(Tree), NodeTypes)
       ];
     tuple ->
-      [ collect_tagIDs(Tree)
-      , collect_all(cerl:tuple_es(Tree))
+      [ collect_tagIDs(Tree, NodeTypes)
+      , collect_all(cerl:tuple_es(Tree), NodeTypes)
       ];
     values ->
-      [ collect_tagIDs(Tree)
-      , collect_all(cerl:values_es(Tree))
+      [ collect_tagIDs(Tree, NodeTypes)
+      , collect_all(cerl:values_es(Tree), NodeTypes)
       ];
     var ->
-      collect_tagIDs(Tree);
+      collect_tagIDs(Tree, NodeTypes);
     _ ->
       []  %% TODO Ignore maps (for now) and modules.
   end.
 
-collect_all(Trees) ->
-  [collect(T) || T <- Trees].
+collect_all(Trees, NodeTypes) ->
+  [collect(T, NodeTypes) || T <- Trees].
 
 %% ----------------------------------------------------------------------------
 %% Manage tags.
 %% ----------------------------------------------------------------------------
 
 %% Collect all the tags from an AST node.
--spec collect_tagIDs(cerl:cerl()) -> [tagID()].
-collect_tagIDs(Tree) ->
-  Ann = cerl:get_ann(Tree),
-  collect_tagIDs(Ann, []).
+-spec collect_tagIDs(cerl:cerl(), node_types()) -> [tagID()].
+collect_tagIDs(Tree, NodeTypes) ->
+  case NodeTypes of
+    all ->
+      Ann = cerl:get_ann(Tree),
+      collect_tagIDs_h(Ann, {true, true}, []);
+    _ ->
+      Tp = cerl:type(Tree),
+      case is_member_node_type(Tp, NodeTypes) of
+        false -> [];
+        {true, Switch} ->
+          Ann = cerl:get_ann(Tree),
+          collect_tagIDs_h(Ann, Switch, [])
+      end
+  end.
 
-collect_tagIDs([], Acc) ->
+is_member_node_type(_, []) ->
+  false;
+is_member_node_type(Tp, [{Tp, Switch}|_Rest]) ->
+  {true, Switch};
+is_member_node_type(Tp, [_|Rest]) ->
+  is_member_node_type(Tp, Rest).
+
+collect_tagIDs_h([], _, Acc) ->
   Acc;
-collect_tagIDs([{?BRANCH_TAG_PREFIX, N} | Rest], Acc) ->
-  collect_tagIDs(Rest, [N|Acc]);
-collect_tagIDs([{next_tag, {?BRANCH_TAG_PREFIX, N}} | Rest], Acc) ->
-  collect_tagIDs(Rest, [N|Acc]);
-collect_tagIDs([_|Rest], Acc) ->
-  collect_tagIDs(Rest, Acc).
+collect_tagIDs_h([{?BRANCH_TAG_PREFIX, N} | Rest], {true, _}=Switch, Acc) ->
+  collect_tagIDs_h(Rest, Switch, [N|Acc]);
+collect_tagIDs_h([{next_tag, {?BRANCH_TAG_PREFIX, N}} | Rest], {_, true}=Switch, Acc) ->
+  collect_tagIDs_h(Rest, Switch, [N|Acc]);
+collect_tagIDs_h([_|Rest], Switch, Acc) ->
+  collect_tagIDs_h(Rest, Switch, Acc).
 
 %% Get the tags from the annotations of an AST's node.
 -spec get_tags(list()) -> ast_tags().

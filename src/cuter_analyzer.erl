@@ -3,7 +3,7 @@
 -module(cuter_analyzer).
 
 -export([get_result/1, get_mapping/1, get_traces/1, is_runtime_error/1,
-         get_int_process/1, process_raw_execution_info/1,
+         get_int_process/1, process_raw_execution_info/1, calculate_coverage/3,
          %% Constructor & accessors for #raw{}
          mk_raw_info/5, traces_of_raw_info/1, int_of_raw_info/1,
          %% Accessors for #info{}
@@ -146,3 +146,22 @@ dir_of_info(Info) ->
 -spec pathVertex_of_info(info()) -> path_vertex().
 pathVertex_of_info(Info) ->
   Info#info.pathVertex.
+
+%% ----------------------------------------------------------------------------
+%% Calculate coverage.
+%% ----------------------------------------------------------------------------
+
+-spec calculate_coverage(boolean(), pid(), cuter_scheduler_maxcover:logs()) -> float() | ok.
+calculate_coverage(false, _, _) -> ok;
+calculate_coverage(true, CodeServer, SchedulerLogs) ->
+  %% Visited Tags.
+  VisitedTags = cuter_scheduler_maxcover:get_visitedTags(SchedulerLogs),
+  %% Feasible Tags.
+  FeasibleTags = cuter_codeserver:get_feasible_tags(CodeServer),
+  %% Calculate the coverage.
+  All = gb_sets:size(FeasibleTags),
+  Diff = gb_sets:subtract(FeasibleTags, VisitedTags),
+  NotVisited = gb_sets:size(Diff),
+  Coverage = 100 * (All - NotVisited) / All,
+  io:format("~nCovered ~p of ~p clauses (~.2f %).~n", [All - NotVisited, All, Coverage]),
+  Coverage.
