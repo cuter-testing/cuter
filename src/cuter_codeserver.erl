@@ -4,9 +4,8 @@
 -behaviour(gen_server).
 
 %% external exports
--export([start/3, start/5, stop/1, load/2, unsupported_mfa/2, retrieve_spec/2, visit_tag/2,
-         initial_branch_counter/0, get_visited_tags/1, get_logs/1, get_whitelist/1,
-         calculate_callgraph/2,
+-export([start/3, start/5, stop/1, load/2, unsupported_mfa/2, retrieve_spec/2,
+         get_logs/1, get_whitelist/1, calculate_callgraph/2, get_visited_tags/1, visit_tag/2,
          %% Work with module cache
          merge_dumped_cached_modules/2, no_cached_modules/0, modules_of_dumped_cache/1,
          lookup_in_module_cache/2, insert_in_module_cache/3,
@@ -15,8 +14,8 @@
          unsupportedMfas_of_logs/1, loadedMods_of_logs/1]).
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_info/2, handle_call/3, handle_cast/2]).
-%% counter of branches
--export([set_branch_counter/1, generate_tag/0]).
+%% Counter of branches & Tag generator.
+-export([set_branch_counter/1, generate_tag/0, get_branch_counter/0, initial_branch_counter/0]).
 
 -include("include/cuter_macros.hrl").
 
