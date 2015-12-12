@@ -12,7 +12,7 @@
   , log_list/4
   , log_make_tuple/3
   , log_make_bitstring/4
-  , log_mfa/5
+  , log_mfa/4
   , log_message_consumed/3
   , log_message_received/3
   , log_message_sent/3
@@ -60,11 +60,11 @@ close_file(Fd) ->
 %% Log a symbolic MFA operation
 %% ------------------------------------------------------------------
 
--spec log_mfa(file:io_device(), mfa(), [any()], cuter_symbolic:symbolic(), cuter_cerl:tag()) -> ok.
-log_mfa(Fd, MFA, SAs, X, Tag) ->
+-spec log_mfa(file:io_device(), mfa(), [any()], cuter_symbolic:symbolic()) -> ok.
+log_mfa(Fd, MFA, SAs, X) ->
   %% SAs has at least one symbolic argument 
   %% as ensured by cuter_sumbolic:evaluate_mfa/4
-  log(Fd, mfa2op(MFA), cuter_cerl:id_of_tag(Tag), [X | SAs]).
+  log(Fd, mfa2op(MFA), ?EMPTY_TAG_ID, [X | SAs]).
 
 %% ------------------------------------------------------------------
 %% Log Entry Point MFA's parameters & spec

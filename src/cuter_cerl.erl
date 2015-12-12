@@ -279,67 +279,120 @@ classify_attributes([{What, #c_literal{val = Val}}|Attrs], Types, Specs) ->
 
 %% Annotates the AST with tags.
 -spec annotate(cerl:cerl(), tag_generator()) -> cerl:cerl().
-annotate(Def, TagGen) -> annotate_pats(Def, TagGen, false).
+annotate(Def, TagGen) -> annotate(Def, TagGen, false).
 
-%% Annotate patterns
--spec annotate_pats(cerl:cerl(), tag_generator(), boolean()) -> cerl:cerl().
-annotate_pats({c_alias, Anno, Var, Pat}, TagGen, InPats) ->
-  {c_alias, Anno, annotate_pats(Var, TagGen, InPats), annotate_pats(Pat, TagGen, InPats)};
-annotate_pats({c_apply, Anno, Op, Args}, TagGen, InPats) ->
-  {c_apply, [TagGen()|Anno], annotate_pats(Op, TagGen, InPats), [annotate_pats(A, TagGen, InPats) || A <- Args]};
-annotate_pats({c_binary, Anno, Segs}, TagGen, InPats) ->
-  WithTags = [{next_tag, TagGen()}, TagGen() | Anno],
-  {c_binary, WithTags, [annotate_pats(S, TagGen, InPats) || S <- Segs]};
-annotate_pats({c_bitstr, Anno, Val, Sz, Unit, Type, Flags}, TagGen, InPats) ->
-  WithTags = [{next_tag, TagGen()}, TagGen() | Anno],
-  {c_bitstr, WithTags, annotate_pats(Val, TagGen, InPats), annotate_pats(Sz, TagGen, InPats),
-    annotate_pats(Unit, TagGen, InPats), annotate_pats(Type, TagGen, InPats), annotate_pats(Flags, TagGen, InPats)};
-annotate_pats({c_call, Anno, Mod, Name, Args}, TagGen, InPats) ->
-  {c_call, [TagGen()|Anno], annotate_pats(Mod, TagGen, InPats), annotate_pats(Name, TagGen, InPats), [annotate_pats(A, TagGen, InPats) || A <- Args]};
-annotate_pats({c_case, Anno, Arg, Clauses}, TagGen, InPats) ->
-  {c_case, Anno, annotate_pats(Arg, TagGen, InPats), [annotate_pats(Cl, TagGen, InPats) || Cl <- Clauses]};
-annotate_pats({c_catch, Anno, Body}, TagGen, InPats) ->
-  {c_catch, Anno, annotate_pats(Body, TagGen, InPats)};
-annotate_pats({c_clause, Anno, Pats, Guard, Body}, TagGen, InPats) ->
-  WithTags = [{next_tag, TagGen()}, TagGen() | Anno],
-  {c_clause, WithTags, [annotate_pats(P, TagGen, true) || P <- Pats], annotate_pats(Guard, TagGen, InPats), annotate_pats(Body, TagGen, InPats)};
-annotate_pats({c_cons, Anno, Hd, Tl}, TagGen, InPats) ->
-  WithTags = [{next_tag, TagGen()}, TagGen() | Anno],
-  case InPats of
-    false -> {c_cons, Anno, annotate_pats(Hd, TagGen, false), annotate_pats(Tl, TagGen, false)};
-    true  -> {c_cons, WithTags, annotate_pats(Hd, TagGen, true), annotate_pats(Tl, TagGen, true)}
-  end;
-annotate_pats({c_fun, Anno, Vars, Body}, TagGen, InPats) ->
-  {c_fun, Anno, [annotate_pats(V, TagGen, InPats) || V <- Vars], annotate_pats(Body, TagGen, InPats)};
-annotate_pats({c_let, Anno, Vars, Arg, Body}, TagGen, InPats) ->
-  {c_let, Anno, [annotate_pats(V, TagGen, InPats) || V <- Vars], annotate_pats(Arg, TagGen, InPats), annotate_pats(Body, TagGen, InPats)};
-annotate_pats({c_letrec, Anno, Defs, Body}, TagGen, InPats) ->
-  {c_letrec, Anno, [{annotate_pats(X, TagGen, InPats), annotate_pats(Y, TagGen, InPats)} || {X, Y} <- Defs], annotate_pats(Body, TagGen, InPats)};
-annotate_pats({c_literal, Anno, Val}, TagGen, InPats) ->
-  case InPats of
-    false -> {c_literal, Anno, Val};
-    true  -> {c_literal, [{next_tag, TagGen()}, TagGen() | Anno], Val}
-  end;
-annotate_pats({c_primop, Anno, Name, Args}, TagGen, InPats) ->
-  {c_primop, Anno, annotate_pats(Name, TagGen, InPats), [annotate_pats(A, TagGen, InPats) || A <- Args]};
-annotate_pats({c_receive, Anno, Clauses, Timeout, Action}, TagGen, InPats) ->
-  {c_receive, Anno, [annotate_pats(Cl, TagGen, InPats) || Cl <- Clauses], annotate_pats(Timeout, TagGen, InPats), annotate_pats(Action, TagGen, InPats)};
-annotate_pats({c_seq, Anno, Arg, Body}, TagGen, InPats) ->
-  {c_seq, Anno, annotate_pats(Arg, TagGen, InPats), annotate_pats(Body, TagGen, InPats)};
-annotate_pats({c_try, Anno, Arg, Vars, Body, Evars, Handler}, TagGen, InPats) ->
-  {c_try, Anno, annotate_pats(Arg, TagGen, InPats), [annotate_pats(V, TagGen, InPats) || V <- Vars],
-    annotate_pats(Body, TagGen, InPats), [annotate_pats(EV, TagGen, InPats) || EV <- Evars], annotate_pats(Handler, TagGen, InPats)};
-annotate_pats({c_tuple, Anno, Es}, TagGen, InPats) ->
-  WithTags = [{next_tag, TagGen()}, TagGen() | Anno],
-  case InPats of
-    false -> {c_tuple, Anno, [annotate_pats(E, TagGen, false) || E <- Es]};
-    true  -> {c_tuple, WithTags, [annotate_pats(E, TagGen, true) || E <- Es]}
-  end;
-annotate_pats({c_values, Anno, Es}, TagGen, InPats) ->
-  {c_values, Anno, [annotate_pats(E, TagGen, InPats) || E <- Es]};
-annotate_pats({c_var, Anno, Name}, _TagGen, _InPats) ->
-  {c_var, Anno, Name};
-annotate_pats(X, _,_) -> X. %% FIXME temp fix for maps
+-spec annotate(cerl:cerl(), tag_generator(), boolean()) -> cerl:cerl().
+annotate(Tree, TagGen, InPats) ->
+  case cerl:type(Tree) of
+    alias ->
+      Var = annotate(cerl:alias_var(Tree), TagGen, InPats),
+      Pat = annotate(cerl:alias_pat(Tree), TagGen, InPats),
+      cerl:update_c_alias(Tree, Var, Pat);
+    'apply' ->
+      Op = annotate(cerl:apply_op(Tree), TagGen, InPats),
+      Args = annotate_all(cerl:apply_args(Tree), TagGen, InPats),
+      cerl:update_c_apply(Tree, Op, Args);
+    binary ->
+      Segs = annotate_all(cerl:binary_segments(Tree), TagGen, InPats),
+      T = cerl:update_c_binary(Tree, Segs),
+      case InPats of
+        false -> T;
+        true  -> cerl:add_ann(tag_pair(TagGen), T)
+      end;
+    bitstr ->
+      Val = annotate(cerl:bitstr_val(Tree), TagGen, InPats),
+      Size = annotate(cerl:bitstr_size(Tree), TagGen, InPats),
+      Unit = annotate(cerl:bitstr_unit(Tree), TagGen, InPats),
+      Type = annotate(cerl:bitstr_type(Tree), TagGen, InPats),
+      Flags = annotate(cerl:bitstr_flags(Tree), TagGen, InPats),
+      T = cerl:update_c_bitstr(Tree, Val, Size, Unit, Type, Flags),
+      case InPats of
+        false -> T;
+        true  -> cerl:add_ann(tag_pair(TagGen), T)
+      end;
+    call ->
+      Mod = annotate(cerl:call_module(Tree), TagGen, InPats),
+      Name = annotate(cerl:call_name(Tree), TagGen, InPats),
+      Args = annotate_all(cerl:call_args(Tree), TagGen, InPats),
+      cerl:update_c_call(Tree, Mod, Name, Args);
+    'case' ->
+      Arg = annotate(cerl:case_arg(Tree), TagGen, InPats),
+      Clauses = annotate_all(cerl:case_clauses(Tree), TagGen, InPats),
+      cerl:update_c_case(Tree, Arg, Clauses);
+    'catch' ->
+      Body = annotate(cerl:catch_body(Tree), TagGen, InPats),
+      cerl:update_c_catch(Tree, Body);
+    clause ->
+      Pats = annotate_all(cerl:clause_pats(Tree), TagGen, true),
+      Guard = annotate(cerl:clause_guard(Tree), TagGen, InPats),
+      Body = annotate(cerl:clause_body(Tree), TagGen, InPats),
+      T = cerl:update_c_clause(Tree, Pats, Guard, Body),
+      cerl:add_ann(tag_pair(TagGen), T);
+    cons ->
+      Hd = annotate(cerl:cons_hd(Tree), TagGen, InPats),
+      Tl = annotate(cerl:cons_tl(Tree), TagGen, InPats),
+      T = cerl:update_c_cons_skel(Tree, Hd, Tl),
+      case InPats of
+        false -> T;
+        true  -> cerl:add_ann(tag_pair(TagGen), T)
+      end;
+    'fun' ->
+      Vars = annotate_all(cerl:fun_vars(Tree), TagGen, InPats),
+      Body = annotate(cerl:fun_body(Tree), TagGen, InPats),
+      cerl:update_c_fun(Tree, Vars, Body);
+    'let' ->
+      Vars = annotate_all(cerl:let_vars(Tree), TagGen, InPats),
+      Arg = annotate(cerl:let_arg(Tree), TagGen, InPats),
+      Body = annotate(cerl:let_body(Tree), TagGen, InPats),
+      cerl:update_c_let(Tree, Vars, Arg, Body);
+    letrec ->
+      Combine = fun(X, Y) -> {annotate(X, TagGen, InPats), annotate(Y, TagGen, InPats)} end,
+      Defs = [Combine(N, D) || {N, D} <- cerl:letrec_defs(Tree)],
+      Body = annotate(cerl:letrec_body(Tree), TagGen, InPats),
+      cerl:update_c_letrec(Tree, Defs, Body);
+    literal ->
+      case InPats of
+        false -> Tree;
+        true  -> cerl:add_ann(tag_pair(TagGen), Tree)
+      end;
+    primop ->
+      Name = annotate(cerl:primop_name(Tree), TagGen, InPats),
+      Args = annotate_all(cerl:primop_args(Tree), TagGen, InPats),
+      cerl:update_c_primop(Tree, Name, Args);
+    'receive' ->
+      Clauses = annotate_all(cerl:receive_clauses(Tree), TagGen, InPats),
+      Timeout = annotate(cerl:receive_timeout(Tree), TagGen, InPats),
+      Action = annotate(cerl:receive_action(Tree), TagGen, InPats),
+      cerl:update_c_receive(Tree, Clauses, Timeout, Action);
+    seq ->
+      Arg = annotate(cerl:seq_arg(Tree), TagGen, InPats),
+      Body = annotate(cerl:seq_body(Tree), TagGen, InPats),
+      cerl:update_c_seq(Tree, Arg, Body);
+    'try' ->
+      Arg = annotate(cerl:try_arg(Tree), TagGen, InPats),
+      Vars = annotate_all(cerl:try_vars(Tree), TagGen, InPats),
+      Body = annotate(cerl:try_body(Tree), TagGen, InPats),
+      Evars = annotate_all(cerl:try_evars(Tree), TagGen, InPats),
+      Handler = annotate(cerl:try_handler(Tree), TagGen, InPats),
+      cerl:update_c_try(Tree, Arg, Vars, Body, Evars, Handler);
+    tuple ->
+      Es = annotate_all(cerl:tuple_es(Tree), TagGen, InPats),
+      T = cerl:update_c_tuple_skel(Tree, Es),
+      case InPats of
+        false -> T;
+        true  -> cerl:add_ann(tag_pair(TagGen), T)
+      end;
+    values ->
+      Es = annotate_all(cerl:values_es(Tree), TagGen, InPats),
+      cerl:update_c_values(Tree, Es);
+    var ->
+      Tree;
+    _ ->
+      Tree  %% TODO Ignore maps (for now) and modules.
+  end.
+
+annotate_all(Trees, TagGen, InPats) ->
+  [annotate(T, TagGen, InPats) || T <- Trees].
 
 %% Get the tags from the annotations of an AST's node.
 -spec get_tags(list()) -> ast_tags().
@@ -354,6 +407,10 @@ get_tags([{next_tag, Tag={?BRANCH_TAG_PREFIX, _N}} | Annos], Tags) ->
   get_tags(Annos, Tags#tags{next = Tag});
 get_tags([_|Annos], Tags) ->
   get_tags(Annos, Tags).
+
+%% Generates a pair of tags.
+tag_pair(TagGen) ->
+  [{next_tag, TagGen()}, TagGen()].
 
 %% Creates a tag from tag info.
 -spec tag_from_id(tagID()) -> tag().
