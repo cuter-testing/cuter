@@ -6,6 +6,7 @@
 %% external exports
 -export([start/3, start/5, stop/1, load/2, unsupported_mfa/2, retrieve_spec/2, visit_tag/2,
          initial_branch_counter/0, get_visited_tags/1, get_logs/1, get_whitelist/1,
+         calculate_callgraph/2,
          %% Work with module cache
          merge_dumped_cached_modules/2, no_cached_modules/0, modules_of_dumped_cache/1,
          lookup_in_module_cache/2, insert_in_module_cache/3,
@@ -79,7 +80,8 @@
   withPmatch                   :: boolean(),
   workers = []                 :: [pid()],
   unsupportedMfas = sets:new() :: sets:set(mfa()),
-  whitelist                    :: cuter_mock:whitelist()
+  whitelist                    :: cuter_mock:whitelist(),
+  callgraph                    :: cuter_callgraph:callgraph()
 }).
 -type state() :: #st{}.
 
@@ -144,6 +146,11 @@ get_logs(CodeServer) ->
 -spec get_whitelist(pid()) -> cuter_mock:whitelist().
 get_whitelist(CodeServer) ->
   gen_server:call(CodeServer, get_whitelist).
+
+%% Gets the callgraph of an Mfa.
+-spec calculate_callgraph(pid(), mfa()) -> ok | error.
+calculate_callgraph(CodeServer, Mfa) ->
+  gen_server:call(CodeServer, {calculate_callgraph, Mfa}).
 
 %% ----------------------------------------------------------------------------
 %% gen_server callbacks (Server Implementation)
@@ -221,7 +228,19 @@ handle_call(get_logs, _From, State=#st{db = Db, unsupportedMfas = Ms, tags = Tag
   Logs = mk_logs(modules_in_cache(Db), sets:to_list(Ms), Tags, CachedMods, Cnt),
   {reply, Logs, State};
 handle_call(get_whitelist, _From, State=#st{whitelist = Whitelist}) ->
-  {reply, Whitelist, State}.
+  {reply, Whitelist, State};
+handle_call({calculate_callgraph, Mfa}, _From, State) ->
+  case cuter_callgraph:get_callgraph(Mfa) of
+    {error, _Reason} ->
+      {reply, error, State};
+    {ok, Callgraph} ->
+      LoadFn = fun(M) ->
+          cuter_pp:loading_visited_module(M),
+          try_load(M, State)
+        end,
+      cuter_callgraph:foreachModule(LoadFn, Callgraph),
+      {reply, ok, State#st{callgraph = Callgraph}}
+  end.
 
 %% gen_server callback : handle_cast/2
 -spec handle_cast({stop, pid()}, state()) -> {stop, normal, state()} | {noreply, state()}

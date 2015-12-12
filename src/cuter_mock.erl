@@ -3,7 +3,7 @@
 -module(cuter_mock).
 
 -export([simulate_behaviour/3, is_whitelisted/2, parse_whitelist/1,
-         get_whitelisted_mfas/1, empty_whitelist/0]).
+         get_whitelisted_mfas/1, empty_whitelist/0, overriding_modules/0]).
 
 -export_type([whitelist/0]).
 
@@ -302,3 +302,7 @@ get_whitelisted_mfas(Whitelist) -> sets:to_list(Whitelist).
 %% Create an empty set of whitelisted MFAs.
 -spec empty_whitelist() -> whitelist().
 empty_whitelist() -> sets:new().
+
+%% The list of modules that contain funs that override bifs.
+-spec overriding_modules() -> [cuter_erlang, ...].
+overriding_modules() -> [cuter_erlang].

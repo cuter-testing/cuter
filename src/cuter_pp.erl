@@ -15,6 +15,10 @@
 %% Report information about solving.
 -export([solving_failed_unsat/0, solving_failed_timeout/0, solving_failed_unknown/0]).
 
+%% Report callgraph related info.
+-export([callgraph_calculation_failed/1, callgraph_calculation_started/1,
+         callgraph_calculation_succeeded/0, loading_visited_module/1]).
+
 %% Parsing of options.
 -export([loaded_whitelist/2, error_loading_whitelist/2]).
 
@@ -103,6 +107,10 @@
               | solving_failed_unknown
               | {errors_found, cuter:erroneous_inputs()}
               | {code_logs, cuter_codeserver:logs()}
+              | {callgraph_calculation_started, mfa()}
+              | {callgraph_calculation_failed, string()}
+              | callgraph_calculation_succeeded
+              | {loading_visited_module, cuter:mod()}
               .
 
 %% Reporting levels.
@@ -246,6 +254,26 @@ module_non_existing(M) ->
 mfa_non_existing(M, F, Arity) ->
   gen_server:call(?PRETTY_PRINTER, {mfa_non_existing, {M, F, Arity}}).
 
+%% ----------------------------------------------------------------------------
+%% Callgraph related info.
+%% ----------------------------------------------------------------------------
+
+-spec callgraph_calculation_started(mfa()) -> ok.
+callgraph_calculation_started(Mfa) ->
+  gen_server:call(?PRETTY_PRINTER, {callgraph_calculation_started, Mfa}).
+
+-spec callgraph_calculation_failed(string()) -> ok.
+callgraph_calculation_failed(Reason) ->
+  gen_server:call(?PRETTY_PRINTER, {callgraph_calculation_failed, Reason}).
+
+-spec callgraph_calculation_succeeded() -> ok.
+callgraph_calculation_succeeded() ->
+  gen_server:call(?PRETTY_PRINTER, callgraph_calculation_succeeded).
+
+-spec loading_visited_module(cuter:mod()) -> ok.
+loading_visited_module(M) ->
+  gen_server:call(?PRETTY_PRINTER, {loading_visited_module, M}).
+
 %% ============================================================================
 %% gen_server callbacks (Server Implementation)
 %% ============================================================================
@@ -288,6 +316,33 @@ handle_call({whitelist_error, File, Error}, _From, State=#st{pplevel = PpLevel})
   case PpLevel#pp_level.execInfo of
     ?MINIMAL -> io:format(standard_error, "Error ~p occured when loading whitelisted MFAs from ~p.~n", [Error, File]);
     _ -> io:format("Error ~p occured when loading whitelisted MFAs from ~p.~n", [Error, File])
+  end,
+  {reply, ok, State};
+
+%% Callgraph related info.
+
+handle_call({callgraph_calculation_started, Mfa}, _From, State=#st{pplevel = PpLevel}) ->
+  case PpLevel#pp_level.execInfo of
+    ?MINIMAL -> io:format(standard_error, "Calculating the callgraph of ~p...  ", [Mfa]);
+    _ -> io:format("Calculating the callgraph of ~p...  ", [Mfa])
+  end,
+  {reply, ok, State};
+handle_call({callgraph_calculation_failed, Reason}, _From, State=#st{pplevel = PpLevel}) ->
+  case PpLevel#pp_level.execInfo of
+    ?MINIMAL -> io:format(standard_error, "ERROR~nFailed to calculate the callgraph because~n  ~p~n", [Reason]);
+    _ -> io:format("ERROR~nFailed to calculate the callgraph because~n  ~p~n", [Reason])
+  end,
+  {reply, ok, State};
+handle_call(callgraph_calculation_succeeded, _From, State=#st{pplevel = PpLevel}) ->
+  case PpLevel#pp_level.execInfo of
+    ?MINIMAL -> io:format(standard_error, "OK~n", []);
+    _ -> io:format("OK~n")
+  end,
+  {reply, ok, State};
+handle_call({loading_visited_module, M}, _From, State=#st{pplevel = PpLevel}) ->
+  case PpLevel#pp_level.execInfo of
+    ?MINIMAL -> ok;
+    _ -> io:format("Loading module ~p.~n", [M])
   end,
   {reply, ok, State};
 
@@ -636,7 +691,6 @@ pp_erroneous_inputs_h([], _MFA, _N) ->
 pp_erroneous_inputs_h([I|Is], {M, F, _}=MFA, N) ->
   io:format("~n#~w ~p:~p(~s)", [N, M, F, pp_arguments(I)]),
   pp_erroneous_inputs_h(Is, MFA, N + 1).
-
 
 %% ----------------------------------------------------------------------------
 %% Format errors.

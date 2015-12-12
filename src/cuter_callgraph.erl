@@ -2,22 +2,49 @@
 %%------------------------------------------------------------------------------
 -module(cuter_callgraph).
 
--export([get_callgraph/1]).
+-export([get_callgraph/1, foldModule/3, foreachModule/2, get_visited_mfas/1]).
+
+-export_type([callgraph/0]).
 
 -type fn_cache() :: dict:dict({atom(), byte()}, cerl:cerl()).
 -type module_cache_entry() :: fn_cache() | preloaded.
 -type module_cache() :: dict:dict(atom(), module_cache_entry()).
 -type visited_mfas() :: gb_sets:set(mfa()).
 -type visited_modules() :: sets:set(cuter:mod()).
+-type callgraph() :: {visited_modules(), visited_mfas()}.
 
--spec get_callgraph(mfa()) -> {ok, visited_modules(), visited_mfas()} | {error, string()}.
+%% ----------------------------------------------------------------------------
+%% Callgraph type API.
+%% ----------------------------------------------------------------------------
+
+-spec foreachModule(fun((cuter:mod()) -> any()), callgraph()) -> ok.
+foreachModule(Fn, Callgraph) ->
+  FoldFn = fun(M, _) -> Fn(M), ok end,
+  foldModule(FoldFn, ok, Callgraph).
+
+-spec foldModule(fun((cuter:mod(), any()) -> any()), any(), callgraph()) -> ok.
+foldModule(Fn, Acc0, {VisitedModules, _}) ->
+  sets:fold(Fn, Acc0, VisitedModules).
+
+-spec get_visited_mfas(callgraph()) -> visited_mfas().
+get_visited_mfas({_, VisitedMfas}) -> VisitedMfas.
+
+%% ----------------------------------------------------------------------------
+%% Callgraph calculation.
+%% ----------------------------------------------------------------------------
+
+-spec get_callgraph(mfa()) -> {ok, callgraph()} | {error, string()}.
 get_callgraph(Mfa) ->
   try
+    cuter_pp:callgraph_calculation_started(Mfa),
     {VisitedMfas, _} = get_callgraph(Mfa, gb_sets:empty(), dict:new()),
     VisitedMods = visited_modules(VisitedMfas),
-    {ok, VisitedMods, VisitedMfas}
+    cuter_pp:callgraph_calculation_succeeded(),
+    {ok, {VisitedMods, VisitedMfas}}
   catch
-    throw:Reason -> {error, Reason}
+    throw:Reason ->
+      cuter_pp:callgraph_calculation_failed(Reason),
+      {error, Reason}
   end.
 
 -spec visited_modules(visited_mfas()) -> visited_modules().
@@ -30,13 +57,13 @@ get_callgraph({M,F,A}=OrigMfa, Visited, ModuleCache) ->
     bif ->
       UpdatedVisited = gb_sets:add_element(OrigMfa, Visited),
       {UpdatedVisited, ModuleCache};
-    {ok, Mfa} ->
+    {ok, {SM,_,_}=Mfa} ->
       UpdatedVisited = gb_sets:add_element(Mfa, Visited),
       case get_definition(Mfa, Visited, ModuleCache) of
         {nodef, UpdatedModuleCache} ->
           {UpdatedVisited, UpdatedModuleCache};
         {def, Def, UpdatedModuleCache} ->
-          expand(M, Def, UpdatedVisited, UpdatedModuleCache, ordsets:new())
+          expand(SM, Def, UpdatedVisited, UpdatedModuleCache, ordsets:new())
       end
   end.
 
@@ -145,7 +172,11 @@ expand(M, Tree, Visited, ModuleCache, LetrecFuns) ->
       {Visited, ModuleCache};
     %% c_var
     var ->
-      {Visited, ModuleCache};
+      case cerl:var_name(Tree) of
+        {F,A} when is_atom(F), is_integer(A) ->
+          get_callgraph({M,F,A}, Visited, ModuleCache);
+        _ -> {Visited, ModuleCache}
+      end;
     %% c_alias
     alias ->
       {Visited, ModuleCache}
@@ -179,7 +210,7 @@ get_definition({M,F,A}=Mfa, Visited, ModuleCache) ->
   case gb_sets:is_member(Mfa, Visited) of
     true -> {nodef, ModuleCache};  %% Have seen this MFA before.
     false ->
-      case erlang:is_builtin(M, F, A) of
+      case erlang:is_builtin(M, F, A) or lists:member(M, cuter_mock:overriding_modules()) of
         true -> {nodef, ModuleCache};  %% It's a BIF.
         false ->
           case lookup_definition(Mfa, ModuleCache) of
