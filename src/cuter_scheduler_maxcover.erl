@@ -9,9 +9,12 @@
           %% gen_server callbacks
           init/1, terminate/2, code_change/3, handle_info/2, handle_call/3, handle_cast/2]).
 
+%% Logs API
+-export([get_erroneous/1, get_visitedTags/1]).
+
 -include("include/cuter_macros.hrl").
 
--export_type([handle/0, operationId/0]).
+-export_type([handle/0, operationId/0, logs/0]).
 
 -type visited() :: boolean().
 -type operationId() :: integer().
@@ -70,6 +73,12 @@
   visitedTags     :: cuter_cerl:visited_tags()}).
 -type state() :: #st{}.
 
+%% The logs reported back before shutting down.
+-record(logs, {
+  erroneous   :: cuter:erroneous_inputs(),
+  visitedTags :: cuter_cerl:visited_tags()}).
+-type logs() :: #logs{}.
+
 %% ----------------------------------------------------------------------------
 %% External API
 %% ----------------------------------------------------------------------------
@@ -83,7 +92,7 @@ start(Python, Depth, SeedInput, CodeServer) ->
   end.
 
 %% Stops the Scheduler.
--spec stop(pid()) -> cuter:erroneous_inputs().
+-spec stop(pid()) -> logs().
 stop(Scheduler) ->
   gen_server:call(Scheduler, stop).
 
@@ -104,6 +113,18 @@ request_operation(Scheduler) ->
 -spec solver_reply(pid(), cuter_solver:solver_result()) -> ok.
 solver_reply(Scheduler, Result) ->
   gen_server:call(Scheduler, {solver_reply, Result}, infinity).
+
+%% ----------------------------------------------------------------------------
+%% Logs API
+%% ----------------------------------------------------------------------------
+
+-spec get_erroneous(logs()) -> cuter:erroneous_inputs().
+get_erroneous(Logs) ->
+  Logs#logs.erroneous.
+
+-spec get_visitedTags(logs()) -> cuter_cerl:visited_tags().
+get_visitedTags(Logs) ->
+  Logs#logs.visitedTags.
 
 %% ----------------------------------------------------------------------------
 %% gen_server callbacks (Server Implementation)
@@ -150,7 +171,7 @@ handle_info(_Msg, State) ->
                ; ({store_execution, handle(), cuter_analyzer:info()}, from(), state()) -> {reply, ok, state()}
                ; ({solver_reply, cuter_solver:solver_result()}, from(), state()) -> {reply, ok, state()}
                ; (request_operation, from(), state()) -> {reply, cuter_solver:solver_input() | try_later, state()}
-               ; (stop, from(), state()) -> {stop, normal, cuter:erroneous_inputs(), state()}.
+               ; (stop, from(), state()) -> {stop, normal, logs(), state()}.
 
 %% Ask for a new input to execute.
 handle_call(request_input, _From, S=#st{running = Running, firstOperation = FirstOperation, inputsQueue = InputsQueue, tagsQueue = TagsQueue,
@@ -220,8 +241,9 @@ handle_call(request_operation, {Who, _Ref}, S=#st{tagsQueue = TagsQueue, infoTab
   end;
 
 %% Stops the server.
-handle_call(stop, _From, S=#st{erroneous = Err}) ->
-  {stop, normal, lists:reverse(Err), S}.
+handle_call(stop, _From, S=#st{erroneous = Err, visitedTags = Visited}) ->
+  Logs = #logs{erroneous = lists:reverse(Err), visitedTags = Visited},
+  {stop, normal, Logs, S}.
 
 %% handle_cast/2
 -spec handle_cast(any(), state()) -> {noreply, state()}.

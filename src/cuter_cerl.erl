@@ -3,7 +3,8 @@
 -module(cuter_cerl).
 
 %% External exports
--export([retrieve_spec/2, get_tags/1, id_of_tag/1, tag_from_id/1, empty_tag/0, get_stored_types/1]).
+-export([retrieve_spec/2, get_tags/1, id_of_tag/1, tag_from_id/1, empty_tag/0,
+         get_stored_types/1, empty_tagId/0]).
 %% Core AST extraction.
 -export([load/4, get_core/2]).
 %% Exported for debugging use.
@@ -425,3 +426,7 @@ id_of_tag({?BRANCH_TAG_PREFIX, N}) -> N.
 -spec empty_tag() -> tag().
 empty_tag() ->
   tag_from_id(?EMPTY_TAG_ID).
+
+%% Returns the empty tag id.
+-spec empty_tagId() -> ?EMPTY_TAG_ID.
+empty_tagId() -> ?EMPTY_TAG_ID.
