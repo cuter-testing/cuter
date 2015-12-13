@@ -29,7 +29,7 @@
 -opaque tag() :: {?BRANCH_TAG_PREFIX, tagID()}.
 -type tag_generator() :: fun(() -> tag()).
 -type visited_tags() :: gb_sets:set(tagID()).
--type node_types() :: [{atom(), {boolean(), boolean()}}] | all.
+-type node_types() :: [{atom(), boolean(), {boolean(), boolean()}}] | all.
 
 -type lineno() :: integer().
 -type name() :: atom().
@@ -532,16 +532,22 @@ collect_tagIDs(Tree, NodeTypes) ->
       Tp = cerl:type(Tree),
       case is_member_node_type(Tp, NodeTypes) of
         false -> [];
-        {true, Switch} ->
+        {true, true, Switch} ->
           Ann = cerl:get_ann(Tree),
-          collect_tagIDs_h(Ann, Switch, [])
+          collect_tagIDs_h(Ann, Switch, []);
+        {true, false, Switch} ->
+          Ann = cerl:get_ann(Tree),
+          case lists:member(compiler_generated, Ann) of
+            true  -> [];
+            false -> collect_tagIDs_h(Ann, Switch, [])
+          end
       end
   end.
 
 is_member_node_type(_, []) ->
   false;
-is_member_node_type(Tp, [{Tp, Switch}|_Rest]) ->
-  {true, Switch};
+is_member_node_type(Tp, [{Tp, WithCompGen, Switch}|_Rest]) ->
+  {true, WithCompGen, Switch};
 is_member_node_type(Tp, [_|Rest]) ->
   is_member_node_type(Tp, Rest).
 

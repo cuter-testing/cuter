@@ -151,17 +151,27 @@ pathVertex_of_info(Info) ->
 %% Calculate coverage.
 %% ----------------------------------------------------------------------------
 
--spec calculate_coverage(boolean(), pid(), cuter_scheduler_maxcover:logs()) -> float() | ok.
+-spec calculate_coverage(boolean(), pid(), cuter_scheduler_maxcover:logs()) -> {float(), float()} | ok.
 calculate_coverage(false, _, _) -> ok;
 calculate_coverage(true, CodeServer, SchedulerLogs) ->
+  io:format("~n~nCoverage~n"),
   %% Visited Tags.
   VisitedTags = cuter_scheduler_maxcover:get_visitedTags(SchedulerLogs),
-  %% Feasible Tags.
-  FeasibleTags = cuter_codeserver:get_feasible_tags(CodeServer),
-  %% Calculate the coverage.
+  %% Feasible Tags (with compiler generated clauses).
+  FeasibleTags = cuter_codeserver:get_feasible_tags(CodeServer, true),
+  %% Feasible Tags (without compiler generated clauses).
+  FeasibleTagsNoComp = cuter_codeserver:get_feasible_tags(CodeServer, false),
+  %% Calculate the coverage (with compiler generated clauses).
   All = gb_sets:size(FeasibleTags),
   Diff = gb_sets:subtract(FeasibleTags, VisitedTags),
   NotVisited = gb_sets:size(Diff),
   Coverage = 100 * (All - NotVisited) / All,
-  io:format("~nCovered ~p of ~p clauses (~.2f %).~n", [All - NotVisited, All, Coverage]),
-  Coverage.
+  io:format("Covered ~p of ~p clauses (~.2f %).~n", [All - NotVisited, All, Coverage]),
+  %% Calculate the coverage (without compiler generated clauses).
+  AllNoComp = gb_sets:size(FeasibleTagsNoComp),
+  DiffNoComp = gb_sets:subtract(FeasibleTagsNoComp, VisitedTags),
+  NotVisitedNoComp = gb_sets:size(DiffNoComp),
+  CoverageNoComp = 100 * (AllNoComp - NotVisitedNoComp) / AllNoComp,
+  io:format("Covered ~p of ~p clauses [without compiler generated clauses] (~.2f %).~n",
+    [AllNoComp - NotVisitedNoComp, AllNoComp, CoverageNoComp]),
+  {Coverage, CoverageNoComp}.
