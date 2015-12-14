@@ -7,6 +7,9 @@
          get_stored_types/1, empty_tagId/0, collect_feasible_tags/2]).
 %% Core AST extraction.
 -export([load/4, get_core/2]).
+%% Node types generators.
+-export([node_types_clause/0, node_types_clause_nocomp/0, node_types_all/0,
+         node_types_conditions/0, node_types_conditions_nocomp/0]).
 %% Exported for debugging use.
 -export([classify_attributes/1]).
 
@@ -19,7 +22,7 @@
 -export_type([compile_error/0, cerl_spec/0, cerl_func/0, cerl_type/0, visited_tags/0,
               cerl_bounded_func/0, cerl_constraint/0, tagID/0, tag/0, tag_generator/0,
               cerl_attr_type/0, cerl_recdef/0, cerl_typedef/0, cerl_record_field/0, cerl_type_record_field/0,
-              cerl_attr_spec/0, cerl_spec_func/0]).
+              cerl_attr_spec/0, cerl_spec_func/0, node_types/0]).
 
 -type info()          :: anno | attributes | exports | name.
 -type compile_error() :: {error, string()}.
@@ -29,7 +32,7 @@
 -opaque tag() :: {?BRANCH_TAG_PREFIX, tagID()}.
 -type tag_generator() :: fun(() -> tag()).
 -type visited_tags() :: gb_sets:set(tagID()).
--type node_types() :: [{atom(), boolean(), {boolean(), boolean()}}] | all.
+-type node_types() :: [{atom(), boolean(), {boolean(), boolean()}}] | all | {conditions, boolean()}.
 
 -type lineno() :: integer().
 -type name() :: atom().
@@ -322,7 +325,8 @@ annotate(Tree, TagGen, InPats) ->
       cerl:update_c_call(Tree, Mod, Name, Args);
     'case' ->
       Arg = annotate(cerl:case_arg(Tree), TagGen, InPats),
-      Clauses = annotate_all(cerl:case_clauses(Tree), TagGen, InPats),
+      Clauses0 = annotate_all(cerl:case_clauses(Tree), TagGen, InPats),
+      Clauses = mark_last_clause(Clauses0),
       cerl:update_c_case(Tree, Arg, Clauses);
     'catch' ->
       Body = annotate(cerl:catch_body(Tree), TagGen, InPats),
@@ -365,7 +369,8 @@ annotate(Tree, TagGen, InPats) ->
       Args = annotate_all(cerl:primop_args(Tree), TagGen, InPats),
       cerl:update_c_primop(Tree, Name, Args);
     'receive' ->
-      Clauses = annotate_all(cerl:receive_clauses(Tree), TagGen, InPats),
+      Clauses0 = annotate_all(cerl:receive_clauses(Tree), TagGen, InPats),
+      Clauses = mark_last_clause(Clauses0),
       Timeout = annotate(cerl:receive_timeout(Tree), TagGen, InPats),
       Action = annotate(cerl:receive_action(Tree), TagGen, InPats),
       cerl:update_c_receive(Tree, Clauses, Timeout, Action);
@@ -398,6 +403,13 @@ annotate(Tree, TagGen, InPats) ->
 
 annotate_all(Trees, TagGen, InPats) ->
   [annotate(T, TagGen, InPats) || T <- Trees].
+
+mark_last_clause([]) ->
+  [];
+mark_last_clause(Clauses) when is_list(Clauses) ->
+  [Last|Rvs] = lists:reverse(Clauses),
+  AnnLast = cerl:add_ann([last_clause], Last),
+  lists:reverse([AnnLast|Rvs]).
 
 %% ----------------------------------------------------------------------------
 %% Collect tags from AST for a specific mfa.
@@ -517,6 +529,21 @@ collect(Tree, NodeTypes) ->
 collect_all(Trees, NodeTypes) ->
   [collect(T, NodeTypes) || T <- Trees].
 
+-spec node_types_all() -> all.
+node_types_all() -> all.
+
+-spec node_types_conditions() -> {conditions, true}.
+node_types_conditions() -> {conditions, true}.
+
+-spec node_types_conditions_nocomp() -> {conditions, false}.
+node_types_conditions_nocomp() -> {conditions, false}.
+
+-spec node_types_clause() -> [{clause, true, {true, false}}, ...].
+node_types_clause() -> [{clause, true, {true, false}}].
+
+-spec node_types_clause_nocomp() -> [{clause, false, {true, false}}, ...].
+node_types_clause_nocomp() -> [{clause, false, {true, false}}].
+
 %% ----------------------------------------------------------------------------
 %% Manage tags.
 %% ----------------------------------------------------------------------------
@@ -528,6 +555,22 @@ collect_tagIDs(Tree, NodeTypes) ->
     all ->
       Ann = cerl:get_ann(Tree),
       collect_tagIDs_h(Ann, {true, true}, []);
+    {conditions, true} ->
+      Ann = cerl:get_ann(Tree),
+      case has_true_guard(Tree) of
+        true  -> [];
+        false -> collect_tagIDs_h(Ann, {true, false}, [])
+      end;
+    {conditions, false} ->
+      Ann = cerl:get_ann(Tree),
+      case has_true_guard(Tree) of
+        true -> [];
+        false ->
+          case lists:member(compiler_generated, Ann) of
+            true  -> [];
+            false -> collect_tagIDs_h(Ann, {true, false}, [])
+          end
+      end;
     _ ->
       Tp = cerl:type(Tree),
       case is_member_node_type(Tp, NodeTypes) of
@@ -550,6 +593,16 @@ is_member_node_type(Tp, [{Tp, WithCompGen, Switch}|_Rest]) ->
   {true, WithCompGen, Switch};
 is_member_node_type(Tp, [_|Rest]) ->
   is_member_node_type(Tp, Rest).
+
+has_true_guard(Tree) ->
+  case cerl:type(Tree) of
+    clause ->
+      Guard = cerl:clause_guard(Tree),
+      cerl:is_literal(Guard) andalso cerl:is_literal_term(Guard)
+        andalso cerl:concrete(Guard) =:= true;
+    _ ->
+      false
+  end.
 
 collect_tagIDs_h([], _, Acc) ->
   Acc;

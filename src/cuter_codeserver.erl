@@ -152,9 +152,9 @@ calculate_callgraph(CodeServer, Mfa) ->
   gen_server:call(CodeServer, {calculate_callgraph, Mfa}).
 
 %% Gets the feasible tags.
--spec get_feasible_tags(pid(), boolean()) -> cuter_cerl:visited_tags().
-get_feasible_tags(CodeServer, WithCompGen) ->
-  gen_server:call(CodeServer, {get_feasible_tags, WithCompGen}).
+-spec get_feasible_tags(pid(), cuter_cerl:node_types()) -> cuter_cerl:visited_tags().
+get_feasible_tags(CodeServer, NodeTypes) ->
+  gen_server:call(CodeServer, {get_feasible_tags, NodeTypes}).
 
 %% ----------------------------------------------------------------------------
 %% gen_server callbacks (Server Implementation)
@@ -194,7 +194,7 @@ handle_info(_Msg, State) ->
                ; (get_visited_tags, from(), state()) -> {reply, tags(), state()}
                ; (get_logs, from(), state()) -> {reply, logs(), state()}
                ; (get_whitelist, from(), state()) -> {reply, cuter_mock:whitelist(), state()}
-               ; ({get_feasible_tags, boolean()}, from(), state()) -> {reply, cuter_cerl:visited_tags(), state()}
+               ; ({get_feasible_tags, cuter_cerl:node_types()}, from(), state()) -> {reply, cuter_cerl:visited_tags(), state()}
                ; ({calculate_callgraph, mfa()}, from(), state()) -> {reply, ok, state()}
                .
 handle_call({load, M}, _From, State) ->
@@ -235,8 +235,8 @@ handle_call(get_logs, _From, State=#st{db = Db, unsupportedMfas = Ms, tags = Tag
   {reply, Logs, State};
 handle_call(get_whitelist, _From, State=#st{whitelist = Whitelist}) ->
   {reply, Whitelist, State};
-handle_call({get_feasible_tags, WithCompGen}, _From, State=#st{callgraph = Callgraph}) ->
-  Tags = get_feasible_tags(Callgraph, WithCompGen, State),
+handle_call({get_feasible_tags, NodeTypes}, _From, State=#st{callgraph = Callgraph}) ->
+  Tags = get_feasible_tags(Callgraph, NodeTypes, State),
   {reply, Tags, State};
 handle_call({calculate_callgraph, Mfa}, _From, State) ->
   case cuter_callgraph:get_callgraph(Mfa) of
@@ -271,12 +271,12 @@ handle_cast({visit_tag, Tag}, State=#st{tags = Tags}) ->
 %% Get the feasible tags of all the mfas in the callgraph.
 %% ----------------------------------------------------------------------------
 
-get_feasible_tags(Callgraph, WithCompGen, State) ->
+get_feasible_tags(Callgraph, NodeTypes, State) ->
   VisitedMfas = cuter_callgraph:get_visited_mfas(Callgraph),
-  FoldFn = fun(Mfa, Acc) -> gb_sets:union(get_feasible_tags_of_mfa(Mfa, WithCompGen, State), Acc) end,
+  FoldFn = fun(Mfa, Acc) -> gb_sets:union(get_feasible_tags_of_mfa(Mfa, NodeTypes, State), Acc) end,
   gb_sets:fold(FoldFn, gb_sets:new(), VisitedMfas).
 
-get_feasible_tags_of_mfa({M,F,A}=Mfa, WithCompGen, State) ->
+get_feasible_tags_of_mfa({M,F,A}=Mfa, NodeTypes, State) ->
   case erlang:is_builtin(M, F, A) orelse is_overriding(Mfa) of
     true  -> gb_sets:new();
     false ->
@@ -287,7 +287,7 @@ get_feasible_tags_of_mfa({M,F,A}=Mfa, WithCompGen, State) ->
         {true, Cache} ->
 %          io:format("Looking Up ~p~n", [Mfa]),
           {ok, {Def, _}} = lookup_in_module_cache(Mfa, Cache),
-          cuter_cerl:collect_feasible_tags(Def, [{clause, WithCompGen, {true, false}}])
+          cuter_cerl:collect_feasible_tags(Def, NodeTypes)
       end
   end.
 
