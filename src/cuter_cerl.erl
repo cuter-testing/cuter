@@ -8,8 +8,9 @@
 %% Core AST extraction.
 -export([load/4, get_core/2]).
 %% Node types generators.
--export([node_types_clause/0, node_types_clause_nocomp/0, node_types_all/0,
-         node_types_conditions/0, node_types_conditions_nocomp/0]).
+-export([node_types_branches/0, node_types_branches_nocomp/0, node_types_all/0,
+         node_types_conditions/0, node_types_conditions_nocomp/0,
+         node_types_paths/0, node_types_paths_nocomp/0]).
 %% Exported for debugging use.
 -export([classify_attributes/1]).
 
@@ -32,7 +33,7 @@
 -opaque tag() :: {?BRANCH_TAG_PREFIX, tagID()}.
 -type tag_generator() :: fun(() -> tag()).
 -type visited_tags() :: gb_sets:set(tagID()).
--type node_types() :: [{atom(), boolean(), {boolean(), boolean()}}] | all | {conditions, boolean()}.
+-type node_types() :: {(conditions | paths | branches), boolean()} | all.
 
 -type lineno() :: integer().
 -type name() :: atom().
@@ -538,11 +539,17 @@ node_types_conditions() -> {conditions, true}.
 -spec node_types_conditions_nocomp() -> {conditions, false}.
 node_types_conditions_nocomp() -> {conditions, false}.
 
--spec node_types_clause() -> [{clause, true, {true, false}}, ...].
-node_types_clause() -> [{clause, true, {true, false}}].
+-spec node_types_paths() -> {paths, true}.
+node_types_paths() -> {paths, true}.
 
--spec node_types_clause_nocomp() -> [{clause, false, {true, false}}, ...].
-node_types_clause_nocomp() -> [{clause, false, {true, false}}].
+-spec node_types_paths_nocomp() -> {paths, false}.
+node_types_paths_nocomp() -> {paths, false}.
+
+-spec node_types_branches() -> {branches, true}.
+node_types_branches() -> {branches, true}.
+
+-spec node_types_branches_nocomp() -> {branches, false}.
+node_types_branches_nocomp() -> {branches, false}.
 
 %% ----------------------------------------------------------------------------
 %% Manage tags.
@@ -555,44 +562,37 @@ collect_tagIDs(Tree, NodeTypes) ->
     all ->
       Ann = cerl:get_ann(Tree),
       collect_tagIDs_h(Ann, {true, true}, []);
-    {conditions, true} ->
+    {Tp, true} when Tp =:= conditions; Tp =:= paths ->
+      SwitchFalse = (Tp =:= paths),
       Ann = cerl:get_ann(Tree),
       case has_true_guard(Tree) of
         true  -> [];
-        false -> collect_tagIDs_h(Ann, {true, false}, [])
+        false -> collect_tagIDs_h(Ann, {true, SwitchFalse}, [])
       end;
-    {conditions, false} ->
+    {Tp, false} when Tp =:= conditions; Tp =:= paths ->
+      SwitchFalse = (Tp =:= paths),
       Ann = cerl:get_ann(Tree),
       case has_true_guard(Tree) of
         true -> [];
         false ->
           case lists:member(compiler_generated, Ann) of
             true  -> [];
-            false -> collect_tagIDs_h(Ann, {true, false}, [])
+            false -> collect_tagIDs_h(Ann, {true, SwitchFalse}, [])
           end
       end;
-    _ ->
-      Tp = cerl:type(Tree),
-      case is_member_node_type(Tp, NodeTypes) of
+    {branches, true} ->
+      Ann = cerl:get_ann(Tree),
+      case cerl:type(Tree) of
+        clause -> collect_tagIDs_h(Ann, {true, false}, []);
+        _ -> []
+      end;
+    {branches, false} ->
+      Ann = cerl:get_ann(Tree),
+      case cerl:type(Tree) =:= clause andalso not lists:member(compiler_generated, Ann) of
         false -> [];
-        {true, true, Switch} ->
-          Ann = cerl:get_ann(Tree),
-          collect_tagIDs_h(Ann, Switch, []);
-        {true, false, Switch} ->
-          Ann = cerl:get_ann(Tree),
-          case lists:member(compiler_generated, Ann) of
-            true  -> [];
-            false -> collect_tagIDs_h(Ann, Switch, [])
-          end
+        true -> collect_tagIDs_h(Ann, {true, false}, [])
       end
   end.
-
-is_member_node_type(_, []) ->
-  false;
-is_member_node_type(Tp, [{Tp, WithCompGen, Switch}|_Rest]) ->
-  {true, WithCompGen, Switch};
-is_member_node_type(Tp, [_|Rest]) ->
-  is_member_node_type(Tp, Rest).
 
 has_true_guard(Tree) ->
   case cerl:type(Tree) of

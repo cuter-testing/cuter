@@ -157,21 +157,29 @@ calculate_coverage(true, CodeServer, SchedulerLogs) ->
   io:format("~n~nCoverage~n"),
   VisitedTags = cuter_scheduler_maxcover:get_visitedTags(SchedulerLogs),
   %% Calculate the branch coverage (with compiler generated clauses).
-  FeasibleTags = cuter_codeserver:get_feasible_tags(CodeServer, cuter_cerl:node_types_clause()),
+  FeasibleTags = cuter_codeserver:get_feasible_tags(CodeServer, cuter_cerl:node_types_branches()),
   {Visited1, All1, Coverage1} = calculate_coverage(FeasibleTags, VisitedTags),
   io:format("Covered ~p of ~p clauses (~.2f %).~n", [Visited1, All1, Coverage1]),
-  %% Calculate the branchcoverage (without compiler generated clauses).
-  FeasibleTagsNoComp = cuter_codeserver:get_feasible_tags(CodeServer, cuter_cerl:node_types_clause_nocomp()),
+  %% Calculate the branch coverage (without compiler generated clauses).
+  FeasibleTagsNoComp = cuter_codeserver:get_feasible_tags(CodeServer, cuter_cerl:node_types_branches_nocomp()),
   {Visited2, All2, Coverage2} = calculate_coverage(FeasibleTagsNoComp, VisitedTags),
-  io:format("Covered ~p of ~p clauses [without compiler generated clauses] (~.2f %).~n", [Visited2, All2, Coverage2]),
-  %% Calculate the condition coverage (without true guards).
-  FeasibleTagsNoTrueGuards = cuter_codeserver:get_feasible_tags(CodeServer, cuter_cerl:node_types_conditions()),
-  {Visited3, All3, Coverage3} = calculate_coverage(FeasibleTagsNoTrueGuards, VisitedTags),
+  io:format("Covered ~p of ~p clauses [w/o compiler generated clauses] (~.2f %).~n", [Visited2, All2, Coverage2]),
+  %% Calculate the conditions coverage.
+  FeasibleTagsCond = cuter_codeserver:get_feasible_tags(CodeServer, cuter_cerl:node_types_conditions()),
+  {Visited3, All3, Coverage3} = calculate_coverage(FeasibleTagsCond, VisitedTags),
   io:format("Covered ~p of ~p conditions (~.2f %).~n", [Visited3, All3, Coverage3]),
-  %% Calculate the condition coverage (without true guards & compiler generated clauses).
-  FeasibleTagsNoTrueGuardsNoComp = cuter_codeserver:get_feasible_tags(CodeServer, cuter_cerl:node_types_conditions_nocomp()),
-  {Visited4, All4, Coverage4} = calculate_coverage(FeasibleTagsNoTrueGuardsNoComp, VisitedTags),
-  io:format("Covered ~p of ~p conditions [without compiler generated clauses] (~.2f %).~n", [Visited4, All4, Coverage4]),
+  %% Calculate the conditions coverage (without compiler generated clauses).
+  FeasibleTagsCondNoComp = cuter_codeserver:get_feasible_tags(CodeServer, cuter_cerl:node_types_conditions_nocomp()),
+  {Visited4, All4, Coverage4} = calculate_coverage(FeasibleTagsCondNoComp, VisitedTags),
+  io:format("Covered ~p of ~p conditions [w/o compiler generated clauses] (~.2f %).~n", [Visited4, All4, Coverage4]),
+  %% Calculate the paths coverage.
+  FeasibleTagsPaths = cuter_codeserver:get_feasible_tags(CodeServer, cuter_cerl:node_types_paths()),
+  {Visited5, All5, Coverage5} = calculate_coverage(FeasibleTagsPaths, VisitedTags),
+  io:format("Covered ~p of ~p condition outcomes (~.2f %).~n", [Visited5, All5, Coverage5]),
+  %% Calculate the condition coverage (without compiler generated clauses).
+  FeasibleTagsPathsNoComp = cuter_codeserver:get_feasible_tags(CodeServer, cuter_cerl:node_types_paths_nocomp()),
+  {Visited6, All6, Coverage6} = calculate_coverage(FeasibleTagsPathsNoComp, VisitedTags),
+  io:format("Covered ~p of ~p condition outcomes [w/o compiler generated clauses] (~.2f %).~n", [Visited6, All6, Coverage6]),
   ok.
 
 -spec calculate_coverage(cuter_cerl:visited_tags(), cuter_cerl:visited_tags()) -> {non_neg_integer(), non_neg_integer(), float()}.
