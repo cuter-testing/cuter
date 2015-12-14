@@ -142,6 +142,7 @@ wait_for_processes(Procs) ->
 -spec stop(configuration()) -> erroneous_inputs().
 stop(Conf) ->
   SchedulerLogs = cuter_scheduler_maxcover:stop(Conf#conf.scheduler),
+  _ = cuter_analyzer:solving_stats(Conf#conf.calculateCoverage, SchedulerLogs),
   _ = cuter_analyzer:calculate_coverage(Conf#conf.calculateCoverage, Conf#conf.codeServer, SchedulerLogs),
   CodeLogs = cuter_codeserver:get_logs(Conf#conf.codeServer),
   Erroneous = cuter_scheduler_maxcover:get_erroneous(SchedulerLogs),

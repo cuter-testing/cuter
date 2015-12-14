@@ -10,7 +10,7 @@
           init/1, terminate/2, code_change/3, handle_info/2, handle_call/3, handle_cast/2]).
 
 %% Logs API
--export([get_erroneous/1, get_visitedTags/1]).
+-export([get_erroneous/1, get_visitedTags/1, get_solved/1, get_not_solved/1]).
 
 -include("include/cuter_macros.hrl").
 
@@ -58,6 +58,10 @@
 %%   The heap with all the constraints/tags that await to be reversed.
 %%  visitedTags :: cuter_cerl:visited_tags()
 %%   The visited tags of the concolic executions.
+%% solved :: non_neg_integer()
+%%   The number of solved models.
+%% not_solved :: non_neg_integer()
+%%   The number of not solved models.
 
 -record(st, {
   codeServer      :: pid(),
@@ -70,13 +74,17 @@
   running         :: dict:dict(handle(), cuter:input()),
   solving         :: dict:dict(pid(), operationId()),
   tagsQueue       :: cuter_minheap:minheap(),
-  visitedTags     :: cuter_cerl:visited_tags()}).
+  visitedTags     :: cuter_cerl:visited_tags(),
+  solved = 0      :: non_neg_integer(),
+  not_solved = 0  :: non_neg_integer()}).
 -type state() :: #st{}.
 
 %% The logs reported back before shutting down.
 -record(logs, {
   erroneous   :: cuter:erroneous_inputs(),
-  visitedTags :: cuter_cerl:visited_tags()}).
+  visitedTags :: cuter_cerl:visited_tags(),
+  solved      :: non_neg_integer(),
+  notSolved  :: non_neg_integer()}).
 -type logs() :: #logs{}.
 
 %% ----------------------------------------------------------------------------
@@ -125,6 +133,18 @@ get_erroneous(Logs) ->
 -spec get_visitedTags(logs()) -> cuter_cerl:visited_tags().
 get_visitedTags(Logs) ->
   Logs#logs.visitedTags.
+
+-spec get_solved(logs()) -> non_neg_integer().
+get_solved(Logs) ->
+  Logs#logs.solved.
+
+-spec get_not_solved(logs()) -> non_neg_integer().
+get_not_solved(Logs) ->
+  Logs#logs.notSolved.
+
+mk_logs(Erroneous, VisitedTags, Solved, NotSolved) ->
+  #logs{erroneous = Erroneous, visitedTags = VisitedTags,
+    solved = Solved, notSolved = NotSolved}.
 
 %% ----------------------------------------------------------------------------
 %% gen_server callbacks (Server Implementation)
@@ -216,16 +236,17 @@ handle_call({store_execution, Handle, Info}, _From, S=#st{tagsQueue = TQ, infoTa
                   , erroneous = NErr}};
 
 %% Report the result of an SMT solving.
-handle_call({solver_reply, Reply}, {Who, _Ref}, S=#st{solving = Solving, inputsQueue = InputsQueue}) ->
+handle_call({solver_reply, Reply}, {Who, _Ref}, S=#st{solving = Solving, inputsQueue = InputsQueue, solved = Slvd, not_solved = NSlvd}) ->
   case Reply of
     %% The model could not be satisfied.
     error ->
-      {reply, ok, S#st{solving = dict:erase(Who, Solving)}};
+      {reply, ok, S#st{solving = dict:erase(Who, Solving), not_solved = NSlvd + 1}};
     %% The modal was satisfied and a new input was generated.
     {ok, Input} ->
       OperationId = dict:fetch(Who, Solving),
       {reply, ok, S#st{ inputsQueue = queue:in({OperationId+1, Input}, InputsQueue)  % Queue the input
-                      , solving = dict:erase(Who, Solving)}}
+                      , solving = dict:erase(Who, Solving)
+                      , solved = Slvd + 1}}
   end;
 
 %% Request an operation to reverse.
@@ -241,8 +262,8 @@ handle_call(request_operation, {Who, _Ref}, S=#st{tagsQueue = TagsQueue, infoTab
   end;
 
 %% Stops the server.
-handle_call(stop, _From, S=#st{erroneous = Err, visitedTags = Visited}) ->
-  Logs = #logs{erroneous = lists:reverse(Err), visitedTags = Visited},
+handle_call(stop, _From, S=#st{erroneous = Err, visitedTags = Visited, solved = Slvd, not_solved = NSlvd}) ->
+  Logs = mk_logs(lists:reverse(Err), Visited, Slvd, NSlvd),
   {stop, normal, Logs, S}.
 
 %% handle_cast/2
