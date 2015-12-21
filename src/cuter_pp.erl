@@ -6,22 +6,19 @@
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_info/2, handle_call/3, handle_cast/2]).
 -export([start/1, stop/0]).
-
 %% Report information about the concolic executions.
 -export([mfa/1, input/2, error_retrieving_spec/2, execution_status/2,
          execution_info/2, path_vertex/2, flush/1, errors_found/1,
          form_has_unsupported_type/1, invalid_ast_with_pmatch/2, code_logs/1]).
-
 %% Report information about solving.
 -export([solving_failed_unsat/0, solving_failed_timeout/0, solving_failed_unknown/0]).
-
 %% Report callgraph related info.
 -export([callgraph_calculation_failed/1, callgraph_calculation_started/1,
          callgraph_calculation_succeeded/0, loading_visited_module/1]).
-
 %% Parsing of options.
 -export([loaded_whitelist/2, error_loading_whitelist/2]).
-
+%% Statistics about the solver.
+-export([solved_models/2]).
 %% Format errors.
 -export([abstract_code_missing/1, cover_compiled_module/1, non_existing_module/1,
          compilation_errors/2, non_existing_mfa/1]).
@@ -111,6 +108,7 @@
               | {callgraph_calculation_failed, string()}
               | callgraph_calculation_succeeded
               | {loading_visited_module, cuter:mod()}
+              | {solved_models, non_neg_integer(), non_neg_integer()}
               .
 
 %% Reporting levels.
@@ -255,6 +253,14 @@ mfa_non_existing(M, F, Arity) ->
   gen_server:call(?PRETTY_PRINTER, {mfa_non_existing, {M, F, Arity}}).
 
 %% ----------------------------------------------------------------------------
+%% Statistics about the solver.
+%% ----------------------------------------------------------------------------
+
+-spec solved_models(non_neg_integer(), non_neg_integer()) -> ok.
+solved_models(Solved, NotSolved) ->
+  gen_server:call(?PRETTY_PRINTER, {solved_models, Solved, NotSolved}).
+
+%% ----------------------------------------------------------------------------
 %% Callgraph related info.
 %% ----------------------------------------------------------------------------
 
@@ -300,6 +306,19 @@ code_change(_OldVsn, State, _Extra) ->
 
 %% gen_server callback : handle_call/3
 -spec handle_call(call(), from(), state()) -> {reply, ok, state()}.
+
+
+%% Statistics about the solver.
+
+handle_call({solved_models, Solved, NotSolved}, _From, State=#st{pplevel = PpLevel}) ->
+  case PpLevel#pp_level.execInfo of
+    ?MINIMAL -> ok;
+    _ ->
+      io:format("~nSolver Statistics ...~n"),
+      io:format("  - Solved models   : ~w~n", [Solved]),
+      io:format("  - Unsolved models : ~w~n", [NotSolved])
+  end,
+  {reply, ok, State};
 
 %% Parsing of options.
 

@@ -2,7 +2,7 @@
 %%------------------------------------------------------------------------------
 -module(cuter_analyzer).
 
--export([get_result/1, get_mapping/1, get_traces/1, is_runtime_error/1, solving_stats/2,
+-export([get_result/1, get_mapping/1, get_traces/1, is_runtime_error/1, solving_stats/1,
          get_int_process/1, process_raw_execution_info/1, calculate_coverage/3,
          %% Constructor & accessors for #raw{}
          mk_raw_info/5, traces_of_raw_info/1, int_of_raw_info/1,
@@ -151,14 +151,11 @@ pathVertex_of_info(Info) ->
 %% Solving stats.
 %% ----------------------------------------------------------------------------
 
--spec solving_stats(boolean(), cuter_scheduler_maxcover:logs()) -> ok.
-solving_stats(false, _) -> ok;
-solving_stats(true, SchedulerLogs) ->
+-spec solving_stats(cuter_scheduler_maxcover:logs()) -> ok.
+solving_stats(SchedulerLogs) ->
   Solved = cuter_scheduler_maxcover:get_solved(SchedulerLogs),
   NotSolved = cuter_scheduler_maxcover:get_not_solved(SchedulerLogs),
-  io:format("~n~nSolved Statistics~n"),
-  io:format("  Solved models   : ~w~n", [Solved]),
-  io:format("  Unsolved models : ~w", [NotSolved]).
+  cuter_pp:solved_models(Solved, NotSolved).
 
 %% ----------------------------------------------------------------------------
 %% Calculate coverage.
