@@ -6,17 +6,25 @@
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_info/2, handle_call/3, handle_cast/2]).
 -export([start/1, stop/0]).
-
 %% Report information about the concolic executions.
 -export([mfa/1, input/2, error_retrieving_spec/2, execution_status/2,
          execution_info/2, path_vertex/2, flush/1, errors_found/1,
          form_has_unsupported_type/1, invalid_ast_with_pmatch/2, code_logs/1]).
-
 %% Report information about solving.
 -export([solving_failed_unsat/0, solving_failed_timeout/0, solving_failed_unknown/0]).
-
+%% Report callgraph related info.
+-export([callgraph_calculation_failed/1, callgraph_calculation_started/1,
+         callgraph_calculation_succeeded/0, loading_visited_module/1]).
 %% Parsing of options.
 -export([loaded_whitelist/2, error_loading_whitelist/2]).
+%% Statistics about the solver.
+-export([solved_models/2]).
+%% Report coverage.
+-export([coverage_title/0, branch_coverage/3, branch_coverage_nocomp/3, condition_coverage/3,
+         condition_coverage_nocomp/3, condition_outcome_coverage/3, condition_outcome_coverage_nocomp/3]).
+%% Format errors.
+-export([abstract_code_missing/1, cover_compiled_module/1, non_existing_module/1,
+         compilation_errors/2, non_existing_mfa/1]).
 
 -export([ reversible_operations/1
         %% Execution info reporting level
@@ -81,6 +89,10 @@
 
 %% Types for calls, casts, & replies.
 
+-type coverage_call() :: branch_coverage | branch_coverage_nocomp
+                       | condition_coverage | condition_coverage_nocomp
+                       | condition_outcome_coverage | condition_outcome_coverage_nocomp.
+
 -type call() :: {whitelist_loaded, file:name(), cuter_mock:whitelist()}
               | {whitelist_error, file:name(), any()}
               | {module_non_existing, atom()}
@@ -99,6 +111,13 @@
               | solving_failed_unknown
               | {errors_found, cuter:erroneous_inputs()}
               | {code_logs, cuter_codeserver:logs()}
+              | {callgraph_calculation_started, mfa()}
+              | {callgraph_calculation_failed, string()}
+              | callgraph_calculation_succeeded
+              | {loading_visited_module, cuter:mod()}
+              | {solved_models, non_neg_integer(), non_neg_integer()}
+              | coverage_title
+              | {coverage_call(), non_neg_integer(), non_neg_integer(), float()}
               .
 
 %% Reporting levels.
@@ -242,6 +261,66 @@ module_non_existing(M) ->
 mfa_non_existing(M, F, Arity) ->
   gen_server:call(?PRETTY_PRINTER, {mfa_non_existing, {M, F, Arity}}).
 
+%% ----------------------------------------------------------------------------
+%% Statistics about the solver.
+%% ----------------------------------------------------------------------------
+
+-spec solved_models(non_neg_integer(), non_neg_integer()) -> ok.
+solved_models(Solved, NotSolved) ->
+  gen_server:call(?PRETTY_PRINTER, {solved_models, Solved, NotSolved}).
+
+%% ----------------------------------------------------------------------------
+%% Report coverage.
+%% ----------------------------------------------------------------------------
+
+-spec coverage_title() -> ok.
+coverage_title() ->
+  gen_server:call(?PRETTY_PRINTER, coverage_title).
+
+-spec branch_coverage(non_neg_integer(), non_neg_integer(), float()) -> ok.
+branch_coverage(Visited, All, Coverage) ->
+  gen_server:call(?PRETTY_PRINTER, {branch_coverage, Visited, All, Coverage}).
+
+-spec branch_coverage_nocomp(non_neg_integer(), non_neg_integer(), float()) -> ok.
+branch_coverage_nocomp(Visited, All, Coverage) ->
+  gen_server:call(?PRETTY_PRINTER, {branch_coverage_nocomp, Visited, All, Coverage}).
+
+-spec condition_coverage(non_neg_integer(), non_neg_integer(), float()) -> ok.
+condition_coverage(Visited, All, Coverage) ->
+  gen_server:call(?PRETTY_PRINTER, {condition_coverage, Visited, All, Coverage}).
+
+-spec condition_coverage_nocomp(non_neg_integer(), non_neg_integer(), float()) -> ok.
+condition_coverage_nocomp(Visited, All, Coverage) ->
+  gen_server:call(?PRETTY_PRINTER, {condition_coverage_nocomp, Visited, All, Coverage}).
+
+-spec condition_outcome_coverage(non_neg_integer(), non_neg_integer(), float()) -> ok.
+condition_outcome_coverage(Visited, All, Coverage) ->
+  gen_server:call(?PRETTY_PRINTER, {condition_outcome_coverage, Visited, All, Coverage}).
+
+-spec condition_outcome_coverage_nocomp(non_neg_integer(), non_neg_integer(), float()) -> ok.
+condition_outcome_coverage_nocomp(Visited, All, Coverage) ->
+  gen_server:call(?PRETTY_PRINTER, {condition_outcome_coverage_nocomp, Visited, All, Coverage}).
+
+%% ----------------------------------------------------------------------------
+%% Callgraph related info.
+%% ----------------------------------------------------------------------------
+
+-spec callgraph_calculation_started(mfa()) -> ok.
+callgraph_calculation_started(Mfa) ->
+  gen_server:call(?PRETTY_PRINTER, {callgraph_calculation_started, Mfa}).
+
+-spec callgraph_calculation_failed(string()) -> ok.
+callgraph_calculation_failed(Reason) ->
+  gen_server:call(?PRETTY_PRINTER, {callgraph_calculation_failed, Reason}).
+
+-spec callgraph_calculation_succeeded() -> ok.
+callgraph_calculation_succeeded() ->
+  gen_server:call(?PRETTY_PRINTER, callgraph_calculation_succeeded).
+
+-spec loading_visited_module(cuter:mod()) -> ok.
+loading_visited_module(M) ->
+  gen_server:call(?PRETTY_PRINTER, {loading_visited_module, M}).
+
 %% ============================================================================
 %% gen_server callbacks (Server Implementation)
 %% ============================================================================
@@ -269,6 +348,88 @@ code_change(_OldVsn, State, _Extra) ->
 %% gen_server callback : handle_call/3
 -spec handle_call(call(), from(), state()) -> {reply, ok, state()}.
 
+
+%% Report coverage.
+
+handle_call(coverage_title, _From, State=#st{pplevel = PpLevel}) ->
+  case PpLevel#pp_level.execInfo of
+    ?MINIMAL -> io:format(standard_error, "~nCoverage Metrics ...~n", []);
+    _ -> io:format("~nCoverage Statistics ...~n")
+  end,
+  {reply, ok, State};
+
+handle_call({branch_coverage, Visited, All, Coverage}, _From, State=#st{pplevel = PpLevel}) ->
+  case PpLevel#pp_level.execInfo of
+    ?MINIMAL ->
+      io:format(standard_error, "  - ~p of ~p clauses (~.2f %).~n", [Visited, All, Coverage]);
+    _ ->
+      io:format("  - ~p of ~p clauses (~.2f %).~n", [Visited, All, Coverage])
+  end,
+  {reply, ok, State};
+
+handle_call({branch_coverage_nocomp, Visited, All, Coverage}, _From, State=#st{pplevel = PpLevel}) ->
+  case PpLevel#pp_level.execInfo of
+    ?MINIMAL ->
+      io:format(standard_error, "  - ~p of ~p clauses [w/o compiler generated clauses] (~.2f %).~n",
+        [Visited, All, Coverage]);
+    _ ->
+      io:format("  - ~p of ~p clauses [w/o compiler generated clauses] (~.2f %).~n",
+        [Visited, All, Coverage])
+  end,
+  {reply, ok, State};
+
+handle_call({condition_coverage, Visited, All, Coverage}, _From, State=#st{pplevel = PpLevel}) ->
+  case PpLevel#pp_level.execInfo of
+    ?MINIMAL ->
+      io:format(standard_error, "  - ~p of ~p conditions (~.2f %).~n", [Visited, All, Coverage]);
+    _ ->
+      io:format("  - ~p of ~p conditions (~.2f %).~n", [Visited, All, Coverage])
+  end,
+  {reply, ok, State};
+
+handle_call({condition_coverage_nocomp, Visited, All, Coverage}, _From, State=#st{pplevel = PpLevel}) ->
+  case PpLevel#pp_level.execInfo of
+    ?MINIMAL ->
+      io:format(standard_error, "  - ~p of ~p conditions [w/o compiler generated clauses] (~.2f %).~n",
+        [Visited, All, Coverage]);
+    _ ->
+      io:format("  - ~p of ~p conditions [w/o compiler generated clauses] (~.2f %).~n",
+        [Visited, All, Coverage])
+  end,
+  {reply, ok, State};
+
+handle_call({condition_outcome_coverage, Visited, All, Coverage}, _From, State=#st{pplevel = PpLevel}) ->
+  case PpLevel#pp_level.execInfo of
+    ?MINIMAL ->
+      io:format(standard_error, "  - ~p of ~p condition outcomes (~.2f %).~n", [Visited, All, Coverage]);
+    _ ->
+      io:format("  - ~p of ~p condition outcomes (~.2f %).~n", [Visited, All, Coverage])
+  end,
+  {reply, ok, State};
+
+handle_call({condition_outcome_coverage_nocomp, Visited, All, Coverage}, _From, State=#st{pplevel = PpLevel}) ->
+  case PpLevel#pp_level.execInfo of
+    ?MINIMAL ->
+      io:format(standard_error, "  - ~p of ~p condition outcomes [w/o compiler generated clauses] (~.2f %).~n",
+        [Visited, All, Coverage]);
+    _ ->
+      io:format("  - ~p of ~p condition outcomes [w/o compiler generated clauses] (~.2f %).~n",
+        [Visited, All, Coverage])
+  end,
+  {reply, ok, State};
+
+%% Statistics about the solver.
+
+handle_call({solved_models, Solved, NotSolved}, _From, State=#st{pplevel = PpLevel}) ->
+  case PpLevel#pp_level.execInfo of
+    ?MINIMAL -> ok;
+    _ ->
+      io:format("~nSolver Statistics ...~n"),
+      io:format("  - Solved models   : ~w~n", [Solved]),
+      io:format("  - Unsolved models : ~w~n", [NotSolved])
+  end,
+  {reply, ok, State};
+
 %% Parsing of options.
 
 handle_call({whitelist_loaded, File, Whitelist}, _From, State=#st{pplevel = PpLevel}) ->
@@ -284,6 +445,33 @@ handle_call({whitelist_error, File, Error}, _From, State=#st{pplevel = PpLevel})
   case PpLevel#pp_level.execInfo of
     ?MINIMAL -> io:format(standard_error, "Error ~p occured when loading whitelisted MFAs from ~p.~n", [Error, File]);
     _ -> io:format("Error ~p occured when loading whitelisted MFAs from ~p.~n", [Error, File])
+  end,
+  {reply, ok, State};
+
+%% Callgraph related info.
+
+handle_call({callgraph_calculation_started, Mfa}, _From, State=#st{pplevel = PpLevel}) ->
+  case PpLevel#pp_level.execInfo of
+    ?MINIMAL -> io:format(standard_error, "Calculating the callgraph of ~p...  ", [Mfa]);
+    _ -> io:format("Calculating the callgraph of ~p...  ", [Mfa])
+  end,
+  {reply, ok, State};
+handle_call({callgraph_calculation_failed, Reason}, _From, State=#st{pplevel = PpLevel}) ->
+  case PpLevel#pp_level.execInfo of
+    ?MINIMAL -> io:format(standard_error, "ERROR~nFailed to calculate the callgraph because~n  ~p~n", [Reason]);
+    _ -> io:format("ERROR~nFailed to calculate the callgraph because~n  ~p~n", [Reason])
+  end,
+  {reply, ok, State};
+handle_call(callgraph_calculation_succeeded, _From, State=#st{pplevel = PpLevel}) ->
+  case PpLevel#pp_level.execInfo of
+    ?MINIMAL -> io:format(standard_error, "OK~n", []);
+    _ -> io:format("OK~n")
+  end,
+  {reply, ok, State};
+handle_call({loading_visited_module, M}, _From, State=#st{pplevel = PpLevel}) ->
+  case PpLevel#pp_level.execInfo of
+    ?MINIMAL -> ok;
+    _ -> io:format("Loading module ~p.~n", [M])
   end,
   {reply, ok, State};
 
@@ -632,6 +820,30 @@ pp_erroneous_inputs_h([], _MFA, _N) ->
 pp_erroneous_inputs_h([I|Is], {M, F, _}=MFA, N) ->
   io:format("~n#~w ~p:~p(~s)", [N, M, F, pp_arguments(I)]),
   pp_erroneous_inputs_h(Is, MFA, N + 1).
+
+%% ----------------------------------------------------------------------------
+%% Format errors.
+%% ----------------------------------------------------------------------------
+
+-spec abstract_code_missing(cuter:mod()) -> string().
+abstract_code_missing(M) ->
+  lists:flatten(io_lib:format("Could not retrieve the Abstract Code for module ~p.", [M])).
+
+-spec cover_compiled_module(cuter:mod()) -> string().
+cover_compiled_module(M) ->
+  lists:flatten(io_lib:format("Module ~p is cover compiled.", [M])).
+
+-spec non_existing_module(cuter:mod()) -> string().
+non_existing_module(M) ->
+  lists:flatten(io_lib:format("Could not find module ~p.", [M])).
+
+-spec compilation_errors(cuter:mod(), any()) -> string().
+compilation_errors(M, Errors) ->
+  lists:flatten(io_lib:format("Compilation of module ~p failed with ~p.", [M, Errors])).
+
+-spec non_existing_mfa(mfa()) -> string().
+non_existing_mfa(Mfa) ->
+  lists:flatten(io_lib:format("Could not find module mfa ~p.", [Mfa])).
 
 %% ----------------------------------------------------------------------------
 %% FIXME Remaining to be updated

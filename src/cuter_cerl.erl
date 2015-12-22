@@ -3,9 +3,16 @@
 -module(cuter_cerl).
 
 %% External exports
--export([load/4, retrieve_spec/2, get_tags/1, id_of_tag/1, tag_from_id/1, empty_tag/0, get_stored_types/1,
-         %% Exported for debugging use.
-         classify_attributes/1]).
+-export([retrieve_spec/2, get_tags/1, id_of_tag/1, tag_from_id/1, empty_tag/0,
+         get_stored_types/1, empty_tagId/0, collect_feasible_tags/2]).
+%% Core AST extraction.
+-export([load/4, get_core/2]).
+%% Node types generators.
+-export([node_types_branches/0, node_types_branches_nocomp/0, node_types_all/0,
+         node_types_conditions/0, node_types_conditions_nocomp/0,
+         node_types_paths/0, node_types_paths_nocomp/0]).
+%% Exported for debugging use.
+-export([classify_attributes/1]).
 
 %% We are using the records representation of the Core Erlang Abstract
 %% Syntax Tree as they are defined in core_parse.hrl
@@ -16,18 +23,17 @@
 -export_type([compile_error/0, cerl_spec/0, cerl_func/0, cerl_type/0, visited_tags/0,
               cerl_bounded_func/0, cerl_constraint/0, tagID/0, tag/0, tag_generator/0,
               cerl_attr_type/0, cerl_recdef/0, cerl_typedef/0, cerl_record_field/0, cerl_type_record_field/0,
-              cerl_attr_spec/0, cerl_spec_func/0]).
+              cerl_attr_spec/0, cerl_spec_func/0, node_types/0]).
 
 -type info()          :: anno | attributes | exports | name.
--type code_error()    :: {error, {loaded_ret_atoms(), cuter:mod()}}.
--type abs_code_error():: {error, {missing_abstract_code, cuter:mod()}}.
--type compile_error() :: {error, {compile, {cuter:mod(), term()}}}.
--type load_error()    :: code_error() | abs_code_error() | compile_error().
+-type compile_error() :: {error, string()}.
+-type load_error()    :: {error, preloaded} | compile_error().
 
 -type tagID() :: integer().
 -opaque tag() :: {?BRANCH_TAG_PREFIX, tagID()}.
 -type tag_generator() :: fun(() -> tag()).
 -type visited_tags() :: gb_sets:set(tagID()).
+-type node_types() :: {(conditions | paths | branches), boolean()} | all.
 
 -type lineno() :: integer().
 -type name() :: atom().
@@ -120,18 +126,18 @@
 %%====================================================================
 -spec load(M, cuter_codeserver:module_cache(), tag_generator(), boolean()) -> {ok, M} | load_error() when M :: cuter:mod().
 load(Mod, Cache, TagGen, WithPmatch) ->
-case get_core_ast(Mod, WithPmatch) of
-  {ok, AST} ->
-    case is_valid_ast(WithPmatch, AST) of
-      false ->
-        cuter_pp:invalid_ast_with_pmatch(Mod, AST),
-        load(Mod, Cache, TagGen, false);
-      true ->
-        store_module(Mod, AST, Cache, TagGen),
-        {ok, Mod}
-    end;
-  {error, _} = Error -> Error
-end.
+  case get_core(Mod, WithPmatch) of
+    {ok, AST} ->
+      case is_valid_ast(WithPmatch, AST) of
+        false ->
+          cuter_pp:invalid_ast_with_pmatch(Mod, AST),
+          load(Mod, Cache, TagGen, false);
+        true ->
+          store_module(Mod, AST, Cache, TagGen),
+          {ok, Mod}
+      end;
+    {error, _} = Error -> Error
+  end.
 
 is_valid_ast(false, _AST) ->
   true;
@@ -171,20 +177,21 @@ store_module(M, AST, Cache, TagGen) ->
   store_module_funs(M, AST, Cache, TagGen).
 
 %% Gets the Core Erlang AST of a module.
--spec get_core_ast(cuter:mod(), boolean()) -> {ok, cerl:cerl()} | load_error().
-get_core_ast(M, WithPmatch) ->
-  case mod_beam_path(M) of
-    {ok, BeamPath} ->
-      case extract_abstract_code(M, BeamPath) of
-        {ok, AbstractCode} ->
-          case compile:forms(AbstractCode, compile_options(WithPmatch)) of
-            {ok, M, AST} -> {ok, AST};
-            {ok, M, AST, _Warns} -> {ok, AST};
-            Errors -> {error, {compile, {M, Errors}}}
-         end;
-        {error, _} = Error -> Error
-      end;
-    {error, _} = Error -> Error
+-spec get_core(cuter:mod(), boolean()) -> {ok, cerl:cerl()} | load_error().
+get_core(M, WithPmatch) ->
+  try
+    case beam_path(M) of
+      {ok, BeamPath} ->
+        AbstractCode = get_abstract_code(M, BeamPath),
+        case compile:forms(AbstractCode, compile_options(WithPmatch)) of
+          {ok, M, AST} -> {ok, AST};
+          {ok, M, AST, _Warns} -> {ok, AST};
+          Errors -> {error, cuter_pp:compilation_errors(M, Errors)}
+        end;
+      preloaded -> {error, preloaded}
+    end
+  catch
+    throw:Reason -> {error, Reason}
   end.
 
 %% The compilation options.
@@ -192,25 +199,21 @@ compile_options(true) -> [to_core, {core_transform, cerl_pmatch}];
 compile_options(false) -> [to_core].
 
 %% Gets the path of the module's beam file, if such one exists.
--spec mod_beam_path(cuter:mod()) -> {ok, file:filename()} | code_error().
-mod_beam_path(M) ->
+-spec beam_path(cuter:mod()) -> {ok, file:filename()} | preloaded.
+beam_path(M) ->
   case code:which(M) of
-    non_existing   -> {error, {non_existing, M}};
-    preloaded      -> {error, {preloaded, M}};
-    cover_compiled -> {error, {cover_compiled, M}};
+    preloaded      -> preloaded;
+    non_existing   -> throw(cuter_pp:non_existing_module(M));
+    cover_compiled -> throw(cuter_pp:cover_compiled_module(M));
     Path -> {ok, Path}
   end.
 
 %% Gets the abstract code from a module's beam file, if possible.
--spec extract_abstract_code(cuter:mod(), file:name()) -> {ok, list()} | abs_code_error().
-extract_abstract_code(Mod, Beam) ->
+-spec get_abstract_code(cuter:mod(), file:name()) -> list().
+get_abstract_code(Mod, Beam) ->
   case beam_lib:chunks(Beam, [abstract_code]) of
-    {error, beam_lib, _} ->
-      {error, {missing_abstract_code, Mod}};
-    {ok, {Mod, [{abstract_code, no_abstract_code}]}} ->
-      {error, {missing_abstract_code, Mod}};
-    {ok, {Mod, [{abstract_code, {_, AbstractCode}}]}} ->
-      {ok, AbstractCode}
+    {ok, {Mod, [{abstract_code, {_, AbstractCode}}]}} -> AbstractCode;
+    _ -> throw(cuter_pp:abstract_code_missing(Mod))
   end.
 
 %% Store module information
@@ -280,69 +283,335 @@ classify_attributes([{What, #c_literal{val = Val}}|Attrs], Types, Specs) ->
     _Ignore -> classify_attributes(Attrs, Types, Specs)
   end.
 
-%% Annotates the AST with tags.
--spec annotate(cerl:cerl(), tag_generator()) -> cerl:cerl().
-annotate(Def, TagGen) -> annotate_pats(Def, TagGen, false).
+%% ----------------------------------------------------------------------------
+%% Annotate the AST with tags.
+%% ----------------------------------------------------------------------------
 
-%% Annotate patterns
--spec annotate_pats(cerl:cerl(), tag_generator(), boolean()) -> cerl:cerl().
-annotate_pats({c_alias, Anno, Var, Pat}, TagGen, InPats) ->
-  {c_alias, Anno, annotate_pats(Var, TagGen, InPats), annotate_pats(Pat, TagGen, InPats)};
-annotate_pats({c_apply, Anno, Op, Args}, TagGen, InPats) ->
-  {c_apply, [TagGen()|Anno], annotate_pats(Op, TagGen, InPats), [annotate_pats(A, TagGen, InPats) || A <- Args]};
-annotate_pats({c_binary, Anno, Segs}, TagGen, InPats) ->
-  WithTags = [{next_tag, TagGen()}, TagGen() | Anno],
-  {c_binary, WithTags, [annotate_pats(S, TagGen, InPats) || S <- Segs]};
-annotate_pats({c_bitstr, Anno, Val, Sz, Unit, Type, Flags}, TagGen, InPats) ->
-  WithTags = [{next_tag, TagGen()}, TagGen() | Anno],
-  {c_bitstr, WithTags, annotate_pats(Val, TagGen, InPats), annotate_pats(Sz, TagGen, InPats),
-    annotate_pats(Unit, TagGen, InPats), annotate_pats(Type, TagGen, InPats), annotate_pats(Flags, TagGen, InPats)};
-annotate_pats({c_call, Anno, Mod, Name, Args}, TagGen, InPats) ->
-  {c_call, [TagGen()|Anno], annotate_pats(Mod, TagGen, InPats), annotate_pats(Name, TagGen, InPats), [annotate_pats(A, TagGen, InPats) || A <- Args]};
-annotate_pats({c_case, Anno, Arg, Clauses}, TagGen, InPats) ->
-  {c_case, Anno, annotate_pats(Arg, TagGen, InPats), [annotate_pats(Cl, TagGen, InPats) || Cl <- Clauses]};
-annotate_pats({c_catch, Anno, Body}, TagGen, InPats) ->
-  {c_catch, Anno, annotate_pats(Body, TagGen, InPats)};
-annotate_pats({c_clause, Anno, Pats, Guard, Body}, TagGen, InPats) ->
-  WithTags = [{next_tag, TagGen()}, TagGen() | Anno],
-  {c_clause, WithTags, [annotate_pats(P, TagGen, true) || P <- Pats], annotate_pats(Guard, TagGen, InPats), annotate_pats(Body, TagGen, InPats)};
-annotate_pats({c_cons, Anno, Hd, Tl}, TagGen, InPats) ->
-  WithTags = [{next_tag, TagGen()}, TagGen() | Anno],
-  case InPats of
-    false -> {c_cons, Anno, annotate_pats(Hd, TagGen, false), annotate_pats(Tl, TagGen, false)};
-    true  -> {c_cons, WithTags, annotate_pats(Hd, TagGen, true), annotate_pats(Tl, TagGen, true)}
-  end;
-annotate_pats({c_fun, Anno, Vars, Body}, TagGen, InPats) ->
-  {c_fun, Anno, [annotate_pats(V, TagGen, InPats) || V <- Vars], annotate_pats(Body, TagGen, InPats)};
-annotate_pats({c_let, Anno, Vars, Arg, Body}, TagGen, InPats) ->
-  {c_let, Anno, [annotate_pats(V, TagGen, InPats) || V <- Vars], annotate_pats(Arg, TagGen, InPats), annotate_pats(Body, TagGen, InPats)};
-annotate_pats({c_letrec, Anno, Defs, Body}, TagGen, InPats) ->
-  {c_letrec, Anno, [{annotate_pats(X, TagGen, InPats), annotate_pats(Y, TagGen, InPats)} || {X, Y} <- Defs], annotate_pats(Body, TagGen, InPats)};
-annotate_pats({c_literal, Anno, Val}, TagGen, InPats) ->
-  case InPats of
-    false -> {c_literal, Anno, Val};
-    true  -> {c_literal, [{next_tag, TagGen()}, TagGen() | Anno], Val}
-  end;
-annotate_pats({c_primop, Anno, Name, Args}, TagGen, InPats) ->
-  {c_primop, Anno, annotate_pats(Name, TagGen, InPats), [annotate_pats(A, TagGen, InPats) || A <- Args]};
-annotate_pats({c_receive, Anno, Clauses, Timeout, Action}, TagGen, InPats) ->
-  {c_receive, Anno, [annotate_pats(Cl, TagGen, InPats) || Cl <- Clauses], annotate_pats(Timeout, TagGen, InPats), annotate_pats(Action, TagGen, InPats)};
-annotate_pats({c_seq, Anno, Arg, Body}, TagGen, InPats) ->
-  {c_seq, Anno, annotate_pats(Arg, TagGen, InPats), annotate_pats(Body, TagGen, InPats)};
-annotate_pats({c_try, Anno, Arg, Vars, Body, Evars, Handler}, TagGen, InPats) ->
-  {c_try, Anno, annotate_pats(Arg, TagGen, InPats), [annotate_pats(V, TagGen, InPats) || V <- Vars],
-    annotate_pats(Body, TagGen, InPats), [annotate_pats(EV, TagGen, InPats) || EV <- Evars], annotate_pats(Handler, TagGen, InPats)};
-annotate_pats({c_tuple, Anno, Es}, TagGen, InPats) ->
-  WithTags = [{next_tag, TagGen()}, TagGen() | Anno],
-  case InPats of
-    false -> {c_tuple, Anno, [annotate_pats(E, TagGen, false) || E <- Es]};
-    true  -> {c_tuple, WithTags, [annotate_pats(E, TagGen, true) || E <- Es]}
-  end;
-annotate_pats({c_values, Anno, Es}, TagGen, InPats) ->
-  {c_values, Anno, [annotate_pats(E, TagGen, InPats) || E <- Es]};
-annotate_pats({c_var, Anno, Name}, _TagGen, _InPats) ->
-  {c_var, Anno, Name};
-annotate_pats(X, _,_) -> X. %% FIXME temp fix for maps
+-spec annotate(cerl:cerl(), tag_generator()) -> cerl:cerl().
+annotate(Def, TagGen) -> annotate(Def, TagGen, false).
+
+-spec annotate(cerl:cerl(), tag_generator(), boolean()) -> cerl:cerl().
+annotate(Tree, TagGen, InPats) ->
+  case cerl:type(Tree) of
+    alias ->
+      Var = annotate(cerl:alias_var(Tree), TagGen, InPats),
+      Pat = annotate(cerl:alias_pat(Tree), TagGen, InPats),
+      cerl:update_c_alias(Tree, Var, Pat);
+    'apply' ->
+      Op = annotate(cerl:apply_op(Tree), TagGen, InPats),
+      Args = annotate_all(cerl:apply_args(Tree), TagGen, InPats),
+      cerl:update_c_apply(Tree, Op, Args);
+    binary ->
+      Segs = annotate_all(cerl:binary_segments(Tree), TagGen, InPats),
+      T = cerl:update_c_binary(Tree, Segs),
+      case InPats of
+        false -> T;
+        true  -> cerl:add_ann(tag_pair(TagGen), T)
+      end;
+    bitstr ->
+      Val = annotate(cerl:bitstr_val(Tree), TagGen, InPats),
+      Size = annotate(cerl:bitstr_size(Tree), TagGen, InPats),
+      Unit = annotate(cerl:bitstr_unit(Tree), TagGen, InPats),
+      Type = annotate(cerl:bitstr_type(Tree), TagGen, InPats),
+      Flags = annotate(cerl:bitstr_flags(Tree), TagGen, InPats),
+      T = cerl:update_c_bitstr(Tree, Val, Size, Unit, Type, Flags),
+      case InPats of
+        false -> T;
+        true  -> cerl:add_ann(tag_pair(TagGen), T)
+      end;
+    call ->
+      Mod = annotate(cerl:call_module(Tree), TagGen, InPats),
+      Name = annotate(cerl:call_name(Tree), TagGen, InPats),
+      Args = annotate_all(cerl:call_args(Tree), TagGen, InPats),
+      cerl:update_c_call(Tree, Mod, Name, Args);
+    'case' ->
+      Arg = annotate(cerl:case_arg(Tree), TagGen, InPats),
+      Clauses0 = annotate_all(cerl:case_clauses(Tree), TagGen, InPats),
+      Clauses = mark_last_clause(Clauses0),
+      cerl:update_c_case(Tree, Arg, Clauses);
+    'catch' ->
+      Body = annotate(cerl:catch_body(Tree), TagGen, InPats),
+      cerl:update_c_catch(Tree, Body);
+    clause ->
+      Pats = annotate_all(cerl:clause_pats(Tree), TagGen, true),
+      Guard = annotate(cerl:clause_guard(Tree), TagGen, InPats),
+      Body = annotate(cerl:clause_body(Tree), TagGen, InPats),
+      T = cerl:update_c_clause(Tree, Pats, Guard, Body),
+      cerl:add_ann(tag_pair(TagGen), T);
+    cons ->
+      Hd = annotate(cerl:cons_hd(Tree), TagGen, InPats),
+      Tl = annotate(cerl:cons_tl(Tree), TagGen, InPats),
+      T = cerl:update_c_cons_skel(Tree, Hd, Tl),
+      case InPats of
+        false -> T;
+        true  -> cerl:add_ann(tag_pair(TagGen), T)
+      end;
+    'fun' ->
+      Vars = annotate_all(cerl:fun_vars(Tree), TagGen, InPats),
+      Body = annotate(cerl:fun_body(Tree), TagGen, InPats),
+      cerl:update_c_fun(Tree, Vars, Body);
+    'let' ->
+      Vars = annotate_all(cerl:let_vars(Tree), TagGen, InPats),
+      Arg = annotate(cerl:let_arg(Tree), TagGen, InPats),
+      Body = annotate(cerl:let_body(Tree), TagGen, InPats),
+      cerl:update_c_let(Tree, Vars, Arg, Body);
+    letrec ->
+      Combine = fun(X, Y) -> {annotate(X, TagGen, InPats), annotate(Y, TagGen, InPats)} end,
+      Defs = [Combine(N, D) || {N, D} <- cerl:letrec_defs(Tree)],
+      Body = annotate(cerl:letrec_body(Tree), TagGen, InPats),
+      cerl:update_c_letrec(Tree, Defs, Body);
+    literal ->
+      case InPats of
+        false -> Tree;
+        true  -> cerl:add_ann(tag_pair(TagGen), Tree)
+      end;
+    primop ->
+      Name = annotate(cerl:primop_name(Tree), TagGen, InPats),
+      Args = annotate_all(cerl:primop_args(Tree), TagGen, InPats),
+      cerl:update_c_primop(Tree, Name, Args);
+    'receive' ->
+      Clauses0 = annotate_all(cerl:receive_clauses(Tree), TagGen, InPats),
+      Clauses = mark_last_clause(Clauses0),
+      Timeout = annotate(cerl:receive_timeout(Tree), TagGen, InPats),
+      Action = annotate(cerl:receive_action(Tree), TagGen, InPats),
+      cerl:update_c_receive(Tree, Clauses, Timeout, Action);
+    seq ->
+      Arg = annotate(cerl:seq_arg(Tree), TagGen, InPats),
+      Body = annotate(cerl:seq_body(Tree), TagGen, InPats),
+      cerl:update_c_seq(Tree, Arg, Body);
+    'try' ->
+      Arg = annotate(cerl:try_arg(Tree), TagGen, InPats),
+      Vars = annotate_all(cerl:try_vars(Tree), TagGen, InPats),
+      Body = annotate(cerl:try_body(Tree), TagGen, InPats),
+      Evars = annotate_all(cerl:try_evars(Tree), TagGen, InPats),
+      Handler = annotate(cerl:try_handler(Tree), TagGen, InPats),
+      cerl:update_c_try(Tree, Arg, Vars, Body, Evars, Handler);
+    tuple ->
+      Es = annotate_all(cerl:tuple_es(Tree), TagGen, InPats),
+      T = cerl:update_c_tuple_skel(Tree, Es),
+      case InPats of
+        false -> T;
+        true  -> cerl:add_ann(tag_pair(TagGen), T)
+      end;
+    values ->
+      Es = annotate_all(cerl:values_es(Tree), TagGen, InPats),
+      cerl:update_c_values(Tree, Es);
+    var ->
+      Tree;
+    _ ->
+      Tree  %% TODO Ignore maps (for now) and modules.
+  end.
+
+annotate_all(Trees, TagGen, InPats) ->
+  [annotate(T, TagGen, InPats) || T <- Trees].
+
+mark_last_clause([]) ->
+  [];
+mark_last_clause(Clauses) when is_list(Clauses) ->
+  [Last|Rvs] = lists:reverse(Clauses),
+  AnnLast = cerl:add_ann([last_clause], Last),
+  lists:reverse([AnnLast|Rvs]).
+
+%% ----------------------------------------------------------------------------
+%% Collect tags from AST for a specific mfa.
+%% ----------------------------------------------------------------------------
+
+-spec collect_feasible_tags(cerl:cerl(), node_types()) -> visited_tags().
+collect_feasible_tags(Tree, NodeTypes) ->
+  TagIDs = lists:flatten(collect(Tree, NodeTypes)),
+  gb_sets:from_list(TagIDs).
+
+collect(Tree, NodeTypes) ->
+  case cerl:type(Tree) of
+    alias ->
+      [ collect_tagIDs(Tree, NodeTypes)
+      , collect(cerl:alias_var(Tree), NodeTypes)
+      , collect(cerl:alias_pat(Tree), NodeTypes)
+      ];
+    'apply' ->
+      [ collect_tagIDs(Tree, NodeTypes)
+      , collect(cerl:apply_op(Tree), NodeTypes)
+      , collect_all(cerl:apply_args(Tree), NodeTypes)
+      ];
+    binary ->
+      [ collect_tagIDs(Tree, NodeTypes)
+      , collect_all(cerl:binary_segments(Tree), NodeTypes)
+      ];
+    bitstr ->
+      [ collect_tagIDs(Tree, NodeTypes)
+      , collect(cerl:bitstr_val(Tree), NodeTypes)
+      , collect(cerl:bitstr_size(Tree), NodeTypes)
+      , collect(cerl:bitstr_unit(Tree), NodeTypes)
+      , collect(cerl:bitstr_type(Tree), NodeTypes)
+      , collect(cerl:bitstr_flags(Tree), NodeTypes)
+      ];
+    call ->
+      [ collect_tagIDs(Tree, NodeTypes)
+      , collect(cerl:call_module(Tree), NodeTypes)
+      , collect(cerl:call_name(Tree), NodeTypes)
+      , collect_all(cerl:call_args(Tree), NodeTypes)
+      ];
+    'case' ->
+      [ collect_tagIDs(Tree, NodeTypes)
+      , collect(cerl:case_arg(Tree), NodeTypes)
+      , collect_all(cerl:case_clauses(Tree), NodeTypes)
+      ];
+    'catch' ->
+      [ collect_tagIDs(Tree, NodeTypes)
+      , collect(cerl:catch_body(Tree), NodeTypes)
+      ];
+    clause ->
+      [ collect_tagIDs(Tree, NodeTypes)
+      , collect_all(cerl:clause_pats(Tree), NodeTypes)
+      , collect(cerl:clause_guard(Tree), NodeTypes)
+      , collect(cerl:clause_body(Tree), NodeTypes)
+      ];
+    cons ->
+      [ collect_tagIDs(Tree, NodeTypes)
+      , collect(cerl:cons_hd(Tree), NodeTypes)
+      , collect(cerl:cons_tl(Tree), NodeTypes)
+      ];
+    'fun' ->
+      [ collect_tagIDs(Tree, NodeTypes)
+      , collect_all(cerl:fun_vars(Tree), NodeTypes)
+      , collect(cerl:fun_body(Tree), NodeTypes)
+      ];
+    'let' ->
+      [ collect_tagIDs(Tree, NodeTypes)
+      , collect_all(cerl:let_vars(Tree), NodeTypes)
+      , collect(cerl:let_arg(Tree), NodeTypes)
+      , collect(cerl:let_body(Tree), NodeTypes)
+      ];
+    letrec ->
+      [ collect_tagIDs(Tree, NodeTypes)
+      , [[collect(N, NodeTypes), collect(D, NodeTypes)] || {N, D} <- cerl:letrec_defs(Tree)]
+      , collect(cerl:letrec_body(Tree), NodeTypes)
+      ];
+    literal ->
+      collect_tagIDs(Tree, NodeTypes);
+    primop ->
+      [ collect_tagIDs(Tree, NodeTypes)
+      , collect(cerl:primop_name(Tree), NodeTypes)
+      , collect_all(cerl:primop_args(Tree), NodeTypes)
+      ];
+    'receive' ->
+      [ collect_tagIDs(Tree, NodeTypes)
+      , collect_all(cerl:receive_clauses(Tree), NodeTypes)
+      , collect(cerl:receive_timeout(Tree), NodeTypes)
+      , collect(cerl:receive_action(Tree), NodeTypes)
+      ];
+    seq ->
+      [ collect_tagIDs(Tree, NodeTypes)
+      , collect(cerl:seq_arg(Tree), NodeTypes)
+      , collect(cerl:seq_body(Tree), NodeTypes)
+      ];
+    'try' ->
+      [ collect_tagIDs(Tree, NodeTypes)
+      , collect(cerl:try_arg(Tree), NodeTypes)
+      , collect_all(cerl:try_vars(Tree), NodeTypes)
+      , collect(cerl:try_body(Tree), NodeTypes)
+      , collect_all(cerl:try_evars(Tree), NodeTypes)
+      , collect(cerl:try_handler(Tree), NodeTypes)
+      ];
+    tuple ->
+      [ collect_tagIDs(Tree, NodeTypes)
+      , collect_all(cerl:tuple_es(Tree), NodeTypes)
+      ];
+    values ->
+      [ collect_tagIDs(Tree, NodeTypes)
+      , collect_all(cerl:values_es(Tree), NodeTypes)
+      ];
+    var ->
+      collect_tagIDs(Tree, NodeTypes);
+    _ ->
+      []  %% TODO Ignore maps (for now) and modules.
+  end.
+
+collect_all(Trees, NodeTypes) ->
+  [collect(T, NodeTypes) || T <- Trees].
+
+-spec node_types_all() -> all.
+node_types_all() -> all.
+
+-spec node_types_conditions() -> {conditions, true}.
+node_types_conditions() -> {conditions, true}.
+
+-spec node_types_conditions_nocomp() -> {conditions, false}.
+node_types_conditions_nocomp() -> {conditions, false}.
+
+-spec node_types_paths() -> {paths, true}.
+node_types_paths() -> {paths, true}.
+
+-spec node_types_paths_nocomp() -> {paths, false}.
+node_types_paths_nocomp() -> {paths, false}.
+
+-spec node_types_branches() -> {branches, true}.
+node_types_branches() -> {branches, true}.
+
+-spec node_types_branches_nocomp() -> {branches, false}.
+node_types_branches_nocomp() -> {branches, false}.
+
+%% ----------------------------------------------------------------------------
+%% Manage tags.
+%% ----------------------------------------------------------------------------
+
+%% Collect all the tags from an AST node.
+-spec collect_tagIDs(cerl:cerl(), node_types()) -> [tagID()].
+collect_tagIDs(Tree, NodeTypes) ->
+  case NodeTypes of
+    all ->
+      Ann = cerl:get_ann(Tree),
+      collect_tagIDs_h(Ann, {true, true}, []);
+    {Tp, true} when Tp =:= conditions; Tp =:= paths ->
+      SwitchFalse = (Tp =:= paths),
+      Ann = cerl:get_ann(Tree),
+      case has_true_guard(Tree) of
+        true  -> [];
+        false -> collect_tagIDs_h(Ann, {true, SwitchFalse}, [])
+      end;
+    {Tp, false} when Tp =:= conditions; Tp =:= paths ->
+      SwitchFalse = (Tp =:= paths),
+      Ann = cerl:get_ann(Tree),
+      case has_true_guard(Tree) of
+        true -> [];
+        false ->
+          case lists:member(compiler_generated, Ann) of
+            true  -> [];
+            false -> collect_tagIDs_h(Ann, {true, SwitchFalse}, [])
+          end
+      end;
+    {branches, true} ->
+      Ann = cerl:get_ann(Tree),
+      case cerl:type(Tree) of
+        clause -> collect_tagIDs_h(Ann, {true, false}, []);
+        _ -> []
+      end;
+    {branches, false} ->
+      Ann = cerl:get_ann(Tree),
+      case cerl:type(Tree) =:= clause andalso not lists:member(compiler_generated, Ann) of
+        false -> [];
+        true -> collect_tagIDs_h(Ann, {true, false}, [])
+      end
+  end.
+
+has_true_guard(Tree) ->
+  case cerl:type(Tree) of
+    clause ->
+      Guard = cerl:clause_guard(Tree),
+      cerl:is_literal(Guard) andalso cerl:is_literal_term(Guard)
+        andalso cerl:concrete(Guard) =:= true;
+    _ ->
+      false
+  end.
+
+collect_tagIDs_h([], _, Acc) ->
+  Acc;
+collect_tagIDs_h([{?BRANCH_TAG_PREFIX, N} | Rest], {true, _}=Switch, Acc) ->
+  collect_tagIDs_h(Rest, Switch, [N|Acc]);
+collect_tagIDs_h([{next_tag, {?BRANCH_TAG_PREFIX, N}} | Rest], {_, true}=Switch, Acc) ->
+  collect_tagIDs_h(Rest, Switch, [N|Acc]);
+collect_tagIDs_h([_|Rest], Switch, Acc) ->
+  collect_tagIDs_h(Rest, Switch, Acc).
 
 %% Get the tags from the annotations of an AST's node.
 -spec get_tags(list()) -> ast_tags().
@@ -358,6 +627,10 @@ get_tags([{next_tag, Tag={?BRANCH_TAG_PREFIX, _N}} | Annos], Tags) ->
 get_tags([_|Annos], Tags) ->
   get_tags(Annos, Tags).
 
+%% Generates a pair of tags.
+tag_pair(TagGen) ->
+  [{next_tag, TagGen()}, TagGen()].
+
 %% Creates a tag from tag info.
 -spec tag_from_id(tagID()) -> tag().
 tag_from_id(N) ->
@@ -371,3 +644,7 @@ id_of_tag({?BRANCH_TAG_PREFIX, N}) -> N.
 -spec empty_tag() -> tag().
 empty_tag() ->
   tag_from_id(?EMPTY_TAG_ID).
+
+%% Returns the empty tag id.
+-spec empty_tagId() -> ?EMPTY_TAG_ID.
+empty_tagId() -> ?EMPTY_TAG_ID.

@@ -21,6 +21,7 @@ function usage() {
     echo "	-d, --disable-pmatch		disable pmatch compilation"
     echo "	-r, --recompile			recompile the module"
     echo "	-w, --whitelist			path of the file with the whitelisted MFAs (Each MFA in one line ending with a dot)"
+    echo "	-c, --coverage			calculate the coverage achieved"
     exit 1
 }
 
@@ -92,9 +93,12 @@ if [ $# -ge 3 ]; then
             -w | --whitelist)
                 opts=$(add_opt "$opts" "{whitelist, '$VALUE'}")
                 ;;
+            -c | --coverage)
+                opts=$(add_opt "$opts" "coverage")
+                ;;
             -r | --recompile)
-		## if the .beam file does not exist, it's pointless to
-		## re-compile it; it will be created by compile_erl below
+                ## if the .beam file does not exist, it's pointless to
+                ## re-compile it; it will be created by compile_erl below
                 if [ -f $mod.beam ]; then
                   erlfile=$mod.erl
                   if [ ! -f $erlfile ]; then

@@ -12,7 +12,7 @@
   , log_list/4
   , log_make_tuple/3
   , log_make_bitstring/4
-  , log_mfa/5
+  , log_mfa/4
   , log_message_consumed/3
   , log_message_received/3
   , log_message_sent/3
@@ -60,11 +60,11 @@ close_file(Fd) ->
 %% Log a symbolic MFA operation
 %% ------------------------------------------------------------------
 
--spec log_mfa(file:io_device(), mfa(), [any()], cuter_symbolic:symbolic(), cuter_cerl:tag()) -> ok.
-log_mfa(Fd, MFA, SAs, X, Tag) ->
+-spec log_mfa(file:io_device(), mfa(), [any()], cuter_symbolic:symbolic()) -> ok.
+log_mfa(Fd, MFA, SAs, X) ->
   %% SAs has at least one symbolic argument 
   %% as ensured by cuter_sumbolic:evaluate_mfa/4
-  log(Fd, mfa2op(MFA), cuter_cerl:id_of_tag(Tag), [X | SAs]).
+  log(Fd, mfa2op(MFA), ?EMPTY_TAG_ID, [X | SAs]).
 
 %% ------------------------------------------------------------------
 %% Log Entry Point MFA's parameters & spec
@@ -354,21 +354,8 @@ locate_reversible(Fd, N, Acc) ->
     eof -> lists:reverse(Acc);
     {?CONSTRAINT_TRUE, _Op, TagID}  -> locate_reversible(Fd, N1, [{N1, TagID}|Acc]);
     {?CONSTRAINT_FALSE, _Op, TagID} -> locate_reversible(Fd, N1, [{N1, TagID}|Acc]);
-    {?NOT_CONSTRAINT, Op, TagID} ->
-      case is_reversible_operation(Op) of
-        false -> locate_reversible(Fd, N, Acc);
-        true ->
-          case TagID =:= ?EMPTY_TAG_ID of
-            true  -> locate_reversible(Fd, N1, Acc);
-            false -> locate_reversible(Fd, N1, [{N1, TagID}|Acc])
-          end
-      end
+    {?NOT_CONSTRAINT, _Op, _TagID}    -> locate_reversible(Fd, N, Acc)
   end.
-
-%% Returns whether a command can be reversed by the solver or not.
--spec is_reversible_operation(opcode()) -> boolean().
-is_reversible_operation(OpCode) ->
-  gb_sets:is_member(OpCode, ?REVERSIBLE_OPERATIONS).
 
 -spec next_entry(file:io_device(), true) -> {entry_type(), opcode(), cuter_cerl:tagID(), binary()} | eof
               ; (file:io_device(), false) -> {entry_type(), opcode(), cuter_cerl:tagID()} | eof.

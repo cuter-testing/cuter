@@ -3,7 +3,7 @@
 -module(cuter_mock).
 
 -export([simulate_behaviour/3, is_whitelisted/2, parse_whitelist/1,
-         get_whitelisted_mfas/1, empty_whitelist/0]).
+         get_whitelisted_mfas/1, empty_whitelist/0, overriding_modules/0]).
 
 -export_type([whitelist/0]).
 
@@ -25,6 +25,7 @@ simulate_behaviour(erlang, atom_to_list,    1) -> {ok, {cuter_erlang, atom_to_li
 simulate_behaviour(erlang, 'div',           2) -> {ok, {cuter_erlang, 'div',           2}};
 simulate_behaviour(erlang, element,         2) -> {ok, {cuter_erlang, element,         2}};
 simulate_behaviour(erlang, float,           1) -> {ok, {cuter_erlang, float,           1}};
+simulate_behaviour(erlang, hd,              1) -> {ok, {cuter_erlang, hd,              1}};
 simulate_behaviour(erlang, integer_to_list, 1) -> {ok, {cuter_erlang, integer_to_list, 1}};
 simulate_behaviour(erlang, length,          1) -> {ok, {cuter_erlang, length,          1}};
 simulate_behaviour(erlang, list_to_tuple,   1) -> {ok, {cuter_erlang, list_to_tuple,   1}};
@@ -36,6 +37,7 @@ simulate_behaviour(erlang, 'rem',           2) -> {ok, {cuter_erlang, 'rem',    
 simulate_behaviour(erlang, 'or',            2) -> {ok, {cuter_erlang, 'or',            2}};
 simulate_behaviour(erlang, 'orelse',        2) -> {ok, {cuter_erlang, 'orelse',        2}};
 simulate_behaviour(erlang, setelement,      3) -> {ok, {cuter_erlang, setelement,      3}};
+simulate_behaviour(erlang, tl,              1) -> {ok, {cuter_erlang, tl,              1}};
 simulate_behaviour(erlang, tuple_size,      1) -> {ok, {cuter_erlang, tuple_size,      1}};
 simulate_behaviour(erlang, tuple_to_list,   1) -> {ok, {cuter_erlang, tuple_to_list,   1}};
 simulate_behaviour(erlang, 'xor',           2) -> {ok, {cuter_erlang, 'xor',           2}};
@@ -300,3 +302,7 @@ get_whitelisted_mfas(Whitelist) -> sets:to_list(Whitelist).
 %% Create an empty set of whitelisted MFAs.
 -spec empty_whitelist() -> whitelist().
 empty_whitelist() -> sets:new().
+
+%% The list of modules that contain funs that override bifs.
+-spec overriding_modules() -> [cuter_erlang, ...].
+overriding_modules() -> [cuter_erlang].

@@ -4,8 +4,8 @@
 -behaviour(gen_server).
 
 %% external exports
--export([start/3, start/5, stop/1, load/2, unsupported_mfa/2, retrieve_spec/2, visit_tag/2,
-         initial_branch_counter/0, get_visited_tags/1, get_logs/1, get_whitelist/1,
+-export([start/3, start/5, stop/1, load/2, unsupported_mfa/2, retrieve_spec/2, get_feasible_tags/2,
+         get_logs/1, get_whitelist/1, calculate_callgraph/2, get_visited_tags/1, visit_tag/2,
          %% Work with module cache
          merge_dumped_cached_modules/2, no_cached_modules/0, modules_of_dumped_cache/1,
          lookup_in_module_cache/2, insert_in_module_cache/3,
@@ -14,8 +14,8 @@
          unsupportedMfas_of_logs/1, loadedMods_of_logs/1]).
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_info/2, handle_call/3, handle_cast/2]).
-%% counter of branches
--export([set_branch_counter/1, generate_tag/0]).
+%% Counter of branches & Tag generator.
+-export([set_branch_counter/1, generate_tag/0, get_branch_counter/0, initial_branch_counter/0]).
 
 -include("include/cuter_macros.hrl").
 
@@ -79,7 +79,8 @@
   withPmatch                   :: boolean(),
   workers = []                 :: [pid()],
   unsupportedMfas = sets:new() :: sets:set(mfa()),
-  whitelist                    :: cuter_mock:whitelist()
+  whitelist                    :: cuter_mock:whitelist(),
+  callgraph                    :: cuter_callgraph:callgraph()
 }).
 -type state() :: #st{}.
 
@@ -145,6 +146,16 @@ get_logs(CodeServer) ->
 get_whitelist(CodeServer) ->
   gen_server:call(CodeServer, get_whitelist).
 
+%% Gets the callgraph of an Mfa.
+-spec calculate_callgraph(pid(), mfa()) -> ok | error.
+calculate_callgraph(CodeServer, Mfa) ->
+  gen_server:call(CodeServer, {calculate_callgraph, Mfa}).
+
+%% Gets the feasible tags.
+-spec get_feasible_tags(pid(), cuter_cerl:node_types()) -> cuter_cerl:visited_tags().
+get_feasible_tags(CodeServer, NodeTypes) ->
+  gen_server:call(CodeServer, {get_feasible_tags, NodeTypes}).
+
 %% ----------------------------------------------------------------------------
 %% gen_server callbacks (Server Implementation)
 %% ----------------------------------------------------------------------------
@@ -183,6 +194,8 @@ handle_info(_Msg, State) ->
                ; (get_visited_tags, from(), state()) -> {reply, tags(), state()}
                ; (get_logs, from(), state()) -> {reply, logs(), state()}
                ; (get_whitelist, from(), state()) -> {reply, cuter_mock:whitelist(), state()}
+               ; ({get_feasible_tags, cuter_cerl:node_types()}, from(), state()) -> {reply, cuter_cerl:visited_tags(), state()}
+               ; ({calculate_callgraph, mfa()}, from(), state()) -> {reply, ok, state()}
                .
 handle_call({load, M}, _From, State) ->
   {reply, try_load(M, State), State};
@@ -221,7 +234,22 @@ handle_call(get_logs, _From, State=#st{db = Db, unsupportedMfas = Ms, tags = Tag
   Logs = mk_logs(modules_in_cache(Db), sets:to_list(Ms), Tags, CachedMods, Cnt),
   {reply, Logs, State};
 handle_call(get_whitelist, _From, State=#st{whitelist = Whitelist}) ->
-  {reply, Whitelist, State}.
+  {reply, Whitelist, State};
+handle_call({get_feasible_tags, NodeTypes}, _From, State=#st{callgraph = Callgraph}) ->
+  Tags = get_feasible_tags(Callgraph, NodeTypes, State),
+  {reply, Tags, State};
+handle_call({calculate_callgraph, Mfa}, _From, State) ->
+  case cuter_callgraph:get_callgraph(Mfa) of
+    {error, _Reason} ->
+      {reply, error, State};
+    {ok, Callgraph} ->
+      LoadFn = fun(M) ->
+          cuter_pp:loading_visited_module(M),
+          try_load(M, State)
+        end,
+      cuter_callgraph:foreachModule(LoadFn, Callgraph),
+      {reply, ok, State#st{callgraph = Callgraph}}
+  end.
 
 %% gen_server callback : handle_cast/2
 -spec handle_cast({stop, pid()}, state()) -> {stop, normal, state()} | {noreply, state()}
@@ -238,6 +266,33 @@ handle_cast({stop, FromWho}, State=#st{super = Super}) ->
 handle_cast({visit_tag, Tag}, State=#st{tags = Tags}) ->
   Ts = gb_sets:add_element(cuter_cerl:id_of_tag(Tag), Tags),
   {noreply, State#st{tags = Ts}}.
+
+%% ----------------------------------------------------------------------------
+%% Get the feasible tags of all the mfas in the callgraph.
+%% ----------------------------------------------------------------------------
+
+get_feasible_tags(Callgraph, NodeTypes, State) ->
+  VisitedMfas = cuter_callgraph:get_visited_mfas(Callgraph),
+  FoldFn = fun(Mfa, Acc) -> gb_sets:union(get_feasible_tags_of_mfa(Mfa, NodeTypes, State), Acc) end,
+  gb_sets:fold(FoldFn, gb_sets:new(), VisitedMfas).
+
+get_feasible_tags_of_mfa({M,F,A}=Mfa, NodeTypes, State) ->
+  case erlang:is_builtin(M, F, A) orelse is_overriding(Mfa) of
+    true  -> gb_sets:new();
+    false ->
+      case is_mod_stored(M, State) of
+        {false, _} ->
+%          io:format("MODULE NOT FOUND MODULE ~p!~n", [M]),
+          gb_sets:new();
+        {true, Cache} ->
+%          io:format("Looking Up ~p~n", [Mfa]),
+          {ok, {Def, _}} = lookup_in_module_cache(Mfa, Cache),
+          cuter_cerl:collect_feasible_tags(Def, NodeTypes)
+      end
+  end.
+
+is_overriding({M,_,_}) ->
+  lists:member(M, cuter_mock:overriding_modules()).
 
 %% ----------------------------------------------------------------------------
 %% Load a module to the cache

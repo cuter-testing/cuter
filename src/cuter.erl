@@ -18,12 +18,13 @@
 
 %% The configuration of the tool.
 -record(conf, {
-  codeServer    :: pid(),
-  mod           :: mod(),
-  func          :: atom(),
-  dataDir       :: file:filename(),
-  depth         :: depth(),
-  scheduler     :: pid()
+  codeServer        :: pid(),
+  mod               :: mod(),
+  func              :: atom(),
+  dataDir           :: file:filename(),
+  depth             :: depth(),
+  scheduler         :: pid(),
+  calculateCoverage :: boolean()
 }).
 -type configuration() :: #conf{}.
 
@@ -34,6 +35,7 @@
 -define(POLLERS_NO, number_of_pollers).
 -define(SOLVERS_NO, number_of_solvers).
 -define(WHITELISTED_MFAS, whitelist).
+-define(CALCULATE_COVERAGE, coverage).
 
 -type default_option() :: {?POLLERS_NO, ?ONE}
                         .
@@ -46,6 +48,7 @@
                 | ?VERBOSE_EXEC_INFO
                 | ?DISABLE_PMATCH
                 | {?WHITELISTED_MFAS, file:filename()}
+                | ?CALCULATE_COVERAGE
                 .
 
 %% ----------------------------------------------------------------------------
@@ -63,29 +66,47 @@ run(M, F, As, Depth) ->
 -spec run(mod(), atom(), input(), depth(), [option()]) -> erroneous_inputs().
 run(M, F, As, Depth, Options) ->
   Conf = initialize_app(M, F, As, Depth, Options),
-  case pre_run_checks(M, F, As) of
-    ok -> start(Conf, number_of_pollers(Options), number_of_solvers(Options));
-    error -> stop(Conf)
+  Mfa = {M, F, length(As)},
+  case pre_run_checks(Mfa) of
+    error -> stop(Conf);
+    ok ->
+      case preprocess(Conf, Mfa) of 
+        false -> stop(Conf);
+        true  -> start(Conf, number_of_pollers(Options), number_of_solvers(Options))
+      end
   end.
 
 %% ----------------------------------------------------------------------------
 %% Pre-run checks
 %% ----------------------------------------------------------------------------
 
-pre_run_checks(M, F, As) ->
+pre_run_checks({M, F, A}) ->
   case code:which(M) of
     non_existing ->
       cuter_pp:module_non_existing(M),
       error;
     _ ->
       Exports = M:module_info(exports),
-      case lists:member({F, length(As)}, Exports) of
+      case lists:member({F, A}, Exports) of
         true -> ok;
         false ->
-          cuter_pp:mfa_non_existing(M, F, length(As)),
+          cuter_pp:mfa_non_existing(M, F, A),
           error
       end
   end.
+
+%% ----------------------------------------------------------------------------
+%% Preprocessing
+%% ----------------------------------------------------------------------------
+
+-spec preprocess(configuration(), mfa()) -> boolean().
+preprocess(Conf, Mfa) ->
+  preprocess_coverage(Conf, Mfa, Conf#conf.calculateCoverage).
+
+-spec preprocess_coverage(configuration(), mfa(), boolean()) -> boolean().
+preprocess_coverage(_Conf, _Mfa, false) -> true;
+preprocess_coverage(Conf, Mfa, true) ->
+  ok == cuter_codeserver:calculate_callgraph(Conf#conf.codeServer, Mfa).
 
 %% ----------------------------------------------------------------------------
 %% Manage the concolic executions
@@ -104,7 +125,7 @@ start(Conf, N_Pollers, N_Solvers) ->
   ok = wait_for_processes(Pollers),
   lists:foreach(fun cuter_solver:send_stop_message/1, Solvers),
   ok = wait_for_processes(Solvers),
-  stop(Conf).
+  stop_and_report(Conf).
 
 -spec wait_for_processes([pid()]) -> ok.
 wait_for_processes([]) ->
@@ -118,16 +139,34 @@ wait_for_processes(Procs) ->
       wait_for_processes(Procs -- [Who])
   end.
 
+-spec stop_and_report(configuration()) -> erroneous_inputs().
+stop_and_report(Conf) ->
+  %% Report solver statistics.
+  SolvedModels = cuter_scheduler_maxcover:get_solved_models(Conf#conf.scheduler),
+  NotSolvedModels = cuter_scheduler_maxcover:get_not_solved_models(Conf#conf.scheduler),
+  cuter_analyzer:solving_stats(SolvedModels, NotSolvedModels),
+  %% Report coverage statistics.
+  VisitedTags = cuter_scheduler_maxcover:get_visited_tags(Conf#conf.scheduler),
+  cuter_analyzer:calculate_coverage(Conf#conf.calculateCoverage, Conf#conf.codeServer, VisitedTags),
+  %% Report the code logs.
+  CodeLogs = cuter_codeserver:get_logs(Conf#conf.codeServer),
+  cuter_pp:code_logs(CodeLogs),
+  %% Report the erroneous inputs.
+  ErroneousInputs = cuter_scheduler_maxcover:get_erroneous_inputs(Conf#conf.scheduler),
+  cuter_pp:errors_found(ErroneousInputs),
+  stop(Conf, ErroneousInputs).
+
 -spec stop(configuration()) -> erroneous_inputs().
 stop(Conf) ->
-  Erroneous = cuter_scheduler_maxcover:stop(Conf#conf.scheduler),
-  CodeLogs = cuter_codeserver:get_logs(Conf#conf.codeServer),
+  stop(Conf, []).
+
+-spec stop(configuration(), erroneous_inputs()) -> erroneous_inputs().
+stop(Conf, ErroneousInputs) ->
+  cuter_scheduler_maxcover:stop(Conf#conf.scheduler),
   cuter_codeserver:stop(Conf#conf.codeServer),
-  cuter_pp:code_logs(CodeLogs),
-  cuter_pp:errors_found(Erroneous),
   cuter_pp:stop(),
   cuter_lib:clear_and_delete_dir(Conf#conf.dataDir),
-  Erroneous.
+  ErroneousInputs.
 
 %% ----------------------------------------------------------------------------
 %% Initializations
@@ -149,9 +188,13 @@ initialize_app(M, F, As, Depth, Options) ->
        , func = F
        , depth = Depth
        , dataDir = cuter_lib:get_tmp_dir(BaseDir)
-       , scheduler = SchedPid}.
+       , scheduler = SchedPid
+       , calculateCoverage = calculate_coverage(Options)}.
 
-%% Set app parameters.
+%% ----------------------------------------------------------------------------
+%% Set app parameters
+%% ----------------------------------------------------------------------------
+
 -spec default_options() -> [default_option(), ...].
 default_options() ->
   [{?POLLERS_NO, 1}].
@@ -202,3 +245,5 @@ reporting_level(Options) ->
       end
   end.
 
+-spec calculate_coverage([option()]) -> boolean().
+calculate_coverage(Options) -> lists:member(?CALCULATE_COVERAGE, Options).

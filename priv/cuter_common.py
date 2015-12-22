@@ -116,11 +116,5 @@ def is_interpretable(tp):
   xs = set([OP_SPAWN, OP_SPAWNED, OP_MSG_SEND, OP_MSG_RECEIVE, OP_MSG_CONSUME])
   return tp not in xs
 
-def is_reversible_bif(tp):
-  xs = set([
-    OP_HD, OP_TL
-  ])
-  return tp in xs
-
 def is_reversible(tp, opcode):
-  return is_constraint_kind(tp) or is_reversible_bif(opcode)
+  return is_constraint_kind(tp)

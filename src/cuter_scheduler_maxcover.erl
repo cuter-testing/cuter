@@ -3,11 +3,12 @@
 -module(cuter_scheduler_maxcover).
 -behaviour(gen_server).
 
--export([ %% external API
-          start/4, stop/1,
-          request_input/1, store_execution/3, request_operation/1, solver_reply/2,
-          %% gen_server callbacks
-          init/1, terminate/2, code_change/3, handle_info/2, handle_call/3, handle_cast/2]).
+%% External API.
+-export([start/4, stop/1, request_input/1, store_execution/3, request_operation/1, solver_reply/2]).
+%% Get logs API.
+-export([get_visited_tags/1, get_erroneous_inputs/1, get_solved_models/1, get_not_solved_models/1]).
+%% gen_server callbacks.
+-export([init/1, terminate/2, code_change/3, handle_info/2, handle_call/3, handle_cast/2]).
 
 -include("include/cuter_macros.hrl").
 
@@ -55,6 +56,10 @@
 %%   The heap with all the constraints/tags that await to be reversed.
 %%  visitedTags :: cuter_cerl:visited_tags()
 %%   The visited tags of the concolic executions.
+%% solved :: non_neg_integer()
+%%   The number of solved models.
+%% not_solved :: non_neg_integer()
+%%   The number of not solved models.
 
 -record(st, {
   codeServer      :: pid(),
@@ -67,7 +72,9 @@
   running         :: dict:dict(handle(), cuter:input()),
   solving         :: dict:dict(pid(), operationId()),
   tagsQueue       :: cuter_minheap:minheap(),
-  visitedTags     :: cuter_cerl:visited_tags()}).
+  visitedTags     :: cuter_cerl:visited_tags(),
+  solved = 0      :: non_neg_integer(),
+  not_solved = 0  :: non_neg_integer()}).
 -type state() :: #st{}.
 
 %% ----------------------------------------------------------------------------
@@ -83,7 +90,7 @@ start(Python, Depth, SeedInput, CodeServer) ->
   end.
 
 %% Stops the Scheduler.
--spec stop(pid()) -> cuter:erroneous_inputs().
+-spec stop(pid()) -> ok.
 stop(Scheduler) ->
   gen_server:call(Scheduler, stop).
 
@@ -104,6 +111,26 @@ request_operation(Scheduler) ->
 -spec solver_reply(pid(), cuter_solver:solver_result()) -> ok.
 solver_reply(Scheduler, Result) ->
   gen_server:call(Scheduler, {solver_reply, Result}, infinity).
+
+%% ----------------------------------------------------------------------------
+%% Get logs API
+%% ----------------------------------------------------------------------------
+
+-spec get_visited_tags(pid()) -> cuter_cerl:visited_tags().
+get_visited_tags(Scheduler) ->
+  gen_server:call(Scheduler, get_visited_tags).
+
+-spec get_erroneous_inputs(pid()) -> cuter:erroneous_inputs().
+get_erroneous_inputs(Scheduler) ->
+  gen_server:call(Scheduler, get_erroneous_inputs).
+
+-spec get_solved_models(pid()) -> non_neg_integer().
+get_solved_models(Scheduler) ->
+  gen_server:call(Scheduler, get_solved_models).
+
+-spec get_not_solved_models(pid()) -> non_neg_integer().
+get_not_solved_models(Scheduler) ->
+  gen_server:call(Scheduler, get_not_solved_models).
 
 %% ----------------------------------------------------------------------------
 %% gen_server callbacks (Server Implementation)
@@ -150,7 +177,11 @@ handle_info(_Msg, State) ->
                ; ({store_execution, handle(), cuter_analyzer:info()}, from(), state()) -> {reply, ok, state()}
                ; ({solver_reply, cuter_solver:solver_result()}, from(), state()) -> {reply, ok, state()}
                ; (request_operation, from(), state()) -> {reply, cuter_solver:solver_input() | try_later, state()}
-               ; (stop, from(), state()) -> {stop, normal, cuter:erroneous_inputs(), state()}.
+               ; (stop, from(), state()) -> {stop, normal, ok, state()}
+               ; (get_visited_tags, from(), state()) -> {reply, cuter_cerl:visited_tags(), state()}
+               ; (get_erroneous_inputs, from(), state()) -> {reply, cuter:erroneous_inputs(), state()}
+               ; (get_solved_models | get_not_solved_models, from(), state()) -> {reply, non_neg_integer(), state()}
+               .
 
 %% Ask for a new input to execute.
 handle_call(request_input, _From, S=#st{running = Running, firstOperation = FirstOperation, inputsQueue = InputsQueue, tagsQueue = TagsQueue,
@@ -195,16 +226,17 @@ handle_call({store_execution, Handle, Info}, _From, S=#st{tagsQueue = TQ, infoTa
                   , erroneous = NErr}};
 
 %% Report the result of an SMT solving.
-handle_call({solver_reply, Reply}, {Who, _Ref}, S=#st{solving = Solving, inputsQueue = InputsQueue}) ->
+handle_call({solver_reply, Reply}, {Who, _Ref}, S=#st{solving = Solving, inputsQueue = InputsQueue, solved = Slvd, not_solved = NSlvd}) ->
   case Reply of
     %% The model could not be satisfied.
     error ->
-      {reply, ok, S#st{solving = dict:erase(Who, Solving)}};
+      {reply, ok, S#st{solving = dict:erase(Who, Solving), not_solved = NSlvd + 1}};
     %% The modal was satisfied and a new input was generated.
     {ok, Input} ->
       OperationId = dict:fetch(Who, Solving),
       {reply, ok, S#st{ inputsQueue = queue:in({OperationId+1, Input}, InputsQueue)  % Queue the input
-                      , solving = dict:erase(Who, Solving)}}
+                      , solving = dict:erase(Who, Solving)
+                      , solved = Slvd + 1}}
   end;
 
 %% Request an operation to reverse.
@@ -220,8 +252,25 @@ handle_call(request_operation, {Who, _Ref}, S=#st{tagsQueue = TagsQueue, infoTab
   end;
 
 %% Stops the server.
-handle_call(stop, _From, S=#st{erroneous = Err}) ->
-  {stop, normal, lists:reverse(Err), S}.
+handle_call(stop, _From, State) ->
+  {stop, normal, ok, State};
+
+%% Gets the visited tags
+handle_call(get_visited_tags, _From, State=#st{visitedTags = VisitedTags}) ->
+  {reply, VisitedTags, State};
+
+%% Get the erroneous inputs.
+handle_call(get_erroneous_inputs, _From, State=#st{erroneous = Err}) ->
+  {reply, lists:reverse(Err), State};
+
+%% Gets the number of solved models.
+handle_call(get_solved_models, _From, State=#st{solved = Solved}) ->
+  {reply, Solved, State};
+
+%% Gets the number of not solved models.
+handle_call(get_not_solved_models, _From, State=#st{not_solved = NotSolved}) ->
+  {reply, NotSolved, State}.
+
 
 %% handle_cast/2
 -spec handle_cast(any(), state()) -> {noreply, state()}.

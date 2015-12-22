@@ -301,15 +301,12 @@ erlang_hd({_Dir, Fname, Python}) ->
   As = [p1],  % One argument (the type is irrelevant)
   Mapping = create_logfile(Fname, As, fun erlang_hd_logs/2),
   {ok, [SolNormal]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
-  {ok, [SolRev]} = cuter_solver:solve({Python, Mapping, Fname, 1}),
-  [ {"It's a list with the proper head", ?_assertEqual([ok], SolNormal)}
-  , {"Make it throw an exception", ?_assertError(badarg, erlang:hd(SolRev))}
-  ].
+  [{"It's a list with the proper head", ?_assertEqual([ok], SolNormal)}].
 
 erlang_hd_logs(Fd, SAs) ->
   cuter_log:log_symb_params(Fd, SAs),
   X = cuter_symbolic:fresh_symbolic_var(),
-  cuter_log:log_mfa(Fd, {erlang, hd, 1}, SAs, X, cuter_cerl:empty_tag()),
+  cuter_log:log_mfa(Fd, {cuter_erlang, safe_hd, 1}, SAs, X),
   cuter_log:log_equal(Fd, true, X, ok, cuter_cerl:empty_tag()).
 
 %% Tail of a list.
@@ -318,15 +315,12 @@ erlang_tl({_Dir, Fname, Python}) ->
   As = [p1],  % One argument (the type is irrelevant)
   Mapping = create_logfile(Fname, As, fun erlang_tl_logs/2),
   {ok, [SolNormal]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
-  {ok, [SolRev]} = cuter_solver:solve({Python, Mapping, Fname, 1}),
-  [ {"It's a list with the proper tail", ?_assertMatch([_], SolNormal)}
-  , {"Make it throw an exception", ?_assertError(badarg, erlang:tl(SolRev))}
-  ].
+  [{"It's a list with the proper tail", ?_assertMatch([_], SolNormal)}].
 
 erlang_tl_logs(Fd, SAs) ->
   cuter_log:log_symb_params(Fd, SAs),
   X = cuter_symbolic:fresh_symbolic_var(),
-  cuter_log:log_mfa(Fd, {erlang, tl, 1}, SAs, X, cuter_cerl:empty_tag()),
+  cuter_log:log_mfa(Fd, {cuter_erlang, safe_tl, 1}, SAs, X),
   cuter_log:log_equal(Fd, true, X, [], cuter_cerl:empty_tag()).
 
 %% Is an integer.
@@ -340,7 +334,7 @@ erlang_is_integer({_Dir, Fname, Python}) ->
 erlang_is_integer_logs(Fd, SAs) ->
   cuter_log:log_symb_params(Fd, SAs),
   X = cuter_symbolic:fresh_symbolic_var(),
-  cuter_log:log_mfa(Fd, {erlang, is_integer, 1}, SAs, X, cuter_cerl:empty_tag()),
+  cuter_log:log_mfa(Fd, {erlang, is_integer, 1}, SAs, X),
   cuter_log:log_equal(Fd, true, X, true, cuter_cerl:empty_tag()).
 
 %% Is an atom.
@@ -354,7 +348,7 @@ erlang_is_atom({_Dir, Fname, Python}) ->
 erlang_is_atom_logs(Fd, SAs) ->
   cuter_log:log_symb_params(Fd, SAs),
   X = cuter_symbolic:fresh_symbolic_var(),
-  cuter_log:log_mfa(Fd, {erlang, is_atom, 1}, SAs, X, cuter_cerl:empty_tag()),
+  cuter_log:log_mfa(Fd, {erlang, is_atom, 1}, SAs, X),
   cuter_log:log_equal(Fd, true, X, true, cuter_cerl:empty_tag()).
 
 %% Is a float.
@@ -368,7 +362,7 @@ erlang_is_float({_Dir, Fname, Python}) ->
 erlang_is_float_logs(Fd, SAs) ->
   cuter_log:log_symb_params(Fd, SAs),
   X = cuter_symbolic:fresh_symbolic_var(),
-  cuter_log:log_mfa(Fd, {erlang, is_float, 1}, SAs, X, cuter_cerl:empty_tag()),
+  cuter_log:log_mfa(Fd, {erlang, is_float, 1}, SAs, X),
   cuter_log:log_equal(Fd, true, X, true, cuter_cerl:empty_tag()).
 
 %% Is a list.
@@ -382,7 +376,7 @@ erlang_is_list({_Dir, Fname, Python}) ->
 erlang_is_list_logs(Fd, SAs) ->
   cuter_log:log_symb_params(Fd, SAs),
   X = cuter_symbolic:fresh_symbolic_var(),
-  cuter_log:log_mfa(Fd, {erlang, is_list, 1}, SAs, X, cuter_cerl:empty_tag()),
+  cuter_log:log_mfa(Fd, {erlang, is_list, 1}, SAs, X),
   cuter_log:log_equal(Fd, true, X, true, cuter_cerl:empty_tag()).
 
 %% Is a tuple.
@@ -396,7 +390,7 @@ erlang_is_tuple({_Dir, Fname, Python}) ->
 erlang_is_tuple_logs(Fd, SAs) ->
   cuter_log:log_symb_params(Fd, SAs),
   X = cuter_symbolic:fresh_symbolic_var(),
-  cuter_log:log_mfa(Fd, {erlang, is_tuple, 1}, SAs, X, cuter_cerl:empty_tag()),
+  cuter_log:log_mfa(Fd, {erlang, is_tuple, 1}, SAs, X),
   cuter_log:log_equal(Fd, true, X, true, cuter_cerl:empty_tag()).
 
 %% Is a boolean.
@@ -410,7 +404,7 @@ erlang_is_boolean({_Dir, Fname, Python}) ->
 erlang_is_boolean_logs(Fd, SAs) ->
   cuter_log:log_symb_params(Fd, SAs),
   X = cuter_symbolic:fresh_symbolic_var(),
-  cuter_log:log_mfa(Fd, {erlang, is_boolean, 1}, SAs, X, cuter_cerl:empty_tag()),
+  cuter_log:log_mfa(Fd, {erlang, is_boolean, 1}, SAs, X),
   cuter_log:log_equal(Fd, true, X, true, cuter_cerl:empty_tag()).
 
 %% Is a number.
@@ -424,7 +418,7 @@ erlang_is_number({_Dir, Fname, Python}) ->
 erlang_is_number_logs(Fd, SAs) ->
   cuter_log:log_symb_params(Fd, SAs),
   X = cuter_symbolic:fresh_symbolic_var(),
-  cuter_log:log_mfa(Fd, {erlang, is_number, 1}, SAs, X, cuter_cerl:empty_tag()),
+  cuter_log:log_mfa(Fd, {erlang, is_number, 1}, SAs, X),
   cuter_log:log_equal(Fd, true, X, true, cuter_cerl:empty_tag()).
 
 %% Addition.
@@ -441,9 +435,9 @@ erlang_plus_logs(Fd, SAs=[P1, P2]) ->
   cuter_log:log_symb_params(Fd, SAs),
   X = cuter_symbolic:fresh_symbolic_var(),
   Y = cuter_symbolic:fresh_symbolic_var(),
-  cuter_log:log_mfa(Fd, {cuter_erlang, safe_plus, 2}, [P1, 42], X, cuter_cerl:empty_tag()),
+  cuter_log:log_mfa(Fd, {cuter_erlang, safe_plus, 2}, [P1, 42], X),
   cuter_log:log_equal(Fd, true, X, 45, cuter_cerl:empty_tag()),
-  cuter_log:log_mfa(Fd, {cuter_erlang, safe_plus, 2}, [P1, P2], Y, cuter_cerl:empty_tag()),
+  cuter_log:log_mfa(Fd, {cuter_erlang, safe_plus, 2}, [P1, P2], Y),
   cuter_log:log_equal(Fd, true, Y, 3.14, cuter_cerl:empty_tag()).
 
 %% Subtraction.
@@ -460,9 +454,9 @@ erlang_minus_logs(Fd, SAs=[P1, P2]) ->
   cuter_log:log_symb_params(Fd, SAs),
   X = cuter_symbolic:fresh_symbolic_var(),
   Y = cuter_symbolic:fresh_symbolic_var(),
-  cuter_log:log_mfa(Fd, {cuter_erlang, safe_minus, 2}, [P1, 42], X, cuter_cerl:empty_tag()),
+  cuter_log:log_mfa(Fd, {cuter_erlang, safe_minus, 2}, [P1, 42], X),
   cuter_log:log_equal(Fd, true, X, -40, cuter_cerl:empty_tag()),
-  cuter_log:log_mfa(Fd, {cuter_erlang, safe_minus, 2}, [P1, P2], Y, cuter_cerl:empty_tag()),
+  cuter_log:log_mfa(Fd, {cuter_erlang, safe_minus, 2}, [P1, P2], Y),
   cuter_log:log_equal(Fd, true, Y, 0.25, cuter_cerl:empty_tag()).
 
 %% Multiplication.
@@ -479,9 +473,9 @@ erlang_times_logs(Fd, SAs=[P1, P2]) ->
   cuter_log:log_symb_params(Fd, SAs),
   X = cuter_symbolic:fresh_symbolic_var(),
   Y = cuter_symbolic:fresh_symbolic_var(),
-  cuter_log:log_mfa(Fd, {cuter_erlang, safe_times, 2}, [P1, 2], X, cuter_cerl:empty_tag()),
+  cuter_log:log_mfa(Fd, {cuter_erlang, safe_times, 2}, [P1, 2], X),
   cuter_log:log_equal(Fd, true, X, 40, cuter_cerl:empty_tag()),
-  cuter_log:log_mfa(Fd, {cuter_erlang, safe_times, 2}, [P1, P2], Y, cuter_cerl:empty_tag()),
+  cuter_log:log_mfa(Fd, {cuter_erlang, safe_times, 2}, [P1, P2], Y),
   cuter_log:log_equal(Fd, true, Y, 44.4, cuter_cerl:empty_tag()).
 
 %% Real division.
@@ -498,9 +492,9 @@ erlang_rdiv_logs(Fd, SAs=[P1, P2]) ->
   cuter_log:log_symb_params(Fd, SAs),
   X = cuter_symbolic:fresh_symbolic_var(),
   Y = cuter_symbolic:fresh_symbolic_var(),
-  cuter_log:log_mfa(Fd, {cuter_erlang, safe_rdiv, 2}, [P1, 2], X, cuter_cerl:empty_tag()),
+  cuter_log:log_mfa(Fd, {cuter_erlang, safe_rdiv, 2}, [P1, 2], X),
   cuter_log:log_equal(Fd, true, X, 40.0, cuter_cerl:empty_tag()),
-  cuter_log:log_mfa(Fd, {cuter_erlang, safe_rdiv, 2}, [P1, P2], Y, cuter_cerl:empty_tag()),
+  cuter_log:log_mfa(Fd, {cuter_erlang, safe_rdiv, 2}, [P1, P2], Y),
   cuter_log:log_equal(Fd, true, Y, 32.0, cuter_cerl:empty_tag()).
 
 %% Integer division of natural numbers
@@ -517,9 +511,9 @@ erlang_posdiv_logs(Fd, SAs=[P1, P2]) ->
   cuter_log:log_symb_params(Fd, SAs),
   X = cuter_symbolic:fresh_symbolic_var(),
   Y = cuter_symbolic:fresh_symbolic_var(),
-  cuter_log:log_mfa(Fd, {cuter_erlang, safe_pos_div, 2}, [P1, 4], X, cuter_cerl:empty_tag()),
+  cuter_log:log_mfa(Fd, {cuter_erlang, safe_pos_div, 2}, [P1, 4], X),
   cuter_log:log_equal(Fd, true, X, 2, cuter_cerl:empty_tag()),
-  cuter_log:log_mfa(Fd, {cuter_erlang, safe_pos_div, 2}, [P2, P1], Y, cuter_cerl:empty_tag()),
+  cuter_log:log_mfa(Fd, {cuter_erlang, safe_pos_div, 2}, [P2, P1], Y),
   cuter_log:log_equal(Fd, true, Y, 3, cuter_cerl:empty_tag()).
 
 %% Remainder of integer division of natural numbers
@@ -536,9 +530,9 @@ erlang_posrem_logs(Fd, SAs=[P1, P2]) ->
   cuter_log:log_symb_params(Fd, SAs),
   X = cuter_symbolic:fresh_symbolic_var(),
   Y = cuter_symbolic:fresh_symbolic_var(),
-  cuter_log:log_mfa(Fd, {cuter_erlang, safe_pos_rem, 2}, [P1, 4], X, cuter_cerl:empty_tag()),
+  cuter_log:log_mfa(Fd, {cuter_erlang, safe_pos_rem, 2}, [P1, 4], X),
   cuter_log:log_equal(Fd, true, X, 2, cuter_cerl:empty_tag()),
-  cuter_log:log_mfa(Fd, {cuter_erlang, safe_pos_rem, 2}, [P2, P1], Y, cuter_cerl:empty_tag()),
+  cuter_log:log_mfa(Fd, {cuter_erlang, safe_pos_rem, 2}, [P2, P1], Y),
   cuter_log:log_equal(Fd, true, Y, 3, cuter_cerl:empty_tag()).
 
 %% Unary operation
@@ -555,9 +549,9 @@ erlang_unary_logs(Fd, SAs=[P1, P2]) ->
   cuter_log:log_symb_params(Fd, SAs),
   X = cuter_symbolic:fresh_symbolic_var(),
   Y = cuter_symbolic:fresh_symbolic_var(),
-  cuter_log:log_mfa(Fd, {erlang, '-', 1}, [P1], X, cuter_cerl:empty_tag()),
+  cuter_log:log_mfa(Fd, {erlang, '-', 1}, [P1], X),
   cuter_log:log_equal(Fd, true, X, 2, cuter_cerl:empty_tag()),
-  cuter_log:log_mfa(Fd, {erlang, '-', 1}, [P2], Y, cuter_cerl:empty_tag()),
+  cuter_log:log_mfa(Fd, {erlang, '-', 1}, [P2], Y),
   cuter_log:log_equal(Fd, true, Y, -3.14, cuter_cerl:empty_tag()).
 
 %% Equality
@@ -577,12 +571,12 @@ erlang_equal_logs(Fd, SAs=[P1, P2, P3]) ->
   Y = cuter_symbolic:fresh_symbolic_var(),
   Z = cuter_symbolic:fresh_symbolic_var(),
   Q = cuter_symbolic:fresh_symbolic_var(),
-  cuter_log:log_mfa(Fd, {cuter_erlang, basic_eq, 2}, [P1, 42], X, cuter_cerl:empty_tag()),
+  cuter_log:log_mfa(Fd, {cuter_erlang, basic_eq, 2}, [P1, 42], X),
   cuter_log:log_equal(Fd, true, X, true, cuter_cerl:empty_tag()),
-  cuter_log:log_mfa(Fd, {cuter_erlang, basic_eq, 2}, [P2, ok], Y, cuter_cerl:empty_tag()),
+  cuter_log:log_mfa(Fd, {cuter_erlang, basic_eq, 2}, [P2, ok], Y),
   cuter_log:log_equal(Fd, true, Y, true, cuter_cerl:empty_tag()),
-  cuter_log:log_mfa(Fd, {cuter_erlang, safe_float, 1}, [P3], Z, cuter_cerl:empty_tag()),
-  cuter_log:log_mfa(Fd, {cuter_erlang, basic_eq, 2}, [P3, Z], Q, cuter_cerl:empty_tag()),
+  cuter_log:log_mfa(Fd, {cuter_erlang, safe_float, 1}, [P3], Z),
+  cuter_log:log_mfa(Fd, {cuter_erlang, basic_eq, 2}, [P3, Z], Q),
   cuter_log:log_equal(Fd, true, Q, false, cuter_cerl:empty_tag()).
 
 %% Inequality
@@ -602,12 +596,12 @@ erlang_equal_logs(Fd, SAs=[P1, P2, P3]) ->
 %  Y = cuter_symbolic:fresh_symbolic_var(),
 %  Z = cuter_symbolic:fresh_symbolic_var(),
 %  Q = cuter_symbolic:fresh_symbolic_var(),
-%  cuter_log:log_mfa(Fd, {erlang, '=/=', 2}, [P1, 42], X, cuter_cerl:empty_tag()),
+%  cuter_log:log_mfa(Fd, {erlang, '=/=', 2}, [P1, 42], X),
 %  cuter_log:log_equal(Fd, true, X, false, cuter_cerl:empty_tag()),
-%  cuter_log:log_mfa(Fd, {erlang, '=/=', 2}, [P2, ok], Y, cuter_cerl:empty_tag()),
+%  cuter_log:log_mfa(Fd, {erlang, '=/=', 2}, [P2, ok], Y),
 %  cuter_log:log_equal(Fd, true, Y, false, cuter_cerl:empty_tag()),
-%  cuter_log:log_mfa(Fd, {cuter_erlang, safe_float, 1}, [P3], Z, cuter_cerl:empty_tag()),
-%  cuter_log:log_mfa(Fd, {erlang, '=/=', 2}, [P3, Z], Q, cuter_cerl:empty_tag()),
+%  cuter_log:log_mfa(Fd, {cuter_erlang, safe_float, 1}, [P3], Z),
+%  cuter_log:log_mfa(Fd, {erlang, '=/=', 2}, [P3, Z], Q),
 %  cuter_log:log_equal(Fd, true, Q, true, cuter_cerl:empty_tag()).
 
 %% Number to float
@@ -625,11 +619,11 @@ erlang_float_logs(Fd, SAs=[P1, P2]) ->
   X = cuter_symbolic:fresh_symbolic_var(),
   Y = cuter_symbolic:fresh_symbolic_var(),
   Z = cuter_symbolic:fresh_symbolic_var(),
-  cuter_log:log_mfa(Fd, {cuter_erlang, safe_float, 1}, [P1], X, cuter_cerl:empty_tag()),
+  cuter_log:log_mfa(Fd, {cuter_erlang, safe_float, 1}, [P1], X),
   cuter_log:log_equal(Fd, true, X, 42.0, cuter_cerl:empty_tag()),
-  cuter_log:log_mfa(Fd, {cuter_erlang, safe_float, 1}, [P2], Y, cuter_cerl:empty_tag()),
+  cuter_log:log_mfa(Fd, {cuter_erlang, safe_float, 1}, [P2], Y),
   cuter_log:log_equal(Fd, true, Y, 3.14, cuter_cerl:empty_tag()),
-  cuter_log:log_mfa(Fd, {erlang, is_integer, 1}, [P1], Z, cuter_cerl:empty_tag()),
+  cuter_log:log_mfa(Fd, {erlang, is_integer, 1}, [P1], Z),
   cuter_log:log_equal(Fd, true, Z, true, cuter_cerl:empty_tag()).
 
 %% Bogus operation (identity function)
@@ -644,7 +638,7 @@ bogus_identity({_Dir, Fname, Python}) ->
 bogus_identity_logs(Fd, SAs=[P1]) ->
   cuter_log:log_symb_params(Fd, SAs),
   X = cuter_symbolic:fresh_symbolic_var(),
-  cuter_log:log_mfa(Fd, {cuter_erlang, atom_to_list_bogus, 1}, [P1], X, cuter_cerl:empty_tag()),
+  cuter_log:log_mfa(Fd, {cuter_erlang, atom_to_list_bogus, 1}, [P1], X),
   cuter_log:log_equal(Fd, true, X, 42, cuter_cerl:empty_tag()).
 
 %% Is an empty atom
@@ -661,9 +655,9 @@ atom_nil_logs(Fd, SAs=[P1, P2]) ->
   cuter_log:log_symb_params(Fd, SAs),
   X = cuter_symbolic:fresh_symbolic_var(),
   Y = cuter_symbolic:fresh_symbolic_var(),
-  cuter_log:log_mfa(Fd, {cuter_erlang, is_atom_nil, 1}, [P1], X, cuter_cerl:empty_tag()),
+  cuter_log:log_mfa(Fd, {cuter_erlang, is_atom_nil, 1}, [P1], X),
   cuter_log:log_equal(Fd, true, X, true, cuter_cerl:empty_tag()),
-  cuter_log:log_mfa(Fd, {cuter_erlang, is_atom_nil, 1}, [P2], Y, cuter_cerl:empty_tag()),
+  cuter_log:log_mfa(Fd, {cuter_erlang, is_atom_nil, 1}, [P2], Y),
   cuter_log:log_equal(Fd, true, Y, false, cuter_cerl:empty_tag()).
 
 %% First letter in an atom
@@ -678,7 +672,7 @@ atom_head({_Dir, Fname, Python}) ->
 atom_head_logs(Fd, SAs=[P1]) ->
   cuter_log:log_symb_params(Fd, SAs),
   X = cuter_symbolic:fresh_symbolic_var(),
-  cuter_log:log_mfa(Fd, {cuter_erlang, safe_atom_head, 1}, [P1], X, cuter_cerl:empty_tag()),
+  cuter_log:log_mfa(Fd, {cuter_erlang, safe_atom_head, 1}, [P1], X),
   cuter_log:log_equal(Fd, true, X, $z, cuter_cerl:empty_tag()).
 
 %% An atom without its first letter
@@ -693,7 +687,7 @@ atom_tail({_Dir, Fname, Python}) ->
 atom_tail_logs(Fd, SAs=[P1]) ->
   cuter_log:log_symb_params(Fd, SAs),
   X = cuter_symbolic:fresh_symbolic_var(),
-  cuter_log:log_mfa(Fd, {cuter_erlang, safe_atom_tail, 1}, [P1], X, cuter_cerl:empty_tag()),
+  cuter_log:log_mfa(Fd, {cuter_erlang, safe_atom_tail, 1}, [P1], X),
   cuter_log:log_equal(Fd, true, X, ok, cuter_cerl:empty_tag()).
 
 %% List to tuple
@@ -708,7 +702,7 @@ lst_to_tpl({_Dir, Fname, Python}) ->
 lst_to_tpl_logs(Fd, SAs=[P1]) ->
   cuter_log:log_symb_params(Fd, SAs),
   X = cuter_symbolic:fresh_symbolic_var(),
-  cuter_log:log_mfa(Fd, {cuter_erlang, safe_list_to_tuple, 1}, [P1], X, cuter_cerl:empty_tag()),
+  cuter_log:log_mfa(Fd, {cuter_erlang, safe_list_to_tuple, 1}, [P1], X),
   cuter_log:log_equal(Fd, true, X, {ok, 42}, cuter_cerl:empty_tag()).
 
 %% Tuple to list
@@ -723,7 +717,7 @@ tpl_to_lst({_Dir, Fname, Python}) ->
 tpl_to_lst_logs(Fd, SAs=[P1]) ->
   cuter_log:log_symb_params(Fd, SAs),
   X = cuter_symbolic:fresh_symbolic_var(),
-  cuter_log:log_mfa(Fd, {cuter_erlang, safe_tuple_to_list, 1}, [P1], X, cuter_cerl:empty_tag()),
+  cuter_log:log_mfa(Fd, {cuter_erlang, safe_tuple_to_list, 1}, [P1], X),
   cuter_log:log_equal(Fd, true, X, [ok, 42], cuter_cerl:empty_tag()).
 
 %% Compare integers (<)
@@ -737,7 +731,7 @@ erlang_lt_int({_Dir, Fname, Python}) ->
 erlang_lt_int_logs(Fd, SAs=[P1, P2]) ->
   cuter_log:log_symb_params(Fd, SAs),
   X = cuter_symbolic:fresh_symbolic_var(),
-  cuter_log:log_mfa(Fd, {cuter_erlang, lt_int, 2}, [P1, P2], X, cuter_cerl:empty_tag()),
+  cuter_log:log_mfa(Fd, {cuter_erlang, lt_int, 2}, [P1, P2], X),
   cuter_log:log_equal(Fd, true, X, true, cuter_cerl:empty_tag()).
 
 %% Compare floats (<)
@@ -751,5 +745,5 @@ erlang_lt_float({_Dir, Fname, Python}) ->
 erlang_lt_float_logs(Fd, SAs=[P1, P2]) ->
   cuter_log:log_symb_params(Fd, SAs),
   X = cuter_symbolic:fresh_symbolic_var(),
-  cuter_log:log_mfa(Fd, {cuter_erlang, lt_float, 2}, [P1, P2], X, cuter_cerl:empty_tag()),
+  cuter_log:log_mfa(Fd, {cuter_erlang, lt_float, 2}, [P1, P2], X),
   cuter_log:log_equal(Fd, true, X, true, cuter_cerl:empty_tag()).

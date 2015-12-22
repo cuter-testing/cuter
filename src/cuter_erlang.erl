@@ -10,6 +10,7 @@
         , safe_pos_div/2, safe_pos_rem/2
         , safe_plus/2, safe_minus/2, safe_times/2, safe_rdiv/2
         , safe_float/1, safe_list_to_tuple/1, safe_tuple_to_list/1
+        , safe_hd/1, safe_tl/1
           %% Overriding functions
         , abs/1
         , float/1
@@ -24,9 +25,13 @@
         , '=='/2, '/='/2
         , '<'/2, '=<'/2, '>'/2, '>='/2
         , '+'/2, '-'/2, '*'/2, '/'/2
+        , hd/1, tl/1
         , '++'/2, '--'/2, reverse/2, member/2, keyfind/3
         , is_binary/1
         ]).
+
+%% XXX When adding type constraints for spec, the overriding funs must be ignored
+%% as they have the proper spec (so dialyzer won't complain).
 
 %% ----------------------------------------------------------------------------
 %% Other functions
@@ -487,7 +492,6 @@ safe_pos_rem(X, Y) -> X rem Y.
 %% number < atom < reference < fun < port < pid < tuple < map < list < bit string
 %% ----------------------------------------------------------------------------
 
-
 -spec basic_eq(any(), any()) -> boolean().
 basic_eq(X, Y) -> X =:= Y.
 
@@ -806,6 +810,26 @@ min(X, Y) ->
 %% ----------------------------------------------------------------------------
 %% LIST OPERATIONS
 %% ----------------------------------------------------------------------------
+
+%%
+%% Simulate erlang:hd/1
+%%
+-spec hd([any(), ...]) -> any().
+hd([H|_]) -> H;
+hd(_) -> error(badarg).
+
+-spec safe_hd([any(), ...]) -> any().
+safe_hd(L) -> erlang:hd(L).
+
+%%
+%% Simulate erlang:tl/1
+%%
+-spec tl([any(), ...]) -> any().
+tl([_|T]) -> T;
+tl(_) -> error(badarg).
+
+-spec safe_tl([any(), ...]) -> any().
+safe_tl(L) -> erlang:tl(L).
 
 %%
 %% Simulate erlang:'++'/2
