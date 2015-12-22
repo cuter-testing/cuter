@@ -19,6 +19,9 @@
 -export([loaded_whitelist/2, error_loading_whitelist/2]).
 %% Statistics about the solver.
 -export([solved_models/2]).
+%% Report coverage.
+-export([coverage_title/0, branch_coverage/3, branch_coverage_nocomp/3, condition_coverage/3,
+         condition_coverage_nocomp/3, condition_outcome_coverage/3, condition_outcome_coverage_nocomp/3]).
 %% Format errors.
 -export([abstract_code_missing/1, cover_compiled_module/1, non_existing_module/1,
          compilation_errors/2, non_existing_mfa/1]).
@@ -86,6 +89,10 @@
 
 %% Types for calls, casts, & replies.
 
+-type coverage_call() :: branch_coverage | branch_coverage_nocomp
+                       | condition_coverage | condition_coverage_nocomp
+                       | condition_outcome_coverage | condition_outcome_coverage_nocomp.
+
 -type call() :: {whitelist_loaded, file:name(), cuter_mock:whitelist()}
               | {whitelist_error, file:name(), any()}
               | {module_non_existing, atom()}
@@ -109,6 +116,8 @@
               | callgraph_calculation_succeeded
               | {loading_visited_module, cuter:mod()}
               | {solved_models, non_neg_integer(), non_neg_integer()}
+              | coverage_title
+              | {coverage_call(), non_neg_integer(), non_neg_integer(), float()}
               .
 
 %% Reporting levels.
@@ -261,6 +270,38 @@ solved_models(Solved, NotSolved) ->
   gen_server:call(?PRETTY_PRINTER, {solved_models, Solved, NotSolved}).
 
 %% ----------------------------------------------------------------------------
+%% Report coverage.
+%% ----------------------------------------------------------------------------
+
+-spec coverage_title() -> ok.
+coverage_title() ->
+  gen_server:call(?PRETTY_PRINTER, coverage_title).
+
+-spec branch_coverage(non_neg_integer(), non_neg_integer(), float()) -> ok.
+branch_coverage(Visited, All, Coverage) ->
+  gen_server:call(?PRETTY_PRINTER, {branch_coverage, Visited, All, Coverage}).
+
+-spec branch_coverage_nocomp(non_neg_integer(), non_neg_integer(), float()) -> ok.
+branch_coverage_nocomp(Visited, All, Coverage) ->
+  gen_server:call(?PRETTY_PRINTER, {branch_coverage_nocomp, Visited, All, Coverage}).
+
+-spec condition_coverage(non_neg_integer(), non_neg_integer(), float()) -> ok.
+condition_coverage(Visited, All, Coverage) ->
+  gen_server:call(?PRETTY_PRINTER, {condition_coverage, Visited, All, Coverage}).
+
+-spec condition_coverage_nocomp(non_neg_integer(), non_neg_integer(), float()) -> ok.
+condition_coverage_nocomp(Visited, All, Coverage) ->
+  gen_server:call(?PRETTY_PRINTER, {condition_coverage_nocomp, Visited, All, Coverage}).
+
+-spec condition_outcome_coverage(non_neg_integer(), non_neg_integer(), float()) -> ok.
+condition_outcome_coverage(Visited, All, Coverage) ->
+  gen_server:call(?PRETTY_PRINTER, {condition_outcome_coverage, Visited, All, Coverage}).
+
+-spec condition_outcome_coverage_nocomp(non_neg_integer(), non_neg_integer(), float()) -> ok.
+condition_outcome_coverage_nocomp(Visited, All, Coverage) ->
+  gen_server:call(?PRETTY_PRINTER, {condition_outcome_coverage_nocomp, Visited, All, Coverage}).
+
+%% ----------------------------------------------------------------------------
 %% Callgraph related info.
 %% ----------------------------------------------------------------------------
 
@@ -307,6 +348,75 @@ code_change(_OldVsn, State, _Extra) ->
 %% gen_server callback : handle_call/3
 -spec handle_call(call(), from(), state()) -> {reply, ok, state()}.
 
+
+%% Report coverage.
+
+handle_call(coverage_title, _From, State=#st{pplevel = PpLevel}) ->
+  case PpLevel#pp_level.execInfo of
+    ?MINIMAL -> io:format(standard_error, "~nCoverage Metrics ...~n", []);
+    _ -> io:format("~nCoverage Statistics ...~n")
+  end,
+  {reply, ok, State};
+
+handle_call({branch_coverage, Visited, All, Coverage}, _From, State=#st{pplevel = PpLevel}) ->
+  case PpLevel#pp_level.execInfo of
+    ?MINIMAL ->
+      io:format(standard_error, "  - ~p of ~p clauses (~.2f %).~n", [Visited, All, Coverage]);
+    _ ->
+      io:format("  - ~p of ~p clauses (~.2f %).~n", [Visited, All, Coverage])
+  end,
+  {reply, ok, State};
+
+handle_call({branch_coverage_nocomp, Visited, All, Coverage}, _From, State=#st{pplevel = PpLevel}) ->
+  case PpLevel#pp_level.execInfo of
+    ?MINIMAL ->
+      io:format(standard_error, "  - ~p of ~p clauses [w/o compiler generated clauses] (~.2f %).~n",
+        [Visited, All, Coverage]);
+    _ ->
+      io:format("  - ~p of ~p clauses [w/o compiler generated clauses] (~.2f %).~n",
+        [Visited, All, Coverage])
+  end,
+  {reply, ok, State};
+
+handle_call({condition_coverage, Visited, All, Coverage}, _From, State=#st{pplevel = PpLevel}) ->
+  case PpLevel#pp_level.execInfo of
+    ?MINIMAL ->
+      io:format(standard_error, "  - ~p of ~p conditions (~.2f %).~n", [Visited, All, Coverage]);
+    _ ->
+      io:format("  - ~p of ~p conditions (~.2f %).~n", [Visited, All, Coverage])
+  end,
+  {reply, ok, State};
+
+handle_call({condition_coverage_nocomp, Visited, All, Coverage}, _From, State=#st{pplevel = PpLevel}) ->
+  case PpLevel#pp_level.execInfo of
+    ?MINIMAL ->
+      io:format(standard_error, "  - ~p of ~p conditions [w/o compiler generated clauses] (~.2f %).~n",
+        [Visited, All, Coverage]);
+    _ ->
+      io:format("  - ~p of ~p conditions [w/o compiler generated clauses] (~.2f %).~n",
+        [Visited, All, Coverage])
+  end,
+  {reply, ok, State};
+
+handle_call({condition_outcome_coverage, Visited, All, Coverage}, _From, State=#st{pplevel = PpLevel}) ->
+  case PpLevel#pp_level.execInfo of
+    ?MINIMAL ->
+      io:format(standard_error, "  - ~p of ~p condition outcomes (~.2f %).~n", [Visited, All, Coverage]);
+    _ ->
+      io:format("  - ~p of ~p condition outcomes (~.2f %).~n", [Visited, All, Coverage])
+  end,
+  {reply, ok, State};
+
+handle_call({condition_outcome_coverage_nocomp, Visited, All, Coverage}, _From, State=#st{pplevel = PpLevel}) ->
+  case PpLevel#pp_level.execInfo of
+    ?MINIMAL ->
+      io:format(standard_error, "  - ~p of ~p condition outcomes [w/o compiler generated clauses] (~.2f %).~n",
+        [Visited, All, Coverage]);
+    _ ->
+      io:format("  - ~p of ~p condition outcomes [w/o compiler generated clauses] (~.2f %).~n",
+        [Visited, All, Coverage])
+  end,
+  {reply, ok, State};
 
 %% Statistics about the solver.
 
