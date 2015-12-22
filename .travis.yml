@@ -2,7 +2,7 @@ language: erlang
 before_install:
   - git clone https://github.com/Z3Prover/z3.git
   - cd z3
-  - git checkout z3-4.4.1
+  - git checkout z3-4.4.2
   - python scripts/mk_make.py
   - cd build
   - make -j 4
@@ -17,7 +17,7 @@ script:
   - make depend
   - make all
 otp_release:
-  - 18.1
+  - 18.2
   - 18.0
   - 17.4
   - 17.0
