@@ -125,7 +125,7 @@ start(Conf, N_Pollers, N_Solvers) ->
   ok = wait_for_processes(Pollers),
   lists:foreach(fun cuter_solver:send_stop_message/1, Solvers),
   ok = wait_for_processes(Solvers),
-  stop(Conf).
+  stop_and_report(Conf).
 
 -spec wait_for_processes([pid()]) -> ok.
 wait_for_processes([]) ->
@@ -139,19 +139,34 @@ wait_for_processes(Procs) ->
       wait_for_processes(Procs -- [Who])
   end.
 
+-spec stop_and_report(configuration()) -> erroneous_inputs().
+stop_and_report(Conf) ->
+  %% Report solver statistics.
+  SolvedModels = cuter_scheduler_maxcover:get_solved_models(Conf#conf.scheduler),
+  NotSolvedModels = cuter_scheduler_maxcover:get_not_solved_models(Conf#conf.scheduler),
+  cuter_analyzer:solving_stats(SolvedModels, NotSolvedModels),
+  %% Report coverage statistics.
+  VisitedTags = cuter_scheduler_maxcover:get_visited_tags(Conf#conf.scheduler),
+  cuter_analyzer:calculate_coverage(Conf#conf.calculateCoverage, Conf#conf.codeServer, VisitedTags),
+  %% Report the code logs.
+  CodeLogs = cuter_codeserver:get_logs(Conf#conf.codeServer),
+  cuter_pp:code_logs(CodeLogs),
+  %% Report the erroneous inputs.
+  ErroneousInputs = cuter_scheduler_maxcover:get_erroneous_inputs(Conf#conf.scheduler),
+  cuter_pp:errors_found(ErroneousInputs),
+  stop(Conf, ErroneousInputs).
+
 -spec stop(configuration()) -> erroneous_inputs().
 stop(Conf) ->
-  SchedulerLogs = cuter_scheduler_maxcover:stop(Conf#conf.scheduler),
-  _ = cuter_analyzer:solving_stats(SchedulerLogs),
-  _ = cuter_analyzer:calculate_coverage(Conf#conf.calculateCoverage, Conf#conf.codeServer, SchedulerLogs),
-  CodeLogs = cuter_codeserver:get_logs(Conf#conf.codeServer),
-  Erroneous = cuter_scheduler_maxcover:get_erroneous(SchedulerLogs),
+  stop(Conf, []).
+
+-spec stop(configuration(), erroneous_inputs()) -> erroneous_inputs().
+stop(Conf, ErroneousInputs) ->
+  cuter_scheduler_maxcover:stop(Conf#conf.scheduler),
   cuter_codeserver:stop(Conf#conf.codeServer),
-  cuter_pp:code_logs(CodeLogs),
-  cuter_pp:errors_found(Erroneous),
   cuter_pp:stop(),
   cuter_lib:clear_and_delete_dir(Conf#conf.dataDir),
-  Erroneous.
+  ErroneousInputs.
 
 %% ----------------------------------------------------------------------------
 %% Initializations

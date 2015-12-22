@@ -2,7 +2,7 @@
 %%------------------------------------------------------------------------------
 -module(cuter_analyzer).
 
--export([get_result/1, get_mapping/1, get_traces/1, is_runtime_error/1, solving_stats/1,
+-export([get_result/1, get_mapping/1, get_traces/1, is_runtime_error/1, solving_stats/2,
          get_int_process/1, process_raw_execution_info/1, calculate_coverage/3,
          %% Constructor & accessors for #raw{}
          mk_raw_info/5, traces_of_raw_info/1, int_of_raw_info/1,
@@ -151,21 +151,18 @@ pathVertex_of_info(Info) ->
 %% Solving stats.
 %% ----------------------------------------------------------------------------
 
--spec solving_stats(cuter_scheduler_maxcover:logs()) -> ok.
-solving_stats(SchedulerLogs) ->
-  Solved = cuter_scheduler_maxcover:get_solved(SchedulerLogs),
-  NotSolved = cuter_scheduler_maxcover:get_not_solved(SchedulerLogs),
+-spec solving_stats(non_neg_integer(), non_neg_integer()) -> ok.
+solving_stats(Solved, NotSolved) ->
   cuter_pp:solved_models(Solved, NotSolved).
 
 %% ----------------------------------------------------------------------------
 %% Calculate coverage.
 %% ----------------------------------------------------------------------------
 
--spec calculate_coverage(boolean(), pid(), cuter_scheduler_maxcover:logs()) -> ok.
+-spec calculate_coverage(boolean(), pid(), cuter_cerl:visited_tags()) -> ok.
 calculate_coverage(false, _, _) -> ok;
-calculate_coverage(true, CodeServer, SchedulerLogs) ->
+calculate_coverage(true, CodeServer, VisitedTags) ->
   io:format("~n~nCoverage~n"),
-  VisitedTags = cuter_scheduler_maxcover:get_visitedTags(SchedulerLogs),
   %% Calculate the branch coverage (with compiler generated clauses).
   FeasibleTags = cuter_codeserver:get_feasible_tags(CodeServer, cuter_cerl:node_types_branches()),
   {Visited1, All1, Coverage1} = calculate_coverage(FeasibleTags, VisitedTags),

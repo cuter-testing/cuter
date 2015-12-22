@@ -3,18 +3,16 @@
 -module(cuter_scheduler_maxcover).
 -behaviour(gen_server).
 
--export([ %% external API
-          start/4, stop/1,
-          request_input/1, store_execution/3, request_operation/1, solver_reply/2,
-          %% gen_server callbacks
-          init/1, terminate/2, code_change/3, handle_info/2, handle_call/3, handle_cast/2]).
-
-%% Logs API
--export([get_erroneous/1, get_visitedTags/1, get_solved/1, get_not_solved/1]).
+%% External API.
+-export([start/4, stop/1, request_input/1, store_execution/3, request_operation/1, solver_reply/2]).
+%% Get logs API.
+-export([get_visited_tags/1, get_erroneous_inputs/1, get_solved_models/1, get_not_solved_models/1]).
+%% gen_server callbacks.
+-export([init/1, terminate/2, code_change/3, handle_info/2, handle_call/3, handle_cast/2]).
 
 -include("include/cuter_macros.hrl").
 
--export_type([handle/0, operationId/0, logs/0]).
+-export_type([handle/0, operationId/0]).
 
 -type visited() :: boolean().
 -type operationId() :: integer().
@@ -79,14 +77,6 @@
   not_solved = 0  :: non_neg_integer()}).
 -type state() :: #st{}.
 
-%% The logs reported back before shutting down.
--record(logs, {
-  erroneous   :: cuter:erroneous_inputs(),
-  visitedTags :: cuter_cerl:visited_tags(),
-  solved      :: non_neg_integer(),
-  notSolved  :: non_neg_integer()}).
--type logs() :: #logs{}.
-
 %% ----------------------------------------------------------------------------
 %% External API
 %% ----------------------------------------------------------------------------
@@ -100,7 +90,7 @@ start(Python, Depth, SeedInput, CodeServer) ->
   end.
 
 %% Stops the Scheduler.
--spec stop(pid()) -> logs().
+-spec stop(pid()) -> ok.
 stop(Scheduler) ->
   gen_server:call(Scheduler, stop).
 
@@ -123,28 +113,24 @@ solver_reply(Scheduler, Result) ->
   gen_server:call(Scheduler, {solver_reply, Result}, infinity).
 
 %% ----------------------------------------------------------------------------
-%% Logs API
+%% Get logs API
 %% ----------------------------------------------------------------------------
 
--spec get_erroneous(logs()) -> cuter:erroneous_inputs().
-get_erroneous(Logs) ->
-  Logs#logs.erroneous.
+-spec get_visited_tags(pid()) -> cuter_cerl:visited_tags().
+get_visited_tags(Scheduler) ->
+  gen_server:call(Scheduler, get_visited_tags).
 
--spec get_visitedTags(logs()) -> cuter_cerl:visited_tags().
-get_visitedTags(Logs) ->
-  Logs#logs.visitedTags.
+-spec get_erroneous_inputs(pid()) -> cuter:erroneous_inputs().
+get_erroneous_inputs(Scheduler) ->
+  gen_server:call(Scheduler, get_erroneous_inputs).
 
--spec get_solved(logs()) -> non_neg_integer().
-get_solved(Logs) ->
-  Logs#logs.solved.
+-spec get_solved_models(pid()) -> non_neg_integer().
+get_solved_models(Scheduler) ->
+  gen_server:call(Scheduler, get_solved_models).
 
--spec get_not_solved(logs()) -> non_neg_integer().
-get_not_solved(Logs) ->
-  Logs#logs.notSolved.
-
-mk_logs(Erroneous, VisitedTags, Solved, NotSolved) ->
-  #logs{erroneous = Erroneous, visitedTags = VisitedTags,
-    solved = Solved, notSolved = NotSolved}.
+-spec get_not_solved_models(pid()) -> non_neg_integer().
+get_not_solved_models(Scheduler) ->
+  gen_server:call(Scheduler, get_not_solved_models).
 
 %% ----------------------------------------------------------------------------
 %% gen_server callbacks (Server Implementation)
@@ -191,7 +177,11 @@ handle_info(_Msg, State) ->
                ; ({store_execution, handle(), cuter_analyzer:info()}, from(), state()) -> {reply, ok, state()}
                ; ({solver_reply, cuter_solver:solver_result()}, from(), state()) -> {reply, ok, state()}
                ; (request_operation, from(), state()) -> {reply, cuter_solver:solver_input() | try_later, state()}
-               ; (stop, from(), state()) -> {stop, normal, logs(), state()}.
+               ; (stop, from(), state()) -> {stop, normal, ok, state()}
+               ; (get_visited_tags, from(), state()) -> {reply, cuter_cerl:visited_tags(), state()}
+               ; (get_erroneous_inputs, from(), state()) -> {reply, cuter:erroneous_inputs(), state()}
+               ; (get_solved_models | get_not_solved_models, from(), state()) -> {reply, non_neg_integer(), state()}
+               .
 
 %% Ask for a new input to execute.
 handle_call(request_input, _From, S=#st{running = Running, firstOperation = FirstOperation, inputsQueue = InputsQueue, tagsQueue = TagsQueue,
@@ -262,9 +252,25 @@ handle_call(request_operation, {Who, _Ref}, S=#st{tagsQueue = TagsQueue, infoTab
   end;
 
 %% Stops the server.
-handle_call(stop, _From, S=#st{erroneous = Err, visitedTags = Visited, solved = Slvd, not_solved = NSlvd}) ->
-  Logs = mk_logs(lists:reverse(Err), Visited, Slvd, NSlvd),
-  {stop, normal, Logs, S}.
+handle_call(stop, _From, State) ->
+  {stop, normal, ok, State};
+
+%% Gets the visited tags
+handle_call(get_visited_tags, _From, State=#st{visitedTags = VisitedTags}) ->
+  {reply, VisitedTags, State};
+
+%% Get the erroneous inputs.
+handle_call(get_erroneous_inputs, _From, State=#st{erroneous = Err}) ->
+  {reply, lists:reverse(Err), State};
+
+%% Gets the number of solved models.
+handle_call(get_solved_models, _From, State=#st{solved = Solved}) ->
+  {reply, Solved, State};
+
+%% Gets the number of not solved models.
+handle_call(get_not_solved_models, _From, State=#st{not_solved = NotSolved}) ->
+  {reply, NotSolved, State}.
+
 
 %% handle_cast/2
 -spec handle_cast(any(), state()) -> {noreply, state()}.
