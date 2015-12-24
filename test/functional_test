@@ -3,19 +3,19 @@
 DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 ebin=$DIR/ftest/ebin
 
-tests[0]="bitstr;f11;[0];9;-p=2 -s=3;bitstr-f11-1;no-whitelist"
-tests[1]="bitstr;f12;[0,0,0];14;-p=2 -s=3;bitstr-f12-3;no-whitelist"
-tests[2]="bitstr;f13;[0,0,0];24;-p=3 -s=8;bitstr-f13-3;no-whitelist"
-tests[3]="bitstr;f21;[<<>>];6;-p=2 -s=3;bitstr-f21-1;no-whitelist"
-tests[4]="bitstr;f22;[<<>>,42];8;-p=2 -s=3;bitstr-f22-2;no-whitelist"
-tests[5]="bitstr;f23;[0,0];7;-p=2 -s=3;bitstr-f23-2;no-whitelist"
-tests[6]="bitstr;f31;[<<>>,0];6;-p=2 -s=3;bitstr-f31-2;no-whitelist"
-tests[7]="bitstr;f32;[<<>>,0,3];11;-p=2 -s=3;bitstr-f32-3;no-whitelist"
-tests[8]="bitstr;f33;[<<>>,0,0,<<>>];21;-p=2 -s=3;bitstr-f33-4;no-whitelist"
-tests[9]="otp_int;obsolete;[erlang, length, 1];3;-p=2 -s=3;otp_int-obsolete-3;no-whitelist"
-tests[10]="whitelist;f;[1000];3;-p=2 -s=3;whitelist-f-1;whitelist-f-1"
-tests[11]="whitelist;g;[1000];3;-p=2 -s=3;whitelist-g-1;whitelist-g-1"
-tests[12]="complex_spec;f;[[]];32;-p=6 -s=6;complex_spec-f-1;no-whitelist"
+tests[0]="bitstr;f11;[0];9;-p 2 -s 3;bitstr-f11-1;no-whitelist"
+tests[1]="bitstr;f12;[0,0,0];14;-p 2 -s 3;bitstr-f12-3;no-whitelist"
+tests[2]="bitstr;f13;[0,0,0];24;-p 3 -s 8;bitstr-f13-3;no-whitelist"
+tests[3]="bitstr;f21;[<<>>];6;-p 2 -s 3;bitstr-f21-1;no-whitelist"
+tests[4]="bitstr;f22;[<<>>,42];8;-p 2 -s 3;bitstr-f22-2;no-whitelist"
+tests[5]="bitstr;f23;[0,0];7;-p 2 -s 3;bitstr-f23-2;no-whitelist"
+tests[6]="bitstr;f31;[<<>>,0];6;-p 2 -s 3;bitstr-f31-2;no-whitelist"
+tests[7]="bitstr;f32;[<<>>,0,3];11;-p 2 -s 3;bitstr-f32-3;no-whitelist"
+tests[8]="bitstr;f33;[<<>>,0,0,<<>>];21;-p 2 -s 3;bitstr-f33-4;no-whitelist"
+tests[9]="otp_int;obsolete;[erlang, length, 1];3;-p 2 -s 3;otp_int-obsolete-3;no-whitelist"
+tests[10]="whitelist;f;[1000];3;-p 2 -s 3;whitelist-f-1;whitelist-f-1"
+tests[11]="whitelist;g;[1000];3;-p 2 -s 3;whitelist-g-1;whitelist-g-1"
+tests[12]="complex_spec;f;[[]];32;-p 6 -s 6;complex_spec-f-1;no-whitelist"
 
 for element in "${tests[@]}"; do
   IFS=';' read -a t <<< "$element"
@@ -24,8 +24,8 @@ for element in "${tests[@]}"; do
   expected=$DIR/ftest/expected/${t[5]}.expected
   whitelist=$DIR/ftest/whitelist/${t[6]}.txt
 
-  echo -e "\nRunning ./cuter ${t[0]} ${t[1]} '${t[2]}' ${t[3]} ${t[4]} -w='${t[6]}.txt' ..."
-  cd "$ebin" && $DIR/../cuter ${t[0]} ${t[1]} "${t[2]}" ${t[3]} ${t[4]} -w="$whitelist" > "$outfile"
+  echo -e "\nRunning ./cuter.py ${t[0]} ${t[1]} '${t[2]}' -d ${t[3]} ${t[4]} -w '${t[6]}.txt' ..."
+  cd "$ebin" && $DIR/../cuter.py ${t[0]} ${t[1]} "${t[2]}" -d ${t[3]} ${t[4]} -w "$whitelist" > "$outfile"
   if diff -q "$outfile" "$expected"; then
     rm -f "$outfile"
   else
