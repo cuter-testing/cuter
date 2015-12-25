@@ -17,7 +17,11 @@ def main(argv):
       usage()
       sys.exit(1)
     # Export ERL_LIBS.
-    os.environ["ERL_LIBS"] = getDirectory() + ":" + os.getenv("ERL_LIBS")
+    erl_libs = os.getenv("ERL_LIBS")
+    if erl_libs != None:
+      os.environ["ERL_LIBS"] = getDirectory() + ":" + erl_libs
+    else:
+      os.environ["ERL_LIBS"] = getDirectory()
     # Read the arguments.
     module, fun, args = remainder[0], remainder[1], remainder[2]
     # Set the default options.
