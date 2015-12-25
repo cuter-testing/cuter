@@ -105,14 +105,14 @@ bar([X|Xs], [Y|Ys]) -> X * Y + bar(Xs, Ys).
 ```
 
 For single file tests, such as the above, the simplest way to run CutEr
-is to use the `cuter.py` script as follows:
+is to use the `cuter` script as follows:
 
-    ./cuter.py foo bar '[[1], [2]]'
+    ./cuter foo bar '[[1], [2]]'
 
 i.e. supply it with three arguments: the module name, the function name,
 and the list of arguments for the call that will act as a seed for the
 concolic execution of the unit under test.  If there is no `foo.beam`
-file, the `cuter.py` script will automatically compile the `foo.erl` file
+file, the `cuter` script will automatically compile the `foo.erl` file
 and create a .beam file with debug information.
 
 Alternatively, go to the directory of the source file and compile it
@@ -136,9 +136,9 @@ To sum up, `cuter:run/3` is called as `cuter:run(M, F, As)` where
 There is also a `cuter:run/4` function that takes these three arguments
 but also a numeric argument `Depth` that denotes the depth of the search
 (i.e. roughly the number of branches that will be explored).  This depth
-can also be specified as an option of the `cuter.py` script:
+can also be specified as an option of the `cuter` script:
 
-    ./cuter.py foo erl '[[1], [2]]' -d 42
+    ./cuter foo erl '[[1], [2]]' -d 42
 
 CutEr provides more API functions that also come with options that
 control the concolic execution of Erlang programs. These will be

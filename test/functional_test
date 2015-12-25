@@ -24,8 +24,8 @@ for element in "${tests[@]}"; do
   expected=$DIR/ftest/expected/${t[5]}.expected
   whitelist=$DIR/ftest/whitelist/${t[6]}.txt
 
-  echo -e "\nRunning ./cuter.py ${t[0]} ${t[1]} '${t[2]}' -d ${t[3]} ${t[4]} -w '${t[6]}.txt' ..."
-  cd "$ebin" && $DIR/../cuter.py ${t[0]} ${t[1]} "${t[2]}" -d ${t[3]} ${t[4]} -w "$whitelist" > "$outfile"
+  echo -e "\nRunning ./cuter ${t[0]} ${t[1]} '${t[2]}' -d ${t[3]} ${t[4]} -w '${t[6]}.txt' ..."
+  cd "$ebin" && $DIR/../cuter ${t[0]} ${t[1]} "${t[2]}" -d ${t[3]} ${t[4]} -w "$whitelist" > "$outfile"
   if diff -q "$outfile" "$expected"; then
     rm -f "$outfile"
   else
