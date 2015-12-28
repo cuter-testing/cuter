@@ -125,7 +125,7 @@ CutEr can then be invoked by calling the `cuter:run/3` function:
     erl -noshell -eval "cuter:run(foo, bar, [[1], [2]])" -s init stop
 
 This will report a list of inputs that lead to runtime errors, for
-example `[1.0,2.0,0.0], [0,1]`.
+example `foo:bar([0], [])` and `foo:bar([3,2,1], [0.0,0])`.
 
 To sum up, `cuter:run/3` is called as `cuter:run(M, F, As)` where
 
@@ -136,9 +136,9 @@ To sum up, `cuter:run/3` is called as `cuter:run(M, F, As)` where
 There is also a `cuter:run/4` function that takes these three arguments
 but also a numeric argument `Depth` that denotes the depth of the search
 (i.e. roughly the number of branches that will be explored).  This depth
-can also be specified as an optional argument of the `cuter` script:
+can also be specified as an option of the `cuter` script:
 
-    ./cuter foo erl '[[1], [2]]' 42
+    ./cuter foo erl '[[1], [2]]' -d 42
 
 CutEr provides more API functions that also come with options that
 control the concolic execution of Erlang programs. These will be
