@@ -190,8 +190,12 @@ calculate_coverage(true, CodeServer, VisitedTags) ->
 
 -spec calculate_coverage(cuter_cerl:visited_tags(), cuter_cerl:visited_tags()) -> {non_neg_integer(), non_neg_integer(), float()}.
 calculate_coverage(Feasible, Visited) ->
-  All = gb_sets:size(Feasible),
-  Diff = gb_sets:subtract(Feasible, Visited),
-  NotVisited = gb_sets:size(Diff),
-  Coverage = 100 * (All - NotVisited) / All,
-  {All - NotVisited, All, Coverage}.
+  case gb_sets:size(Feasible) of
+    0 ->
+      {0, 0, 100.0};
+    All ->
+      Diff = gb_sets:subtract(Feasible, Visited),
+      NotVisited = gb_sets:size(Diff),
+      Coverage = 100 * (All - NotVisited) / All,
+      {All - NotVisited, All, Coverage}
+  end.

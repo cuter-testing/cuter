@@ -238,8 +238,8 @@ handle_call(get_whitelist, _From, State=#st{whitelist = Whitelist}) ->
 handle_call({get_feasible_tags, NodeTypes}, _From, State=#st{callgraph = Callgraph}) ->
   Tags = get_feasible_tags(Callgraph, NodeTypes, State),
   {reply, Tags, State};
-handle_call({calculate_callgraph, Mfa}, _From, State) ->
-  case cuter_callgraph:get_callgraph(Mfa) of
+handle_call({calculate_callgraph, Mfa}, _From, State=#st{whitelist = Whitelist}) ->
+  case cuter_callgraph:get_callgraph(Mfa, Whitelist) of
     {error, _Reason} ->
       {reply, error, State};
     {ok, Callgraph} ->
@@ -276,8 +276,8 @@ get_feasible_tags(Callgraph, NodeTypes, State) ->
   FoldFn = fun(Mfa, Acc) -> gb_sets:union(get_feasible_tags_of_mfa(Mfa, NodeTypes, State), Acc) end,
   gb_sets:fold(FoldFn, gb_sets:new(), VisitedMfas).
 
-get_feasible_tags_of_mfa({M,F,A}=Mfa, NodeTypes, State) ->
-  case erlang:is_builtin(M, F, A) orelse is_overriding(Mfa) of
+get_feasible_tags_of_mfa({M,F,A}=Mfa, NodeTypes, State=#st{whitelist = Whitelist}) ->
+  case erlang:is_builtin(M, F, A) orelse is_overriding(Mfa) orelse cuter_mock:is_whitelisted(Mfa, Whitelist) of
     true  -> gb_sets:new();
     false ->
       case is_mod_stored(M, State) of

@@ -2,7 +2,7 @@
 %%------------------------------------------------------------------------------
 -module(cuter_callgraph).
 
--export([get_callgraph/1, foldModule/3, foreachModule/2, get_visited_mfas/1]).
+-export([get_callgraph/2, foldModule/3, foreachModule/2, get_visited_mfas/1]).
 
 -export_type([callgraph/0]).
 
@@ -12,6 +12,11 @@
 -type visited_mfas() :: gb_sets:set(mfa()).
 -type visited_modules() :: sets:set(cuter:mod()).
 -type callgraph() :: {visited_modules(), visited_mfas()}.
+
+-record(conf, {
+  whitelist :: cuter_mock:whitelist()
+}).
+%-type configuration() :: #conf{}.
 
 %% ----------------------------------------------------------------------------
 %% Callgraph type API.
@@ -30,14 +35,22 @@ foldModule(Fn, Acc0, {VisitedModules, _}) ->
 get_visited_mfas({_, VisitedMfas}) -> VisitedMfas.
 
 %% ----------------------------------------------------------------------------
+%% Configuration API.
+%% ----------------------------------------------------------------------------
+
+mk_conf(Whitelist) ->
+  #conf{whitelist = Whitelist}.
+
+%% ----------------------------------------------------------------------------
 %% Callgraph calculation.
 %% ----------------------------------------------------------------------------
 
--spec get_callgraph(mfa()) -> {ok, callgraph()} | {error, string()}.
-get_callgraph(Mfa) ->
+-spec get_callgraph(mfa(), cuter_mock:whitelist()) -> {ok, callgraph()} | {error, string()}.
+get_callgraph(Mfa, Whitelist) ->
   try
     cuter_pp:callgraph_calculation_started(Mfa),
-    {VisitedMfas, _} = get_callgraph(Mfa, gb_sets:empty(), dict:new()),
+    Conf = mk_conf(Whitelist),
+    {VisitedMfas, _} = get_callgraph(Mfa, gb_sets:empty(), dict:new(), Conf),
     VisitedMods = visited_modules(VisitedMfas),
     cuter_pp:callgraph_calculation_succeeded(),
     {ok, {VisitedMods, VisitedMfas}}
@@ -52,26 +65,32 @@ visited_modules(Visited) ->
   Fn = fun({M,_,_}, Acc) -> sets:add_element(M, Acc) end,
   gb_sets:fold(Fn, sets:new(), Visited).
 
-get_callgraph({M,F,A}=OrigMfa, Visited, ModuleCache) ->
+get_callgraph({M,F,A}=OrigMfa, Visited, ModuleCache, Conf) ->
   case cuter_mock:simulate_behaviour(M, F, A) of
     bif ->
       UpdatedVisited = gb_sets:add_element(OrigMfa, Visited),
       {UpdatedVisited, ModuleCache};
     {ok, {SM,_,_}=Mfa} ->
       UpdatedVisited = gb_sets:add_element(Mfa, Visited),
-      case get_definition(Mfa, Visited, ModuleCache) of
-        {nodef, UpdatedModuleCache} ->
-          {UpdatedVisited, UpdatedModuleCache};
-        {def, Def, UpdatedModuleCache} ->
-          expand(SM, Def, UpdatedVisited, UpdatedModuleCache, ordsets:new())
+      case cuter_mock:is_whitelisted(Mfa, Conf#conf.whitelist) of
+        %% Do not expand whitelisted mfas.
+        true ->
+          {UpdatedVisited, ModuleCache};
+        false ->
+          case get_definition(Mfa, Visited, ModuleCache) of
+            {nodef, UpdatedModuleCache} ->
+              {UpdatedVisited, UpdatedModuleCache};
+            {def, Def, UpdatedModuleCache} ->
+              expand(SM, Def, UpdatedVisited, UpdatedModuleCache, ordsets:new(), Conf)
+          end
       end
   end.
 
-expand(M, Tree, Visited, ModuleCache, LetrecFuns) ->
+expand(M, Tree, Visited, ModuleCache, LetrecFuns, Conf) ->
   case cerl:type(Tree) of
     %% c_fun
     'fun' ->
-      expand(M, cerl:fun_body(Tree), Visited, ModuleCache, LetrecFuns);
+      expand(M, cerl:fun_body(Tree), Visited, ModuleCache, LetrecFuns, Conf);
     %% c_apply
     'apply' ->
       Op = cerl:apply_op(Tree),
@@ -80,26 +99,26 @@ expand(M, Tree, Visited, ModuleCache, LetrecFuns) ->
         true ->
           {F,A} = cerl:var_name(Op),
           case ordsets:is_element({F,A}, LetrecFuns) of
-            true -> expand_all(M, Args, Visited, ModuleCache, LetrecFuns);
+            true -> expand_all(M, Args, Visited, ModuleCache, LetrecFuns, Conf);
             false ->
-              {NewV, NewM} = expand_all(M, Args, Visited, ModuleCache, LetrecFuns),
+              {NewV, NewM} = expand_all(M, Args, Visited, ModuleCache, LetrecFuns, Conf),
               Mfa = {M, F, A},
-              get_callgraph(Mfa, NewV, NewM)
+              get_callgraph(Mfa, NewV, NewM, Conf)
           end;
         false ->
           Trees = [Op | Args],
-          expand_all(M, Trees, Visited, ModuleCache, LetrecFuns)
+          expand_all(M, Trees, Visited, ModuleCache, LetrecFuns, Conf)
       end;
     %% c_let
     'let' ->
       Trees = [cerl:let_arg(Tree), cerl:let_body(Tree)],
-      expand_all(M, Trees, Visited, ModuleCache, LetrecFuns);
+      expand_all(M, Trees, Visited, ModuleCache, LetrecFuns, Conf);
     %% c_letrec
     letrec ->
       Defs = cerl:letrec_defs(Tree),
       NewLetrecFuns = ordsets:union([ordsets:from_list([cerl:var_name(Fn) || {Fn, _} <- Defs]), LetrecFuns]),
       Trees = [Def || {_, Def} <- Defs] ++ [cerl:letrec_body(Tree)],
-      expand_all(M, Trees, Visited, ModuleCache, NewLetrecFuns);
+      expand_all(M, Trees, Visited, ModuleCache, NewLetrecFuns, Conf);
     %% c_call
     call ->
       Mod = cerl:call_module(Tree),
@@ -109,64 +128,64 @@ expand(M, Tree, Visited, ModuleCache, LetrecFuns) ->
       case is_mfname(Mod, F) of
         true ->
           Mfa = {cerl:concrete(Mod), cerl:concrete(F), A},
-          {NewV, NewM} = expand_all(M, Args, Visited, ModuleCache, LetrecFuns),
-          get_callgraph(Mfa, NewV, NewM);
+          {NewV, NewM} = expand_all(M, Args, Visited, ModuleCache, LetrecFuns, Conf),
+          get_callgraph(Mfa, NewV, NewM, Conf);
         false ->
           Trees = [Mod, F] ++ Args,
-          expand_all(M, Trees, Visited, ModuleCache, LetrecFuns)
+          expand_all(M, Trees, Visited, ModuleCache, LetrecFuns, Conf)
       end;
     %% c_try
     'try' ->
       Trees = [cerl:try_arg(Tree), cerl:try_body(Tree), cerl:try_handler(Tree)],
-      expand_all(M, Trees, Visited, ModuleCache, LetrecFuns);
+      expand_all(M, Trees, Visited, ModuleCache, LetrecFuns, Conf);
     %% c_receive
     'receive' ->
       Trees = cerl:receive_clauses(Tree) ++ [cerl:receive_timeout(Tree), cerl:receive_action(Tree)],
-      expand_all(M, Trees, Visited, ModuleCache, LetrecFuns);
+      expand_all(M, Trees, Visited, ModuleCache, LetrecFuns, Conf);
     %% c_case
     'case' ->
       Trees = [cerl:case_arg(Tree) | cerl:case_clauses(Tree)],
-      expand_all(M, Trees, Visited, ModuleCache, LetrecFuns);
+      expand_all(M, Trees, Visited, ModuleCache, LetrecFuns, Conf);
     %% c_clause
     clause ->
       Trees = [cerl:clause_guard(Tree), cerl:clause_body(Tree)],
-      expand_all(M, Trees, Visited, ModuleCache, LetrecFuns);
+      expand_all(M, Trees, Visited, ModuleCache, LetrecFuns, Conf);
     %% c_cons
     cons ->
       Trees = [cerl:cons_hd(Tree), cerl:cons_tl(Tree)],
-      expand_all(M, Trees, Visited, ModuleCache, LetrecFuns);
+      expand_all(M, Trees, Visited, ModuleCache, LetrecFuns, Conf);
     %% c_tuple
     tuple ->
-      expand_all(M, cerl:tuple_es(Tree), Visited, ModuleCache, LetrecFuns);
+      expand_all(M, cerl:tuple_es(Tree), Visited, ModuleCache, LetrecFuns, Conf);
     %% c_catch
     'catch' ->
-      expand(M, cerl:catch_body(Tree), Visited, ModuleCache, LetrecFuns);
+      expand(M, cerl:catch_body(Tree), Visited, ModuleCache, LetrecFuns, Conf);
     %% c_binary
     binary ->
-      expand_all(M, cerl:binary_segments(Tree), Visited, ModuleCache, LetrecFuns);
+      expand_all(M, cerl:binary_segments(Tree), Visited, ModuleCache, LetrecFuns, Conf);
     %% c_bitstr
     bitstr ->
       Trees = [cerl:bitstr_val(Tree), cerl:bitstr_size(Tree), cerl:bitstr_unit(Tree),
         cerl:bitstr_type(Tree), cerl:bitstr_flags(Tree)],
-      expand_all(M, Trees, Visited, ModuleCache, LetrecFuns);
+      expand_all(M, Trees, Visited, ModuleCache, LetrecFuns, Conf);
     %% c_map
     map ->
       Trees = [cerl:map_arg(Tree) | cerl:map_es(Tree)],
-      expand_all(M, Trees, Visited, ModuleCache, LetrecFuns);
+      expand_all(M, Trees, Visited, ModuleCache, LetrecFuns, Conf);
     %% c_map_pair
     map_pair ->
       Trees = [cerl:map_pair_key(Tree), cerl:map_pair_val(Tree)],
-      expand_all(M, Trees, Visited, ModuleCache, LetrecFuns);
+      expand_all(M, Trees, Visited, ModuleCache, LetrecFuns, Conf);
     %% c_seq
     seq ->
       Trees = [cerl:seq_arg(Tree), cerl:seq_body(Tree)],
-      expand_all(M, Trees, Visited, ModuleCache, LetrecFuns);
+      expand_all(M, Trees, Visited, ModuleCache, LetrecFuns, Conf);
     %% c_primop
     primop ->
-      expand_all(M, cerl:primop_args(Tree), Visited, ModuleCache, LetrecFuns);
+      expand_all(M, cerl:primop_args(Tree), Visited, ModuleCache, LetrecFuns, Conf);
     %% c_values
     values ->
-      expand_all(M, cerl:values_es(Tree), Visited, ModuleCache, LetrecFuns);
+      expand_all(M, cerl:values_es(Tree), Visited, ModuleCache, LetrecFuns, Conf);
     %% c_literal
     literal ->
       {Visited, ModuleCache};
@@ -174,7 +193,7 @@ expand(M, Tree, Visited, ModuleCache, LetrecFuns) ->
     var ->
       case cerl:var_name(Tree) of
         {F,A} when is_atom(F), is_integer(A) ->
-          get_callgraph({M,F,A}, Visited, ModuleCache);
+          get_callgraph({M,F,A}, Visited, ModuleCache, Conf);
         _ -> {Visited, ModuleCache}
       end;
     %% c_alias
@@ -182,8 +201,8 @@ expand(M, Tree, Visited, ModuleCache, LetrecFuns) ->
       {Visited, ModuleCache}
   end.
 
-expand_all(M, Trees, Visited, ModuleCache, LetrecFuns) ->
-  Fn = fun(Tree, {Vs, Cache}) -> expand(M, Tree, Vs, Cache, LetrecFuns) end,
+expand_all(M, Trees, Visited, ModuleCache, LetrecFuns, Conf) ->
+  Fn = fun(Tree, {Vs, Cache}) -> expand(M, Tree, Vs, Cache, LetrecFuns, Conf) end,
   lists:foldl(Fn, {Visited, ModuleCache}, Trees).
 
 is_mfname(M, F) ->
