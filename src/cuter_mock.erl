@@ -264,14 +264,9 @@ simulate_behaviour(M, F, A) -> {ok, {M, F, A}}.
 %% Checks if an MFA is whitelisted.
 -spec is_whitelisted(mfa(), whitelist()) -> boolean().
 is_whitelisted({M, F, _A}=MFA, Whitelist) ->
-  case sets:is_element(MFA, Whitelist) of
-    true -> true;
-    false ->
-      case sets:is_element({M, F, '*'}, Whitelist) of
-        true -> true;
-        false -> sets:is_element({M, '*', '*'}, Whitelist)
-      end
-  end.
+  sets:is_element(MFA, Whitelist) orelse
+    sets:is_element({M, F, '*'}, Whitelist) orelse
+    sets:is_element({M, '*', '*'}, Whitelist).
 
 %% Generate the whitelist from the data loaded from the file.
 -spec parse_whitelist(list()) -> whitelist().

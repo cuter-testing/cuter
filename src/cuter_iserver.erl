@@ -306,11 +306,7 @@ locate(Who, Ms) ->
 
 %% Determines whether the concolic execution has ended or not.
 -spec execution_completed(state()) -> boolean().
-execution_completed(#st{mpids = Ms}) ->
-  case Ms of
-    [] -> true;
-    _  -> false
-  end.
+execution_completed(#st{mpids = Ms}) -> Ms =:= [].
 
 %% ----------------------------------------------------------------------------
 %% Manage the logs of the InterpreterServer
