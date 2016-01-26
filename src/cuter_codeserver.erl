@@ -68,8 +68,8 @@
 %% workers :: [pid()]
 %%   PIDs of all worker processes.
 %% unsupportedMfas :: sets:set(mfa())
-%%   The set of mfa() that are not supported for symbolic execution and that were encountered
-%%   during the concolic executions.
+%%   The set of mfa() that are not supported for symbolic execution but were
+%%   encountered during the concolic executions.
 
 -record(st, {
   db                           :: cache(),
@@ -80,7 +80,7 @@
   workers = []                 :: [pid()],
   unsupportedMfas = sets:new() :: sets:set(mfa()),
   whitelist                    :: cuter_mock:whitelist(),
-  callgraph                    :: cuter_callgraph:callgraph()
+  callgraph                    :: cuter_callgraph:callgraph() | 'undefined'
 }).
 -type state() :: #st{}.
 
