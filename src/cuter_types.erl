@@ -13,6 +13,9 @@
 -include("include/cuter_macros.hrl").
 -include("include/cuter_types.hrl").
 
+%% ============================================================================
+%% Type Declations
+%% ============================================================================
 
 %% Define tags
 -define(type_variable, vart).
@@ -25,9 +28,6 @@
 -type type_arity() :: byte().
 -type type_var() :: {?type_var, atom()}.
 -type remote_type() :: {module(), type_name(), type_arity()}.
--type record_name() :: atom().
--type record_field_name() :: atom().
--type record_field_type() :: {record_field_name(), raw_type()}.
 -type dep() :: remote_type().
 -type deps() :: ordsets:ordset(remote_type()).
 -record(t, {
@@ -35,6 +35,16 @@
   rep,
   deps = ordsets:new() :: deps()
 }).
+
+%% ----------------------------------------------------------------------------
+%% Define the type of intermediate representation of types for CutEr.
+%% ----------------------------------------------------------------------------
+
+%% erl_type() is basically an overapproximation of the types that can be
+%% encoded as a JSON string by the cuter_json module.
+%% Basically, we exclude the types that need to be resolved, like user-defined
+%% types. This is an approximation as there can be non-resolved types nested
+%% within an erl_type().
 -type erl_type() :: t_any()               % any()
                   | t_nil()               % []
                   | t_atom()              % atom()
@@ -50,6 +60,8 @@
                   | t_bitstring()         % <<_:M>>
                   | t_function()          % function() | Fun | BoundedFun
                   .
+
+%% raw_type() represents every possible type or record supported.
 -type raw_type() :: erl_type()
                   | t_local()             % Local Type Usage
                   | t_remote()            % Remote Type Usage
@@ -57,35 +69,64 @@
                   | t_type_var()          % Type Variable
                   .
 
--type t_any() :: #t{kind :: ?any_tag}.
--type t_nil() :: #t{kind :: ?nil_tag}.
--type t_atom() :: #t{kind :: ?atom_tag}.
--type t_atom_lit() :: #t{kind :: ?atom_lit_tag, rep :: atom()}.
--type t_integer() :: #t{kind :: ?integer_tag}.
+%% ----------------------------------------------------------------------------
+%% The actual intermediate representation of types for CutEr (per type).
+%% ----------------------------------------------------------------------------
+
+%% Simple base types.
+-type t_any()         :: #t{kind :: ?any_tag}.
+-type t_nil()         :: #t{kind :: ?nil_tag}.
+-type t_atom()        :: #t{kind :: ?atom_tag}.
+-type t_atom_lit()    :: #t{kind :: ?atom_lit_tag, rep :: atom()}.
+-type t_integer()     :: #t{kind :: ?integer_tag}.
 -type t_integer_lit() :: #t{kind :: ?integer_lit_tag, rep :: integer()}.
--type t_float() :: #t{kind :: ?float_tag}.
--type t_tuple() :: #t{kind :: ?tuple_tag, rep :: [raw_type()]}.
--type t_list() :: #t{kind :: ?list_tag, rep :: raw_type()}.
+-type t_float()       :: #t{kind :: ?float_tag}.
+
+%% Simple compound types.
+-type t_tuple()         :: #t{kind :: ?tuple_tag, rep :: [raw_type()]}.
+-type t_list()          :: #t{kind :: ?list_tag, rep :: raw_type()}.
 -type t_nonempty_list() :: #t{kind :: ?nonempty_list_tag, rep :: raw_type()}.
--type t_union() :: #t{kind :: ?union_tag, rep :: [raw_type()]}.
--type t_range() :: #t{kind :: ?range_tag, rep :: {t_range_limit(), t_range_limit()}}.
--type t_range_limit() :: t_integer_lit() | t_integer_inf().
--type t_integer_inf() :: t_integer_pos_inf() | t_integer_neg_inf().
+-type t_union()         :: #t{kind :: ?union_tag, rep :: [raw_type()]}.
+
+%% Range of integers.
+-type t_range()           :: #t{kind :: ?range_tag, rep :: {t_range_limit(), t_range_limit()}}.
+-type t_range_limit()     :: t_integer_lit() | t_integer_inf().
+-type t_integer_inf()     :: t_integer_pos_inf() | t_integer_neg_inf().
 -type t_integer_pos_inf() :: #t{kind :: ?pos_inf}.
 -type t_integer_neg_inf() :: #t{kind :: ?neg_inf}.
+
+%% Bitstrings.
 -type t_bitstring() :: #t{kind :: ?bitstring_tag, rep :: 1|8}.
--type t_function() :: #t{kind :: ?function_tag} | t_function_det().
+
+%% Funs.
+-type t_function()     :: #t{kind :: ?function_tag} | t_function_det().
 -type t_function_det() :: #t{kind :: ?function_tag, rep :: {[raw_type()], raw_type(), [t_constraint()]}, deps :: deps()}.
--type t_constraint() :: {t_type_var(), raw_type()}.
--type t_local() :: #t{kind :: ?local_tag, rep :: {type_name(), [raw_type()]}}.
+-type t_constraint()   :: {t_type_var(), raw_type()}.
+
+%% User-defined types (module-local and remote).
+-type t_local()  :: #t{kind :: ?local_tag, rep :: {type_name(), [raw_type()]}}.
 -type t_remote() :: #t{kind :: ?remote_tag, rep :: {module(), type_name(), [raw_type()]}}.
--type t_record() :: #t{kind :: ?record_tag, rep :: {record_name(), [record_field_type()]}}.
+
+%% Records.
+-type t_record()          :: #t{kind :: ?record_tag, rep :: {record_name(), [record_field_type()]}}.
+-type record_name()       :: atom().
+-type record_field_type() :: {record_field_name(), raw_type()}.
+-type record_field_name() :: atom().
+
+%% Type variable.
 -type t_type_var() :: #t{kind :: ?type_variable, rep :: type_var()}.
 
-%% How pre-processed types are stored.
+%% ----------------------------------------------------------------------------
+%% How intermediate type & spec representations are stored.
+%% ----------------------------------------------------------------------------
+
+%% The stored_types() is the signature of the cache that holds the intermediate
+%% representation of types in CutEr.
+%% It holds all the types and records declared in the supplied attributes as
+%% abstract forms.
+-type stored_types() :: dict:dict(stored_type_key(), stored_type_value()).
 -type stored_type_key() :: {record, record_name()} | {type, type_name(), type_arity()}.
 -type stored_type_value() :: [record_field_type()] | {any(), [type_var()]}. % raw_type()
--type stored_types() :: dict:dict(stored_type_key(), stored_type_value()).
 
 -type stored_spec_key() :: {type_name(), type_arity()}.
 -type stored_spec_value() :: [t_function_det()].
@@ -95,35 +136,51 @@
 -type erl_spec_clause() :: t_function_det().
 -type erl_spec() :: [erl_spec_clause()].
 
-%% Pre-process the type & record declarations of a module.
+%% ============================================================================
+%% Pre-process the type & record declarations and generate their intermediate
+%% representation from abstract forms.
+%% ============================================================================
+
+%% Pre-processes the type & record declarations.
 -spec retrieve_types([cuter_cerl:cerl_attr_type()]) -> stored_types().
 retrieve_types(TypeAttrs) ->
   lists:foldl(fun process_type_attr/2, dict:new(), TypeAttrs).
 
 -spec process_type_attr(cuter_cerl:cerl_recdef() | cuter_cerl:cerl_typedef(), stored_types()) -> stored_types().
-%% Declaration of a record.
+%% Processes the declaration of a record.
 process_type_attr({{record, Name}, Fields, []}, Processed) ->
+  % Process each field of the record.
   Fs = [t_field_from_form(Field) || Field <- Fields],
+  % Construct the representation of the record.
   Record = t_record(Name, Fs),
+  % Store the record in the proccessed dict.
   dict:store({record, Name}, Record, Processed);
-%% Declaration of a type.
+%% Processes the declaration of a type.
 process_type_attr({Name, Repr, Vars}, Processed) ->
+  % Process the type's representation.
   Type = safe_t_from_form(Repr),
+  % Parse the type parameters.
   Vs = [{?type_var, Var} || {var, _, Var} <- Vars],
+  % Store the type in the processed dict.
   dict:store({type, Name, length(Vs)}, {Type, Vs}, Processed).
 
-%% The fields of a declared record.
+%% Processes the declaration of a record's field.
 -spec t_field_from_form(cuter_cerl:cerl_record_field()) -> record_field_type().
+%% A simple field.
 t_field_from_form({record_field, _, {atom, _, Name}}) ->
   {Name, t_any()};
+%% A simple field with a default value.
 t_field_from_form({record_field, _, {atom, _, Name}, _Default}) ->
   {Name, t_any()};
+%% A typed field.
 t_field_from_form({typed_record_field, {record_field, _, {atom, _, Name}}, Type}) ->
   {Name, safe_t_from_form(Type)};
+%% A typed field with a default value.
 t_field_from_form({typed_record_field, {record_field, _, {atom, _, Name}, _Default}, Type}) ->
   {Name, safe_t_from_form(Type)}.
 
-%% Provision for unsupported types.
+%% Acts a fallback in case an unsupported type is encountered.
+%% In this case, the type is generalized to any().
 safe_t_from_form(Form) ->
   try t_from_form(Form)
   catch throw:{unsupported, Info} ->
@@ -131,14 +188,13 @@ safe_t_from_form(Form) ->
     t_any()
   end.
 
-%% Parse a type.
-
+%% Parses the declaration of a type.
 -spec t_from_form(cuter_cerl:cerl_type()) -> raw_type().
-%% Erlang_Atom
-t_from_form({atom, _, Atom}) ->
+%% An Erlang atom literal
+t_from_form({atom, _, Atom}) when is_atom(Atom) ->
   t_atom_lit(Atom);
-%% Erlang_Integer
-t_from_form({integer, _, Integer}) ->
+%% An Erlang integer literal
+t_from_form({integer, _, Integer}) when is_integer(Integer) ->
   t_integer_lit(Integer);
 %% integer()
 t_from_form({type, _, integer, []}) ->
@@ -164,7 +220,7 @@ t_from_form({type, _, float, []}) ->
 %% tuple()
 t_from_form({type, _, tuple, any}) ->
   t_tuple();
-%% {TList}
+%% { TList } when TList :: T1, T2, ... , Tn
 t_from_form({type, _, tuple, Types}) ->
   Ts = [t_from_form(T) || T <- Types],
   t_tuple(Ts);
@@ -175,34 +231,42 @@ t_from_form({type, _, list, []}) ->
 t_from_form({type, _, list, [Type]}) ->
   T = t_from_form(Type),
   t_list(T);
-%% Type1 | ... | TypeN
+%% T1 | ... | Tn
 t_from_form({type, _, union, Types}) ->
   Ts = [t_from_form(T) || T <- Types],
   t_union(Ts);
 %% boolean()
 t_from_form({type, _, boolean, []}) ->
-  t_union([t_atom_lit(true), t_atom_lit(false)]);
+  t_boolean();
 %% number()
 t_from_form({type, _, number, []}) ->
-  t_union([t_integer(), t_float()]);
-%% Erlang_Integer..Erlang_Integer
+  t_number();
+%% range, i.e. Int1..Int2
 t_from_form({type, _, range, [{integer, _, I1}, {integer, _, I2}]}) ->
-  t_range(t_integer_lit(I1), t_integer_lit(I2));
+  L = t_integer_lit(I1),
+  R = t_integer_lit(I2),
+  t_range(L, R);
 t_from_form({type, _, range, [{op, _, '-', {integer, _, I1}}, {integer, _, I2}]}) ->
-  t_range(t_integer_lit(-I1), t_integer_lit(I2));
+  L = t_integer_lit(-I1),
+  R = t_integer_lit(I2),
+  t_range(L, R);
 t_from_form({type, _, range, [{integer, _, I1}, {op, _, '-', {integer, _, I2}}]}) ->
-  t_range(t_integer_lit(I1), t_integer_lit(-I2));
+  L = t_integer_lit(I1),
+  R = t_integer_lit(-I2),
+  t_range(L, R);
 t_from_form({type, _, range, [{op, _, '-', {integer, _, I1}}, {op, _, '-', {integer, _, I2}}]}) ->
-  t_range(t_integer_lit(I1), t_integer_lit(-I2));
+  L = t_integer_lit(-I1),
+  R = t_integer_lit(-I2),
+  t_range(L, R);
 %% non_neg_integer()
 t_from_form({type, _, non_neg_integer, []}) ->
-  t_range(t_integer_lit(0), t_pos_inf());
+  t_non_neg_integer();
 %% pos_integer()
 t_from_form({type, _, pos_integer, []}) ->
-  t_range(t_integer_lit(1), t_pos_inf());
+  t_pos_integer();
 %% neg_integer()
 t_from_form({type, _, neg_integer, []}) ->
-  t_range(t_neg_inf(), t_integer_lit(-1));
+  t_neg_integer();
 %% char()
 t_from_form({type, _, char, []}) ->
   t_char();
@@ -214,10 +278,10 @@ t_from_form({type, _, byte, []}) ->
   t_byte();
 %% mfa()
 t_from_form({type, _, mfa, []}) ->
-  t_tuple([t_module(), t_atom(), t_byte()]);
+  t_mfa();
 %% string()
 t_from_form({type, _, string, []}) ->
-  t_list(t_char());
+  t_string();
 %% nonempty_list()
 t_from_form({type, _, nonempty_list, []}) ->
   t_nonempty_list();
@@ -268,17 +332,19 @@ t_from_form({var, _, Var}) ->
 t_from_form(Type) ->
   throw({unsupported, Type}).
 
+%% Parses a record's field that is referred in a type.
 -spec t_bound_field_from_form(cuter_cerl:cerl_type_record_field()) -> record_field_type().
-%% Record Field.
 t_bound_field_from_form({type, _, field_type, [{atom, _, Name}, Type]}) ->
   {Name, t_from_form(Type)}.
 
+%% Parses the declaration of a simple fun.
 -spec t_function_from_form(cuter_cerl:cerl_func()) -> t_function_det().
 t_function_from_form({type, _, 'fun', [{type, _, 'product', Types}, RetType]}) ->
   Ret = t_from_form(RetType),
   Ts = [t_from_form(T) || T <- Types],
   t_function(Ts, Ret).
 
+%% Parses the declaration of a bounded fun.
 -spec t_bounded_function_from_form(cuter_cerl:cerl_bounded_func()) -> t_function_det().
 t_bounded_function_from_form({type, _, 'bounded_fun', [Fun, Constraints]}) ->
   {type, _, 'fun', [{type, _, 'product', Types}, RetType]} = Fun,
@@ -287,12 +353,16 @@ t_bounded_function_from_form({type, _, 'bounded_fun', [Fun, Constraints]}) ->
   Cs = [t_constraint_from_form(C) || C <- Constraints],
   t_function(Ts, Ret, Cs).
 
+%% Parses the constraints of a bounded fun.
 -spec t_constraint_from_form(cuter_cerl:cerl_constraint()) -> t_constraint().
 t_constraint_from_form({type, _, constraint, [{atom, _, is_subtype}, [{var, _, Var}, Type]]}) ->
   {t_var(Var), t_from_form(Type)}.
 
+%% ----------------------------------------------------------------------------
+%% API for types constructors.
+%% ----------------------------------------------------------------------------
 
-%% Type constructors.
+%% Basic constructors.
 
 -spec t_any() -> t_any().
 t_any() ->
@@ -305,9 +375,6 @@ t_atom_lit(Atom) ->
 -spec t_atom() -> t_atom().
 t_atom() ->
   #t{kind = ?atom_tag}.
-
--spec t_module() -> t_atom().
-t_module() -> t_atom().
 
 -spec t_integer_lit(integer()) -> t_integer_lit().
 t_integer_lit(Integer) ->
@@ -328,10 +395,6 @@ t_pos_inf() ->
 -spec t_neg_inf() -> t_integer_neg_inf().
 t_neg_inf() ->
   #t{kind = ?neg_inf}.
-
--spec t_char() -> t_range().
-t_char() ->
-  t_range(t_integer_lit(0), t_integer_lit(?max_char)).
 
 -spec t_nil() -> t_nil().
 t_nil() ->
@@ -369,10 +432,6 @@ t_tuple(Types) ->
 t_union(Types) ->
   #t{kind = ?union_tag, rep = Types, deps = unify_deps(Types)}.
 
--spec t_byte() -> t_range().
-t_byte() ->
-  t_range(t_integer_lit(0), t_integer_lit(255)).
-
 -spec t_local(type_name(), [raw_type()]) -> t_local().
 t_local(Name, Types) ->
   Rep = {Name, Types},
@@ -394,11 +453,6 @@ t_record(Name, Fields) ->
   Ts = [T || {_, T} <- Fields],
   #t{kind = ?record_tag, rep = Rep, deps = unify_deps(Ts)}.
 
--spec fields_of_t_record(t_record()) -> [record_field_type()].
-fields_of_t_record(Record) ->
-  Rep = Record#t.rep,
-  element(2, Rep).
-
 -spec t_bitstring(1 | 8) -> t_bitstring().
 t_bitstring(N) ->
   #t{kind = ?bitstring_tag, rep = N}.
@@ -418,7 +472,67 @@ t_function(Types, Ret, Constraints) ->
   Ts = [T || {_V, T} <- Constraints],
   #t{kind = ?function_tag, rep = Rep, deps = unify_deps([Ret|Types] ++ Ts)}.
 
-%% Accessors of representations.
+%% Constructors that are essentially aliases.
+
+-spec t_boolean() -> t_union().
+t_boolean() ->
+  Alts = [t_atom_lit(true), t_atom_lit(false)],
+  t_union(Alts).
+
+-spec t_byte() -> t_range().
+t_byte() ->
+  t_range(t_integer_lit(0), t_integer_lit(255)).
+
+-spec t_mfa() -> t_tuple().
+t_mfa() ->
+  Ts = [t_module(), t_atom(), t_byte()],
+  t_tuple(Ts).
+
+-spec t_module() -> t_atom().
+t_module() ->
+  t_atom().
+
+-spec t_neg_integer() -> t_range().
+t_neg_integer() ->
+  L = t_neg_inf(),
+  R = t_integer_lit(-1),
+  t_range(L, R).
+
+-spec t_non_neg_integer() -> t_range().
+t_non_neg_integer() ->
+  L = t_integer_lit(0),
+  R = t_pos_inf(),
+  t_range(L, R).
+
+-spec t_pos_integer() -> t_range().
+t_pos_integer() ->
+  L = t_integer_lit(1),
+  R = t_pos_inf(),
+  t_range(L, R).
+
+-spec t_number() -> t_union().
+t_number() ->
+  Alts = [t_integer(), t_float()],
+  t_union(Alts).
+
+-spec t_char() -> t_range().
+t_char() ->
+  L = t_integer_lit(0),
+  R = t_integer_lit(?max_char),
+  t_range(L, R).
+
+-spec t_string() -> t_list().
+t_string() ->
+  t_list(t_char()).
+
+%% ----------------------------------------------------------------------------
+%% API for type accessors.
+%% ----------------------------------------------------------------------------
+
+-spec fields_of_t_record(t_record()) -> [record_field_type()].
+fields_of_t_record(Record) ->
+  Rep = Record#t.rep,
+  element(2, Rep).
 
 -spec params_of_t_function_det(t_function_det()) -> [raw_type()].
 params_of_t_function_det(#t{kind = ?function_tag, rep = {Params, _Ret, _Constraints}}) ->
@@ -464,13 +578,13 @@ segment_size_of_bitstring(#t{kind = ?bitstring_tag, rep = Sz}) ->
 is_tvar_wild_card(#t{kind = ?type_variable, rep = {?type_var, Var}}) ->
   Var =:= '_'.
 
-%% Helper functions for kinds.
+%% ----------------------------------------------------------------------------
+%% Generic API for raw_type().
+%% ----------------------------------------------------------------------------
 
 -spec get_kind(raw_type()) -> atom().
 get_kind(Type) ->
   Type#t.kind.
-
-%% Helper functions for dependencies.
 
 -spec get_deps(raw_type()) -> deps().
 get_deps(Type) ->
@@ -488,7 +602,11 @@ add_dep(Dep, Deps) ->
 unify_deps(Types) ->
   ordsets:union([T#t.deps || T <- Types]).
 
-%% Deal with specs.
+%% ============================================================================
+%% Pre-process the spec declarations.
+%% A spec is essentially a function type, thus there is no need to define an
+%% intermediate representation solely for specs.
+%% ============================================================================
 
 -spec retrieve_specs([cuter_cerl:cerl_attr_spec()]) -> stored_specs().
 retrieve_specs(SpecAttrs) ->
