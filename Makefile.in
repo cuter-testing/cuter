@@ -34,6 +34,7 @@ DIALYZER_FLAGS = -Wunmatched_returns -Wunderspecs
 WARNS = +warn_exported_vars +warn_unused_import +warn_missing_spec #+warn_untyped_record
 ERLC_INCLUDE = -I $(INCLUDE)
 ERLC_FLAGS = +debug_info $(WARNS) -Werror
+ERLC_FLAGS_NO_DBG = $(WARNS) -Werror
 ERLC_MACROS = -DEBIN=\"$(PWD)/$(EBIN)\" -DPYTHON_PATH=\"@PYTHON_PATH@\" -DPRIV=\"$(PRIV)\"
 
 HRL_FILES = \
@@ -83,7 +84,8 @@ FTEST_MODULES = \
 	bitstr \
 	whitelist \
 	otp_int \
-	complex_spec
+	complex_spec \
+	no_debug_info
 
 
 ###----------------------------------------------------------------------
@@ -125,6 +127,10 @@ $(EBIN)/%.beam: %.erl
 $(UTEST_EBIN)/%.beam: %.erl
 	@echo "ERLC $<"
 	@$(ERLC) $(ERLC_INCLUDE) $(ERLC_FLAGS) $(ERLC_MACROS) -o $(UTEST_EBIN) $<
+
+$(FTEST_EBIN)/no_debug_info.beam: no_debug_info.erl
+	@echo "ERLC $<"
+	@$(ERLC) $(ERLC_INCLUDE) $(ERLC_FLAGS_NO_DBG) $(ERLC_MACROS) -o $(FTEST_EBIN) $<
 
 $(FTEST_EBIN)/%.beam: %.erl
 	@echo "ERLC $<"
