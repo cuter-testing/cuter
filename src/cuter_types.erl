@@ -8,6 +8,8 @@
          elements_type_of_t_list/1, elements_type_of_t_nonempty_list/1, elements_types_of_t_tuple/1,
          elements_types_of_t_union/1, bounds_of_t_range/1, segment_size_of_bitstring/1]).
 
+-export([t_atom/0, t_tuple/0, t_tuple/1, t_integer/0, t_float/0]).
+
 -export_type([erl_type/0, erl_spec_clause/0, erl_spec/0, stored_specs/0, stored_types/0, stored_spec_value/0, t_range_limit/0]).
 
 -include("include/cuter_macros.hrl").
