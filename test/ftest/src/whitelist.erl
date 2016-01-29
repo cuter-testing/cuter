@@ -1,5 +1,5 @@
 -module(whitelist).
--export([f/1, g/1, just_loop/1, just_loop2/1]).
+-export([f/1, g/1, k/1, just_loop/1, just_loop2/1]).
 
 -spec f(pos_integer()) -> pos_integer().
 f(X) ->
@@ -16,6 +16,14 @@ g(X) ->
   case X of
     4242 -> error(bug);
     _ -> Z + lists:sum(ZZ)
+  end.
+
+-spec k(integer()) -> integer().
+k(X) ->
+  Z = no_debug_info:foo(X),
+  case X of
+    42 -> error(bug);
+    _ -> Z
   end.
 
 -spec just_loop(pos_integer()) -> 42.
