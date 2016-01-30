@@ -208,7 +208,7 @@ handle_call({get_spec, {M, F, A}=MFA}, _From, State) ->
           {reply, error, State};
         {ok, CerlSpec} ->
           Types = cuter_cerl:get_stored_types(MDb),
-          case cuter_types:parse_spec({F, A}, CerlSpec, Types) of
+          case cuter_types:parse_spec(MFA, CerlSpec, Types) of
             {error, has_remote_types} ->
               cuter_pp:error_retrieving_spec(MFA, has_remote_types),
               {reply, error, State};

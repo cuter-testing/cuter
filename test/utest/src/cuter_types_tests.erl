@@ -18,12 +18,39 @@ parse_types({types_and_specs, Attrs}) ->
   {TypeAttrs, _} = cuter_cerl:classify_attributes(Attrs),
   Types = cuter_types:retrieve_types(TypeAttrs),
   Ts = [
-    {"t1()",
-      {type, t1, 0},
-      { cuter_types:t_atom(), [] }},
-    {"t2()",
-      {type, t2, 0},
-      { cuter_types:t_tuple([cuter_types:t_integer(), cuter_types:t_float(), cuter_types:t_tuple()]), [] }}
+    {"t1()"
+    , {type, t1, 0}
+    , { cuter_types:t_atom()
+       , []
+      }
+    },
+    {"t2()"
+    , {type, t2, 0}
+    , { cuter_types:t_tuple([cuter_types:t_integer(), cuter_types:t_float(), cuter_types:t_tuple()])
+      , []
+      }
+    },
+    {"t3()"
+    , {type, t3, 0}
+    , { cuter_types:t_union([cuter_types:t_any(), cuter_types:t_nil()])
+      , []
+      }
+    },
+    {"t4()"
+    , {type, t4, 0}
+    , { cuter_types:t_list(cuter_types:t_union([cuter_types:t_list(), cuter_types:t_bitstring()]))
+      , []
+      }
+    },
+    {"t5()"
+    , {type, t5, 0}
+    , { cuter_types:t_tuple([
+          cuter_types:t_binary(), cuter_types:t_nonempty_list(cuter_types:t_number()),
+          cuter_types:t_string(), cuter_types:t_char()
+        ])
+      , []
+      }
+    }
   ],
   [{Txt, ?_assertEqual(Expected, dict:fetch(Key, Types))} || {Txt, Key, Expected} <- Ts].
 

@@ -8,7 +8,9 @@
          elements_type_of_t_list/1, elements_type_of_t_nonempty_list/1, elements_types_of_t_tuple/1,
          elements_types_of_t_union/1, bounds_of_t_range/1, segment_size_of_bitstring/1]).
 
--export([t_atom/0, t_tuple/0, t_tuple/1, t_integer/0, t_float/0]).
+-export([t_atom/0, t_any/0, t_binary/0, t_bitstring/0, t_char/0, t_float/0, t_integer/0,
+         t_list/0, t_list/1, t_nonempty_list/1, t_nil/0, t_number/0, t_string/0, t_tuple/0,
+         t_tuple/1, t_union/1]).
 
 -export_type([erl_type/0, erl_spec_clause/0, erl_spec/0, stored_specs/0, stored_types/0, stored_spec_value/0, t_range_limit/0]).
 
@@ -293,10 +295,10 @@ t_from_form({type, _, nonempty_list, [Type]}) ->
   t_nonempty_list(T);
 %% binary()
 t_from_form({type, _, binary, []}) ->
-  t_bitstring(8);
+  t_binary();
 %% bitstring()
 t_from_form({type, _, bitstring, []}) ->
-  t_bitstring(1);
+  t_bitstring();
 %% function()
 t_from_form({type, _, function, []}) ->
   t_function();
@@ -455,9 +457,17 @@ t_record(Name, Fields) ->
   Ts = [T || {_, T} <- Fields],
   #t{kind = ?record_tag, rep = Rep, deps = unify_deps(Ts)}.
 
+-spec t_bitstring() -> t_bitstring().
+t_bitstring() ->
+  t_bitstring(1).
+
 -spec t_bitstring(1 | 8) -> t_bitstring().
 t_bitstring(N) ->
   #t{kind = ?bitstring_tag, rep = N}.
+
+-spec t_binary() -> t_bitstring().
+t_binary() ->
+  t_bitstring(8).
 
 -spec t_function() -> t_function().
 t_function() ->
@@ -606,8 +616,8 @@ unify_deps(Types) ->
 
 %% ============================================================================
 %% Pre-process the spec declarations.
-%% A spec is essentially a function type, thus there is no need to define an
-%% intermediate representation solely for specs.
+%% A spec is essentially a list of function types, thus there is no need to
+%% define an intermediate representation solely for specs.
 %% ============================================================================
 
 -spec retrieve_specs([cuter_cerl:cerl_attr_spec()]) -> stored_specs().
@@ -625,19 +635,26 @@ t_spec_from_form({type, _, 'fun', _}=Fun) ->
 t_spec_from_form({type, _, 'bounded_fun', _}=Fun) ->
   t_bounded_function_from_form(Fun).
 
+%% ----------------------------------------------------------------------------
+%% Lookup a function's spec from the module's caches of pre-processed specs.
+%% ----------------------------------------------------------------------------
+
 -spec find_spec(stored_spec_key(), stored_specs()) -> {'ok', stored_spec_value()} | 'error'.
 find_spec(FA, Specs) ->
   dict:find(FA, Specs).
 
-%% Parse the spec of an MFA.
+%% ----------------------------------------------------------------------------
+%% Traverse a pre-processed spec and substitute the user-defined types.
+%% FIXME: Does not work for recursive types.
+%% ----------------------------------------------------------------------------
 
 -type spec_parse_reply() :: {error, has_remote_types | recursive_type}
                           | {error, unsupported_type, type_name()}
                           | {ok, erl_spec()}.
 
--spec parse_spec(stored_spec_key(), stored_spec_value(), stored_types()) -> spec_parse_reply().
-parse_spec(FA, Spec, Types) ->
-  try parse_spec_clauses(FA, Spec, Types, []) of
+-spec parse_spec(mfa(), stored_spec_value(), stored_types()) -> spec_parse_reply().
+parse_spec(Mfa, Spec, Types) ->
+  try parse_spec_clauses(Mfa, Spec, Types, []) of
     {error, has_remote_types}=E -> E;
     Parsed -> {ok, Parsed}
   catch
@@ -647,15 +664,15 @@ parse_spec(FA, Spec, Types) ->
   end.
 
 
-parse_spec_clauses(_FA, [], _Types, Acc) ->
+parse_spec_clauses(_Mfa, [], _Types, Acc) ->
   lists:reverse(Acc);
-parse_spec_clauses(FA, [Clause|Clauses], Types, Acc) ->
+parse_spec_clauses(Mfa={_M,F,A}, [Clause|Clauses], Types, Acc) ->
   case has_deps(Clause) of
     true  -> {error, has_remote_types};
     false ->
-      Visited = ordsets:add_element(FA, ordsets:new()),
+      Visited = ordsets:add_element({F,A}, ordsets:new()),
       Simplified = simplify(Clause, Types, dict:new(), Visited),
-      parse_spec_clauses(FA, Clauses, Types, [Simplified|Acc])
+      parse_spec_clauses(Mfa, Clauses, Types, [Simplified|Acc])
   end.
 
 add_constraints_to_env([], Env) ->

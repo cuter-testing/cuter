@@ -590,7 +590,8 @@ spec_error(MFA, has_remote_types, _Level) ->
 spec_error(MFA, recursive_type, _Level) ->
   io:format("~nWARNING: The spec of ~p has a recursive type and is not supported!~n~n", [MFA]);
 spec_error(MFA, {unsupported_type, Name}, _Level) ->
-  io:format("~nWARNING: The spec of ~p uses the unsupported type ~p!~n~n", [MFA, Name]);
+  io:format("~nWARNING: The spec of ~p uses the unsupported type ~p!~n"
+    ++ "  It has been generalized to any().~n~n", [MFA, Name]);
 spec_error(MFA, Error, _Level) ->
   io:format("~nWARNING: Error while retrieving the spec of ~p!~n  Error: ~p~n~n", [MFA, Error]).
 
