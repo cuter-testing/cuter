@@ -126,15 +126,34 @@
 
 %% The stored_types() is the signature of the cache that holds the intermediate
 %% representation of types in CutEr.
-%% It holds all the types and records declared in the supplied attributes as
-%% abstract forms.
+%% It holds all the types and records declared in the supplied attributes.
 -type stored_types() :: dict:dict(stored_type_key(), stored_type_value()).
 -type stored_type_key() :: {record, record_name()} | {type, type_name(), type_arity()}.
 -type stored_type_value() :: [record_field_type()] | {any(), [type_var()]}. % raw_type()
 
+%% The stored_specs() is the signature of the cache that holds the intermediate
+%% representation of specs in CutEr.
 -type stored_spec_key() :: {type_name(), type_arity()}.
 -type stored_spec_value() :: [t_function_det()].
 -type stored_specs() :: dict:dict(stored_spec_key(), stored_spec_value()).
+
+%% ----------------------------------------------------------------------------
+%% Useful types in spec parsing.
+%% ----------------------------------------------------------------------------
+
+%% A list of key-value pairs. Each pair represented the types' cache of the
+%% given module.
+-type many_stored_types()       :: [{atom(), stored_types()}].
+%% A cache of modules and their types' caches.
+%% It's a transformed version of many_stored_types().
+-type many_stored_types_cache() :: dict:dict(atom(), stored_types()).
+
+%% The data types that holds the configuration info of spec parsing.
+-record(pconf, {
+  mfa        :: mfa(),
+  typesCache :: many_stored_types_cache()
+}).
+-type parse_conf() :: #pconf{}.
 
 -type type_var_env() :: dict:dict(type_var(), raw_type()).
 -type erl_spec_clause() :: t_function_det().
@@ -643,18 +662,51 @@ t_spec_from_form({type, _, 'bounded_fun', _}=Fun) ->
 find_spec(FA, Specs) ->
   dict:find(FA, Specs).
 
-%% ----------------------------------------------------------------------------
+%% ============================================================================
 %% Traverse a pre-processed spec and substitute the user-defined types.
 %% FIXME: Does not work for recursive types.
+%% ============================================================================
+
 %% ----------------------------------------------------------------------------
+%% API for the configuration of a spec's parsing & simplification.
+%% ----------------------------------------------------------------------------
+
+%% Creates a cache that contains the stored_types() of each module.
+%% It takes a key-value list of modules and their stored types and returns
+%% the cache.
+-spec stored_types_of_modules(many_stored_types()) -> many_stored_types_cache().
+stored_types_of_modules(Ms) ->
+  stored_types_of_modules(Ms, dict:new()).
+
+stored_types_of_modules([], Acc) ->
+  Acc;
+stored_types_of_modules([{Module, StoredTypes}|Rest], Acc) ->
+  stored_types_of_modules(Rest, dict:store(Module, StoredTypes, Acc)).
+
+%% Creates the configuration.
+-spec mk_conf(mfa(), many_stored_types()) -> parse_conf().
+mk_conf(Mfa, ManyStoredTypes) ->
+  Cache = stored_types_of_modules(ManyStoredTypes),
+  #pconf{mfa = Mfa, typesCache = Cache}.
+
+%% Accesses the base mfa.
+getMfa(Conf) ->
+  Conf#pconf.mfa.
+
+%% Accesses the stored_types() of a particular module.
+%% We expect this module to have an entry in the cache.
+getTypesCacheOfModule(Module, Conf) ->
+  dict:fetch(Module, Conf#pconf.typesCache).
+
 
 -type spec_parse_reply() :: {error, has_remote_types | recursive_type}
                           | {error, unsupported_type, type_name()}
                           | {ok, erl_spec()}.
 
--spec parse_spec(mfa(), stored_spec_value(), stored_types()) -> spec_parse_reply().
-parse_spec(Mfa, Spec, Types) ->
-  try parse_spec_clauses(Mfa, Spec, Types, []) of
+-spec parse_spec(mfa(), stored_spec_value(), many_stored_types()) -> spec_parse_reply().
+parse_spec(Mfa, Spec, ManyStoredTypes) ->
+  Conf = mk_conf(Mfa, ManyStoredTypes),
+  try parse_spec_clauses(Spec, Conf, []) of
     {error, has_remote_types}=E -> E;
     Parsed -> {ok, Parsed}
   catch
@@ -664,85 +716,91 @@ parse_spec(Mfa, Spec, Types) ->
   end.
 
 
-parse_spec_clauses(_Mfa, [], _Types, Acc) ->
+parse_spec_clauses([], _Conf, Acc) ->
   lists:reverse(Acc);
-parse_spec_clauses(Mfa={_M,F,A}, [Clause|Clauses], Types, Acc) ->
+parse_spec_clauses([Clause|Clauses], Conf, Acc) ->
   case has_deps(Clause) of
     true  -> {error, has_remote_types};
     false ->
+      {M, F, A} = getMfa(Conf),
       Visited = ordsets:add_element({F,A}, ordsets:new()),
-      Simplified = simplify(Clause, Types, dict:new(), Visited),
-      parse_spec_clauses(Mfa, Clauses, Types, [Simplified|Acc])
+      Simplified = simplify(Clause, M, dict:new(), Visited, Conf),
+      parse_spec_clauses(Clauses, Conf, [Simplified|Acc])
   end.
 
 add_constraints_to_env([], Env) ->
   Env;
 add_constraints_to_env([{Var, Type}|Cs], Env) ->
-  F = fun(StoredTypes, E, Visited) -> simplify(Type, StoredTypes, E, Visited) end,
+  F = fun(Mod, E, Visited, Conf) -> simplify(Type, Mod, E, Visited, Conf) end,
   Env1 = dict:store(Var#t.rep, F, Env),
   add_constraints_to_env(Cs, Env1).
 
 bind_parameters([], [], Env) ->
   Env;
 bind_parameters([P|Ps], [A|As], Env) ->
-  F = fun(StoredTypes, E, Visited) -> simplify(A, StoredTypes, E, Visited) end,
+  F = fun(Mod, E, Visited, Conf) -> simplify(A, Mod, E, Visited, Conf) end,
   Env1 = dict:store(P, F, Env),
   bind_parameters(Ps, As, Env1).
 
--spec simplify(raw_type(), stored_types(), type_var_env(), ordsets:ordset(stored_spec_key())) -> raw_type().
+-spec simplify(raw_type(), atom(), type_var_env(), ordsets:ordset(stored_spec_key()), parse_conf()) -> raw_type().
 %% fun
-simplify(#t{kind = ?function_tag, rep = {Params, Ret, Constraints}}=Raw, StoredTypes, Env, Visited) ->
+simplify(#t{kind = ?function_tag, rep = {Params, Ret, Constraints}}=Raw, CurrModule, Env, Visited, Conf) ->
   Env1 = add_constraints_to_env(Constraints, Env),
-  ParamsSimplified = [simplify(P, StoredTypes, Env1, Visited) || P <- Params],
-  RetSimplified = simplify(Ret, StoredTypes, Env1, Visited),
+  ParamsSimplified = [simplify(P, CurrModule, Env1, Visited, Conf) || P <- Params],
+  RetSimplified = simplify(Ret, CurrModule, Env1, Visited, Conf),
   Rep = {ParamsSimplified, RetSimplified, []},
   Raw#t{rep = Rep};
 %% tuple
-simplify(#t{kind = ?tuple_tag, rep = Types}=Raw, StoredTypes, Env, Visited) ->
-  Rep = [simplify(T, StoredTypes, Env, Visited) || T <- Types],
+simplify(#t{kind = ?tuple_tag, rep = Types}=Raw, CurrModule, Env, Visited, Conf) ->
+  Rep = [simplify(T, CurrModule, Env, Visited, Conf) || T <- Types],
   Raw#t{rep = Rep};
 %% list / nonempty_list
-simplify(#t{kind = Tag, rep = Type}=Raw, StoredTypes, Env, Visited) when Tag =:= ?list_tag; Tag =:= ?nonempty_list_tag ->
-  Rep = simplify(Type, StoredTypes, Env, Visited),
+simplify(#t{kind = Tag, rep = Type}=Raw, CurrModule, Env, Visited, Conf) when Tag =:= ?list_tag; Tag =:= ?nonempty_list_tag ->
+  Rep = simplify(Type, CurrModule, Env, Visited, Conf),
   Raw#t{rep = Rep};
 %% union
-simplify(#t{kind = ?union_tag, rep = Types}=Raw, StoredTypes, Env, Visited) ->
-  Rep = [simplify(T, StoredTypes, Env, Visited) || T <- Types],
+simplify(#t{kind = ?union_tag, rep = Types}=Raw, CurrModule, Env, Visited, Conf) ->
+  Rep = [simplify(T, CurrModule, Env, Visited, Conf) || T <- Types],
   Raw#t{rep = Rep};
 %% local type
-simplify(#t{kind = ?local_tag, rep = {Name, Args}}, StoredTypes, Env, Visited) ->
+simplify(#t{kind = ?local_tag, rep = {Name, Args}}, CurrModule, Env, Visited, Conf) ->
   Arity = length(Args),
   TA = {Name, Arity},
   case ordsets:is_element(TA, Visited) of
     true -> throw(recursive_type);
     false ->
+      StoredTypes = getTypesCacheOfModule(CurrModule, Conf),
       case dict:find({type, Name, Arity}, StoredTypes) of
-        error -> throw({unsupported, Name});
+        error ->
+          cuter_pp:error_retrieving_spec(getMfa(Conf), {unsupported_type, Name}),
+          t_any();
         {ok, {Type, Params}} ->
           Env1 = bind_parameters(Params, Args, Env),
-          simplify(Type, StoredTypes, Env1, [TA|Visited])
+          simplify(Type, CurrModule, Env1, [TA|Visited], Conf)
       end
   end;
 %% type variable
-simplify(#t{kind = ?type_variable, rep = TVar}=T, StoredTypes, Env, Visited) ->
+simplify(#t{kind = ?type_variable, rep = TVar}=T, CurrModule, Env, Visited, Conf) ->
   case is_tvar_wild_card(T) of
     true -> t_any();
     false ->
-      V = dict:fetch(TVar, Env),
-      V(StoredTypes, Env, Visited)
+      V = dict:fetch(TVar, Env),  %% FIXME may fail if it's a free variable.
+      V(CurrModule, Env, Visited, Conf)
   end;
-simplify(#t{kind = ?remote_tag}, _StoredTypes, _Env, _Visited) ->
+%% remote type
+simplify(#t{kind = ?remote_tag}, _CurrModule, _Env, _Visited, _Conf) ->
   throw(remote_type);
 %% record
-simplify(#t{kind = ?record_tag, rep = {Name, OverridenFields}}, StoredTypes, Env, Visited) ->
+simplify(#t{kind = ?record_tag, rep = {Name, OverridenFields}}, CurrModule, Env, Visited, Conf) ->
+  StoredTypes = getTypesCacheOfModule(CurrModule, Conf),
   RecordDecl = dict:fetch({record, Name}, StoredTypes),
   Fields = fields_of_t_record(RecordDecl),
   ActualFields = replace_record_fields(Fields, OverridenFields),
-  FinalFields = [{N, simplify(T, StoredTypes, Env, Visited)} || {N, T} <- ActualFields],
+  FinalFields = [{N, simplify(T, CurrModule, Env, Visited, Conf)} || {N, T} <- ActualFields],
   Simplified = [T || {_, T} <- FinalFields],
   t_tuple([t_atom_lit(Name)|Simplified]);
 %% all others
-simplify(Raw, _StoredTypes, _Env, _Visited) ->
+simplify(Raw, _CurrModule, _Env, _Visited, _Conf) ->
   Raw.
 
 -spec replace_record_fields([record_field_type()], [record_field_type()]) -> [record_field_type()].
