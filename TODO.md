@@ -3,9 +3,7 @@ TODO
 
 ### High Priority
 
-- Support remote types.
-  - Requires:
-    - Refactor & document `cuter_types.erl`.
+- Support recursive types.
 
 ### Low Priority
 
