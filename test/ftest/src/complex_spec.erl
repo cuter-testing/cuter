@@ -1,8 +1,10 @@
 -module(complex_spec).
 -export([f/1]).
+-export_type([int/0]).
 
 -type x() :: [{[[integer()]], [float()]} | integer() | {any(), [float()], atom()}].
 -type e() :: {x(), x()}.
+-type int() :: pos_integer().
 
 -spec f([e()]) -> ok.
 f([H|T]=L) when length(L) < 4 ->

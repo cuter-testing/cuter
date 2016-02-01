@@ -88,7 +88,8 @@ FTEST_MODULES = \
 	whitelist \
 	otp_int \
 	complex_spec \
-	no_debug_info
+	no_debug_info \
+	collection
 
 PRIV_MODULES = \
 	cuter_io \
