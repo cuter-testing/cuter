@@ -2,15 +2,17 @@
 %%------------------------------------------------------------------------------
 -module(cuter_types).
 
--export([parse_spec/3, retrieve_types/1, retrieve_specs/1, find_spec/2, get_kind/1]).
+-export([parse_spec/3, retrieve_types/1, retrieve_specs/1, find_spec/2, get_kind/1,
+         find_remote_deps_of_type/2, find_remote_deps_of_spec/2]).
 
 -export([params_of_t_function_det/1, ret_of_t_function_det/1, atom_of_t_atom_lit/1, integer_of_t_integer_lit/1,
          elements_type_of_t_list/1, elements_type_of_t_nonempty_list/1, elements_types_of_t_tuple/1,
          elements_types_of_t_union/1, bounds_of_t_range/1, segment_size_of_bitstring/1]).
 
--export([t_atom/0, t_any/0, t_binary/0, t_bitstring/0, t_char/0, t_float/0, t_integer/0,
-         t_list/0, t_list/1, t_nonempty_list/1, t_nil/0, t_number/0, t_string/0, t_tuple/0,
-         t_tuple/1, t_union/1]).
+-export([t_atom/0, t_atom_lit/1, t_any/0, t_binary/0, t_bitstring/0, t_char/0, t_float/0,
+         t_function/0, t_function/2, t_function/3, t_integer/0, t_list/0, t_list/1,
+         t_nonempty_list/1, t_nil/0, t_number/0, t_remote/3, t_string/0, t_tuple/0, t_tuple/1,
+         t_union/1]).
 
 -export_type([erl_type/0, erl_spec_clause/0, erl_spec/0, stored_specs/0, stored_types/0, stored_spec_value/0, t_range_limit/0]).
 
@@ -621,10 +623,6 @@ get_kind(Type) ->
 get_deps(Type) ->
   Type#t.deps.
 
--spec has_deps(raw_type()) -> boolean().
-has_deps(Type) ->
-  get_deps(Type) =/= ordsets:new().
-
 -spec add_dep(dep(), deps()) -> deps().
 add_dep(Dep, Deps) ->
   ordsets:add_element(Dep, Deps).
@@ -694,58 +692,43 @@ getMfa(Conf) ->
   Conf#pconf.mfa.
 
 %% Accesses the stored_types() of a particular module.
-%% We expect this module to have an entry in the cache.
 getTypesCacheOfModule(Module, Conf) ->
-  dict:fetch(Module, Conf#pconf.typesCache).
-
-
--type spec_parse_reply() :: {error, has_remote_types | recursive_type}
-                          | {error, unsupported_type, type_name()}
-                          | {ok, erl_spec()}.
-
--spec parse_spec(mfa(), stored_spec_value(), many_stored_types()) -> spec_parse_reply().
-parse_spec(Mfa, Spec, ManyStoredTypes) ->
-  Conf = mk_conf(Mfa, ManyStoredTypes),
-  try parse_spec_clauses(Spec, Conf, []) of
-    {error, has_remote_types}=E -> E;
-    Parsed -> {ok, Parsed}
-  catch
-    throw:remote_type -> {error, has_remote_types};
-    throw:recursive_type -> {error, recursive_type};
-    throw:{unsupported, Name} -> {error, unsupported_type, Name}
+  case dict:find(Module, Conf#pconf.typesCache) of
+    error -> dict:new(); % TODO Use a constructor for an empty stored_types().
+    {ok, StoredTypes} -> StoredTypes
   end.
 
+%% ----------------------------------------------------------------------------
+%% Traverse a spec and substitue the local and remote types.
+%% ----------------------------------------------------------------------------
+
+-spec parse_spec(mfa(), stored_spec_value(), many_stored_types()) -> erl_spec().
+parse_spec(Mfa, Spec, ManyStoredTypes) ->
+  Conf = mk_conf(Mfa, ManyStoredTypes),
+  parse_spec_clauses(Spec, Conf, []).
 
 parse_spec_clauses([], _Conf, Acc) ->
   lists:reverse(Acc);
 parse_spec_clauses([Clause|Clauses], Conf, Acc) ->
-  case has_deps(Clause) of
-    true  -> {error, has_remote_types};
-    false ->
-      {M, F, A} = getMfa(Conf),
-      Visited = ordsets:add_element({F,A}, ordsets:new()),
-      Simplified = simplify(Clause, M, dict:new(), Visited, Conf),
-      parse_spec_clauses(Clauses, Conf, [Simplified|Acc])
-  end.
+  {M,_,_} = getMfa(Conf),
+  Simplified = simplify(Clause, M, dict:new(), ordsets:new(), Conf),
+  parse_spec_clauses(Clauses, Conf, [Simplified|Acc]).
 
-add_constraints_to_env([], Env) ->
+add_constraints([], Env) ->
   Env;
-add_constraints_to_env([{Var, Type}|Cs], Env) ->
-  F = fun(Mod, E, Visited, Conf) -> simplify(Type, Mod, E, Visited, Conf) end,
-  Env1 = dict:store(Var#t.rep, F, Env),
-  add_constraints_to_env(Cs, Env1).
+add_constraints([{Var, Type}|Cs], Env) ->
+  add_constraints(Cs, dict:store(Var#t.rep, Type, Env)).
 
 bind_parameters([], [], Env) ->
   Env;
 bind_parameters([P|Ps], [A|As], Env) ->
-  F = fun(Mod, E, Visited, Conf) -> simplify(A, Mod, E, Visited, Conf) end,
-  Env1 = dict:store(P, F, Env),
-  bind_parameters(Ps, As, Env1).
+  bind_parameters(Ps, As, dict:store(P, A, Env)).
 
 -spec simplify(raw_type(), atom(), type_var_env(), ordsets:ordset(stored_spec_key()), parse_conf()) -> raw_type().
 %% fun
 simplify(#t{kind = ?function_tag, rep = {Params, Ret, Constraints}}=Raw, CurrModule, Env, Visited, Conf) ->
-  Env1 = add_constraints_to_env(Constraints, Env),
+  Cs = [{Var, simplify(T, CurrModule, Env, Visited, Conf)} || {Var, T} <- Constraints],
+  Env1 = add_constraints(Cs, Env),
   ParamsSimplified = [simplify(P, CurrModule, Env1, Visited, Conf) || P <- Params],
   RetSimplified = simplify(Ret, CurrModule, Env1, Visited, Conf),
   Rep = {ParamsSimplified, RetSimplified, []},
@@ -765,9 +748,11 @@ simplify(#t{kind = ?union_tag, rep = Types}=Raw, CurrModule, Env, Visited, Conf)
 %% local type
 simplify(#t{kind = ?local_tag, rep = {Name, Args}}, CurrModule, Env, Visited, Conf) ->
   Arity = length(Args),
-  TA = {Name, Arity},
-  case ordsets:is_element(TA, Visited) of
-    true -> throw(recursive_type);
+  Local = {CurrModule, Name, Arity},
+  case ordsets:is_element(Local, Visited) of
+    true ->
+      cuter_pp:error_retrieving_spec(getMfa(Conf), {recursive_type, Local}),
+      t_any();
     false ->
       StoredTypes = getTypesCacheOfModule(CurrModule, Conf),
       case dict:find({type, Name, Arity}, StoredTypes) of
@@ -775,21 +760,41 @@ simplify(#t{kind = ?local_tag, rep = {Name, Args}}, CurrModule, Env, Visited, Co
           cuter_pp:error_retrieving_spec(getMfa(Conf), {unsupported_type, Name}),
           t_any();
         {ok, {Type, Params}} ->
-          Env1 = bind_parameters(Params, Args, Env),
-          simplify(Type, CurrModule, Env1, [TA|Visited], Conf)
+          Visited1 = ordsets:add_element(Local, Visited),
+          As = [simplify(A, CurrModule, Env, Visited1, Conf) || A <- Args],
+          Env1 = bind_parameters(Params, As, Env),
+          simplify(Type, CurrModule, Env1, Visited1, Conf)
       end
   end;
 %% type variable
-simplify(#t{kind = ?type_variable, rep = TVar}=T, CurrModule, Env, Visited, Conf) ->
+simplify(#t{kind = ?type_variable, rep = TVar}=T, _CurrModule, Env, _Visited, _Conf) ->
   case is_tvar_wild_card(T) of
     true -> t_any();
     false ->
-      V = dict:fetch(TVar, Env),  %% FIXME may fail if it's a free variable.
-      V(CurrModule, Env, Visited, Conf)
+      % FIXME dict:fetch/3 may fail if it's a free variable so let's generalize it to any().
+      dict:fetch(TVar, Env)
   end;
 %% remote type
-simplify(#t{kind = ?remote_tag}, _CurrModule, _Env, _Visited, _Conf) ->
-  throw(remote_type);
+simplify(#t{kind = ?remote_tag, rep = {Module, Name, Args}}, CurrModule, Env, Visited, Conf) ->
+  Arity = length(Args),
+  Remote = {Module, Name, Arity},
+  case ordsets:is_element(Remote, Visited) of
+    true ->
+      cuter_pp:error_retrieving_spec(getMfa(Conf), {recursive_type, Remote}),
+      t_any();
+    false ->
+      StoredTypes = getTypesCacheOfModule(Module, Conf),
+      case dict:find({type, Name, Arity}, StoredTypes) of
+        error ->
+          cuter_pp:error_retrieving_spec(getMfa(Conf), {could_not_access, Remote}),
+          t_any();
+        {ok, {Type, Params}} ->
+          Visited1 = ordsets:add_element(Remote, Visited),
+          As = [simplify(A, CurrModule, Env, Visited1, Conf) || A <- Args],
+          Env1 = bind_parameters(Params, As, Env),
+          simplify(Type, Module, Env1, Visited1, Conf)
+      end
+  end;
 %% record
 simplify(#t{kind = ?record_tag, rep = {Name, OverridenFields}}, CurrModule, Env, Visited, Conf) ->
   StoredTypes = getTypesCacheOfModule(CurrModule, Conf),
@@ -810,4 +815,86 @@ replace_record_fields(Fields, [{Name, Type}|Rest]) ->
   Replaced = lists:keyreplace(Name, 1, Fields, {Name, Type}),
   replace_record_fields(Replaced, Rest).
 
+%% ============================================================================
+%% Traverse a pre-processed spec or type and find its remote dependencies, aka
+%% the remote types that it contains.
+%% ============================================================================
 
+%% Finds the remote dependencies of a spec.
+-spec find_remote_deps_of_spec(stored_spec_value(), stored_types()) -> [mfa()].
+find_remote_deps_of_spec(Spec, LocalTypesCache) ->
+  Deps = ordsets:union([find_remote_deps_of_type(Clause, LocalTypesCache) || Clause <- Spec]),
+  ordsets:to_list(Deps).
+
+%% Finds the remote dependencies of a type.
+-spec find_remote_deps_of_type(raw_type(), stored_types()) -> [mfa()].
+find_remote_deps_of_type(Type, LocalTypesCache) ->
+  Deps = find_remote_deps(Type, ordsets:new(), ordsets:new(), LocalTypesCache),
+  ordsets:to_list(Deps).
+
+%% ----------------------------------------------------------------------------
+%% Traverse a type and collect its remote dependencies.
+%% Performing case analysis on the type of the type node.
+%% ----------------------------------------------------------------------------
+
+%% fun
+find_remote_deps(#t{kind = ?function_tag, rep = {Params, Ret, Constraints}}, Visited, Deps, StoredTypes) ->
+  Deps1 = lists:foldl(
+    fun({_Var, Type}, Acc) -> find_remote_deps(Type, Visited, Acc, StoredTypes) end,
+    Deps, Constraints
+  ),
+  Deps2 = lists:foldl(
+    fun(P, Acc) -> find_remote_deps(P, Visited, Acc, StoredTypes) end,
+    Deps1, Params
+  ),
+  find_remote_deps(Ret, Visited, Deps2, StoredTypes);
+%% tuple or union
+find_remote_deps(#t{kind = Tag, rep = Types}, Visited, Deps, StoredTypes) when Tag =:= ?tuple_tag; Tag =:= ?union_tag ->
+  lists:foldl(fun(T, Acc) -> find_remote_deps(T, Visited, Acc, StoredTypes) end, Deps, Types);
+%% list / nonempty_list
+find_remote_deps(#t{kind = Tag, rep = Type}, Visited, Deps, StoredTypes) when Tag =:= ?list_tag; Tag =:= ?nonempty_list_tag ->
+  find_remote_deps(Type, Visited, Deps, StoredTypes);
+%% local type
+find_remote_deps(#t{kind = ?local_tag, rep = {Name, Args}}, Visited, Deps, StoredTypes) ->
+  Arity = length(Args),
+  Local = {Name, Arity},
+  case ordsets:is_element(Local, Visited) of
+    true ->
+      Deps;
+    false ->
+      case dict:find({type, Name, Arity}, StoredTypes) of
+        error ->
+          %% TODO Report that we cannot access the definition of the type.
+          Deps;
+        {ok, {Type, _Params}} ->
+          Visited1 = ordsets:add_element(Local, Visited),
+          Deps1 = lists:foldl(
+            fun(Arg, Acc) -> find_remote_deps(Arg, Visited1, Acc, StoredTypes) end,
+            Deps, Args
+          ),
+          find_remote_deps(Type, Visited1, Deps1, StoredTypes)
+      end
+  end;
+%% type variable
+find_remote_deps(#t{kind = ?type_variable}, _Visited, Deps, _StoredTypes) ->
+  Deps;
+%% remote type
+find_remote_deps(#t{kind = ?remote_tag, rep = {Module, Name, Args}}, Visited, Deps, StoredTypes) ->
+  Deps1 = lists:foldl(
+    fun(Arg, Acc) -> find_remote_deps(Arg, Visited, Acc, StoredTypes) end,
+    Deps, Args
+  ),
+  Remote = {Module, Name, length(Args)},
+  ordsets:add_element(Remote, Deps1);
+%% record
+find_remote_deps(#t{kind = ?record_tag, rep = {Name, OverridenFields}}, Visited, Deps, StoredTypes) ->
+  RecordDecl = dict:fetch({record, Name}, StoredTypes),
+  Fields = fields_of_t_record(RecordDecl),
+  ActualFields = replace_record_fields(Fields, OverridenFields),
+  lists:foldl(
+    fun({_N, T}, Acc) -> find_remote_deps(T, Visited, Acc, StoredTypes) end,
+    Deps, ActualFields
+  );
+%% all others
+find_remote_deps(_Type, _Visited, Deps, _StoredTypes) ->
+  Deps.

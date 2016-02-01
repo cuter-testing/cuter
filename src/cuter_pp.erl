@@ -581,17 +581,22 @@ handle_info(_What, State) ->
 %% ============================================================================
 
 -spec spec_error(mfa(), any(), level()) -> ok.
+spec_error(MFA, {unsupported_type, Name}, _Level) ->
+  io:format("~nWARNING: The spec of ~p uses the unsupported type ~p!~n"
+    ++ "  It has been generalized to any().~n~n", [MFA, Name]);
 spec_error(_MFA, _Error, ?MINIMAL) ->
   ok;
 spec_error(MFA, not_found, _Level) ->
   io:format("~nWARNING: Could not find the spec of ~p!~n~n", [MFA]);
+spec_error(MFA, {could_not_access, {Mod, Type, Arity}}, _Level) ->
+  io:format("~nWARNING: Could not access the definition of type ~p:~p/~w~n"
+    ++ "  for the spec of ~p!~n"
+    ++ "  It has been generalized to any().~n~n", [Mod, Type, Arity, MFA]);
 spec_error(MFA, has_remote_types, _Level) ->
   io:format("~nWARNING: The spec of ~p has a remote type and is not supported!~n~n", [MFA]);
-spec_error(MFA, recursive_type, _Level) ->
-  io:format("~nWARNING: The spec of ~p has a recursive type and is not supported!~n~n", [MFA]);
-spec_error(MFA, {unsupported_type, Name}, _Level) ->
-  io:format("~nWARNING: The spec of ~p uses the unsupported type ~p!~n"
-    ++ "  It has been generalized to any().~n~n", [MFA, Name]);
+spec_error(MFA, {recursive_type, {Mod, Type, Arity}}, _Level) ->
+  io:format("~nWARNING: The spec of ~p contains the recursive type ~p:~p/~w and is not supported!~n"
+    ++ "  It has been generalized to any().~n~n", [MFA, Mod, Type, Arity]);
 spec_error(MFA, Error, _Level) ->
   io:format("~nWARNING: Error while retrieving the spec of ~p!~n  Error: ~p~n~n", [MFA, Error]).
 

@@ -31,7 +31,7 @@
 -type module_cache() :: ets:tid().
 -type cache() :: ets:tid().
 
--type modules() :: [module()].
+-type modules() :: [cuter:mod()].
 -type mfas() :: [mfa()].
 -type tags() :: gb_sets:set(cuter_cerl:tagID()).
 
@@ -49,6 +49,11 @@
 -type load_reply() :: {ok, module_cache()} | cuter_cerl:compile_error() | {error, (preloaded | cover_compiled | non_existing)}.
 -type spec_reply() :: {ok, cuter_types:erl_spec()} | error.
 -type from() :: {pid(), reference()}.
+
+%% Finding the remote dependencies of a spec.
+-type remote_type()     :: {cuter:mod(), atom(), byte()}.
+-type module_deps()     :: ordsets:ordset(cuter:mod()).
+-type visited_remotes() :: ordsets:ordset(remote_type()).
 
 %% Server's state
 %% ---------------
@@ -207,20 +212,15 @@ handle_call({get_spec, {M, F, A}=MFA}, _From, State) ->
           cuter_pp:error_retrieving_spec(MFA, not_found),
           {reply, error, State};
         {ok, CerlSpec} ->
-          Types = cuter_cerl:get_stored_types(MDb),
-          case cuter_types:parse_spec(MFA, CerlSpec, [{M, Types}]) of
-            {error, has_remote_types} ->
-              cuter_pp:error_retrieving_spec(MFA, has_remote_types),
-              {reply, error, State};
-            {error, recursive_type} ->
-              cuter_pp:error_retrieving_spec(MFA, recursive_type),
-              {reply, error, State};
-            {error, unsupported_type, Name} ->
-              cuter_pp:error_retrieving_spec(MFA, {unsupported_type, Name}),
-              {reply, error, State};
-            {ok, _Spec}=OK ->
-              {reply, OK, State}
-          end
+          DepMods = load_all_deps_of_spec(CerlSpec, M, MDb, State),
+          Fn = fun(Mod) ->
+              {ok, ModDb} = try_load(Mod, State),
+              StoredTypes = cuter_cerl:get_stored_types(ModDb),
+              {Mod, StoredTypes}
+            end,
+          ManyStoredTypes = [Fn(Mod) || Mod <- DepMods],
+          Parsed = cuter_types:parse_spec(MFA, CerlSpec, ManyStoredTypes),
+          {reply, {ok, Parsed}, State}
       end;
     Msg ->
       cuter_pp:error_retrieving_spec(MFA, Msg),
@@ -266,6 +266,53 @@ handle_cast({stop, FromWho}, State=#st{super = Super}) ->
 handle_cast({visit_tag, Tag}, State=#st{tags = Tags}) ->
   Ts = gb_sets:add_element(cuter_cerl:id_of_tag(Tag), Tags),
   {noreply, State#st{tags = Ts}}.
+
+%% ----------------------------------------------------------------------------
+%% Traverse a spec and load all the modules that it depends on (via the usage
+%% of remote types). Then return a list of these modules.
+%% ----------------------------------------------------------------------------
+
+-spec load_all_deps_of_spec(cuter_types:stored_spec_value(), cuter:mod(), module_cache(), state()) -> [cuter:mod()].
+load_all_deps_of_spec(CerlSpec, Module, MDb, State) ->
+  LocalTypesCache = cuter_cerl:get_stored_types(MDb),
+  % Get the remote dependencies of the spec.
+  ToBeVisited = cuter_types:find_remote_deps_of_spec(CerlSpec, LocalTypesCache),
+  InitDepMods = ordsets:add_element(Module, ordsets:new()),
+  % Find iteratively the dependencies of the found dependencies.
+  case load_all_deps(ToBeVisited, State, ordsets:new(), InitDepMods) of
+    error -> [];
+    {ok, DepMods} -> DepMods
+  end.
+
+-spec load_all_deps([remote_type()], state(), visited_remotes(), module_deps()) -> error | {ok, [cuter:mod()]}.
+load_all_deps([], _State, _VisitedRemotes, DepMods) ->
+  {ok, ordsets:to_list(DepMods)};
+load_all_deps([Remote={M, TypeName, Arity}|Rest], State, VisitedRemotes, DepMods) ->
+  case ordsets:is_element(Remote, VisitedRemotes) of
+    true ->
+      load_all_deps(Rest, State, VisitedRemotes, DepMods);
+    false ->
+      case try_load(M, State) of
+        {ok, MDb} ->
+          DepMods1 = ordsets:add_element(M, DepMods),
+          VisitedRemotes1 = ordsets:add_element(Remote, VisitedRemotes),
+          LocalTypesCache = cuter_cerl:get_stored_types(MDb),
+          case dict:find({type, TypeName, Arity}, LocalTypesCache) of
+            error ->
+              %% TODO Report that we cannot access the definition of the type.
+              error;
+            {ok, {Type, _Params}} ->
+              % Get the remote dependencies of the type.
+              Deps = cuter_types:find_remote_deps_of_type(Type, LocalTypesCache),
+              % Queue the ones that we haven't encountered yet.
+              NewRemotes = lists:filter(fun(R) -> not ordsets:is_element(R, VisitedRemotes1) end, Deps),
+              load_all_deps(NewRemotes ++ Rest, State, VisitedRemotes1, DepMods1)
+          end;
+        _Msg ->
+          % TODO Report that we cannot load the module.
+          error
+      end
+  end.
 
 %% ----------------------------------------------------------------------------
 %% Get the feasible tags of all the mfas in the callgraph.

@@ -44,6 +44,29 @@ load_and_retrieve_test_() ->
   end,
   {"Query modules multiple times", {setup, Setup, Cleanup, Inst}}.
 
+%% Get the specs of mfas.
+-spec get_spec_test_() -> term().
+get_spec_test_() ->
+  Setup = fun setup/0,
+  Cleanup = fun cleanup/1,
+  Inst = fun(_) ->
+    Cs = cuter_codeserver:start(self(), ?Pmatch, cuter_mock:empty_whitelist()),
+    % types_and_specs:foo/0
+    Spec0 = cuter_codeserver:retrieve_spec(Cs, {types_and_specs, foo, 0}),
+    Expected0 = [cuter_types:t_function([], cuter_types:t_atom_lit(ok))],
+    % types_and_specs:f11/1, f12/1
+    Spec11 = cuter_codeserver:retrieve_spec(Cs, {types_and_specs, f11, 1}),
+    Spec12 = cuter_codeserver:retrieve_spec(Cs, {types_and_specs, f12, 1}),
+    Expected1 = [cuter_types:t_function([cuter_types:t_float()], cuter_types:t_float())],
+    Stop = cuter_codeserver:stop(Cs),
+    [ {"types_and_specs:foo/0", ?_assertEqual({ok, Expected0}, Spec0)}
+    , {"types_and_specs:f11/1", ?_assertEqual({ok, Expected1}, Spec11)}
+    , {"types_and_specs:f12/1", ?_assertEqual({ok, Expected1}, Spec12)}
+    , {"codeserver termination", ?_assertEqual(ok, Stop)}
+    ]
+  end,
+  {"Get specs of mfas", {setup, Setup, Cleanup, Inst}}.
+
 %% Erroneous modules
 -spec error_load_test_() -> term().
 error_load_test_() ->
