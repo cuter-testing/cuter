@@ -699,7 +699,7 @@ getTypesCacheOfModule(Module, Conf) ->
   end.
 
 %% ----------------------------------------------------------------------------
-%% Traverse a spec and substitue the local and remote types.
+%% Traverse a spec and substitute the local and remote types.
 %% ----------------------------------------------------------------------------
 
 -spec parse_spec(mfa(), stored_spec_value(), many_stored_types()) -> erl_spec().
@@ -711,24 +711,35 @@ parse_spec_clauses([], _Conf, Acc) ->
   lists:reverse(Acc);
 parse_spec_clauses([Clause|Clauses], Conf, Acc) ->
   {M,_,_} = getMfa(Conf),
-  Simplified = simplify(Clause, M, dict:new(), ordsets:new(), Conf),
+  Simplified = simplify(Clause, M, new_env(), ordsets:new(), Conf),
   parse_spec_clauses(Clauses, Conf, [Simplified|Acc]).
-
-add_constraints([], Env) ->
-  Env;
-add_constraints([{Var, Type}|Cs], Env) ->
-  add_constraints(Cs, dict:store(Var#t.rep, Type, Env)).
 
 bind_parameters([], [], Env) ->
   Env;
 bind_parameters([P|Ps], [A|As], Env) ->
   bind_parameters(Ps, As, dict:store(P, A, Env)).
 
+add_constraints([], Env) ->
+  Env;
+add_constraints([{Var, Type}|Cs], Env) ->
+  F = fun(M, E, Visited, Conf) -> simplify(Type, M, E, Visited, Conf) end,
+  Env1 = add_to_env(Var#t.rep, F, Env),
+  add_constraints(Cs, Env1).
+
+simplify_constraints(Constraints, CurrModule, Env, Visited, Conf) ->
+  % Create the environment.
+  Env1 = add_constraints(Constraints, Env),
+  % Simplify the constraints.
+  F = fun({Var, Type}, E) ->
+      T = simplify(Type, CurrModule, Env1, Visited, Conf),
+      add_to_env(Var#t.rep, T, E)
+    end,
+  lists:foldl(F, Env, Constraints).
+
 -spec simplify(raw_type(), atom(), type_var_env(), ordsets:ordset(stored_spec_key()), parse_conf()) -> raw_type().
 %% fun
 simplify(#t{kind = ?function_tag, rep = {Params, Ret, Constraints}}=Raw, CurrModule, Env, Visited, Conf) ->
-  Cs = [{Var, simplify(T, CurrModule, Env, Visited, Conf)} || {Var, T} <- Constraints],
-  Env1 = add_constraints(Cs, Env),
+  Env1 = simplify_constraints(Constraints, CurrModule, Env, Visited, Conf),
   ParamsSimplified = [simplify(P, CurrModule, Env1, Visited, Conf) || P <- Params],
   RetSimplified = simplify(Ret, CurrModule, Env1, Visited, Conf),
   Rep = {ParamsSimplified, RetSimplified, []},
@@ -762,17 +773,29 @@ simplify(#t{kind = ?local_tag, rep = {Name, Args}}, CurrModule, Env, Visited, Co
         {ok, {Type, Params}} ->
           Visited1 = ordsets:add_element(Local, Visited),
           As = [simplify(A, CurrModule, Env, Visited1, Conf) || A <- Args],
-          Env1 = bind_parameters(Params, As, Env),
+          Env1 = bind_parameters(Params, As, new_env()),
           simplify(Type, CurrModule, Env1, Visited1, Conf)
       end
   end;
 %% type variable
-simplify(#t{kind = ?type_variable, rep = TVar}=T, _CurrModule, Env, _Visited, _Conf) ->
+simplify(#t{kind = ?type_variable, rep = TVar}=T, CurrModule, Env, Visited, Conf) ->
   case is_tvar_wild_card(T) of
     true -> t_any();
     false ->
-      % FIXME dict:fetch/3 may fail if it's a free variable so let's generalize it to any().
-      dict:fetch(TVar, Env)
+      Key = {?type_variable, TVar},
+      case ordsets:is_element(Key, Visited) of
+        true ->
+          cuter_pp:error_retrieving_spec(getMfa(Conf), {recursive_type, TVar}),
+          t_any();
+        false ->
+          % FIXME dict:fetch/3 may fail if it's a free variable so let's generalize it to any().
+          case lookup_in_env(TVar, Env) of
+            V when is_function(V) ->
+              Visited1 = ordsets:add_element(Key, Visited),
+              V(CurrModule, Env, Visited1, Conf);
+            V -> V
+          end
+        end
   end;
 %% remote type
 simplify(#t{kind = ?remote_tag, rep = {Module, Name, Args}}, CurrModule, Env, Visited, Conf) ->
@@ -791,7 +814,7 @@ simplify(#t{kind = ?remote_tag, rep = {Module, Name, Args}}, CurrModule, Env, Vi
         {ok, {Type, Params}} ->
           Visited1 = ordsets:add_element(Remote, Visited),
           As = [simplify(A, CurrModule, Env, Visited1, Conf) || A <- Args],
-          Env1 = bind_parameters(Params, As, Env),
+          Env1 = bind_parameters(Params, As, new_env()),
           simplify(Type, Module, Env1, Visited1, Conf)
       end
   end;
@@ -814,6 +837,18 @@ replace_record_fields(Fields, []) ->
 replace_record_fields(Fields, [{Name, Type}|Rest]) ->
   Replaced = lists:keyreplace(Name, 1, Fields, {Name, Type}),
   replace_record_fields(Replaced, Rest).
+
+%% API for manipulating environments.
+%% An environment is a mapping of type variables to their actual values.
+
+new_env() ->
+  dict:new().
+
+add_to_env(Key, Value, Env) ->
+  dict:store(Key, Value, Env).
+
+lookup_in_env(Key, Env) ->
+  dict:fetch(Key, Env).
 
 %% ============================================================================
 %% Traverse a pre-processed spec or type and find its remote dependencies, aka

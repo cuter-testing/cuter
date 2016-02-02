@@ -597,6 +597,9 @@ spec_error(MFA, has_remote_types, _Level) ->
 spec_error(MFA, {recursive_type, {Mod, Type, Arity}}, _Level) ->
   io:format("~nWARNING: The spec of ~p contains the recursive type ~p:~p/~w and is not supported!~n"
     ++ "  It has been generalized to any().~n~n", [MFA, Mod, Type, Arity]);
+spec_error(MFA, {recursive_type, TVar}, _Level) ->
+  io:format("~nWARNING: The spec of ~p contains the recursive type ~p and is not supported!~n"
+    ++ "  It has been generalized to any().~n~n", [MFA, TVar]);
 spec_error(MFA, Error, _Level) ->
   io:format("~nWARNING: Error while retrieving the spec of ~p!~n  Error: ~p~n~n", [MFA, Error]).
 
