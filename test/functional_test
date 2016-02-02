@@ -17,6 +17,7 @@ tests[10]="whitelist;f;[1000];3;-p 2 -s 3;whitelist-f-1;whitelist-f-1"
 tests[11]="whitelist;g;[1000];3;-p 2 -s 3;whitelist-g-1;whitelist-g-1"
 tests[12]="whitelist;k;[1000];3;-p 2 -s 3;whitelist-k-1;whitelist-k-1"
 tests[13]="complex_spec;f;[[]];32;-p 6 -s 6;complex_spec-f-1;no-whitelist"
+tests[14]="collection;f;[[]];10;-p 4 -s 4;collection-f-1;no-whitelist"
 
 for element in "${tests[@]}"; do
   IFS=';' read -a t <<< "$element"
