@@ -1,0 +1,4 @@
+Testing bitstr:f26/2 ...
+INPUTS THAT LEAD TO RUNTIME ERRORS
+#1 bitstr:f26(<<42:6>>, 6)
+#2 bitstr:f26(<<"*">>, 8)

@@ -143,9 +143,10 @@ json_encode_type(Type) ->
       ?ENCODE_COMPTYPE(integer_to_list(?JSON_ERLTYPE_NONEMPTY_LIST), T);
     ?nil_tag -> ?ENCODE_TYPE(integer_to_list(?JSON_ERLTYPE_NIL));
     ?bitstring_tag ->
-      Size = cuter_types:segment_size_of_bitstring(Type),
-      Sz = json_encode(Size),
-      ?ENCODE_COMPTYPE(integer_to_list(?JSON_ERLTYPE_BITSTRING), Sz);
+      {M, N} = cuter_types:segment_size_of_bitstring(Type),
+      M1 = json_encode(M),
+      N1 = json_encode(N),
+      ?ENCODE_COMPTYPE(integer_to_list(?JSON_ERLTYPE_BITSTRING), [$\[, M1, $,, N1, $\]]);
     ?tuple_tag ->
       case cuter_types:elements_types_of_t_tuple(Type) of
         [] -> ?ENCODE_TYPE(integer_to_list(?JSON_ERLTYPE_TUPLE));

@@ -2,7 +2,7 @@
 
 -export([foo/0, f11/1, f12/1]).
 
--export_type([t1/0, t2/0, t3/0, t4/0, t5/0]).
+-export_type([t1/0, t2/0, t3/0, t4/0, t5/0, t7/0]).
 
 -type t1() :: atom().
 -type t2() :: {integer(), float(), tuple()}.
@@ -10,6 +10,7 @@
 -type t4() :: [list() | bitstring()].
 -type t5() :: {binary(), [number(), ...], string(), char()}.
 -type t6() :: types_and_specs2:e1(float()).
+-type t7() :: <<_:64>> | <<_:_*3>> | <<_:128, _:_*12>>.
 
 -spec foo() -> ok.
 foo() -> ok.
