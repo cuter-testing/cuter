@@ -791,7 +791,7 @@ encode_term(Ref, _Seen) when is_bitstring(Ref) ->
 encode_term(Term, _Seen) ->
   throw({unsupported_term, Term}).
 
-encode_maybe_shared_term(T, Seen) when is_integer(T); is_float(T); is_atom(T); 
+encode_maybe_shared_term(T, Seen) when is_integer(T); is_float(T); is_atom(T); is_bitstring(T);
                                        is_list(T); is_tuple(T); is_pid(T); is_reference(T) ->
   case is_shared(T, Seen) of
     false -> encode_term(T, Seen);
