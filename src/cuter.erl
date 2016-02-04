@@ -24,7 +24,8 @@
   dataDir           :: file:filename(),
   depth             :: depth(),
   scheduler         :: pid(),
-  calculateCoverage :: boolean()
+  calculateCoverage :: boolean(),
+  sortErrors        :: boolean()
 }).
 -type configuration() :: #conf{}.
 
@@ -36,6 +37,7 @@
 -define(SOLVERS_NO, number_of_solvers).
 -define(WHITELISTED_MFAS, whitelist).
 -define(CALCULATE_COVERAGE, coverage).
+-define(SORTED_ERRORS, sorted_errors).
 
 -type default_option() :: {?POLLERS_NO, ?ONE}
                         .
@@ -49,6 +51,7 @@
                 | ?DISABLE_PMATCH
                 | {?WHITELISTED_MFAS, file:filename()}
                 | ?CALCULATE_COVERAGE
+                | ?SORTED_ERRORS
                 .
 
 %% ----------------------------------------------------------------------------
@@ -153,8 +156,14 @@ stop_and_report(Conf) ->
   cuter_pp:code_logs(CodeLogs),
   %% Report the erroneous inputs.
   ErroneousInputs = cuter_scheduler_maxcover:get_erroneous_inputs(Conf#conf.scheduler),
-  cuter_pp:errors_found(ErroneousInputs),
-  stop(Conf, ErroneousInputs).
+  ErroneousInputs1 = maybe_sort_errors(Conf#conf.sortErrors, ErroneousInputs),
+  cuter_pp:errors_found(ErroneousInputs1),
+  stop(Conf, ErroneousInputs1).
+
+maybe_sort_errors(false, ErroneousInputs) ->
+  ErroneousInputs;
+maybe_sort_errors(true, ErroneousInputs) ->
+  lists:sort(ErroneousInputs).
 
 -spec stop(configuration()) -> erroneous_inputs().
 stop(Conf) ->
@@ -189,7 +198,8 @@ initialize_app(M, F, As, Depth, Options) ->
        , depth = Depth
        , dataDir = cuter_lib:get_tmp_dir(BaseDir)
        , scheduler = SchedPid
-       , calculateCoverage = calculate_coverage(Options)}.
+       , calculateCoverage = calculate_coverage(Options)
+       , sortErrors = sort_errors(Options)}.
 
 %% ----------------------------------------------------------------------------
 %% Set app parameters
@@ -247,3 +257,6 @@ reporting_level(Options) ->
 
 -spec calculate_coverage([option()]) -> boolean().
 calculate_coverage(Options) -> lists:member(?CALCULATE_COVERAGE, Options).
+
+-spec sort_errors([option()]) -> boolean().
+sort_errors(Options) -> lists:member(?SORTED_ERRORS, Options).

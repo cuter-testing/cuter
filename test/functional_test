@@ -26,6 +26,7 @@ tests[19]="whitelist;g;[1000];3;-p 2 -s 3;whitelist-g-1;whitelist-g-1"
 tests[20]="whitelist;k;[1000];3;-p 2 -s 3;whitelist-k-1;whitelist-k-1"
 tests[21]="complex_spec;f;[[]];32;-p 6 -s 6;complex_spec-f-1;no-whitelist"
 tests[22]="collection;f;[[]];10;-p 4 -s 4;collection-f-1;no-whitelist"
+tests[23]="collection;g;[1];2;-p 4 -s 4;collection-g-1;no-whitelist"
 
 for element in "${tests[@]}"; do
   IFS=';' read -a t <<< "$element"
@@ -34,8 +35,8 @@ for element in "${tests[@]}"; do
   expected=$DIR/ftest/expected/${t[5]}.expected
   whitelist=$DIR/ftest/whitelist/${t[6]}.txt
 
-  echo -e "\nRunning ./cuter ${t[0]} ${t[1]} '${t[2]}' -d ${t[3]} ${t[4]} -w '${t[6]}.txt' ..."
-  cd "$ebin" && $DIR/../cuter ${t[0]} ${t[1]} "${t[2]}" -d ${t[3]} ${t[4]} -w "$whitelist" > "$outfile"
+  echo -e "\nRunning ./cuter ${t[0]} ${t[1]} '${t[2]}' -d ${t[3]} ${t[4]} -w '${t[6]}.txt' --sorted-errors ..."
+  cd "$ebin" && $DIR/../cuter ${t[0]} ${t[1]} "${t[2]}" -d ${t[3]} ${t[4]} -w "$whitelist" --sorted-errors  > "$outfile"
   if diff -q "$outfile" "$expected"; then
     rm -f "$outfile"
   else

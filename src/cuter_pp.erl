@@ -581,8 +581,13 @@ handle_info(_What, State) ->
 %% ============================================================================
 
 -spec spec_error(mfa(), any(), level()) -> ok.
-spec_error(MFA, {unsupported_type, Name}, _Level) ->
-  io:format("~nWARNING: The spec of ~p uses the unsupported type ~p!~n"
+spec_error(MFA, {unsupported_type, Name}, Level) ->
+  IODevice =
+    case Level of
+      ?MINIMAL -> standard_error;
+      _ -> standard_io
+    end,
+  io:format(IODevice, "~nWARNING: The spec of ~p uses the unsupported type ~p!~n"
     ++ "  It has been generalized to any().~n~n", [MFA, Name]);
 spec_error(_MFA, _Error, ?MINIMAL) ->
   ok;

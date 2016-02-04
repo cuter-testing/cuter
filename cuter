@@ -9,7 +9,7 @@ def main(argv):
   longOpts = [
     "depth=", "pollers=", "solvers=", "whitelist=",
     "verbose", "fully-verbose", "disable-pmatch", "recompile",
-    "coverage", "run-libs", "help"]
+    "coverage", "run-libs", "help", "sorted-errors"]
   try:
     optlist, remainder = getopt.gnu_getopt(argv, shortOpts, longOpts)
     # Ensure that there are enough arguments.
@@ -54,6 +54,8 @@ def main(argv):
         runOpts.append("fully_verbose_execution_info")
       elif opt == "--disable-pmatch":
         runOpts.append("disable_pmatch")
+      elif opt == "--sorted-errors":
+        runOpts.append("sorted_errors")
       elif opt == "--help":
         usage()
         sys.exit(0)
@@ -116,6 +118,7 @@ def usage():
   print "					for the .erl file in the current directory."
   print "	--fully-verbose			Request a fully verbose execution (for debugging)."
   print "	--disable-pmatch		Disable the pattern matching compilation."
+  print "	--sorted-errors			Report the erroneous inputs in a sorted order."
   print "	--help				Display this information."
 
 if __name__ == "__main__":
