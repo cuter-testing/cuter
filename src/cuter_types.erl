@@ -652,9 +652,17 @@ process_spec_attr({FA, Specs}, Processed) ->
 
 -spec t_spec_from_form(cuter_cerl:cerl_spec_func()) -> t_function_det().
 t_spec_from_form({type, _, 'fun', _}=Fun) ->
-  t_function_from_form(Fun);
+  try t_function_from_form(Fun)
+  catch throw:{unsupported, Info} ->
+    cuter_pp:form_has_unsupported_type(Info),
+    t_any()
+  end;
 t_spec_from_form({type, _, 'bounded_fun', _}=Fun) ->
-  t_bounded_function_from_form(Fun).
+  try t_bounded_function_from_form(Fun)
+  catch throw:{unsupported, Info} ->
+    cuter_pp:form_has_unsupported_type(Info),
+    t_any()
+  end.
 
 %% ----------------------------------------------------------------------------
 %% Lookup a function's spec from the module's caches of pre-processed specs.
