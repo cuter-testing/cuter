@@ -52,7 +52,8 @@ encdec_test_() ->
     {"Mixed", [
       {"I", {[1,2],[1,2],{[1,2],[1,2]}}},
       {"II", [1,ok,{4,1},[4,4.5],4,4.5]},
-      {"III", {2.23, true, [2, 3, {234, 34, false}], {ok, fail, 424242}}}
+      {"III", {2.23, true, [2, 3, {234, 34, false}], {ok, fail, 424242}}},
+      {"IV", [<<"true">>]}
     ]}
   ],
   Setup = fun(T) -> fun() -> T end end,
@@ -83,7 +84,8 @@ enc_fail_test_() ->
 encdec_cmd_test_() ->
   Cs = [
     {"I", {1, [self(), erlang:make_ref()]}},
-    {"II", {1, [cuter_symbolic:fresh_symbolic_var(), 42]}}
+    {"II", {1, [cuter_symbolic:fresh_symbolic_var(), 42]}},
+    {"III", {56, [cuter_symbolic:fresh_symbolic_var(), cuter_symbolic:fresh_symbolic_var(), [<<"false">>]]}}
   ],
   Setup = fun(T) -> fun() -> T end end,
   Inst = fun encode_decode_cmd/1,
