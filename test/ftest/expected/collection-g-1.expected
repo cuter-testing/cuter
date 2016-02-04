@@ -1,0 +1,5 @@
+Testing collection:g/1 ...
+INPUTS THAT LEAD TO RUNTIME ERRORS
+#1 collection:g(42)
+#2 collection:g([0])
+#3 collection:g("*")

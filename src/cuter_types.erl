@@ -369,23 +369,23 @@ t_bound_field_from_form({type, _, field_type, [{atom, _, Name}, Type]}) ->
 %% Parses the declaration of a simple fun.
 -spec t_function_from_form(cuter_cerl:cerl_func()) -> t_function_det().
 t_function_from_form({type, _, 'fun', [{type, _, 'product', Types}, RetType]}) ->
-  Ret = t_from_form(RetType),
-  Ts = [t_from_form(T) || T <- Types],
+  Ret = safe_t_from_form(RetType),
+  Ts = [safe_t_from_form(T) || T <- Types],
   t_function(Ts, Ret).
 
 %% Parses the declaration of a bounded fun.
 -spec t_bounded_function_from_form(cuter_cerl:cerl_bounded_func()) -> t_function_det().
 t_bounded_function_from_form({type, _, 'bounded_fun', [Fun, Constraints]}) ->
   {type, _, 'fun', [{type, _, 'product', Types}, RetType]} = Fun,
-  Ret = t_from_form(RetType),
-  Ts = [t_from_form(T) || T <- Types],
+  Ret = safe_t_from_form(RetType),
+  Ts = [safe_t_from_form(T) || T <- Types],
   Cs = [t_constraint_from_form(C) || C <- Constraints],
   t_function(Ts, Ret, Cs).
 
 %% Parses the constraints of a bounded fun.
 -spec t_constraint_from_form(cuter_cerl:cerl_constraint()) -> t_constraint().
 t_constraint_from_form({type, _, constraint, [{atom, _, is_subtype}, [{var, _, Var}, Type]]}) ->
-  {t_var(Var), t_from_form(Type)}.
+  {t_var(Var), safe_t_from_form(Type)}.
 
 %% ----------------------------------------------------------------------------
 %% API for types constructors.
@@ -652,17 +652,9 @@ process_spec_attr({FA, Specs}, Processed) ->
 
 -spec t_spec_from_form(cuter_cerl:cerl_spec_func()) -> t_function_det().
 t_spec_from_form({type, _, 'fun', _}=Fun) ->
-  try t_function_from_form(Fun)
-  catch throw:{unsupported, Info} ->
-    cuter_pp:form_has_unsupported_type(Info),
-    t_any()
-  end;
+  t_function_from_form(Fun);
 t_spec_from_form({type, _, 'bounded_fun', _}=Fun) ->
-  try t_bounded_function_from_form(Fun)
-  catch throw:{unsupported, Info} ->
-    cuter_pp:form_has_unsupported_type(Info),
-    t_any()
-  end.
+  t_bounded_function_from_form(Fun).
 
 %% ----------------------------------------------------------------------------
 %% Lookup a function's spec from the module's caches of pre-processed specs.
