@@ -71,6 +71,7 @@
                    | cerl_type_byte()
                    | cerl_type_binary()
                    | cerl_type_bitstring()
+                   | cerl_type_bitstringMN()
                    | cerl_type_string()
                    | cerl_type_tuple()
                    | cerl_type_literal()
@@ -100,6 +101,7 @@
 -type cerl_type_byte() :: {'type', lineno(), 'byte', []}.
 -type cerl_type_binary() :: {'type', lineno(), 'binary', []}.
 -type cerl_type_bitstring() :: {'type', lineno(), 'bitstring', []}.
+-type cerl_type_bitstringMN() :: {'type', lineno(), 'bitstring', [{integer, lineno(), non_neg_integer()}]}.
 -type cerl_type_string() :: {'type', lineno(), 'string', []}.
 -type cerl_type_tuple() :: {'type', lineno(), 'tuple', 'any' | [cerl_type(), ...]}.
 -type cerl_type_literal() :: cerl_type_literal_atom() | cerl_type_literal_integer().
@@ -114,7 +116,7 @@
 -type cerl_type_remote() :: {'remote_type', lineno(), [cerl_type_literal_atom() | [cerl_type()]]}.
 -type cerl_type_record() :: {'type', lineno(), 'record', [cerl_type_literal_atom() | [cerl_type_record()]]}.
 -type cerl_type_record_field() :: {'type', lineno(), 'field_type', [cerl_type_literal_atom() | cerl_type()]}.
--type cerl_type_local() :: {'type', lineno(), cerl_type_literal_atom(), [cerl_type()]}.
+-type cerl_type_local() :: {'type' | 'user_type', lineno(), cerl_type_literal_atom(), [cerl_type()]}.
 -type cerl_type_map() :: {'type', lineno(), 'map', any()}.  %% TODO Refine map representation.
 -type cerl_type_var() :: {var, lineno(), atom()}.
 -type cerl_type_function() :: {'type', lineno(), 'function', []}

@@ -864,13 +864,19 @@ class ErlangZ3:
     ax = self.typeDeclToAxioms(s, tp)
     return And(ax, L.is_cons(T.lval(s)), L.is_nil(L.tl(T.lval(s))))  # Use base case.
 
-  def bitstringToAxioms(self, s, arg):
+  def bitstringToAxioms(self, s, args):
     T = self.Term
-    sz = arg['v']  # Assume it's an integer
-    if sz == 1:
+    m = args[0]['v']  # Assume it's an integer
+    n = args[1]['v']  # Assume it's an integer
+    if m == 0 and n == 1:
       return T.is_bin(s)
+    elif m == 0:
+      return And(T.is_bin(s), simplify(T.bsz(s)) % n == 0)
+    elif n == 0:
+      return And(T.is_bin(s), simplify(T.bsz(s)) == m)
     else:
-      return And(T.is_bin(s), simplify(T.bsz(s)) % sz == 0)
+      sz = simplify(T.bsz(s))
+      return And(T.is_bin(s), sz >= m, (sz - m) % n == 0)
 
   def typeDeclToAxioms(self, s, tp):
     opts = {

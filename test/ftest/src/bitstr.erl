@@ -48,6 +48,34 @@ f23(X, Y) ->
     _ -> ok
   end.
 
+-spec f24(<<_:6>>, integer()) -> ok.
+f24(X, Y) ->
+  case X of
+    <<42:Y>> -> error(not_ok);
+    _ -> ok
+  end.
+
+-spec f25(<<_:_*3>>, integer()) -> ok.
+f25(X, Y) ->
+  case X of
+    <<42:Y>> -> error(not_ok);
+    _ -> ok
+  end.
+
+-spec f26(<<_:6, _:_*2>>, integer()) -> ok.
+f26(X, Y) ->
+  case X of
+    <<42:Y>> -> error(not_ok);
+    _ -> ok
+  end.
+
+-spec f27(<<_:4>>, integer()) -> ok.
+f27(X, Y) ->
+  case X of
+    <<42:Y>> -> error(not_ok);
+    _ -> ok
+  end.
+
 %% Match and binding variables.
 
 -spec f31(bitstring(), integer()) -> ok.
@@ -73,4 +101,32 @@ f33(X, Y, K, Z) ->
         <<K:Y, Z/bits>> -> error(not_ok);
         _ -> ok
       end
+  end.
+
+-spec f34(<<_:_*3>>, integer()) -> ok.
+f34(X, Y) ->
+  case X of
+    <<Y:4>> -> error(not_ok);
+    _ -> ok
+  end.
+
+-spec f35(<<_:6, _:_*7>>) -> ok.
+f35(X) ->
+  case X of
+    <<_:42>> -> error(not_ok);
+    _ -> ok
+  end.
+
+-spec f36(<<_:6, _:_*7>> | <<_:_*4>>) -> ok.
+f36(X) ->
+  case X of
+    <<_:42>> -> error(not_ok);
+    _ -> ok
+  end.
+
+-spec f37(<<_:6, _:_*7>> | <<_:_*4>> | <<_:_*6>>) -> ok.
+f37(X) ->
+  case X of
+    <<_:42>> -> error(not_ok);
+    _ -> ok
   end.

@@ -50,6 +50,14 @@ parse_types({types_and_specs, Attrs}) ->
         ])
       , []
       }
+    },
+    {"t7()"
+    , {type, t7, 0}
+    , { cuter_types:t_union([
+          cuter_types:t_bitstring(64, 0), cuter_types:t_bitstring(0, 3), cuter_types:t_bitstring(128, 12)
+        ])
+      , []
+      }
     }
   ],
   [{Txt, ?_assertEqual(Expected, dict:fetch(Key, Types))} || {Txt, Key, Expected} <- Ts].

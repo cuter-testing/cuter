@@ -9,7 +9,7 @@
          elements_type_of_t_list/1, elements_type_of_t_nonempty_list/1, elements_types_of_t_tuple/1,
          elements_types_of_t_union/1, bounds_of_t_range/1, segment_size_of_bitstring/1]).
 
--export([t_atom/0, t_atom_lit/1, t_any/0, t_binary/0, t_bitstring/0, t_char/0, t_float/0,
+-export([t_atom/0, t_atom_lit/1, t_any/0, t_binary/0, t_bitstring/0, t_bitstring/2, t_char/0, t_float/0,
          t_function/0, t_function/2, t_function/3, t_integer/0, t_list/0, t_list/1,
          t_nonempty_list/1, t_nil/0, t_number/0, t_remote/3, t_string/0, t_tuple/0, t_tuple/1,
          t_union/1]).
@@ -102,7 +102,8 @@
 -type t_integer_neg_inf() :: #t{kind :: ?neg_inf}.
 
 %% Bitstrings.
--type t_bitstring() :: #t{kind :: ?bitstring_tag, rep :: 1|8}.
+-type seg_sizes()   :: {non_neg_integer(), non_neg_integer()}.
+-type t_bitstring() :: #t{kind :: ?bitstring_tag, rep :: seg_sizes()}.
 
 %% Funs.
 -type t_function()     :: #t{kind :: ?function_tag} | t_function_det().
@@ -314,6 +315,9 @@ t_from_form({type, _, nonempty_list, []}) ->
 t_from_form({type, _, nonempty_list, [Type]}) ->
   T = t_from_form(Type),
   t_nonempty_list(T);
+%% <<_:M, _:_*N>>
+t_from_form({type, _, binary, [{integer, _, M}, {integer, _, N}]}) ->
+  t_bitstring(M, N);
 %% binary()
 t_from_form({type, _, binary, []}) ->
   t_binary();
@@ -480,15 +484,15 @@ t_record(Name, Fields) ->
 
 -spec t_bitstring() -> t_bitstring().
 t_bitstring() ->
-  t_bitstring(1).
+  t_bitstring(0, 1).
 
--spec t_bitstring(1 | 8) -> t_bitstring().
-t_bitstring(N) ->
-  #t{kind = ?bitstring_tag, rep = N}.
+-spec t_bitstring(non_neg_integer(), non_neg_integer()) -> t_bitstring().
+t_bitstring(M, N) ->
+  #t{kind = ?bitstring_tag, rep = {M, N}}.
 
 -spec t_binary() -> t_bitstring().
 t_binary() ->
-  t_bitstring(8).
+  t_bitstring(0, 8).
 
 -spec t_function() -> t_function().
 t_function() ->
@@ -603,7 +607,7 @@ elements_types_of_t_union(#t{kind = ?union_tag, rep = Types}) ->
 bounds_of_t_range(#t{kind = ?range_tag, rep = Limits}) ->
   Limits.
 
--spec segment_size_of_bitstring(t_bitstring()) -> integer().
+-spec segment_size_of_bitstring(t_bitstring()) -> seg_sizes().
 segment_size_of_bitstring(#t{kind = ?bitstring_tag, rep = Sz}) ->
   Sz.
 
