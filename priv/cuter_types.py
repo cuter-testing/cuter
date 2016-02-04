@@ -123,7 +123,7 @@ class ErlType:
 
   @classmethod
   def setNonEmptyListType(cls, typ):
-    cls.setType(typ, cc.JSON_ERLTYPE__NONEMPTY_LIST)
+    cls.setType(typ, cc.JSON_ERLTYPE_NONEMPTY_LIST)
 
   @classmethod
   def setConsType(cls, typ):
@@ -281,7 +281,7 @@ class Type:
         candidates = [tp for tp in ErlType.getArgs(self.typ) if not ErlType.isNil(tp)]
         for cnd in candidates:
           if ErlType.isList(cnd):
-            ErlType.setNonEmptyListType(cmd)
+            ErlType.setNonEmptyListType(cnd)
         if len(candidates) > 0:
           ErlType.setArgs(self.typ, candidates)
         else:
