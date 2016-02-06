@@ -18,15 +18,16 @@
 
 %% The configuration of the tool.
 -record(conf, {
-  codeServer        :: pid(),
-  mod               :: mod(),
-  func              :: atom(),
-  dataDir           :: file:filename(),
-  depth             :: depth(),
-  scheduler         :: pid(),
-  calculateCoverage :: boolean(),
-  sortErrors        :: boolean(),
-  whitelist         :: cuter_mock:whitelist()
+  codeServer          :: pid(),
+  mod                 :: mod(),
+  func                :: atom(),
+  dataDir             :: file:filename(),
+  depth               :: depth(),
+  scheduler           :: pid(),
+  calculateCoverage   :: boolean(),
+  sortErrors          :: boolean(),
+  whitelist           :: cuter_mock:whitelist(),
+  suppressUnsupported :: boolean()
 }).
 -type configuration() :: #conf{}.
 
@@ -39,6 +40,7 @@
 -define(WHITELISTED_MFAS, whitelist).
 -define(CALCULATE_COVERAGE, coverage).
 -define(SORTED_ERRORS, sorted_errors).
+-define(SUPPRESS_UNSUPPORTED_MFAS, suppress_unsupported).
 
 -type default_option() :: {?POLLERS_NO, ?ONE}
                         .
@@ -53,6 +55,7 @@
                 | {?WHITELISTED_MFAS, file:filename()}
                 | ?CALCULATE_COVERAGE
                 | ?SORTED_ERRORS
+                | ?SUPPRESS_UNSUPPORTED_MFAS
                 .
 
 %% ----------------------------------------------------------------------------
@@ -158,7 +161,7 @@ stop_and_report(Conf) ->
   cuter_pp:errors_found(ErroneousInputs1),
   %% Report the code logs.
   CodeLogs = cuter_codeserver:get_logs(Conf#conf.codeServer),
-  cuter_pp:code_logs(CodeLogs, Conf#conf.whitelist),
+  cuter_pp:code_logs(CodeLogs, Conf#conf.whitelist, Conf#conf.suppressUnsupported),
   stop(Conf, ErroneousInputs1).
 
 maybe_sort_errors(false, ErroneousInputs) ->
@@ -201,7 +204,8 @@ initialize_app(M, F, As, Depth, Options) ->
        , scheduler = SchedPid
        , calculateCoverage = calculate_coverage(Options)
        , sortErrors = sort_errors(Options)
-       , whitelist = Whitelist}.
+       , whitelist = Whitelist
+       , suppressUnsupported = suppress_unsupported_mfas(Options)}.
 
 %% ----------------------------------------------------------------------------
 %% Set app parameters
@@ -262,3 +266,6 @@ calculate_coverage(Options) -> lists:member(?CALCULATE_COVERAGE, Options).
 
 -spec sort_errors([option()]) -> boolean().
 sort_errors(Options) -> lists:member(?SORTED_ERRORS, Options).
+
+-spec suppress_unsupported_mfas([option()]) -> boolean().
+suppress_unsupported_mfas(Options) -> lists:member(?SUPPRESS_UNSUPPORTED_MFAS, Options).

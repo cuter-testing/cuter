@@ -9,7 +9,7 @@
 %% Report information about the concolic executions.
 -export([mfa/1, input/2, error_retrieving_spec/2, execution_status/2,
          execution_info/2, path_vertex/2, flush/1, errors_found/1,
-         form_has_unsupported_type/1, invalid_ast_with_pmatch/2, code_logs/2]).
+         form_has_unsupported_type/1, invalid_ast_with_pmatch/2, code_logs/3]).
 %% Report information about solving.
 -export([solving_failed_unsat/0, solving_failed_timeout/0, solving_failed_unknown/0]).
 %% Report callgraph related info.
@@ -110,7 +110,7 @@
               | solving_failed_timeout
               | solving_failed_unknown
               | {errors_found, cuter:erroneous_inputs()}
-              | {code_logs, cuter_codeserver:logs(), cuter_mock:whitelist()}
+              | {code_logs, cuter_codeserver:logs(), cuter_mock:whitelist(), boolean()}
               | {callgraph_calculation_started, mfa()}
               | {callgraph_calculation_failed, string()}
               | callgraph_calculation_succeeded
@@ -233,9 +233,9 @@ errors_found(Errors) ->
   gen_server:call(?PRETTY_PRINTER, {errors_found, Errors}).
 
 %% Prints the logs of a CodeServer.
--spec code_logs(cuter_codeserver:logs(), cuter_mock:whitelist()) -> ok.
-code_logs(Logs, Whitelist) ->
-  gen_server:call(?PRETTY_PRINTER, {code_logs, Logs, Whitelist}).
+-spec code_logs(cuter_codeserver:logs(), cuter_mock:whitelist(), boolean()) -> ok.
+code_logs(Logs, Whitelist, SuppressUnsupported) ->
+  gen_server:call(?PRETTY_PRINTER, {code_logs, Logs, Whitelist, SuppressUnsupported}).
 
 %% ----------------------------------------------------------------------------
 %% Parsing of options.
@@ -556,8 +556,8 @@ handle_call({errors_found, Errors}, _From, State=#st{mfa = MFA, pplevel = PpLeve
   pp_erroneous_inputs(Errors, MFA, PpLevel#pp_level.execInfo),
   {reply, ok, State#st{nl = false}};
 %% Prints the logs of a CodeServer.
-handle_call({code_logs, CodeLogs, Whitelist}, _From, State=#st{pplevel = PpLevel}) ->
-  pp_code_logs(CodeLogs, Whitelist, PpLevel#pp_level.execInfo),
+handle_call({code_logs, CodeLogs, Whitelist, SuppressUnsupported}, _From, State=#st{pplevel = PpLevel}) ->
+  pp_code_logs(CodeLogs, Whitelist, SuppressUnsupported, PpLevel#pp_level.execInfo),
   {reply, ok, State#st{nl = false}}.
 
 
@@ -764,17 +764,19 @@ pp_node_logs(Logs) ->
 %% Report the CodeServer's logs
 %% ----------------------------------------------------------------------------
 
--spec pp_code_logs(cuter_codeserver:logs(), cuter_mock:whitelist(), level()) -> ok.
-pp_code_logs(Logs, Whitelist, ?MINIMAL) ->
-  pp_unsupported_mfas(Logs, Whitelist);
-pp_code_logs(Logs, Whitelist, ?VERBOSE) ->
-  pp_unsupported_mfas(Logs, Whitelist);
-pp_code_logs(Logs, Whitelist, ?FULLY_VERBOSE) ->
+-spec pp_code_logs(cuter_codeserver:logs(), cuter_mock:whitelist(), boolean(), level()) -> ok.
+pp_code_logs(Logs, Whitelist, SuppressUnsupported, ?MINIMAL) ->
+  pp_unsupported_mfas(Logs, Whitelist, SuppressUnsupported);
+pp_code_logs(Logs, Whitelist, SuppressUnsupported, ?VERBOSE) ->
+  pp_unsupported_mfas(Logs, Whitelist, SuppressUnsupported);
+pp_code_logs(Logs, Whitelist, _SuppressUnsupported, ?FULLY_VERBOSE) ->
   pp_code_logs_fully_verbose(Logs, Whitelist).
 
 %% Reports the unsupported mfas.
--spec pp_unsupported_mfas(cuter_codeserver:logs(), cuter_mock:whitelist()) -> ok.
-pp_unsupported_mfas(Logs, Whitelist) ->
+-spec pp_unsupported_mfas(cuter_codeserver:logs(), cuter_mock:whitelist(), boolean()) -> ok.
+pp_unsupported_mfas(_Logs, _Whitelist, true) ->
+  ok;
+pp_unsupported_mfas(Logs, Whitelist, false) ->
   UnsupportedMfas = cuter_codeserver:unsupportedMfas_of_logs(Logs),
   case filter_non_reportable(UnsupportedMfas, Whitelist) of
     [] -> ok;

@@ -9,7 +9,7 @@ def main(argv):
   longOpts = [
     "depth=", "pollers=", "solvers=", "whitelist=",
     "verbose", "fully-verbose", "disable-pmatch", "recompile",
-    "coverage", "run-libs", "help", "sorted-errors"]
+    "coverage", "run-libs", "help", "sorted-errors", "suppress-unsupported"]
   try:
     optlist, remainder = getopt.gnu_getopt(argv, shortOpts, longOpts)
     # Ensure that there are enough arguments.
@@ -56,6 +56,8 @@ def main(argv):
         runOpts.append("disable_pmatch")
       elif opt == "--sorted-errors":
         runOpts.append("sorted_errors")
+      elif opt == "--suppress-unsupported":
+        runOpts.append("suppress_unsupported")
       elif opt == "--help":
         usage()
         sys.exit(0)
@@ -119,6 +121,7 @@ def usage():
   print "	--fully-verbose			Request a fully verbose execution (for debugging)."
   print "	--disable-pmatch		Disable the pattern matching compilation."
   print "	--sorted-errors			Report the erroneous inputs in a sorted order."
+  print "	--suppress-unsupported		Suppresses the reporting of unsupported MFAs."
   print "	--help				Display this information."
 
 if __name__ == "__main__":
