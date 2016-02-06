@@ -29,26 +29,30 @@ def pretty(d):
     if 's' in d:
       s = d['s']
       if s in symbs:
-        return symbs[s]
+        return symbs[s] + "("+s+")"
       else:
         scnt += 1
         x = "x%s" % scnt
         symbs[s] = x
-        return x
+        return x + "("+s+")"
     # Type
     if "tp" in d:
       return pretty_type(d)
     # Int
     if d['t'] == cc.JSON_TYPE_INT:
-      return d['v']
+      return str(d['v'])
     # Float
     if d['t'] == cc.JSON_TYPE_FLOAT:
-      return d['v']
+      return str(d['v'])
     # Atom
     if d['t'] == cc.JSON_TYPE_ATOM:
       return "".join(map(chr, d['v']))
+    # List
     if d['t'] == cc.JSON_TYPE_LIST:
       return "[%s]" % pretty_list(d['v'])
+    # Bitstring
+    if d['t'] == cc.JSON_TYPE_BITSTRING:
+      return "<<%s>>" % pretty_list(d['v'])
   except KeyError:
     pass
   return str(d)
@@ -78,19 +82,7 @@ def pretty_type(d):
   if tp == cc.JSON_ERLTYPE_UNION:
     return "|".join(map(pretty_type, d["a"]))
 
-if "tty" in sys.argv:
-  sys.argv.remove("tty")
-cglb.init()
-
-
-
-fname = sys.argv[1]
-n = 0
-for tp, tag, json_data, rev in cio.JsonReader(fname, 100000000):
-  n += 1
-#  print tp
-#  print json_data
-  
+def print_cmd(tp, tag, json_data, rev):
   # Symbolic parameters
   if tp == cc.OP_PARAMS:
     pprint([
@@ -397,11 +389,33 @@ for tp, tag, json_data, rev in cio.JsonReader(fname, 100000000):
       "LT INT",
       "%s = %s < %s" % (pretty(xs[0]), pretty(xs[1]), pretty(xs[2]))
     ], tag)
+  # Bitmach var false
+  elif tp == cc.OP_BITMATCH_VAR_FALSE:
+    xs = json_data["a"]
+    pprint([
+      "BITMATCH VAR FALSE",
+      "%s with size %s" % (pretty(xs[1]), pretty(xs[0]))
+    ], tag)
+  # Cons
+  elif tp == cc.OP_CONS:
+    xs = json_data["a"]
+    pprint([
+      "CONS",
+      "%s = [ %s | %s ] " % (pretty(xs[0]), pretty(xs[1]), pretty(xs[2]))
+    ], tag)
   else:
     print "UNKNOWN OPCODE", tp
     xs = json_data["a"]
     print xs
     sys.exit(1)
 
-print "Total Commands:", n
-
+if __name__ == "__main__":
+  if "tty" in sys.argv:
+    sys.argv.remove("tty")
+  cglb.init()
+  fname = sys.argv[1]
+  n = 0
+  for tp, tag, json_data, rev in cio.JsonReader(fname, 100000000):
+    n += 1
+    print_cmd(tp, tag, json_data, rev)
+  print "Total Commands:", n
