@@ -32,7 +32,8 @@ g1(L) -> g(tl(L)).
 -spec h(any()) -> any().
 h(X) ->
   case X of
-    42 -> os:timestamp();
+    42 -> get(X);
+    84 -> os:timestamp();
     17 -> error(bug);
     _ -> X
   end.

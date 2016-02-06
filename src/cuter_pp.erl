@@ -776,7 +776,7 @@ pp_code_logs(Logs, Whitelist, ?FULLY_VERBOSE) ->
 -spec pp_unsupported_mfas(cuter_codeserver:logs(), cuter_mock:whitelist()) -> ok.
 pp_unsupported_mfas(Logs, Whitelist) ->
   UnsupportedMfas = cuter_codeserver:unsupportedMfas_of_logs(Logs),
-  case filter_whitelisted(UnsupportedMfas, Whitelist) of
+  case filter_non_reportable(UnsupportedMfas, Whitelist) of
     [] -> ok;
     Mfas ->
       io:format("~n=== UNSUPPORTED MFAS ===~n"),
@@ -809,13 +809,20 @@ pp_code_logs_fully_verbose(Logs, Whitelist) ->
   io:format("        ~p~n", [gb_sets:to_list(Tags)]),
   %% Unsupported MFAs.
   Mfas = cuter_codeserver:unsupportedMfas_of_logs(Logs),
-  FilteredMfas = filter_whitelisted(Mfas, Whitelist),
+  FilteredMfas = filter_non_reportable(Mfas, Whitelist),
   io:format("      UNSUPPORTED MFAS~n"),
   io:format("        ~p~n", [FilteredMfas]).
 
-filter_whitelisted(Mfas, Whitelist) ->
+%% Filters out the non-reportable mfas.
+%% These include
+%%   1) whitelisted mfas
+%%   2) mfas that there is no meaning in evaluating them symbolically.
+filter_non_reportable(Mfas, Whitelist) ->
   lists:filter(
-    fun(Mfa) -> not cuter_mock:is_whitelisted(Mfa, Whitelist) end,
+    fun(Mfa) ->
+        not cuter_mock:no_symbolic_evalution(Mfa) andalso
+        not cuter_mock:is_whitelisted(Mfa, Whitelist)
+      end,
     Mfas
   ).
 

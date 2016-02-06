@@ -3,4 +3,4 @@ Testing collection:h/1 ...
 #1 collection:h(17)
 
 === UNSUPPORTED MFAS ===
-os:timestamp/0
+erlang:get/1
