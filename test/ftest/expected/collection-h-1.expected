@@ -1,5 +1,6 @@
 Testing collection:h/1 ...
-INPUTS THAT LEAD TO RUNTIME ERRORS
+=== INPUTS THAT LEAD TO RUNTIME ERRORS ===
 #1 collection:h(17)
-UNSUPPORTED MFAS
-  os:timestamp/0
+
+=== UNSUPPORTED MFAS ===
+os:timestamp/0

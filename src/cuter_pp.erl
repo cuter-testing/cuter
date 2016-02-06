@@ -766,26 +766,25 @@ pp_node_logs(Logs) ->
 
 -spec pp_code_logs(cuter_codeserver:logs(), cuter_mock:whitelist(), level()) -> ok.
 pp_code_logs(Logs, Whitelist, ?MINIMAL) ->
-  pp_unsupported_mfas("", Logs, Whitelist);
+  pp_unsupported_mfas(Logs, Whitelist);
 pp_code_logs(Logs, Whitelist, ?VERBOSE) ->
-  pp_unsupported_mfas("~n", Logs, Whitelist);
+  pp_unsupported_mfas(Logs, Whitelist);
 pp_code_logs(Logs, Whitelist, ?FULLY_VERBOSE) ->
   pp_code_logs_fully_verbose(Logs, Whitelist).
 
 %% Reports the unsupported mfas.
-%% "~n" =:= [126,110] (about the spec)
--spec pp_unsupported_mfas([110 | 126], cuter_codeserver:logs(), cuter_mock:whitelist()) -> ok.
-pp_unsupported_mfas(Prefix, Logs, Whitelist) ->
+-spec pp_unsupported_mfas(cuter_codeserver:logs(), cuter_mock:whitelist()) -> ok.
+pp_unsupported_mfas(Logs, Whitelist) ->
   UnsupportedMfas = cuter_codeserver:unsupportedMfas_of_logs(Logs),
   case filter_whitelisted(UnsupportedMfas, Whitelist) of
     [] -> ok;
     Mfas ->
-      io:format(Prefix ++ "UNSUPPORTED MFAS~n"),
-      lists:foreach(fun(Mfa) -> pp_mfa(Mfa, "  ") end, Mfas)
+      io:format("~n=== UNSUPPORTED MFAS ===~n"),
+      lists:foreach(fun pp_mfa/1, Mfas)
   end.
 
-pp_mfa({M, F, A}, Prefix) ->
-  io:format(Prefix ++ "~p:~p/~w~n", [M, F, A]).
+pp_mfa({M, F, A}) ->
+  io:format("~p:~p/~w~n", [M, F, A]).
 
 -spec pp_code_logs_fully_verbose(cuter_codeserver:logs(), cuter_mock:whitelist()) -> ok.
 pp_code_logs_fully_verbose(Logs, Whitelist) ->
@@ -839,7 +838,7 @@ pp_erroneous_inputs([], _MFA, Level) ->
   io:format("NO RUNTIME ERRORS OCCURED~n");
 pp_erroneous_inputs(Errors, MFA, Level) ->
   pp_nl(true, Level =:= ?MINIMAL),
-  io:format("INPUTS THAT LEAD TO RUNTIME ERRORS"),
+  io:format("=== INPUTS THAT LEAD TO RUNTIME ERRORS ==="),
   pp_erroneous_inputs_h(Errors, MFA, 1).
 
 pp_erroneous_inputs_h([], _MFA, _N) ->

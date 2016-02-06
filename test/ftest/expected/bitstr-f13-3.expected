@@ -1,5 +1,5 @@
 Testing bitstr:f13/3 ...
-INPUTS THAT LEAD TO RUNTIME ERRORS
+=== INPUTS THAT LEAD TO RUNTIME ERRORS ===
 #1 bitstr:f13(3, 2, 3)
 #2 bitstr:f13(6, 3, 2)
 #3 bitstr:f13(26, 5, 0)
