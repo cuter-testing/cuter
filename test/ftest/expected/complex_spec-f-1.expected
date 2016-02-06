@@ -1,3 +1,3 @@
 Testing complex_spec:f/1 ...
-INPUTS THAT LEAD TO RUNTIME ERRORS
+=== INPUTS THAT LEAD TO RUNTIME ERRORS ===
 #1 complex_spec:f([{[1,2],[{[[1],[2]],[3.14]},2]}])

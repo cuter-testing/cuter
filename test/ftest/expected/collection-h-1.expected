@@ -1,0 +1,6 @@
+Testing collection:h/1 ...
+=== INPUTS THAT LEAD TO RUNTIME ERRORS ===
+#1 collection:h(17)
+
+=== UNSUPPORTED MFAS ===
+erlang:get/1

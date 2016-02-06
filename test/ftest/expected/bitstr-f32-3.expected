@@ -1,3 +1,3 @@
 Testing bitstr:f32/3 ...
-INPUTS THAT LEAD TO RUNTIME ERRORS
+=== INPUTS THAT LEAD TO RUNTIME ERRORS ===
 #1 bitstr:f32(<<64,3:3>>, 0, 0)

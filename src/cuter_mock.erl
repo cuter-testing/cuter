@@ -3,7 +3,8 @@
 -module(cuter_mock).
 
 -export([simulate_behaviour/3, is_whitelisted/2, parse_whitelist/1,
-         get_whitelisted_mfas/1, empty_whitelist/0, overriding_modules/0]).
+         get_whitelisted_mfas/1, empty_whitelist/0, overriding_modules/0,
+         no_symbolic_evalution/1]).
 
 -export_type([whitelist/0]).
 
@@ -241,7 +242,6 @@ simulate_behaviour(os, getenv, 0) -> bif;
 simulate_behaviour(os, getenv, 1) -> bif;
 simulate_behaviour(os, getpid, 0) -> bif;
 simulate_behaviour(os, putenv, 2) -> bif;
-simulate_behaviour(os, timestamp, 0) -> bif;
 %% Module io
 simulate_behaviour(io, printable_range, 0) -> bif;
 %% Module slave
@@ -252,8 +252,21 @@ simulate_behaviour(slave, start, _A) -> bif;
 
 %simulate_behaviour(whitelist, just_loop, _) -> bif;
 
-%% Rest MFAs are not BIFs
-simulate_behaviour(M, F, A) -> {ok, {M, F, A}}.
+%% The rest MFAs are not BIFs if they should be symbolically evaluated.
+simulate_behaviour(M, F, A) ->
+  Mfa = {M, F, A},
+  case no_symbolic_evalution(Mfa) of
+    true  -> bif;
+    false -> {ok, Mfa}
+  end.
+
+%% ----------------------------------------------------------------------------
+%% MFAs that have no meaning in being evaluated symbolically.
+%% ----------------------------------------------------------------------------
+
+-spec no_symbolic_evalution(mfa()) -> boolean().
+no_symbolic_evalution({os, timestamp, 0}) -> true;
+no_symbolic_evalution(_) -> false.
 
 %% ----------------------------------------------------------------------------
 %% Whitelisted MFAs that will be treated as BIFs and their code will not be

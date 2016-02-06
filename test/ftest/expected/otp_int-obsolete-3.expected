@@ -1,3 +1,3 @@
 Testing otp_int:obsolete/3 ...
-INPUTS THAT LEAD TO RUNTIME ERRORS
+=== INPUTS THAT LEAD TO RUNTIME ERRORS ===
 #1 otp_int:obsolete(ssl, negotiated_next_protocol, 1)
