@@ -9,7 +9,7 @@
 %% Report information about the concolic executions.
 -export([mfa/1, input/2, error_retrieving_spec/2, execution_status/2,
          execution_info/2, path_vertex/2, flush/1, errors_found/1,
-         form_has_unsupported_type/1, invalid_ast_with_pmatch/2, code_logs/1]).
+         form_has_unsupported_type/1, invalid_ast_with_pmatch/2, code_logs/2]).
 %% Report information about solving.
 -export([solving_failed_unsat/0, solving_failed_timeout/0, solving_failed_unknown/0]).
 %% Report callgraph related info.
@@ -110,7 +110,7 @@
               | solving_failed_timeout
               | solving_failed_unknown
               | {errors_found, cuter:erroneous_inputs()}
-              | {code_logs, cuter_codeserver:logs()}
+              | {code_logs, cuter_codeserver:logs(), cuter_mock:whitelist()}
               | {callgraph_calculation_started, mfa()}
               | {callgraph_calculation_failed, string()}
               | callgraph_calculation_succeeded
@@ -233,9 +233,9 @@ errors_found(Errors) ->
   gen_server:call(?PRETTY_PRINTER, {errors_found, Errors}).
 
 %% Prints the logs of a CodeServer.
--spec code_logs(cuter_codeserver:logs()) -> ok.
-code_logs(Logs) ->
-  gen_server:call(?PRETTY_PRINTER, {code_logs, Logs}).
+-spec code_logs(cuter_codeserver:logs(), cuter_mock:whitelist()) -> ok.
+code_logs(Logs, Whitelist) ->
+  gen_server:call(?PRETTY_PRINTER, {code_logs, Logs, Whitelist}).
 
 %% ----------------------------------------------------------------------------
 %% Parsing of options.
@@ -556,8 +556,8 @@ handle_call({errors_found, Errors}, _From, State=#st{mfa = MFA, pplevel = PpLeve
   pp_erroneous_inputs(Errors, MFA, PpLevel#pp_level.execInfo),
   {reply, ok, State#st{nl = false}};
 %% Prints the logs of a CodeServer.
-handle_call({code_logs, CodeLogs}, _From, State=#st{pplevel = PpLevel}) ->
-  pp_code_logs(CodeLogs, PpLevel#pp_level.execInfo),
+handle_call({code_logs, CodeLogs, Whitelist}, _From, State=#st{pplevel = PpLevel}) ->
+  pp_code_logs(CodeLogs, Whitelist, PpLevel#pp_level.execInfo),
   {reply, ok, State#st{nl = false}}.
 
 
@@ -764,25 +764,31 @@ pp_node_logs(Logs) ->
 %% Report the CodeServer's logs
 %% ----------------------------------------------------------------------------
 
--spec pp_code_logs(cuter_codeserver:logs(), level()) -> ok.
-pp_code_logs(_Logs, ?MINIMAL) ->
-  ok;
-pp_code_logs(Logs, ?VERBOSE) ->
-  pp_code_logs_verbose(Logs);
-pp_code_logs(Logs, ?FULLY_VERBOSE) ->
-  pp_code_logs_fully_verbose(Logs).
+-spec pp_code_logs(cuter_codeserver:logs(), cuter_mock:whitelist(), level()) -> ok.
+pp_code_logs(Logs, Whitelist, ?MINIMAL) ->
+  pp_unsupported_mfas("", Logs, Whitelist);
+pp_code_logs(Logs, Whitelist, ?VERBOSE) ->
+  pp_unsupported_mfas("~n", Logs, Whitelist);
+pp_code_logs(Logs, Whitelist, ?FULLY_VERBOSE) ->
+  pp_code_logs_fully_verbose(Logs, Whitelist).
 
--spec pp_code_logs_verbose(cuter_codeserver:logs()) -> ok.
-pp_code_logs_verbose(Logs) ->
-  case cuter_codeserver:unsupportedMfas_of_logs(Logs) of
+%% Reports the unsupported mfas.
+%% "~n" =:= [126,110] (about the spec)
+-spec pp_unsupported_mfas([110 | 126], cuter_codeserver:logs(), cuter_mock:whitelist()) -> ok.
+pp_unsupported_mfas(Prefix, Logs, Whitelist) ->
+  UnsupportedMfas = cuter_codeserver:unsupportedMfas_of_logs(Logs),
+  case filter_whitelisted(UnsupportedMfas, Whitelist) of
     [] -> ok;
-    MFAs ->
-      io:format("~nUNSUPPORTED MFAS~n"),
-      io:format("  ~p~n", [MFAs])
+    Mfas ->
+      io:format(Prefix ++ "UNSUPPORTED MFAS~n"),
+      lists:foreach(fun(Mfa) -> pp_mfa(Mfa, "  ") end, Mfas)
   end.
 
--spec pp_code_logs_fully_verbose(cuter_codeserver:logs()) -> ok.
-pp_code_logs_fully_verbose(Logs) ->
+pp_mfa({M, F, A}, Prefix) ->
+  io:format(Prefix ++ "~p:~p/~w~n", [M, F, A]).
+
+-spec pp_code_logs_fully_verbose(cuter_codeserver:logs(), cuter_mock:whitelist()) -> ok.
+pp_code_logs_fully_verbose(Logs, Whitelist) ->
   io:format("~n"),
   divider("-"),
   io:format("CODE LOGS~n"),
@@ -803,9 +809,16 @@ pp_code_logs_fully_verbose(Logs) ->
   io:format("      VISITED TAGS~n"),
   io:format("        ~p~n", [gb_sets:to_list(Tags)]),
   %% Unsupported MFAs.
-  MFAs = cuter_codeserver:unsupportedMfas_of_logs(Logs),
+  Mfas = cuter_codeserver:unsupportedMfas_of_logs(Logs),
+  FilteredMfas = filter_whitelisted(Mfas, Whitelist),
   io:format("      UNSUPPORTED MFAS~n"),
-  io:format("        ~p~n", [MFAs]).
+  io:format("        ~p~n", [FilteredMfas]).
+
+filter_whitelisted(Mfas, Whitelist) ->
+  lists:filter(
+    fun(Mfa) -> not cuter_mock:is_whitelisted(Mfa, Whitelist) end,
+    Mfas
+  ).
 
 %% ----------------------------------------------------------------------------
 %% Report the path vertex

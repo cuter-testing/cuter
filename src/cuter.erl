@@ -25,7 +25,8 @@
   depth             :: depth(),
   scheduler         :: pid(),
   calculateCoverage :: boolean(),
-  sortErrors        :: boolean()
+  sortErrors        :: boolean(),
+  whitelist         :: cuter_mock:whitelist()
 }).
 -type configuration() :: #conf{}.
 
@@ -151,13 +152,13 @@ stop_and_report(Conf) ->
   %% Report coverage statistics.
   VisitedTags = cuter_scheduler_maxcover:get_visited_tags(Conf#conf.scheduler),
   cuter_analyzer:calculate_coverage(Conf#conf.calculateCoverage, Conf#conf.codeServer, VisitedTags),
-  %% Report the code logs.
-  CodeLogs = cuter_codeserver:get_logs(Conf#conf.codeServer),
-  cuter_pp:code_logs(CodeLogs),
   %% Report the erroneous inputs.
   ErroneousInputs = cuter_scheduler_maxcover:get_erroneous_inputs(Conf#conf.scheduler),
   ErroneousInputs1 = maybe_sort_errors(Conf#conf.sortErrors, ErroneousInputs),
   cuter_pp:errors_found(ErroneousInputs1),
+  %% Report the code logs.
+  CodeLogs = cuter_codeserver:get_logs(Conf#conf.codeServer),
+  cuter_pp:code_logs(CodeLogs, Conf#conf.whitelist),
   stop(Conf, ErroneousInputs1).
 
 maybe_sort_errors(false, ErroneousInputs) ->
@@ -199,7 +200,8 @@ initialize_app(M, F, As, Depth, Options) ->
        , dataDir = cuter_lib:get_tmp_dir(BaseDir)
        , scheduler = SchedPid
        , calculateCoverage = calculate_coverage(Options)
-       , sortErrors = sort_errors(Options)}.
+       , sortErrors = sort_errors(Options)
+       , whitelist = Whitelist}.
 
 %% ----------------------------------------------------------------------------
 %% Set app parameters

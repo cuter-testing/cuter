@@ -1,5 +1,5 @@
 -module(collection).
--export([f/1, g/1, g1/1]).
+-export([f/1, g/1, g1/1, h/1]).
 
 -type t() :: [complex_spec:int()].
 
@@ -28,3 +28,11 @@ g(L) -> g(tl(L)).
 g1(42) -> error(bug);
 g1([]) -> <<>>;
 g1(L) -> g(tl(L)).
+
+-spec h(any()) -> any().
+h(X) ->
+  case X of
+    42 -> os:timestamp();
+    17 -> error(bug);
+    _ -> X
+  end.
