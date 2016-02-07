@@ -93,7 +93,8 @@ FTEST_MODULES = \
 
 PRIV_MODULES = \
 	cuter_io \
-	cuter_z3
+	cuter_z3 \
+	cuter_solve_offline
 
 ###----------------------------------------------------------------------
 ### Targets
@@ -145,7 +146,7 @@ $(FTEST_EBIN)/%.beam: %.erl
 
 utest: $(TARGETS)
 	@(./$(TEST)/eunit_test -e $(EBIN) -u $(UTEST_EBIN) -- $(SRC_MODULES))
-	@(./$(TEST)/python_test -p $(PRIV) -- $(PRIV_MODULES))
+	@(./$(TEST)/python_test -p $(PRIV) -e $(EBIN) -u $(UTEST_EBIN) -- $(PRIV_MODULES))
 
 ftest: $(TARGETS)
 	@(./$(TEST)/functional_test)
