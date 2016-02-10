@@ -115,7 +115,9 @@ class TermDecoder:
         cc.JSON_TYPE_LIST: self.list_toZ3,
         cc.JSON_TYPE_TUPLE: self.tuple_toZ3,
         cc.JSON_TYPE_ATOM: self.atom_toZ3,
-        cc.JSON_TYPE_BITSTRING: self.bitstring_toZ3
+        cc.JSON_TYPE_BITSTRING: self.bitstring_toZ3,
+        cc.JSON_TYPE_PID: self.pid_toZ3,
+        cc.JSON_TYPE_REF: self.ref_toZ3
       }
       return opts[t["t"]](t["v"], dct)
   
@@ -164,6 +166,13 @@ class TermDecoder:
       t = eZ3.BitStr.bcons(hd, t)
     return eZ3.Term.bin(sz, t)
 
+  def pid_toZ3(self, v, dct):
+    # TODO Propery decode PIDs once they are supported.
+    return self.eZ3.Term.int(42)
+
+  def ref_toZ3(self, v, dct):
+    # TODO Propery decode references once they are supported.
+    return self.eZ3.Term.int(42)
 
 class ErlangZ3:
   def __init__(self):
