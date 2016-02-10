@@ -76,7 +76,7 @@ if __name__ == "__main__":
         ebin = arg
     if ebin != None or utestEbin != None:
       sys.exit(run_tests(ebin, utestEbin))
-    solve(remainder[0], int(remainder[1]), printConstraint, True)
+    solve(remainder[0], int(remainder[1]), printConstraints, True)
   except Exception as e:
     print "Fatal Error:", e
     sys.exit(1)
