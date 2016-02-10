@@ -2,6 +2,7 @@
 
 DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 ebin=$DIR/ftest/ebin
+utest_ebin=$DIR/utest/ebin
 
 tests[0]="bitstr;f11;[0];9;-p 2 -s 3;bitstr-f11-1;no-whitelist"
 tests[1]="bitstr;f12;[0,0,0];14;-p 2 -s 3;bitstr-f12-3;no-whitelist"
@@ -29,6 +30,7 @@ tests[22]="collection;f;[[]];10;-p 4 -s 4;collection-f-1;no-whitelist"
 tests[23]="collection;g;[1];2;-p 4 -s 4;collection-g-1;no-whitelist"
 tests[24]="collection;g1;[1];2;-p 4 -s 4;collection-g1-1;no-whitelist"
 tests[25]="collection;h;[1];2;-p 4 -s 4;collection-h-1;no-whitelist"
+tests[26]="collection;f1;[1];4;-p 4 -s 4 -a ${utest_ebin};collection-f1-1;no-whitelist"
 
 for element in "${tests[@]}"; do
   IFS=';' read -a t <<< "$element"

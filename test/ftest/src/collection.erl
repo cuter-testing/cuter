@@ -1,5 +1,5 @@
 -module(collection).
--export([f/1, g/1, g1/1, h/1]).
+-export([f/1, g/1, g1/1, h/1, f1/1]).
 
 -type t() :: [complex_spec:int()].
 
@@ -36,4 +36,11 @@ h(X) ->
     84 -> os:timestamp();
     17 -> error(bug);
     _ -> X
+  end.
+
+-spec f1(number()) -> ok.
+f1(X) ->
+  case types_and_specs:f11(X) of
+    42.0 -> error(bug);
+    _ -> ok
   end.
