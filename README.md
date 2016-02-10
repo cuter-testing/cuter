@@ -52,8 +52,8 @@ In order to use the tool, you need the following programs:
 
         git clone -b z3-4.4.1 --depth 1 https://github.com/Z3Prover/z3.git
 
-  To install Z3, follow the instructions in its [README
-  file](https://github.com/Z3Prover/z3/blob/master/README).
+  To install Z3, follow the instructions in its [GitHub
+  repository](https://github.com/Z3Prover/z3/).
   Also, make sure that Z3Py (Python Interface) is installed.
 
 Installing
