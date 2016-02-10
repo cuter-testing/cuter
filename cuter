@@ -5,9 +5,9 @@ import sys, getopt, os
 import subprocess as subp
 
 def main(argv):
-  shortOpts = "d:p:s:vrw:cl"
+  shortOpts = "d:p:s:vrw:cla:"
   longOpts = [
-    "depth=", "pollers=", "solvers=", "whitelist=",
+    "depth=", "pollers=", "solvers=", "whitelist=", "path-append=",
     "verbose", "fully-verbose", "disable-pmatch", "recompile",
     "coverage", "run-libs", "help", "sorted-errors", "suppress-unsupported"]
   try:
@@ -31,6 +31,7 @@ def main(argv):
     whitelist = None
     recompileModule = False
     runLibs = False
+    appendPath = []
     # Parse the given options.
     runOpts = []
     for opt, arg in optlist:
@@ -42,6 +43,8 @@ def main(argv):
         solvers = int(arg)
       elif opt in ("-w", "--whitelist"):
         whitelist = arg
+      elif opt in ("-a", "--path-append"):
+        appendPath = arg.split(":")
       elif opt in ("-v", "--verbose"):
         runOpts.append("verbose_execution_info")
       elif opt in ("-c", "--coverage"):
@@ -66,9 +69,10 @@ def main(argv):
     runOpts.append("{{number_of_solvers, {}}}".format(solvers))
     if whitelist != None:
       runOpts.append("{{whitelist, '{}'}}".format(whitelist))
+    paths = ["-pa " + directory for directory in appendPath]
 
-    cmd = "erl -noshell -eval \"cuter:run({}, {}, {}, {}, [{}])\" -s init stop".format(
-      module, fun, args, depth, ",".join(runOpts))
+    cmd = "erl -noshell {} -eval \"cuter:run({}, {}, {}, {}, [{}])\" -s init stop".format(
+      " ".join(paths), module, fun, args, depth, ",".join(runOpts))
     if runLibs:
       sys.exit(runCuter(cmd))
     else:
@@ -113,6 +117,8 @@ def usage():
   print "	-s N, --solvers=N		Use N solvers."
   print "	-w File, --whitelist=File	Path of the file with the whitelisted MFAs."
   print "					Write one line ending with a dor for each MFA."
+  print "	-a Dirs, --path-append=Dirs	Appends the Dirs to Erlang's code path."
+  print "					The directories are separated by a colon (:)."
   print "	-v, --verbose			Request a verbose execution."
   print "	-r, --recompile			Recompile the module under test."
   print "	-c, --coverage			Calculate the coverage achieved."
