@@ -3,11 +3,30 @@
 -module(cuter_json).
 
 -export([command_to_json/2, json_to_command/1, term_to_json/1, json_to_term/1, encode_port_command/2]).
+%% MFAs concerning the representation of lambdas.
+-export([mk_lambda/3, is_lambda/1, compile_lambda/1, lambda_arity/1, lambda_kvs/1, lambda_default/1]).
+
+-export_type([lambda/0]).
 
 -include("include/cuter_macros.hrl").
 -include("include/cuter_types.hrl").
 
 -type encodable_data() :: [[integer()] | integer()].
+
+%% ----------------------------------------------------------------------------
+%% Representation of lambda terms.
+%% ----------------------------------------------------------------------------
+-type lambda_kvs()     :: [{list(), any()}].
+-type lambda_default() :: any().
+-type lambda_arity()   :: byte().
+
+-define(lambda, '__lambda').
+-record(?lambda, {
+  arity   :: lambda_arity(),
+  kvs     :: lambda_kvs(),
+  default :: lambda_default()
+}).
+-type lambda() :: #?lambda{}.
 
 %%====================================================================
 %% OpCodes for Erlang type signatures
@@ -229,8 +248,6 @@ encode_port_command(stop, _) ->
   T = ?ENCODE_KV_INT($t, ?JSON_CMD_STOP),
   CMD = [$\{, T, $\}],
   list_to_binary(CMD).
-
-
 
 %% ==============================================================================
 %% Decode JSON Terms
@@ -488,7 +505,8 @@ decode_value(?JSON_TYPE_LIST, JSON, Dec=#decoder{state = value_start})  -> decod
 decode_value(?JSON_TYPE_TUPLE, JSON, Dec=#decoder{state = value_start}) -> decode_tuple(JSON, Dec);
 decode_value(?JSON_TYPE_PID, JSON, Dec=#decoder{state = value_start})   -> decode_pid(JSON, Dec);
 decode_value(?JSON_TYPE_REF, JSON, Dec=#decoder{state = value_start})   -> decode_reference(JSON, Dec);
-decode_value(?JSON_TYPE_BITSTRING, JSON, Dec=#decoder{state = value_start}) -> decode_bitstring(JSON, Dec).
+decode_value(?JSON_TYPE_BITSTRING, JSON, Dec=#decoder{state = value_start}) -> decode_bitstring(JSON, Dec);
+decode_value(?JSON_TYPE_FUN, JSON, Dec=#decoder{state = value_start}) -> decode_fun(JSON, Dec).
 
 %% Decode an integer
 decode_int(JSON, Dec=#decoder{state = value_start}) ->
@@ -590,6 +608,42 @@ decode_bitstring(JSON, Dec=#decoder{state = value_next_or_end}) ->
       Ts = string:tokens(Dec#decoder.acc, ","),
       A = bits_to_bitstring(Ts),
       {A, Rest};
+    _ ->
+      parse_error(parse_error, Dec)
+  end.
+
+%% Decode a fun.
+decode_fun(JSON, Dec=#decoder{state = value_start}) ->
+  case trim_whitespace(JSON) of
+    <<$\[, $\], _Rest/binary>> ->
+      parse_error(fun_without_representation, Dec);
+    <<$\[, Rest/binary>> ->
+      {Obj, Rem} = decode_object(Rest, Dec#decoder{state = start}),
+      decode_fun(Rem, Dec#decoder{state = value_next_or_end, acc = [Obj]});
+    _ ->
+      parse_error(parse_error, Dec)
+  end;
+decode_fun(JSON, Dec=#decoder{state = value_next_or_end}) ->
+  case trim_whitespace(JSON) of
+    <<$\], Rest/binary>> ->
+      case trim_whitespace(Rest) of
+        <<$,, RestTrm/binary>> ->
+          decode_fun(RestTrm, Dec#decoder{state = arity});
+        _ ->
+          parse_error(parse_error, Dec)
+      end;
+    <<$,, Rest/binary>> ->
+      {Obj, Rem} = decode_object(Rest, Dec#decoder{state = start}),
+      decode_fun(Rem, ?PUSH(Obj, Dec));
+    _ ->
+      parse_error(parse_error, Dec)
+  end;
+decode_fun(JSON, Dec=#decoder{state = arity}) ->
+  case trim_whitespace(JSON) of
+    <<?Q, $a, ?Q, Rest/binary>> ->
+      R = trim_whitespace(trim_separator(Rest, $:, Dec)),  %% Ensure we pass a trimmed JSON string
+      {Arity, Rem} = decode_int(R, #decoder{state = value_start}),
+      {mk_lambda(Arity, Dec#decoder.acc), Rem};
     _ ->
       parse_error(parse_error, Dec)
   end.
@@ -830,3 +884,105 @@ encode_bitstring(<<>>, [$, | Bits]) ->
   [$\[, lists:reverse(Bits), $\]];
 encode_bitstring(<<B:1, Rest/bitstring>>, Bits) ->
   encode_bitstring(Rest, [$,, integer_to_list(B) | Bits]).
+
+%% ============================================================================
+%% Representation of lambda terms.
+%% We need to keep them in a form that allows pretty printing and compilation
+%% to actual lambdas when needed.
+%% ============================================================================
+
+mk_lambda(Arity, L) ->
+  {KVs, Default} = mk_lambda_repr(L, [], ok),
+  mk_lambda(KVs, Default, Arity).
+
+mk_lambda_repr([], KVs, Default) ->
+  {KVs, Default};
+mk_lambda_repr([{_,_}=KV | Rest], KVs, Default) ->
+  mk_lambda_repr(Rest, [KV|KVs], Default);
+mk_lambda_repr([{Def} | Rest], KVs, _Default) ->
+  mk_lambda_repr(Rest, KVs, Def).
+
+-spec mk_lambda(lambda_kvs(), lambda_default(), lambda_arity()) -> lambda().
+mk_lambda(KVs, Default, Arity) ->
+  #?lambda{arity = Arity, kvs = KVs, default = Default}.
+
+-spec is_lambda(any()) -> boolean().
+is_lambda(#?lambda{arity = Arity, kvs = KVs}) when is_integer(Arity), is_list(KVs) ->
+  lists:all(fun({K, _}) when length(K) =:= Arity -> true; (_) -> false end, KVs);
+is_lambda(_) -> false.
+
+-spec lambda_arity(lambda()) -> lambda_arity().
+lambda_arity(T) ->
+  true = is_lambda(T),
+  T#?lambda.arity.
+
+-spec lambda_kvs(lambda()) -> lambda_kvs().
+lambda_kvs(T) ->
+  true = is_lambda(T),
+  T#?lambda.kvs.
+
+-spec lambda_default(lambda()) -> lambda_default().
+lambda_default(T) ->
+  true = is_lambda(T),
+  T#?lambda.default.
+
+-spec compile_lambda(lambda()) -> function().
+compile_lambda(T) ->
+  true = is_lambda(T),
+  compile_lambda_h(T).
+
+compile_lambda_h(#?lambda{arity = Arity, kvs = KVs, default = Default}) ->
+  %% TODO Check if the parameters is a lambda, in case of recursion.
+  CompiledKVs = [{K, compile_lambda_h(V)} || {K, V} <- KVs],
+  Dict = dict:from_list(CompiledKVs),
+  Lookup = fun(As) -> lookup_args(As, Dict, Default) end,
+  case Arity of
+    0 -> fun() -> Default end;
+    1 -> fun(A1) -> Lookup([A1]) end;
+    2 -> fun(A1, A2) -> Lookup([A1, A2]) end;
+    3 -> fun(A1, A2, A3) -> Lookup([A1, A2, A3]) end;
+    4 -> fun(A1, A2, A3, A4) -> Lookup([A1, A2, A3, A4]) end;
+    5 -> fun(A1, A2, A3, A4, A5) -> Lookup([A1, A2, A3, A4, A5]) end;
+    6 -> fun(A1, A2, A3, A4, A5, A6) -> Lookup([A1, A2, A3, A4, A5, A6]) end;
+    7 -> fun(A1, A2, A3, A4, A5, A6, A7) -> Lookup([A1, A2, A3, A4, A5, A6, A7]) end;
+    8 -> fun(A1, A2, A3, A4, A5, A6, A7, A8) ->
+      Lookup([A1, A2, A3, A4, A5, A6, A7, A8]) end;
+    9 -> fun(A1, A2, A3, A4, A5, A6, A7, A8, A9) ->
+      Lookup([A1, A2, A3, A4, A5, A6, A7, A8, A9]) end;
+    10 -> fun(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) ->
+      Lookup([A1, A2, A3, A4, A5, A6, A7, A8, A9, A10]) end;
+    11 -> fun(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) ->
+      Lookup([A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11]) end;
+    12 -> fun(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) ->
+      Lookup([A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12]) end;
+    13 -> fun(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) ->
+      Lookup([A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13]) end;
+    14 -> fun(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) ->
+      Lookup([A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14]) end;
+    15 -> fun(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) ->
+      Lookup([A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15]) end;
+    16 -> fun(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) ->
+      Lookup([A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16]) end;
+    17 -> fun(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) ->
+      Lookup([A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17]) end;
+    18 -> fun(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) ->
+      Lookup([A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18]) end;
+    19 -> fun(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) ->
+      Lookup([A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19]) end;
+    20 -> fun(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) ->
+      Lookup([A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20]) end;
+    _ -> throw({over_lambda_fun_argument_limit, Arity})
+  end;
+compile_lambda_h(L) when is_list(L) ->
+  [compile_lambda_h(X) || X <- L];
+compile_lambda_h(T) when is_tuple(T) ->
+  L = tuple_to_list(T),
+  L1 = [compile_lambda_h(X) || X <- L],
+  list_to_tuple(L1);
+compile_lambda_h(T) -> T.
+
+lookup_args(As, Dict, Default) ->
+  case dict:find(As, Dict) of
+    error -> Default;
+    {ok, Value} -> Value
+  end.

@@ -79,6 +79,46 @@ enc_fail_test_() ->
   ],
   {"JSON Encoding Fail", [{Dsr, ?_assertThrow({unsupported_term, _}, Enc(T))} || {Dsr, T} <- Ts]}.
 
+%% Decoding funs.
+-spec dec_fun_test_() -> term().
+dec_fun_test_() ->
+  Ts = [
+    {"1-arity", fun1()},
+    {"2-arity", fun2()}
+  ],
+  Setup = fun(T) -> fun() -> T end end,
+  Inst = fun decode_fun/1,
+  [{"JSON Decoding Fun: " ++ C, {setup, Setup(T), Inst}} || {C, T} <- Ts].
+
+decode_fun({Bin, KVs, Def}) ->
+  Dec = cuter_json:json_to_term(Bin),
+  Arity = cuter_json:lambda_arity(Dec),
+  CF = cuter_json:compile_lambda(Dec),
+  F =
+    case Arity of
+      1 -> fun([X1]) -> CF(X1) end;
+      2 -> fun([X1, X2]) -> CF(X1, X2) end
+    end,
+  ElseKey = [self() || _ <- lists:seq(1, Arity)],
+  [?_assertEqual(V, F(K)) || {K, V} <- KVs] ++ [?_assertEqual(Def, F(ElseKey))].
+
+-spec dec_fun2_test_() -> term().
+dec_fun2_test_() ->
+  Begin = "{\"t\":9,\"v\":[",
+  End = "],\"a\":1}",
+  KVs1 = "{\"t\":5,\"v\":[{\"t\":4,\"v\":[{\"t\":1,\"v\":1}]},{\"t\":1,\"v\":2}]}",
+  Def1 = "{\"t\":5,\"v\":[{\"t\":1,\"v\":42}]}",
+  Fn1 = [Begin, KVs1, ",", Def1, End],
+  KVs2 = ["{\"t\":5,\"v\":[{\"t\":4,\"v\":[{\"t\":1,\"v\":2}]},", Fn1, "]}"],
+  Def2 = "{\"t\":5,\"v\":[{\"t\":1,\"v\":17}]}",
+  Fn2 = [Begin, KVs2, ",", Def2, End],
+  Json = list_to_binary(Fn2),
+  Dec = cuter_json:json_to_term(Json),
+  CF = cuter_json:compile_lambda(Dec),
+  Step1 = CF(2),
+  Step2 = Step1(1),
+  [{"Fun as return value", ?_assertEqual(2, Step2)}].
+
 %% Encoding / Decoding Commands
 -spec encdec_cmd_test_() -> term().
 encdec_cmd_test_() ->
@@ -97,5 +137,52 @@ encode_decode_cmd({OpCode, Args}) ->
   Dec = cuter_json:json_to_command(Enc),
   [?_assertEqual( {OpCode, MaybeArgs}, Dec )].
 
+%% ----------------------------------------------------------------------------
+%% Creating testcases for lambdas.
+%% ----------------------------------------------------------------------------
 
+fun1() ->
+  KVs = [{[1], 2}, {[ok], 3.14}, {[4], <<1>>}],
+  Default = 42,
+  Arity = 1,
+  gen_fun_testcase(KVs, Default, Arity).
 
+fun2() ->
+  KVs = [{[1, 2], 32}, {[ok, foo], 1}, {[4, <<>>], 1}],
+  Default = boo,
+  Arity = 2,
+  gen_fun_testcase(KVs, Default, Arity).
+
+gen_fun_testcase(KVs, Default, Arity) ->
+  Lambda = cuter_json:mk_lambda(KVs, Default, Arity),
+  {lambda_to_json_1_level(Lambda), KVs, Default}.
+
+lambda_to_json_1_level(T) ->
+  lambda_to_json_1_level(cuter_json:lambda_kvs(T),
+    cuter_json:lambda_default(T), cuter_json:lambda_arity(T)).
+
+lambda_to_json_1_level(KVs, Default, Arity) ->
+  L = [{Default} | lists:reverse(KVs)],
+  L1 = add_seps([cuter_json:term_to_json(T) || T <- L], []),
+  Bin = concat_segments(L1, fun_end(Arity)),
+  Start = fun_start(),
+  <<Start/binary, Bin/binary>>.
+
+fun_sep() ->
+  <<",">>.
+
+fun_start() ->
+  <<"{\"t\":9,\"v\":[">>.
+
+fun_end(Arity) ->
+  list_to_binary(io_lib:format("],\"a\":~w}", [Arity])).
+
+add_seps([E], Acc) ->
+  lists:reverse([E | Acc]);
+add_seps([E1, E2 | Rest], Acc) ->
+  add_seps([E2 | Rest], [fun_sep(), E1 | Acc]).
+
+concat_segments([], Acc) ->
+  Acc;
+concat_segments([Seg|Segs], Acc) ->
+  concat_segments(Segs, <<Seg/binary, Acc/binary>>).
