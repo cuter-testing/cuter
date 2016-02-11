@@ -78,6 +78,7 @@
 -define(JSON_TYPE_PID, 6).
 -define(JSON_TYPE_REF, 7).
 -define(JSON_TYPE_BITSTRING, 8).
+-define(JSON_TYPE_FUN, 9).
 
 %%====================================================================
 %% OpCodes for the commands to the solver
