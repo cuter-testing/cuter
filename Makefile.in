@@ -94,7 +94,8 @@ FTEST_MODULES = \
 PRIV_MODULES = \
 	cuter_io \
 	cuter_z3 \
-	cuter_solve_offline
+	cuter_solve_offline \
+	cuter_representation
 
 ###----------------------------------------------------------------------
 ### Targets

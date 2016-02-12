@@ -8,93 +8,17 @@ import cuter_logger as clg
 import cuter_common as cc
 import cuter_env as cenv
 import cuter_types as ctp
+import cuter_representation as crp
 
 # Set Z3Py params.
 set_param(max_lines=1, max_width=1000000, max_depth=10000000, max_visited=1000000)
 set_param('smt.bv.enable_int2bv', True)
 
-class TermEncoder:
-  def __init__(self, eZ3):
-    self.eZ3 = eZ3
-  
-  def toSymbolic(self, s):
-    return {"s": s}
-  
-  def fromZ3(self, t):
-    T = self.eZ3.Term
-    if (is_true(simplify(T.is_int(t)))):
-      return self.toInt(T.ival(t))
-    elif (is_true(simplify(T.is_real(t)))):
-      return self.toReal(T.rval(t))
-    elif (is_true(simplify(T.is_lst(t)))):
-      return self.toList(T.lval(t))
-    elif (is_true(simplify(T.is_tpl(t)))):
-      return self.toTuple(T.tval(t))
-    elif (is_true(simplify(T.is_atm(t)))):
-      return self.toAtom(T.aval(t))
-    elif (is_true(simplify(T.is_bin(t)))):
-      return self.toBitstring(T.bsz(t), T.bval(t))
-  
-  def toInt(self, t):
-    return {"t": cc.JSON_TYPE_INT, "v": simplify(t).as_long()}
-  
-  def toReal(self, t):
-    s = simplify(t)
-    f = float(s.numerator_as_long()) / float(s.denominator_as_long())
-    return {"t": cc.JSON_TYPE_FLOAT, "v": f}
-  
-  def toList(self, t):
-    L = self.eZ3.List
-    s = simplify(t)
-    r = []
-    while (is_true(simplify(L.is_cons(s)))):
-      hd = simplify(L.hd(s))
-      s = simplify(L.tl(s))
-      r.append(self.fromZ3(hd))
-    return {"t": cc.JSON_TYPE_LIST, "v": r}
-  
-  def toTuple(self, t):
-    L = self.eZ3.List
-    s = simplify(t)
-    r = []
-    while (is_true(simplify(L.is_cons(s)))):
-      hd = simplify(L.hd(s))
-      s = simplify(L.tl(s))
-      r.append(self.fromZ3(hd))
-    return {"t": cc.JSON_TYPE_TUPLE, "v": r}
-  
-  def toAtom(self, t):
-    A = self.eZ3.Atom
-    s = simplify(t)
-    r = []
-    while (is_true(simplify(A.is_acons(s)))):
-      hd = simplify(A.ahd(s))
-      s = simplify(A.atl(s))
-      r.append(simplify(hd).as_long())
-    return {"t": cc.JSON_TYPE_ATOM, "v": r}
-
-  def toBitstring(self, n, t):
-    sz = simplify(n).as_long()
-    if sz < 0:
-      sz = 0
-    B = self.eZ3.BitStr
-    s = simplify(t)
-    r = []
-    while (is_true(simplify(B.is_bcons(s)))) and sz > 0:
-      sz -= 1
-      hd = simplify(B.bhd(s))
-      s = simplify(B.btl(s))
-      r.append(simplify(hd).as_long())
-    if sz > 0:
-      r.extend([0] * sz)
-    return {"t": cc.JSON_TYPE_BITSTRING, "v": r}
-
-
 class TermDecoder:
   def __init__(self, eZ3):
     self.eZ3 = eZ3
     self.env = {}
-  
+
   def toZ3(self, t, dct):
     if "s" in t:
       x = self.eZ3.env.lookup(t["s"])
@@ -120,63 +44,63 @@ class TermDecoder:
         cc.JSON_TYPE_REF: self.ref_toZ3
       }
       return opts[t["t"]](t["v"], dct)
-  
+
   def int_toZ3(self, v, dct):
-    return self.eZ3.Term.int(v)
-  
+    return self.eZ3.erl.Term.int(v)
+
   def float_toZ3(self, v, dct):
-    return self.eZ3.Term.real(v)
-  
+    return self.eZ3.erl.Term.real(v)
+
   def list_toZ3(self, v, dct):
     v.reverse()
     eZ3 = self.eZ3
-    t = eZ3.List.nil
+    t = eZ3.erl.List.nil
     while v != []:
       hd, v = v[0], v[1:]
       enc_hd = self.toZ3(hd, dct)
-      t = eZ3.List.cons(enc_hd, t)
-    return eZ3.Term.lst(t)
-  
+      t = eZ3.erl.List.cons(enc_hd, t)
+    return eZ3.erl.Term.lst(t)
+
   def tuple_toZ3(self, v, dct):
     v.reverse()
     eZ3 = self.eZ3
-    t = eZ3.List.nil
+    t = eZ3.erl.List.nil
     while v != []:
       hd, v = v[0], v[1:]
       enc_hd = self.toZ3(hd, dct)
-      t = eZ3.List.cons(enc_hd, t)
-    return eZ3.Term.tpl(t)
-  
+      t = eZ3.erl.List.cons(enc_hd, t)
+    return eZ3.erl.Term.tpl(t)
+
   def atom_toZ3(self, v, dct):
     v.reverse()
     eZ3 = self.eZ3
-    t = eZ3.Atom.anil
+    t = eZ3.erl.Atom.anil
     while v != []:
       hd, v = v[0], v[1:]
-      t = eZ3.Atom.acons(hd, t)
-    return eZ3.Term.atm(t)
+      t = eZ3.erl.Atom.acons(hd, t)
+    return eZ3.erl.Term.atm(t)
 
   def bitstring_toZ3(self, v, dct):
     v.reverse()
     eZ3 = self.eZ3
-    t = eZ3.BitStr.bnil
+    t = eZ3.erl.BitStr.bnil
     sz = len(v)
     while v != []:
       hd, v = BitVecVal(v[0], 1), v[1:]
-      t = eZ3.BitStr.bcons(hd, t)
-    return eZ3.Term.bin(sz, t)
+      t = eZ3.erl.BitStr.bcons(hd, t)
+    return eZ3.erl.Term.bin(sz, t)
 
   def pid_toZ3(self, v, dct):
     # TODO Propery decode PIDs once they are supported.
-    return self.eZ3.Term.int(42)
+    return self.eZ3.erl.Term.int(42)
 
   def ref_toZ3(self, v, dct):
     # TODO Propery decode references once they are supported.
-    return self.eZ3.Term.int(42)
+    return self.eZ3.erl.Term.int(42)
 
 class ErlangZ3:
   def __init__(self):
-    self.Term, self.List, self.Atom, self.BitStr = self.erlang_type_system()
+    self.erl = crp.Erlang()
     self.env = cenv.Env()
     self.axs = []
 #    self.slv = Then('simplify', 'normalize-bounds', 'solve-eqs', 'bit-blast', 'aig', 'qflra', 'qfnia', 'qfnra', 'qfbv',
@@ -195,32 +119,6 @@ class ErlangZ3:
 
     self.check = None
     self.model = None
-
-  ## Define the Erlang Type System
-  def erlang_type_system(*args):
-    Term = Datatype('Term')
-    List = Datatype('List')
-    Tuple = Datatype('Tuple')
-    Atom = Datatype('Atom')
-    BitStr = Datatype('BitStr')
-    # Term
-    Term.declare('int', ('ival', IntSort()))
-    Term.declare('real', ('rval', RealSort()))
-    Term.declare('lst', ('lval', List))
-    Term.declare('tpl', ('tval', List))
-    Term.declare('atm', ('aval', Atom))
-    Term.declare('bin', ('bsz', IntSort()), ('bval', BitStr))
-    # List
-    List.declare('nil')
-    List.declare('cons', ('hd', Term), ('tl', List))
-    # Atom
-    Atom.declare('anil')
-    Atom.declare('acons', ('ahd', IntSort()), ('atl', Atom))
-    # Bitstring
-    BitStr.declare('bnil')
-    BitStr.declare('bcons', ('bhd', BitVecSort(1)), ('btl', BitStr))
-    # Return Datatypes
-    return CreateDatatypes(Term, List, Atom, BitStr)
   
   # Reset the solver
   def reset_solver(self):
@@ -260,12 +158,12 @@ class ErlangZ3:
   def encode_parameter(self, p):
     x = self.env.lookup(p)
     v = self.model[x]
-    te = TermEncoder(self)
-    symb = te.toSymbolic(p)
+    erl = self.erl
+    symb = erl.encodeSymbolic(p)
     if (v is None):
       return symb, {"t": cc.JSON_TYPE_ANY}
     else:
-      return symb, te.fromZ3(v)
+      return symb, erl.encode(v)
   
   def term_toZ3(self, jdata):
     td = TermDecoder(self)
@@ -381,8 +279,8 @@ class ErlangZ3:
   def list_nonempty_toZ3(self, term):
     t = self.term_toZ3(term)
     self.axs.extend([
-      self.Term.is_lst(t),
-      self.List.is_cons(self.Term.lval(t))
+      self.erl.Term.is_lst(t),
+      self.erl.List.is_cons(self.erl.Term.lval(t))
     ])
     # Elaborate the type
     typ = self.env.lookupType(term["s"])
@@ -392,8 +290,8 @@ class ErlangZ3:
   def list_empty_toZ3(self, term):
     t = self.term_toZ3(term)
     self.axs.extend([
-      self.Term.is_lst(t),
-      self.List.is_nil(self.Term.lval(t))
+      self.erl.Term.is_lst(t),
+      self.erl.List.is_nil(self.erl.Term.lval(t))
     ])
     # Elaborate the type
     typ = self.env.lookupType(term["s"])
@@ -402,7 +300,7 @@ class ErlangZ3:
   # Not a List
   def list_not_lst_toZ3(self, term):
     t = self.term_toZ3(term)
-    self.axs.append(self.Term.is_lst(t) == False)
+    self.axs.append(self.erl.Term.is_lst(t) == False)
     # Elaborate the type
     typ = self.env.lookupType(term["s"])
     typ.matchNotList()
@@ -437,13 +335,13 @@ class ErlangZ3:
   def tuple_sz_toZ3(self, term, num):
     t = self.term_toZ3(term)
     nTerm = self.term_toZ3(num)
-    n = int(str(simplify(self.Term.ival(nTerm)))) # Expect num to represent an Integer
-    self.axs.append(self.Term.is_tpl(t))
-    t = self.Term.tval(t)
+    n = int(str(simplify(self.erl.Term.ival(nTerm)))) # Expect num to represent an Integer
+    self.axs.append(self.erl.Term.is_tpl(t))
+    t = self.erl.Term.tval(t)
     for i in range(0, n):
-      self.axs.append(self.List.is_cons(t))
-      t = self.List.tl(t)
-    self.axs.append(t == self.List.nil)
+      self.axs.append(self.erl.List.is_cons(t))
+      t = self.erl.List.tl(t)
+    self.axs.append(t == self.erl.List.nil)
     # Elaborate the type
     typ = self.env.lookupType(term["s"])
     typ.matchNTuple(n)
@@ -452,14 +350,14 @@ class ErlangZ3:
   def tuple_not_sz_toZ3(self, term, num):
     t = self.term_toZ3(term)
     nTerm = self.term_toZ3(num)
-    n = int(str(simplify(self.Term.ival(nTerm)))) # Expect num to represent an Integer
-    self.axs.append(self.Term.is_tpl(t))
+    n = int(str(simplify(self.erl.Term.ival(nTerm)))) # Expect num to represent an Integer
+    self.axs.append(self.erl.Term.is_tpl(t))
     xs = []
-    t = self.Term.tval(t)
+    t = self.erl.Term.tval(t)
     for i in range(0, n):
-      xs.append(self.List.is_cons(t))
-      t = self.List.tl(t)
-    xs.append(t == self.List.nil)
+      xs.append(self.erl.List.is_cons(t))
+      t = self.erl.List.tl(t)
+    xs.append(t == self.erl.List.nil)
     self.axs.append(Not(And(*xs)))
     # Elaborate the type
     typ = self.env.lookupType(term["s"])
@@ -468,14 +366,14 @@ class ErlangZ3:
   # Not a Tuple
   def tuple_not_tpl_toZ3(self, term, num):
     t = self.term_toZ3(term)
-    self.axs.append(self.Term.is_tpl(t) == False)
+    self.axs.append(self.erl.Term.is_tpl(t) == False)
     # Elaborate the type
     typ = self.env.lookupType(term["s"])
     typ.notMatchTuple()
   
   # Empty bitstring
   def empty_bitstr_toZ3(self, term):
-    T, B = self.Term, self.BitStr
+    T, B = self.erl.Term, self.erl.BitStr
     t = self.term_toZ3(term)
     self.axs.extend([
       T.is_bin(t),
@@ -485,7 +383,7 @@ class ErlangZ3:
   
   # Nonempty bitstring
   def nonempty_bitstr_toZ3(self, term1, term2, term):
-    T, B = self.Term, self.BitStr
+    T, B = self.erl.Term, self.erl.BitStr
     s1 = term1["s"]
     s2 = term2["s"]
     t = self.term_toZ3(term)
@@ -507,7 +405,7 @@ class ErlangZ3:
   # Bitmach const false
   # TODO For now, expects size to be a concrete integer and encodedValue to be an integer.
   def bitmatch_const_false_toZ3(self, cnstValue, size, termBitstr):
-    T, B = self.Term, self.BitStr
+    T, B = self.erl.Term, self.erl.BitStr
     axs = []
     cnst = self.term_toZ3(cnstValue)
     szTerm = self.term_toZ3(size)
@@ -528,7 +426,7 @@ class ErlangZ3:
   # Bitmatch var true
   # TODO For now, expects size to be a concrete integer and encodedValue to be an integer.
   def bitmatch_var_true_toZ3(self, term1, term2, size, termBitstr):
-    T, B = self.Term, self.BitStr
+    T, B = self.erl.Term, self.erl.BitStr
     s1 = term1["s"]
     s2 = term2["s"]
     szTerm = self.term_toZ3(size)
@@ -555,7 +453,7 @@ class ErlangZ3:
   # Bitmach var false
   # TODO For now, expects size to be a concrete integer and encodedValue to be an integer.
   def bitmatch_var_false_toZ3(self, size, termBitstr):
-    T, B = self.Term, self.BitStr
+    T, B = self.erl.Term, self.erl.BitStr
     axs = []
     szTerm = self.term_toZ3(size)
     sz = int(str(simplify(T.ival(szTerm)))) # Expect size to represent an Integer
@@ -569,8 +467,8 @@ class ErlangZ3:
   def list_nonempty_toZ3_RV(self, term):
     t = self.term_toZ3(term)
     xs = [
-      self.Term.is_lst(t),
-      self.List.is_cons(self.Term.lval(t)),
+      self.erl.Term.is_lst(t),
+      self.erl.List.is_cons(self.erl.Term.lval(t)),
     ]
     self.axs.append(Not(And(*xs)))
     # Elaborate the type
@@ -581,8 +479,8 @@ class ErlangZ3:
   def list_empty_toZ3_RV(self, term):
     t = self.term_toZ3(term)
     xs = [
-      self.Term.is_lst(t),
-      self.List.is_cons(self.Term.lval(t))
+      self.erl.Term.is_lst(t),
+      self.erl.List.is_cons(self.erl.Term.lval(t))
     ]
     self.axs.append(And(*xs))
     # Elaborate the type
@@ -593,8 +491,8 @@ class ErlangZ3:
   def list_not_lst_toZ3_RV(self, term):
     t = self.term_toZ3(term)
     xs = [
-      self.Term.is_lst(t),
-      self.List.is_cons(self.Term.lval(t))
+      self.erl.Term.is_lst(t),
+      self.erl.List.is_cons(self.erl.Term.lval(t))
     ]
     self.axs.append(And(*xs))
     # Elaborate the type
@@ -605,42 +503,42 @@ class ErlangZ3:
   def tuple_sz_toZ3_RV(self, term, num):
     t = self.term_toZ3(term)
     nTerm = self.term_toZ3(num)
-    n = int(str(simplify(self.Term.ival(nTerm)))) # Expect num to represent an Integer
-    xs = [self.Term.is_tpl(t)]
-    t = self.Term.tval(t)
+    n = int(str(simplify(self.erl.Term.ival(nTerm)))) # Expect num to represent an Integer
+    xs = [self.erl.Term.is_tpl(t)]
+    t = self.erl.Term.tval(t)
     for i in range(0, n):
-      xs.append(self.List.is_cons(t))
-      t = self.List.tl(t)
-    xs.append(t == self.List.nil)
+      xs.append(self.erl.List.is_cons(t))
+      t = self.erl.List.tl(t)
+    xs.append(t == self.erl.List.nil)
     self.axs.append(Not(And(*xs)))
   
   # Tuple of Not Size N (Reversed)
   def tuple_not_sz_toZ3_RV(self, term, num):
     t = self.term_toZ3(term)
     nTerm = self.term_toZ3(num)
-    n = int(str(simplify(self.Term.ival(nTerm)))) # Expect num to represent an Integer
-    self.axs.append(self.Term.is_tpl(t))
-    t = self.Term.tval(t)
+    n = int(str(simplify(self.erl.Term.ival(nTerm)))) # Expect num to represent an Integer
+    self.axs.append(self.erl.Term.is_tpl(t))
+    t = self.erl.Term.tval(t)
     for i in range(0, n):
-      self.axs.append(self.List.is_cons(t))
-      t = self.List.tl(t)
-    self.axs.append(t == self.List.nil)
+      self.axs.append(self.erl.List.is_cons(t))
+      t = self.erl.List.tl(t)
+    self.axs.append(t == self.erl.List.nil)
   
   # Not a Tuple (Reversed)
   def tuple_not_tpl_toZ3_RV(self, term, num):
     t = self.term_toZ3(term)
     nTerm = self.term_toZ3(num)
-    n = int(str(simplify(self.Term.ival(nTerm)))) # Expect num to represent an Integer
-    self.axs.append(self.Term.is_tpl(t))
-    t = self.Term.tval(t)
+    n = int(str(simplify(self.erl.Term.ival(nTerm)))) # Expect num to represent an Integer
+    self.axs.append(self.erl.Term.is_tpl(t))
+    t = self.erl.Term.tval(t)
     for i in range(0, n):
-      self.axs.append(self.List.is_cons(t))
-      t = self.List.tl(t)
-    self.axs.append(t == self.List.nil)
+      self.axs.append(self.erl.List.is_cons(t))
+      t = self.erl.List.tl(t)
+    self.axs.append(t == self.erl.List.nil)
   
   # Empty bitstring
   def empty_bitstr_toZ3_RV(self, term):
-    T, B = self.Term, self.BitStr
+    T, B = self.erl.Term, self.erl.BitStr
     t = self.term_toZ3(term)
     self.axs.extend([
       T.is_bin(t),
@@ -650,7 +548,7 @@ class ErlangZ3:
   
   # Nonempty bitstring
   def nonempty_bitstr_toZ3_RV(self, term1, term2, term):
-    T, B = self.Term, self.BitStr
+    T, B = self.erl.Term, self.erl.BitStr
     t = self.term_toZ3(term)
     self.axs.extend([
       T.is_bin(t),
@@ -661,7 +559,7 @@ class ErlangZ3:
   # Bitmach const true (reversed)
   # TODO For now, expects size to be a concrete integer and encodedValue to be an integer.
   def bitmatch_const_true_toZ3_RV(self, termRest, cnstValue, size, termBitstr):
-    T, B = self.Term, self.BitStr
+    T, B = self.erl.Term, self.erl.BitStr
     axs = []
     cnst = self.term_toZ3(cnstValue)
     szTerm = self.term_toZ3(size)
@@ -685,7 +583,7 @@ class ErlangZ3:
   # Bitmach const false (reversed)
   # TODO For now, expects size to be a concrete integer and encodedValue to be an integer.
   def bitmatch_const_false_toZ3_RV(self, cnstValue, size, termBitstr):
-    T, B = self.Term, self.BitStr
+    T, B = self.erl.Term, self.erl.BitStr
     cnst = self.term_toZ3(cnstValue)
     szTerm = self.term_toZ3(size)
     sz = int(str(simplify(T.ival(szTerm)))) # Expect size to represent an Integer
@@ -714,7 +612,7 @@ class ErlangZ3:
   # Bitmach var false (reversed)
   # TODO For now, expects size to be a concrete integer and encodedValue to be an integer.
   def bitmatch_var_false_toZ3_RV(self, size, termBitstr):
-    T, B = self.Term, self.BitStr
+    T, B = self.erl.Term, self.erl.BitStr
     axs = []
     szTerm = self.term_toZ3(size)
     sz = int(str(simplify(T.ival(szTerm)))) # Expect size to represent an Integer
@@ -752,7 +650,7 @@ class ErlangZ3:
     return And(*axs)
 
   def typeToAxioms(self, s, tp):
-    T, L = self.Term, self.List
+    T, L = self.erl.Term, self.erl.List
     actType = tp.getType()
     arg = actType["a"] if "a" in actType else None
     if tp.isAny():
@@ -810,34 +708,34 @@ class ErlangZ3:
     return None
 
   def atomToAxioms(self, s, arg):
-    return self.Term.is_atm(s)
+    return self.erl.Term.is_atm(s)
 
   def atomLitToAxioms(self, s, arg):
     atm = self.term_toZ3(arg)
     return (s == atm)
 
   def floatToAxioms(self, s, arg):
-    return self.Term.is_real(s)
+    return self.erl.Term.is_real(s)
 
   def integerToAxioms(self, s, arg):
-    return self.Term.is_int(s)
+    return self.erl.Term.is_int(s)
 
   def integerLitToAxioms(self, s, arg):
     i = self.term_toZ3(arg)
     return (s == i)
 
   def nilToAxioms(self, s, arg):
-    T, L = self.Term, self.List
+    T, L = self.erl.Term, self.erl.List
     return And(
       T.is_lst(s),
       L.is_nil(T.lval(s))
     )
 
   def tupleToAxioms(self, s, arg):
-    return self.Term.is_tpl(s)
+    return self.erl.Term.is_tpl(s)
 
   def tupleDetToAxioms(self, s, types):
-    T, L = self.Term, self.List
+    T, L = self.erl.Term, self.erl.List
     axms = [T.is_tpl(s)]
     t = T.tval(s)
     for tp in types:
@@ -858,7 +756,7 @@ class ErlangZ3:
     return Or(*axms)
 
   def rangeToAxioms(self, s, limits):
-    T = self.Term
+    T = self.erl.Term
     axs = [T.is_int(s)]
     if not ("tp" in limits[0] and limits[0]["tp"] == cc.JSON_ERLTYPE_INTEGER):
       l1 = self.term_toZ3(limits[0])
@@ -869,12 +767,12 @@ class ErlangZ3:
     return And(*axs)
 
   def nonEmptyListToAxioms(self, s, typ):
-    T, L = self.Term, self.List
+    T, L = self.erl.Term, self.erl.List
     ax = self.typeDeclToAxioms(s, tp)
     return And(ax, L.is_cons(T.lval(s)), L.is_nil(L.tl(T.lval(s))))  # Use base case.
 
   def bitstringToAxioms(self, s, args):
-    T = self.Term
+    T = self.erl.Term
     m = args[0]['v']  # Assume it's an integer
     n = args[1]['v']  # Assume it's an integer
     if m == 0 and n == 1:
@@ -918,7 +816,7 @@ class ErlangZ3:
     pms = []
     for x in args:
       s = x["s"]
-      p = e.freshVar(s, self.Term)
+      p = e.freshVar(s, self.erl.Term)
       pms.append(p)
       e.addParam(s)
     return pms
@@ -926,14 +824,14 @@ class ErlangZ3:
   # Unfold a symbolic tuple
   def unfold_tuple_toZ3(self, *terms):
     t, ts = self.term_toZ3(terms[0]), terms[1:]
-    self.axs.append(self.Term.is_tpl(t))
-    t = self.Term.tval(t)
+    self.axs.append(self.erl.Term.is_tpl(t))
+    t = self.erl.Term.tval(t)
     for x in ts:
       s = x["s"]
-      self.axs.append(self.List.is_cons(t))
-      self.env.bind(s, self.List.hd(t))
-      t = self.List.tl(t)
-    self.axs.append(t == self.List.nil)
+      self.axs.append(self.erl.List.is_cons(t))
+      self.env.bind(s, self.erl.List.hd(t))
+      t = self.erl.List.tl(t)
+    self.axs.append(t == self.erl.List.nil)
     # Elaborate the type
     typ = self.env.lookupType(terms[0]["s"])
     typ.matchNTuple(len(terms[1:]))
@@ -945,14 +843,14 @@ class ErlangZ3:
   # Unfold a symbolic list
   def unfold_list_toZ3(self, *terms):
     t, ts = self.term_toZ3(terms[0]), terms[1:]
-    self.axs.append(self.Term.is_lst(t))
-    t = self.Term.lval(t)
+    self.axs.append(self.erl.Term.is_lst(t))
+    t = self.erl.Term.lval(t)
     for x in ts:
       s = x["s"]
-      self.axs.append(self.List.is_cons(t))
-      self.env.bind(s, self.List.hd(t))
-      t = self.List.tl(t)
-    self.axs.append(t == self.List.nil)
+      self.axs.append(self.erl.List.is_cons(t))
+      self.env.bind(s, self.erl.List.hd(t))
+      t = self.erl.List.tl(t)
+    self.axs.append(t == self.erl.List.nil)
     # Elaborate the type
     typ = self.env.lookupType(terms[0]["s"])
     children = typ.matchNList(len(terms[1:]))
@@ -963,7 +861,7 @@ class ErlangZ3:
   # Encode a value to a bitstring.
   # TODO For now, expects size to be a concrete integer and encodedValue to be an integer.
   def make_bitstr_toZ3(self, symb, encodedValue, size):
-    T, B = self.Term, self.BitStr
+    T, B = self.erl.Term, self.erl.BitStr
     s = symb["s"]
     enc = self.term_toZ3(encodedValue)
     szTerm = self.term_toZ3(size)
@@ -983,7 +881,7 @@ class ErlangZ3:
       self.env.bind(s, T.bin(sz, b))
   
   def concat_segs_toZ3(self, *terms):
-    T, B = self.Term, self.BitStr
+    T, B = self.erl.Term, self.erl.BitStr
     term1, term2, ts = terms[0], terms[1], terms[2:]
     s = term1["s"]
     t = self.term_toZ3(term2)
@@ -1004,7 +902,7 @@ class ErlangZ3:
   # ----------------------------------------------------------------------
   
   def tcons_toZ3(self, *terms):
-    T, L = self.Term, self.List
+    T, L = self.erl.Term, self.erl.List
     s, ts = terms[0]["s"], map(self.term_toZ3, terms[1:])
     t = L.nil
     for x in reversed(ts):
@@ -1025,10 +923,10 @@ class ErlangZ3:
     s = term1["s"]
     t2 = self.term_toZ3(term2)
     self.axs.extend([
-      self.Term.is_lst(t2),
-      self.List.is_cons(self.Term.lval(t2))
+      self.erl.Term.is_lst(t2),
+      self.erl.List.is_cons(self.erl.Term.lval(t2))
     ])
-    self.env.bind(s, self.List.hd(self.Term.lval(t2)))
+    self.env.bind(s, self.erl.List.hd(self.erl.Term.lval(t2)))
     # Elaborate the type
     tp = self.env.lookupType(term2["s"])
     tp.matchCons()
@@ -1040,8 +938,8 @@ class ErlangZ3:
   def hd_toZ3_RV(self, term1, term2):
     t2 = self.term_toZ3(term2)
     self.axs.append(Or(
-      self.Term.is_lst(t2) == False,
-      And(self.Term.is_lst(t2), self.List.is_nil(self.Term.lval(t2)))
+      self.erl.Term.is_lst(t2) == False,
+      And(self.erl.Term.is_lst(t2), self.erl.List.is_nil(self.erl.Term.lval(t2)))
     ))
     # TODO Maybe elaborate type?
   
@@ -1051,10 +949,10 @@ class ErlangZ3:
     s = term1["s"]
     t2 = self.term_toZ3(term2)
     self.axs.extend([
-      self.Term.is_lst(t2),
-      self.List.is_cons(self.Term.lval(t2))
+      self.erl.Term.is_lst(t2),
+      self.erl.List.is_cons(self.erl.Term.lval(t2))
     ])
-    self.env.bind(s, self.Term.lst(self.List.tl(self.Term.lval(t2))))
+    self.env.bind(s, self.erl.Term.lst(self.erl.List.tl(self.erl.Term.lval(t2))))
     # Elaborate the type
     tp = self.env.lookupType(term2["s"])
     tp.matchCons()
@@ -1066,16 +964,16 @@ class ErlangZ3:
   def tl_toZ3_RV(self, term1, term2):
     t2 = self.term_toZ3(term2)
     self.axs.append(Or(
-      self.Term.is_lst(t2) == False,
-      And(self.Term.is_lst(t2), self.List.is_nil(self.Term.lval(t2)))
+      self.erl.Term.is_lst(t2) == False,
+      And(self.erl.Term.is_lst(t2), self.erl.List.is_nil(self.erl.Term.lval(t2)))
     ))
     # TODO Maybe elaborate type?
   
   ### Simulate the cons operation ###
   
   def cons_toZ3(self, term, term1, term2):
-    T = self.Term
-    L = self.List
+    T = self.erl.Term
+    L = self.erl.List
     s = term["s"]
     t1 = self.term_toZ3(term1)
     t2 = self.term_toZ3(term2)
@@ -1097,7 +995,7 @@ class ErlangZ3:
     s = term1["s"]
     t2 = self.term_toZ3(term2)
     self.env.bind(s, If(
-      self.Term.is_int(t2),
+      self.erl.Term.is_int(t2),
       self.atmTrue,
       self.atmFalse
     ))
@@ -1108,7 +1006,7 @@ class ErlangZ3:
     s = term1["s"]
     t2 = self.term_toZ3(term2)
     self.env.bind(s, If(
-      self.Term.is_atm(t2),
+      self.erl.Term.is_atm(t2),
       self.atmTrue,
       self.atmFalse
     ))
@@ -1119,7 +1017,7 @@ class ErlangZ3:
     s = term1["s"]
     t2 = self.term_toZ3(term2)
     self.env.bind(s, If(
-      self.Term.is_real(t2),
+      self.erl.Term.is_real(t2),
       self.atmTrue,
       self.atmFalse
     ))
@@ -1130,7 +1028,7 @@ class ErlangZ3:
     s = term1["s"]
     t2 = self.term_toZ3(term2)
     self.env.bind(s, If(
-      self.Term.is_lst(t2),
+      self.erl.Term.is_lst(t2),
       self.atmTrue,
       self.atmFalse
     ))
@@ -1141,7 +1039,7 @@ class ErlangZ3:
     s = term1["s"]
     t2 = self.term_toZ3(term2)
     self.env.bind(s, If(
-      self.Term.is_tpl(t2),
+      self.erl.Term.is_tpl(t2),
       self.atmTrue,
       self.atmFalse
     ))
@@ -1163,7 +1061,7 @@ class ErlangZ3:
     s = term1["s"]
     t2 = self.term_toZ3(term2)
     self.env.bind(s, If(
-      Or(self.Term.is_real(t2), self.Term.is_int(t2)),
+      Or(self.erl.Term.is_real(t2), self.erl.Term.is_int(t2)),
       self.atmTrue,
       self.atmFalse
     ))
@@ -1174,7 +1072,7 @@ class ErlangZ3:
     s = term1["s"]
     t2 = self.term_toZ3(term2)
     self.env.bind(s, If(
-      self.Term.is_bin(t2),
+      self.erl.Term.is_bin(t2),
       self.atmTrue,
       self.atmFalse
     ))
@@ -1186,7 +1084,7 @@ class ErlangZ3:
   ## Add two numbers ###
   
   def plus_toZ3(self, term, term1, term2):
-    T = self.Term
+    T = self.erl.Term
     s = term["s"]
     t1 = self.term_toZ3(term1)
     t2 = self.term_toZ3(term2)
@@ -1211,7 +1109,7 @@ class ErlangZ3:
   ## Subtract two numbers ###
   
   def minus_toZ3(self, term, term1, term2):
-    T = self.Term
+    T = self.erl.Term
     s = term["s"]
     t1 = self.term_toZ3(term1)
     t2 = self.term_toZ3(term2)
@@ -1236,7 +1134,7 @@ class ErlangZ3:
   ## Multiply two numbers ###
   
   def times_toZ3(self, term, term1, term2):
-    T = self.Term
+    T = self.erl.Term
     s = term["s"]
     t1 = self.term_toZ3(term1)
     t2 = self.term_toZ3(term2)
@@ -1261,7 +1159,7 @@ class ErlangZ3:
   ## Divide two numbers ###
   
   def rdiv_toZ3(self, term, term1, term2):
-    T = self.Term
+    T = self.erl.Term
     s = term["s"]
     t1 = self.term_toZ3(term1)
     t2 = self.term_toZ3(term2)
@@ -1289,7 +1187,7 @@ class ErlangZ3:
   ### Integer division with natural numbers
   
   def idiv_nat_toZ3(self, term, term1, term2):
-    T = self.Term
+    T = self.erl.Term
     s = term["s"]
     t1 = self.term_toZ3(term1)
     t2 = self.term_toZ3(term2)
@@ -1304,7 +1202,7 @@ class ErlangZ3:
   ### Remainder of integer division with natural numbers
   
   def rem_nat_toZ3(self, term, term1, term2):
-    T = self.Term
+    T = self.erl.Term
     s = term["s"]
     t1 = self.term_toZ3(term1)
     t2 = self.term_toZ3(term2)
@@ -1319,7 +1217,7 @@ class ErlangZ3:
   ### Unary operation
   
   def unary_toZ3(self, term, term1):
-    T = self.Term
+    T = self.erl.Term
     s = term["s"]
     t1 = self.term_toZ3(term1)
     self.axs.append(Or(
@@ -1335,7 +1233,7 @@ class ErlangZ3:
   
   ## FIXME Z3 only support nonlinear polynomial equations. Should look at http://www.cl.cam.ac.uk/~lp15/papers/Arith/.
   def pow_toZ3(self, term, term1, term2):
-    T = self.Term
+    T = self.erl.Term
     s = term["s"]
     t1 = self.term_toZ3(term1)
     t2 = self.term_toZ3(term2)
@@ -1388,7 +1286,7 @@ class ErlangZ3:
   ### Compare two integers (<)
   
   def lt_integers_toZ3(self, term, term1, term2):
-    T = self.Term
+    T = self.erl.Term
     s = term["s"]
     t1 = self.term_toZ3(term1)
     t2 = self.term_toZ3(term2)
@@ -1404,7 +1302,7 @@ class ErlangZ3:
   ### Compare two floats (<)
   
   def lt_floats_toZ3(self, term, term1, term2):
-    T = self.Term
+    T = self.erl.Term
     s = term["s"]
     t1 = self.term_toZ3(term1)
     t2 = self.term_toZ3(term2)
@@ -1424,7 +1322,7 @@ class ErlangZ3:
   ### Convert a number to float
   
   def float_toZ3(self, term, term1):
-    T = self.Term
+    T = self.erl.Term
     s = term["s"]
     t1 = self.term_toZ3(term1)
     self.axs.append(Or(
@@ -1440,7 +1338,7 @@ class ErlangZ3:
   ## Convert a list to a tuple
   
   def list_to_tuple_toZ3(self, term, term1):
-    T = self.Term
+    T = self.erl.Term
     s = term["s"]
     t1 = self.term_toZ3(term1)
     self.axs.append(T.is_lst(t1))
@@ -1451,7 +1349,7 @@ class ErlangZ3:
   ## Convert a tuple to a list
   
   def tuple_to_list_toZ3(self, term, term1):
-    T = self.Term
+    T = self.erl.Term
     s = term["s"]
     t1 = self.term_toZ3(term1)
     self.axs.append(T.is_tpl(t1))
@@ -1483,7 +1381,7 @@ class ErlangZ3:
     s = term["s"]
     t1 = self.term_toZ3(term1)
     self.env.bind(s, If(
-      t1 == self.Term.atm(self.Atom.anil),
+      t1 == self.erl.Term.atm(self.erl.Atom.anil),
       self.atmTrue,
       self.atmFalse
     ))
@@ -1491,8 +1389,8 @@ class ErlangZ3:
   ### The first character in an atom
   
   def atom_head_toZ3(self, term, term1):
-    T = self.Term
-    A = self.Atom
+    T = self.erl.Term
+    A = self.erl.Atom
     s = term["s"]
     t1 = self.term_toZ3(term1)
     self.axs.extend([
@@ -1506,8 +1404,8 @@ class ErlangZ3:
   ### The atom except its first character
   
   def atom_tail_toZ3(self, term, term1):
-    T = self.Term
-    A = self.Atom
+    T = self.erl.Term
+    A = self.erl.Atom
     s = term["s"]
     t1 = self.term_toZ3(term1)
     self.axs.extend([
@@ -1518,13 +1416,13 @@ class ErlangZ3:
       T.atm(A.atl(T.aval(t1)))
     )
 
-###############################################################################
+# #############################################################################
 # Unit Tests
-###############################################################################
+# #############################################################################
 
 def test_decoder_simple():
   erlz3 = ErlangZ3()
-  T, L, A, B = erlz3.Term, erlz3.List, erlz3.Atom, erlz3.BitStr
+  T, L, A, B = erlz3.erl.Term, erlz3.erl.List, erlz3.erl.Atom, erlz3.erl.BitStr
   terms = [
     ( # 42
       {"t":cc.JSON_TYPE_INT,"v":42},
@@ -1559,7 +1457,7 @@ def test_decoder_simple():
 
 def test_decoder_complex():
   erlz3 = ErlangZ3()
-  T, L = erlz3.Term, erlz3.List
+  T, L = erlz3.erl.Term, erlz3.erl.List
   s1, s2 = "0.0.0.39316", "0.0.0.39317"
   erlz3.env.bind(s1, T.int(1))
   erlz3.env.bind(s2, T.int(2))
@@ -1586,51 +1484,9 @@ def decode_and_check(erlz3, terms):
     s.add(z == y)
     assert s.check() == sat, "Decoded {} is not {} but {}".format(x, y, z)
 
-def test_encoder():
-  erlz3 = ErlangZ3()
-  T, L, A, B = erlz3.Term, erlz3.List, erlz3.Atom, erlz3.BitStr
-  terms = [
-    ( # 4242424242
-      T.int(4242424242),
-      {"t":cc.JSON_TYPE_INT,"v":4242424242}
-    ),
-    ( # 3.14159
-      T.real(3.14159),
-      {"t":cc.JSON_TYPE_FLOAT,"v":3.14159},
-    ),
-    ( # foo
-      T.atm(A.acons(102,A.acons(111,A.acons(111,A.anil)))),
-      {"t":cc.JSON_TYPE_ATOM,"v":[102,111,111]}
-    ),
-    ( # [42, 3.14]
-      T.lst(L.cons(T.int(42),L.cons(T.real(3.14),L.nil))),
-      {"t":cc.JSON_TYPE_LIST,"v":[{"t":cc.JSON_TYPE_INT,"v":42},{"t":cc.JSON_TYPE_FLOAT,"v":3.14}]}
-    ),
-    ( # {foo, 42}
-      T.tpl(L.cons(T.atm(A.acons(102,A.acons(111,A.acons(111,A.anil)))),L.cons(T.int(42),L.nil))),
-      {"t":cc.JSON_TYPE_TUPLE,"v":[{"t":cc.JSON_TYPE_ATOM,"v":[102,111,111]},{"t":cc.JSON_TYPE_INT,"v":42}]}
-    ),
-    ( # <<5:3>>
-      T.bin(3, B.bcons(BitVecVal(1,1),B.bcons(BitVecVal(0,1),B.bcons(BitVecVal(1,1),B.bnil)))),
-      {"t":cc.JSON_TYPE_BITSTRING,"v":[1,0,1]}
-    ),
-    ( # <<5:3>>
-      T.bin(3, B.bcons(BitVecVal(1,1),B.bcons(BitVecVal(0,1),B.bcons(BitVecVal(1,1),B.bcons(BitVecVal(1,1),B.bnil))))),
-      {"t":cc.JSON_TYPE_BITSTRING,"v":[1,0,1]}
-    ),
-    ( # <<4:3>>
-      T.bin(3, B.bcons(BitVecVal(1,1),B.bcons(BitVecVal(0,1),B.bnil))),
-      {"t":cc.JSON_TYPE_BITSTRING,"v":[1,0,0]}
-    ),
-    
-  ]
-  for x, y in terms:
-    z = TermEncoder(erlz3).fromZ3(x)
-    assert z == y, "Encoded {} is not {} but {}".format(x, y, z)
-
 def test_model():
   erlz3 = ErlangZ3()
-  T, L, A, B = erlz3.Term, erlz3.List, erlz3.Atom, erlz3.BitStr
+  T, L, A, B = erlz3.erl.Term, erlz3.erl.List, erlz3.erl.Atom, erlz3.erl.BitStr
   s1, s2, s3, s4 = "0.0.0.39316", "0.0.0.39317", "0.0.0.39318", "0.0.0.39319"
   expected = {
     s1: {"t":cc.JSON_TYPE_INT,"v":42},
@@ -1761,6 +1617,5 @@ if __name__ == '__main__':
   cglb.init()
   test_decoder_simple()
   test_decoder_complex()
-  test_encoder()
   test_model()
   test_commands()
