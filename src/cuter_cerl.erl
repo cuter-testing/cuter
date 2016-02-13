@@ -37,6 +37,7 @@
 
 -type lineno() :: integer().
 -type name() :: atom().
+-type fa() :: {name(), arity()}.
 -type cerl_attr() :: {#c_literal{val :: 'type'}, #c_literal{val :: cerl_attr_type()}}
                    | {#c_literal{val :: spec | opaque}, #c_literal{val :: cerl_attr_spec()}}
                    | {#c_literal{val :: export_type | behaviour}, cerl:c_literal()}.
@@ -50,7 +51,7 @@
 -type cerl_typed_record_field() :: {'typed_record_field', cerl_untyped_record_field(), cerl_type()}.
 -type cerl_typedef() :: {name(), cerl_type(), [cerl_type_var()]}.
 
--type cerl_specdef() :: {{name(), byte()}, cerl_spec()}.
+-type cerl_specdef() :: {fa(), cerl_spec()}.
 -type cerl_spec() :: [cerl_spec_func(), ...].
 -type cerl_spec_func() :: cerl_func() | cerl_bounded_func().
 
@@ -147,7 +148,7 @@ is_valid_ast(true, AST) ->
   erlang:is_record(AST, c_module).
 
 %% Retrieves the spec of a function from a stored module's info.
--spec retrieve_spec(cuter_codeserver:module_cache(), {name(), byte()}) -> {ok, cuter_types:stored_spec_value()} | error.
+-spec retrieve_spec(cuter_codeserver:module_cache(), fa()) -> {ok, cuter_types:stored_spec_value()} | error.
 retrieve_spec(Cache, FA) ->
   {ok, Specs} = cuter_codeserver:lookup_in_module_cache(specs, Cache),
   cuter_types:find_spec(FA, Specs).
@@ -211,7 +212,7 @@ beam_path(M) ->
   end.
 
 %% Gets the abstract code from a module's beam file, if possible.
--spec get_abstract_code(cuter:mod(), file:name()) -> list().
+-spec get_abstract_code(cuter:mod(), file:name()) -> list().	%% XXX: abstract_code()
 get_abstract_code(Mod, Beam) ->
   case beam_lib:chunks(Beam, [abstract_code]) of
     {ok, {Mod, [{abstract_code, {_, AbstractCode}}]}} -> AbstractCode;

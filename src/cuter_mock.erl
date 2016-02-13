@@ -10,7 +10,7 @@
 
 -include("include/cuter_macros.hrl").
 
--type entry() :: {atom(), atom(), byte()} | {atom(), atom(), '*'} | {atom(), '*', '*'}.
+-type entry() :: {atom(), atom(), arity()} | {atom(), atom(), '*'} | {atom(), '*', '*'}.
 -type whitelist() :: sets:set(entry()).
 
 %% BIFs I found during testing, may be more out there

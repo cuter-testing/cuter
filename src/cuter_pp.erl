@@ -257,7 +257,7 @@ error_loading_whitelist(File, Error) ->
 module_non_existing(M) ->
   gen_server:call(?PRETTY_PRINTER, {module_non_existing, M}).
 
--spec mfa_non_existing(atom(), atom(), byte()) -> ok.
+-spec mfa_non_existing(atom(), atom(), arity()) -> ok.
 mfa_non_existing(M, F, Arity) ->
   gen_server:call(?PRETTY_PRINTER, {mfa_non_existing, {M, F, Arity}}).
 

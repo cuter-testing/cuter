@@ -6,7 +6,7 @@
 
 -export_type([callgraph/0]).
 
--type fn_cache() :: dict:dict({atom(), byte()}, cerl:cerl()).
+-type fn_cache() :: dict:dict({atom(), arity()}, cerl:cerl()).
 -type module_cache_entry() :: fn_cache() | preloaded.
 -type module_cache() :: dict:dict(atom(), module_cache_entry()).
 -type visited_mfas() :: gb_sets:set(mfa()).
