@@ -106,13 +106,12 @@ class TermEncoder:
   def __init__(self, erl, model = None, fmap = None, arity = None):
     self.erl = erl
     self.model = model
-    if model is not None:
-      if arity is not None:
-        self.arity = self.parseArity(model, arity) if model[arity] is not None else None
-      if fmap is not None:
-        self.fmap = self.parseFmap(model, fmap) if model[fmap] is not None else None
+    self.arity = self.parseArity(model, arity)
+    self.fmap = self.parseFmap(model, fmap)
 
   def parseArity(self, model, handle):
+    if model is None or handle is None or model[handle] is None:
+      return None
     defn = model[handle].as_list()
     arity = defaultdict(lambda: simplify(defn[-1]).as_long())
     for x in defn[:-1]:
@@ -120,6 +119,8 @@ class TermEncoder:
     return arity
 
   def parseFmap(self, model, handle):
+    if model is None or handle is None or model[handle] is None:
+      return None
     defn = model[handle].as_list()
     fmap = defaultdict(lambda: simplify(defn[-1]))
     for x in defn[:-1]:
@@ -204,6 +205,10 @@ class TermEncoder:
 
   def toFun(self, n):
     idx = simplify(n).as_long()
+    # In case the solver randomly select a solution to be a fun
+    # without fmap existing in the model
+    if self.fmap is None:
+      return self.defaultFun()
     arity = self.arity[idx]
     defn = self.getArrayDecl(self.fmap[idx], self.erl.List).as_list()
     default = self.encodeDefault(defn[-1])
@@ -221,6 +226,10 @@ class TermEncoder:
   def encodeDefault(self, val):
     T, L = self.erl.Term, self.erl.List
     return self.encode(T.tpl(L.cons(val, L.nil)))
+
+  def defaultFun(self):
+    default = self.encodeDefault(self.erl.Term.int(0))
+    return {"t": cc.JSON_TYPE_FUN, "v": [default], "x": 1}
 
 class TermDecoder:
   """
@@ -867,6 +876,33 @@ def fun_scenario8():
   ], 1)
   compare_solutions(f_exp, f_sol)
 
+
+def fun_scenario9():
+  """
+  Scenario 9
+  ----------
+  ERLANG CODE
+  TRACE
+  """
+  erl = ErlangExt()
+  T, L, fmap, arity = erl.Term, erl.List, erl.fmap, erl.arity
+  # Create the model
+  slv = Solver()
+  x, f = Consts('x, f', T)
+  slv.add([
+    T.is_int(x),
+    T.is_fun(f)
+  ])
+  # Solve the model
+  chk = slv.check()
+  assert chk == sat, "Model in unsatisfiable"
+  m = slv.model()
+  encoder = TermEncoder(erl, m, fmap, arity)
+  x_sol, f_sol = [encoder.encode(m[v]) for v in [x, f]]
+  # Create the result
+  f_exp = encoder.defaultFun()
+  compare_solutions(f_exp, f_sol)
+
 def fun_scenarios():
   """
   Runs all the scenarios with funs.
@@ -879,6 +915,7 @@ def fun_scenarios():
   fun_scenario6()
   fun_scenario7()
   fun_scenario8()
+  fun_scenario9()
 
 if __name__ == '__main__':
   import json
