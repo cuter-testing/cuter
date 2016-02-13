@@ -105,7 +105,7 @@ decode_fun({Bin, KVs, Def}) ->
 -spec dec_fun2_test_() -> term().
 dec_fun2_test_() ->
   Begin = "{\"t\":9,\"v\":[",
-  End = "],\"a\":1}",
+  End = "],\"x\":1}",
   KVs1 = "{\"t\":5,\"v\":[{\"t\":4,\"v\":[{\"t\":1,\"v\":1}]},{\"t\":1,\"v\":2}]}",
   Def1 = "{\"t\":5,\"v\":[{\"t\":1,\"v\":42}]}",
   Fn1 = [Begin, KVs1, ",", Def1, End],
@@ -175,7 +175,7 @@ fun_start() ->
   <<"{\"t\":9,\"v\":[">>.
 
 fun_end(Arity) ->
-  list_to_binary(io_lib:format("],\"a\":~w}", [Arity])).
+  list_to_binary(io_lib:format("],\"x\":~w}", [Arity])).
 
 add_seps([E], Acc) ->
   lists:reverse([E | Acc]);

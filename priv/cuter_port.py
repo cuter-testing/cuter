@@ -67,8 +67,8 @@ def decode_get_model(erlport, erlz3, cmd):
   erlport.send(cc.RSP_MODEL_DELIMITER_START)
   erlport.send(str(md))
   for s, v in enc:
-    erlport.send(str(json.dumps(s)))
-    erlport.send(str(json.dumps(v)))
+    erlport.send(str(json.dumps(s, sort_keys=True)))
+    erlport.send(str(json.dumps(v, sort_keys=True)))
   erlport.send(cc.RSP_MODEL_DELIMITER_END)
 
 # Add axioms

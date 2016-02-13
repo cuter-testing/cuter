@@ -18,7 +18,7 @@
 %% ----------------------------------------------------------------------------
 -type lambda_kvs()     :: [{list(), any()}].
 -type lambda_default() :: any().
--type lambda_arity()   :: byte().
+-type lambda_arity()   :: arity().
 
 -define(lambda, '__lambda').
 -record(?lambda, {
@@ -640,7 +640,7 @@ decode_fun(JSON, Dec=#decoder{state = value_next_or_end}) ->
   end;
 decode_fun(JSON, Dec=#decoder{state = arity}) ->
   case trim_whitespace(JSON) of
-    <<?Q, $a, ?Q, Rest/binary>> ->
+    <<?Q, $x, ?Q, Rest/binary>> ->
       R = trim_whitespace(trim_separator(Rest, $:, Dec)),  %% Ensure we pass a trimmed JSON string
       {Arity, Rem} = decode_int(R, #decoder{state = value_start}),
       {mk_lambda(Arity, Dec#decoder.acc), Rem};
@@ -934,8 +934,9 @@ compile_lambda(T) ->
 compile_lambda_h(#?lambda{arity = Arity, kvs = KVs, default = Default}) ->
   %% TODO Check if the parameters is a lambda, in case of recursion.
   CompiledKVs = [{K, compile_lambda_h(V)} || {K, V} <- KVs],
+  CompiledDefault = compile_lambda_h(Default),
   Dict = dict:from_list(CompiledKVs),
-  Lookup = fun(As) -> lookup_args(As, Dict, Default) end,
+  Lookup = fun(As) -> lookup_args(As, Dict, CompiledDefault) end,
   case Arity of
     0 -> fun() -> Default end;
     1 -> fun(A1) -> Lookup([A1]) end;
