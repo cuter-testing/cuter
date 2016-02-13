@@ -3,6 +3,7 @@
 
 import json
 from z3 import *
+from collections import defaultdict
 import cuter_env as cenv
 import cuter_common as cc
 import cuter_global as cglb
@@ -58,12 +59,72 @@ class Erlang:
     encoder = TermEncoder(self)
     return encoder.toSymbolic(symbString)
 
+class ErlangExt(Erlang):
+  """
+  Erlang's Type System with funs.
+  """
+  def __init__(self):
+    # Override the representation
+    Erlang.__init__(self)
+    self.fmap = Function('fmap', IntSort(), ArraySort(self.List, self.Term))
+    self.arity = Function('arity', IntSort(), IntSort())
+
+  def create_representation(self):
+    Term = Datatype('Term')
+    List = Datatype('List')
+    Tuple = Datatype('Tuple')
+    Atom = Datatype('Atom')
+    BitStr = Datatype('BitStr')
+    # Term
+    Term.declare('int', ('ival', IntSort()))
+    Term.declare('real', ('rval', RealSort()))
+    Term.declare('lst', ('lval', List))
+    Term.declare('tpl', ('tval', List))
+    Term.declare('atm', ('aval', Atom))
+    Term.declare('bin', ('bsz', IntSort()), ('bval', BitStr))
+    Term.declare('fun', ('fval', IntSort()))
+    # List
+    List.declare('nil')
+    List.declare('cons', ('hd', Term), ('tl', List))
+    # Atom
+    Atom.declare('anil')
+    Atom.declare('acons', ('ahd', IntSort()), ('atl', Atom))
+    # Bitstring
+    BitStr.declare('bnil')
+    BitStr.declare('bcons', ('bhd', BitVecSort(1)), ('btl', BitStr))
+    # Return Datatypes
+    return CreateDatatypes(Term, List, Atom, BitStr)
+
+# #############################################################################
+# Encode / Decode terms.
+# #############################################################################
+
 class TermEncoder:
   """
     Encoder from Z3 terms to Erlang terms (in JSON representation).
   """
-  def __init__(self, erl):
+  def __init__(self, erl, model = None, fmap = None, arity = None):
     self.erl = erl
+    self.model = model
+    if model is not None:
+      if arity is not None:
+        self.arity = self.parseArity(model, arity) if model[arity] is not None else None
+      if fmap is not None:
+        self.fmap = self.parseFmap(model, fmap) if model[fmap] is not None else None
+
+  def parseArity(self, model, handle):
+    defn = model[handle].as_list()
+    arity = defaultdict(lambda: simplify(defn[-1]).as_long())
+    for x in defn[:-1]:
+      arity[simplify(x[0]).as_long()] = simplify(x[1]).as_long()
+    return arity
+
+  def parseFmap(self, model, handle):
+    defn = model[handle].as_list()
+    fmap = defaultdict(lambda: simplify(defn[-1]))
+    for x in defn[:-1]:
+      fmap[simplify(x[0]).as_long()] = simplify(x[1])
+    return fmap
 
   def toSymbolic(self, s):
     return {"s": s}
@@ -82,6 +143,10 @@ class TermEncoder:
       return self.toAtom(T.aval(t))
     elif (is_true(simplify(T.is_bin(t)))):
       return self.toBitstring(T.bsz(t), T.bval(t))
+    elif (is_true(simplify(T.is_fun(t)))):
+      return self.toFun(T.fval(t))
+    else:
+      raise Exception("Could not recognise the type of term: " + str(t))
 
   def toInt(self, t):
     return {"t": cc.JSON_TYPE_INT, "v": simplify(t).as_long()}
@@ -136,6 +201,26 @@ class TermEncoder:
     if sz > 0:
       r.extend([0] * sz)
     return {"t": cc.JSON_TYPE_BITSTRING, "v": r}
+
+  def toFun(self, n):
+    idx = simplify(n).as_long()
+    arity = self.arity[idx]
+    defn = self.getArrayDecl(self.fmap[idx], self.erl.List).as_list()
+    default = self.encodeDefault(defn[-1])
+    kvs = [self.encodeKVPair(args, val) for [args, val] in defn[0:-1]]
+    return {"t": cc.JSON_TYPE_FUN, "v": kvs + [default], "x": arity}
+
+  def getArrayDecl(self, asArray, DomType):
+    m = self.model
+    return m[simplify(simplify(asArray)[Const('%', DomType)]).decl()]
+
+  def encodeKVPair(self, arg, value):
+    T, L = self.erl.Term, self.erl.List
+    return self.encode(T.tpl(L.cons(T.lst(arg), L.cons(value, L.nil))))
+
+  def encodeDefault(self, val):
+    T, L = self.erl.Term, self.erl.List
+    return self.encode(T.tpl(L.cons(val, L.nil)))
 
 class TermDecoder:
   """
@@ -337,9 +422,77 @@ def decode_and_check(erl, env, terms):
     s.add(z == y)
     assert s.check() == sat, "Decoded {} is not {} but {}".format(x, y, z)
 
+def mk_int(i):
+  return {"t": cc.JSON_TYPE_INT, "v": i}
+
+def mk_list(xs):
+  return {"t": cc.JSON_TYPE_LIST, "v": xs}
+
+def mk_tuple(xs):
+  return {"t": cc.JSON_TYPE_TUPLE, "v": xs}
+
+def mk_fun(xs, ar):
+  return {"t": cc.JSON_TYPE_FUN, "v": xs, "x": ar}
+
+def compare_solutions(solExpected, solFound):
+  s1 = json.dumps(solExpected, sort_keys=True)
+  s2 = json.dumps(solFound, sort_keys=True)
+  assert s1 == s2, "solution mismatch.\nEXPECTED\n{}\nFOUND \n{}".format(s1, s2)
+
+def fun_scenario1():
+  """
+  Scenario 1
+  ----------
+  ERLANG CODE
+    -spec f1(fun((integer()) -> integer())) -> ok.
+    f1(F) ->
+      case F(3) of
+        42 ->
+          case F(10) of
+            17 -> error(bug);
+            _ -> ok
+          end;
+        _ -> ok
+      end.
+  TRACE
+    f(3) = 42
+    f(10) = 17
+  """
+  erl = ErlangExt()
+  T, L, fmap, arity = erl.Term, erl.List, erl.fmap, erl.arity
+  # Create the model
+  slv = Solver()
+  f = Const('f', T)
+  slv.add([
+    T.is_fun(f),
+    arity( T.fval(f) ) == 1,
+    fmap( T.fval(f) )[ L.cons(T.int(3), L.nil) ] == T.int(42),
+    fmap( T.fval(f) )[ L.cons(T.int(10), L.nil) ] == T.int(17)
+  ])
+  # Solve the model
+  chk = slv.check()
+  assert chk == sat, "Model in unsatisfiable"
+  m = slv.model()
+  encoder = TermEncoder(erl, m, fmap, arity)
+  f_sol = encoder.encode(m[f])
+  # Create the result
+  f_exp = mk_fun([
+    mk_tuple([mk_list([ mk_int(3)]),  mk_int(42) ]),
+    mk_tuple([mk_list([ mk_int(10)]), mk_int(17) ]),
+    mk_tuple([mk_int(42)])
+  ], 1)
+  compare_solutions(f_exp, f_sol)
+
+def fun_scenarios():
+  """
+  Runs all the scenarios with funs.
+  """
+  fun_scenario1()
+
 if __name__ == '__main__':
   import json
   cglb.init()
   test_encoder()
   test_decoder_simple()
   test_decoder_complex()
+  fun_scenarios()
