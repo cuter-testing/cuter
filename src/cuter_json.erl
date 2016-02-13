@@ -934,8 +934,9 @@ compile_lambda(T) ->
 compile_lambda_h(#?lambda{arity = Arity, kvs = KVs, default = Default}) ->
   %% TODO Check if the parameters is a lambda, in case of recursion.
   CompiledKVs = [{K, compile_lambda_h(V)} || {K, V} <- KVs],
+  CompiledDefault = compile_lambda_h(Default),
   Dict = dict:from_list(CompiledKVs),
-  Lookup = fun(As) -> lookup_args(As, Dict, Default) end,
+  Lookup = fun(As) -> lookup_args(As, Dict, CompiledDefault) end,
   case Arity of
     0 -> fun() -> Default end;
     1 -> fun(A1) -> Lookup([A1]) end;
