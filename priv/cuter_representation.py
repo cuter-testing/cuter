@@ -435,9 +435,19 @@ def mk_fun(xs, ar):
   return {"t": cc.JSON_TYPE_FUN, "v": xs, "x": ar}
 
 def compare_solutions(solExpected, solFound):
-  s1 = json.dumps(solExpected, sort_keys=True)
-  s2 = json.dumps(solFound, sort_keys=True)
-  assert s1 == s2, "solution mismatch.\nEXPECTED\n{}\nFOUND \n{}".format(s1, s2)
+  deep_compare(solExpected, solFound)
+  deep_compare(solFound, solExpected)
+
+def deep_compare(d1, d2):
+  assert type(d1) == type(d2)
+  if type(d1) == list:
+    [deep_compare(e1, e2) for e1, e2 in zip(sorted(d1), sorted(d2))]
+  elif type(d1) == dict:
+    for k in d1.keys():
+      assert d2.has_key(k)
+      deep_compare(d1[k], d2[k])
+  else:
+    assert d1 == d2
 
 def fun_scenario1():
   """
@@ -455,6 +465,7 @@ def fun_scenario1():
         _ -> ok
       end.
   TRACE
+    is_fun(f, 1)
     f(3) = 42
     f(10) = 17
   """
@@ -477,9 +488,382 @@ def fun_scenario1():
   f_sol = encoder.encode(m[f])
   # Create the result
   f_exp = mk_fun([
-    mk_tuple([mk_list([ mk_int(3)]),  mk_int(42) ]),
-    mk_tuple([mk_list([ mk_int(10)]), mk_int(17) ]),
+    mk_tuple([ mk_list([mk_int(3)]),  mk_int(42) ]),
+    mk_tuple([ mk_list([mk_int(10)]), mk_int(17) ]),
     mk_tuple([mk_int(42)])
+  ], 1)
+  compare_solutions(f_exp, f_sol)
+
+def fun_scenario2():
+  """
+  Scenario 2
+  ----------
+  ERLANG CODE
+    -spec f2(fun((integer()) -> integer()), integer(), integer()) -> ok.
+    f2(F, X, Y) ->
+      case F(X) of
+        42 ->
+          case F(Y) of
+            17 -> error(bug);
+            _ -> ok
+          end;
+        _ -> ok
+      end.
+  TRACE
+    is_int(x)
+    is_int(y)
+    is_fun(f, 1)
+    f(x) = 42
+    f(y) = 10
+  """
+  erl = ErlangExt()
+  T, L, fmap, arity = erl.Term, erl.List, erl.fmap, erl.arity
+  # Create the model
+  slv = Solver()
+  x, y, f = Consts('x, y, f', T)
+  slv.add([
+    T.is_fun(f),
+    T.is_int(x),
+    T.is_int(y),
+    arity( T.fval(y) ) == 1,
+    fmap( T.fval(f) )[ L.cons(x, L.nil) ] == T.int(42),
+    fmap( T.fval(f) )[ L.cons(y, L.nil) ] == T.int(10)
+  ])
+  # Solve the model
+  chk = slv.check()
+  assert chk == sat, "Model in unsatisfiable"
+  m = slv.model()
+  encoder = TermEncoder(erl, m, fmap, arity)
+  x_sol, y_sol, f_sol = [encoder.encode(m[v]) for v in [x, y, f]]
+  # Create the result
+  f_exp = mk_fun([
+    mk_tuple([ mk_list([x_sol]), mk_int(42) ]),
+    mk_tuple([ mk_list([y_sol]), mk_int(10) ]),
+    mk_tuple([mk_int(42)])
+  ], 1)
+  compare_solutions(f_exp, f_sol)
+
+def fun_scenario3():
+  """
+  Scenario 3
+  ----------
+  ERLANG CODE
+    -spec f3(fun((integer()) -> integer()), integer(), integer()) -> ok.
+    f3(F, X, Y) ->
+      case double(F, X) of
+        42 ->
+          case double(F, Y) of
+           17 -> error(bug);
+           _ -> ok
+          end;
+        _ -> ok
+      end.
+  TRACE
+    is_int(x)
+    is_int(y)
+    is_fun(f, 1)
+    t1 = f(x)
+    f(t1) = 42
+    t2 = f(y)
+    f(t2) = 17
+  """
+  erl = ErlangExt()
+  T, L, fmap, arity = erl.Term, erl.List, erl.fmap, erl.arity
+  # Create the model
+  slv = Solver()
+  x, y, f, t1, t2 = Consts('x, y, f, t1, t2', T)
+  slv.add([
+    T.is_int(x),
+    T.is_int(y),
+    T.is_fun(f),
+    arity( T.fval(f) ) == 1,
+    fmap( T.fval(f) )[ L.cons(x, L.nil) ] == t1,
+    fmap( T.fval(f) )[ L.cons(t1, L.nil) ] == T.int(42),
+    fmap( T.fval(f) )[ L.cons(y, L.nil) ] == t2,
+    fmap( T.fval(f) )[ L.cons(t2, L.nil) ] == T.int(17)
+  ])
+  # Solve the model
+  chk = slv.check()
+  assert chk == sat, "Model in unsatisfiable"
+  m = slv.model()
+  encoder = TermEncoder(erl, m, fmap, arity)
+  x_sol, y_sol, f_sol = [encoder.encode(m[v]) for v in [x, y, f]]
+  # Create the result
+  f_exp = mk_fun([
+    mk_tuple([ mk_list([x_sol]),     mk_int(4)  ]),
+    mk_tuple([ mk_list([mk_int(4)]), mk_int(42) ]),
+    mk_tuple([ mk_list([y_sol]),     mk_int(5)  ]),
+    mk_tuple([ mk_list([mk_int(5)]), mk_int(17) ]),
+    mk_tuple([mk_int(4)])
+  ], 1)
+  compare_solutions(f_exp, f_sol)
+
+def fun_scenario4():
+  """
+  Scenario 4
+  ----------
+  ERLANG CODE
+    -spec f4(fun((integer()) -> integer()), integer(), integer()) -> ok.
+    f4(F, X, Y) ->
+      Z = F(X),
+      case Z(Y) of
+        42 -> error(bug);
+        _ -> ok
+      end.
+  TRACE
+    is_int(x)
+    is_int(y)
+    is_fun(f, 1)
+    t1 = f(x)
+    t1(y) = 42
+  """
+  erl = ErlangExt()
+  T, L, fmap, arity = erl.Term, erl.List, erl.fmap, erl.arity
+  # Create the model
+  slv = Solver()
+  x, y, f, t1 = Consts('x, y, f, t1', T)
+  slv.add([
+    T.is_int(x),
+    T.is_int(y),
+    T.is_fun(f),
+    arity( T.fval(f) ) == 1,
+    fmap( T.fval(f) )[ L.cons(x, L.nil) ] == t1,
+    T.is_fun(t1),
+    arity( T.fval(t1) ) == 1,
+    fmap( T.fval(t1) )[ L.cons(y, L.nil) ] == T.int(42),
+  ])
+  # Solve the model
+  chk = slv.check()
+  assert chk == sat, "Model in unsatisfiable"
+  m = slv.model()
+  encoder = TermEncoder(erl, m, fmap, arity)
+  x_sol, y_sol, f_sol = [encoder.encode(m[v]) for v in [x, y, f]]
+  # Create the result
+  t1_exp = mk_fun([
+    mk_tuple([ mk_list([y_sol]), mk_int(42) ]),
+    mk_tuple([mk_int(42)])
+  ], 1)
+  f_exp = mk_fun([
+    mk_tuple([ mk_list([x_sol]), t1_exp  ]),
+    mk_tuple([t1_exp])
+  ], 1)
+  compare_solutions(f_exp, f_sol)
+
+def fun_scenario5():
+  """
+  Scenario 5
+  ----------
+  ERLANG CODE
+    -spec f5(fun((integer()) -> integer()), integer(), integer(), integer()) -> ok.
+    f5(F, X, Y, Z) ->
+      case F(X, Y, Z) of
+        42 ->
+          case F(Z, Y, X) of
+            17 -> error(bug);
+            _ -> ok
+          end;
+        _ -> ok
+      end.
+  TRACE
+    is_int(x)
+    is_int(y)
+    is_int(z)
+    is_fun(f, 3)
+    f(x, y, z) = 42
+    f(z, y, x) = 17
+  """
+  erl = ErlangExt()
+  T, L, fmap, arity = erl.Term, erl.List, erl.fmap, erl.arity
+  # Create the model
+  slv = Solver()
+  x, y, z, f = Consts('x, y, z, f', T)
+  slv.add([
+    T.is_int(x),
+    T.is_int(y),
+    T.is_int(z),
+    T.is_fun(f),
+    arity( T.fval(f) ) == 3,
+    fmap( T.fval(f) )[ L.cons(x, L.cons(y, L.cons(z, L.nil))) ] == T.int(42),
+    fmap( T.fval(f) )[ L.cons(z, L.cons(y, L.cons(x, L.nil))) ] == T.int(17),
+  ])
+  # Solve the model
+  chk = slv.check()
+  assert chk == sat, "Model in unsatisfiable"
+  m = slv.model()
+  encoder = TermEncoder(erl, m, fmap, arity)
+  x_sol, y_sol, z_sol, f_sol = [encoder.encode(m[v]) for v in [x, y, z, f]]
+  # Create the result
+  f_exp = mk_fun([
+    mk_tuple([ mk_list([x_sol, y_sol, z_sol]), mk_int(42) ]),
+    mk_tuple([ mk_list([z_sol, y_sol, x_sol]), mk_int(17) ]),
+    mk_tuple([mk_int(17)])
+  ], 3)
+  compare_solutions(f_exp, f_sol)
+
+def fun_scenario6():
+  """
+  Scenario 6
+  ----------
+  ERLANG CODE
+    -spec f6(any()) -> any().
+    f6(X) when is_function(X, 1) -> f6(X(42));
+    f6(X) when X =/= 42 -> X.
+  TRACE (with 3 fun applications)
+    is_fun(f, 1)
+    t1 = f(42)
+    t2 = t1(42)
+    t3 = t2(42)
+  """
+  erl = ErlangExt()
+  T, L, fmap, arity = erl.Term, erl.List, erl.fmap, erl.arity
+  # Create the model
+  slv = Solver()
+  f, t1, t2 = Consts('f, t1, t2', T)
+  slv.add([
+    # 1st step.
+    T.is_fun(f),
+    arity( T.fval(f) ) == 1,
+    fmap( T.fval(f) )[ L.cons(T.int(42), L.nil) ] == t1,
+    # 2nd step.
+    T.is_fun(t1),
+    arity( T.fval(t1) ) == 1,
+    fmap( T.fval(t1) )[ L.cons(T.int(42), L.nil) ] == t2,
+    # 3rd step.
+    T.is_fun(t2),
+    arity( T.fval(t2) ) == 1,
+    fmap( T.fval(t2) )[ L.cons(T.int(42), L.nil) ] == T.int(42),
+  ])
+  # Solve the model
+  chk = slv.check()
+  assert chk == sat, "Model in unsatisfiable"
+  m = slv.model()
+  encoder = TermEncoder(erl, m, fmap, arity)
+  f_sol = encoder.encode(m[f])
+  # Create the result
+  t2_exp = mk_fun([
+    mk_tuple([ mk_list([mk_int(42)]), mk_int(42) ]),
+    mk_tuple([mk_int(42)])
+  ], 1)
+  t1_exp = mk_fun([
+    mk_tuple([ mk_list([mk_int(42)]), t2_exp ]),
+    mk_tuple([t2_exp])
+  ], 1)
+  f_exp = mk_fun([
+    mk_tuple([ mk_list([mk_int(42)]), t1_exp ]),
+    mk_tuple([t1_exp])
+  ], 1)
+  compare_solutions(f_exp, f_sol)
+
+def fun_scenario7():
+  """
+  Scenario 7
+  ----------
+  ERLANG CODE
+    -spec f7(fun((integer(), integer()) -> integer()), [integer()]) -> integer().
+    f7(F, L) when is_function(F, 2) ->
+      case lists:foldl(F, 0, L) of
+        42 -> error(bug);
+        R -> R 
+    end.
+  TRACE
+    is_fun(f, 2)
+    is_lst(l)
+    l = [h1 | l1]
+    t1 = f(h1, 0)
+    l1 = [h2 | l2]
+    l2 = []
+    f(h2, t1) = 42
+  """
+  erl = ErlangExt()
+  T, L, fmap, arity = erl.Term, erl.List, erl.fmap, erl.arity
+  # Create the model
+  slv = Solver()
+  f, l, h1, l1, h2, l2, t1, t2 = Consts('f, l, h1, l1, h2, l2, t1, t2', T)
+  slv.add([
+    # Init
+    T.is_fun(f),
+    arity( T.fval(f) ) == 2,
+    T.is_lst(l),
+    # 1st element
+    L.is_cons( T.lval(l) ),
+    h1 == L.hd( T.lval(l) ),
+    l1 == T.lst( L.tl( T.lval(l) ) ),
+    t1 == fmap( T.fval(f) )[ L.cons(h1, L.cons(T.int(0), L.nil)) ],
+    # 2nd element
+    L.is_cons( T.lval(l1) ),
+    h2 == L.hd( T.lval(l1) ),
+    l2 == T.lst( L.tl( T.lval(l1) ) ),
+    t2 == fmap( T.fval(f) )[ L.cons(h2, L.cons(t1, L.nil)) ],
+    # Result
+    L.is_nil( T.lval(l2) ),
+    t2 == T.int(42)
+  ])
+  # Solve the model
+  chk = slv.check()
+  assert chk == sat, "Model in unsatisfiable"
+  m = slv.model()
+  encoder = TermEncoder(erl, m, fmap, arity)
+  l_sol, f_sol = [encoder.encode(m[v]) for v in [l, f]]
+  # Create the result
+  f_exp = mk_fun([
+    mk_tuple([ mk_list([l_sol["v"][0], mk_int(0)]), mk_int(4)  ]),
+    mk_tuple([ mk_list([l_sol["v"][1], mk_int(4)]), mk_int(42) ]),
+    mk_tuple([mk_int(4)])
+  ], 2)
+  compare_solutions(f_exp, f_sol)
+
+def fun_scenario8():
+  """
+  Scenario 8
+  ----------
+  ERLANG CODE
+    -spec f8(fun((integer()) -> integer()), [integer()]) -> integer().
+    f8(F, L) when is_function(F, 1) ->
+      L1 = lists:filter(F, L),
+      hd(L1).
+  TRACE
+    is_fun(f, 1)
+    is_lst(l)
+    l = [h1 | l1]
+    f(h1) = false
+    l1 = [h2 | l2]
+    f(h2) = false
+    l2 = []
+  """
+  erl = ErlangExt()
+  T, L, fmap, arity, atmFalse = erl.Term, erl.List, erl.fmap, erl.arity, erl.atmFalse
+  # Create the model
+  slv = Solver()
+  f, l, h1, l1, h2, l2 = Consts('f, l, h1, l1, h2, l2', T)
+  slv.add([
+    # Init
+    T.is_fun(f),
+    arity( T.fval(f) ) == 1,
+    T.is_lst(l),
+    # 1st element
+    L.is_cons( T.lval(l) ),
+    h1 == L.hd( T.lval(l) ),
+    l1 == T.lst( L.tl( T.lval(l) ) ),
+    atmFalse == fmap( T.fval(f) )[ L.cons(h1, L.nil) ],
+    # 2nd element
+    L.is_cons( T.lval(l1) ),
+    h2 == L.hd( T.lval(l1) ),
+    l2 == T.lst( L.tl( T.lval(l1) ) ),
+    atmFalse == fmap( T.fval(f) )[ L.cons(h2, L.nil) ],
+    # Result
+    L.is_nil( T.lval(l2) )
+  ])
+  # Solve the model
+  chk = slv.check()
+  assert chk == sat, "Model in unsatisfiable"
+  m = slv.model()
+  encoder = TermEncoder(erl, m, fmap, arity)
+  l_sol, f_sol = [encoder.encode(m[v]) for v in [l, f]]
+  # Create the result
+  f_exp = mk_fun([
+    mk_tuple([ mk_list([l_sol["v"][0]]), encoder.encode(atmFalse) ]),
+    mk_tuple([ mk_list([l_sol["v"][1]]), encoder.encode(atmFalse) ]),
+    mk_tuple([encoder.encode(atmFalse)])
   ], 1)
   compare_solutions(f_exp, f_sol)
 
@@ -488,6 +872,13 @@ def fun_scenarios():
   Runs all the scenarios with funs.
   """
   fun_scenario1()
+  fun_scenario2()
+  fun_scenario3()
+  fun_scenario4()
+  fun_scenario5()
+  fun_scenario6()
+  fun_scenario7()
+  fun_scenario8()
 
 if __name__ == '__main__':
   import json
