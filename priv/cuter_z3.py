@@ -68,6 +68,9 @@ class ErlangZ3:
       m.append(self.encode_parameter(p))
     return m
 
+  def encode_parameters(self):
+    return [self.encode_parameter(p) for p in self.env.params]
+
   def encode_parameter(self, p):
     x = self.env.lookup(p)
     m, erl = self.model, self.erl
@@ -146,6 +149,8 @@ class ErlangZ3:
       cc.OP_TCONS: self.tcons_toZ3,
       cc.OP_POW: self.pow_toZ3,
       cc.OP_IS_BITSTRING: self.is_bitstring_toZ3,
+      cc.OP_IS_FUN: self.is_fun_toZ3,
+      cc.OP_IS_FUN_WITH_ARITY: self.is_fun_with_arity_toZ3
     }
     
     opts_rev = {
@@ -1004,7 +1009,38 @@ class ErlangZ3:
       self.erl.atmTrue,
       self.erl.atmFalse
     ))
-  
+
+  def is_fun_toZ3(self, tResult, tFun):
+    """
+    Is the term a fun?
+    """
+    T, atmTrue, atmFalse = self.erl.Term, self.erl.atmTrue, self.erl.atmFalse
+    sResult = tResult["s"]
+    sFun = self.decode_term(tFun)
+    self.env.bind(sResult, If(
+      T.is_fun(sFun),
+      atmTrue,
+      atmFalse
+    ))
+
+  def is_fun_with_arity_toZ3(self, tResult, tFun, tArity):
+    """
+    Is the term a fun with a certain arity?
+    """
+    T, atmTrue, atmFalse, arity = self.erl.Term, self.erl.atmTrue, self.erl.atmFalse, self.erl.arity
+    sResult = tResult["s"]
+    sFun = self.decode_term(tFun)
+    sArity = self.decode_term(tArity)
+    self.env.bind(sResult, If(
+      And([
+        T.is_fun(sFun),
+        T.is_int(sArity),
+        arity(T.fval(sFun)) == T.ival(sArity)
+      ]),
+      atmTrue,
+      atmFalse
+    ))
+
   # ----------------------------------------------------------------------
   # Arithmetic operations
   # ----------------------------------------------------------------------

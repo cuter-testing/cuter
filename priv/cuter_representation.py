@@ -89,8 +89,9 @@ class TermEncoder:
   def parseFmap(self, model, handle):
     if model is None or handle is None or model[handle] is None:
       return None
+    # The default value with be the default fun and not simplify(defn[-1])
     defn = model[handle].as_list()
-    fmap = defaultdict(lambda: simplify(defn[-1]))
+    fmap = defaultdict(lambda: None)
     for x in defn[:-1]:
       fmap[simplify(x[0]).as_long()] = simplify(x[1])
     return fmap
@@ -175,7 +176,7 @@ class TermEncoder:
     idx = simplify(n).as_long()
     # In case the solver randomly select a solution to be a fun
     # without fmap existing in the model
-    if self.fmap is None:
+    if self.fmap is None or self.fmap[idx] is None:
       return self.defaultFun()
     arity = self.arity[idx]
     defn = self.getArrayDecl(self.fmap[idx], self.erl.List).as_list()

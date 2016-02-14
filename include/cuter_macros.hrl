@@ -59,13 +59,6 @@
 -define(USE_SPECS, ok).
 
 %%====================================================================
-%% Solver Responses
-%%====================================================================
-
--define(RSP_MODEL_DELIMITER_START, <<"model_start">>).
--define(RSP_MODEL_DELIMITER_END, <<"model_end">>).
-
-%%====================================================================
 %% OpCodes for types in JSON objects
 %%====================================================================
 
@@ -150,6 +143,8 @@
 -define(OP_IS_BOOLEAN, 32).
 -define(OP_IS_NUMBER, 33).
 -define(OP_IS_BITSTRING, 67).
+-define(OP_IS_FUN, 69).
+-define(OP_IS_FUN_WITH_ARITY, 70).
 %% Arithmetic operations.
 -define(OP_PLUS, 34).
 -define(OP_MINUS, 35).
@@ -207,16 +202,18 @@
                  , { {cuter_erlang, basic_eq,           2}, ?OP_EQUAL         }
                  , { {bogus_erlang, cons,               2}, ?OP_CONS          }
                    %% Actual erlang BIFs
-                 , { {erlang, is_integer,    1}, ?OP_IS_INTEGER    }
-                 , { {erlang, is_atom,       1}, ?OP_IS_ATOM       }
-                 , { {erlang, is_boolean,    1}, ?OP_IS_BOOLEAN    }
-                 , { {erlang, is_float,      1}, ?OP_IS_FLOAT      }
-                 , { {erlang, is_list,       1}, ?OP_IS_LIST       }
-                 , { {erlang, is_tuple,      1}, ?OP_IS_TUPLE      }
-                 , { {erlang, is_number,     1}, ?OP_IS_NUMBER     }
-                 , { {erlang, '-',           1}, ?OP_UNARY         }
-                 , { {math, pow,             2}, ?OP_POW           }
-                 , { {erlang, is_bitstring,  1}, ?OP_IS_BITSTRING  }
+                 , { {erlang, is_integer,    1}, ?OP_IS_INTEGER        }
+                 , { {erlang, is_atom,       1}, ?OP_IS_ATOM           }
+                 , { {erlang, is_boolean,    1}, ?OP_IS_BOOLEAN        }
+                 , { {erlang, is_float,      1}, ?OP_IS_FLOAT          }
+                 , { {erlang, is_list,       1}, ?OP_IS_LIST           }
+                 , { {erlang, is_tuple,      1}, ?OP_IS_TUPLE          }
+                 , { {erlang, is_number,     1}, ?OP_IS_NUMBER         }
+                 , { {erlang, '-',           1}, ?OP_UNARY             }
+                 , { {math, pow,             2}, ?OP_POW               }
+                 , { {erlang, is_bitstring,  1}, ?OP_IS_BITSTRING      }
+                 , { {erlang, is_function,   1}, ?OP_IS_FUN            }
+                 , { {erlang, is_function,   2}, ?OP_IS_FUN_WITH_ARITY }
                  ])).
 
 %% All the MFAs that are supported for symbolic evaluation.

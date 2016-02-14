@@ -408,7 +408,14 @@ def print_cmd(tp, tag, json_data, rev):
     xs = json_data["a"]
     pprint([
       "LAMBDA",
-      "%s = apply(%s, [ %s ]) " % (pretty(xs[0]), pretty(xs[1]), pretty(xs[2]))
+      "%s = apply(%s, [ %s ]) " % (pretty(xs[0]), pretty(xs[1]), pretty_list(xs[2:]))
+    ], tag)
+  # Is Function
+  elif tp == cc.OP_IS_FUN_WITH_ARITY:
+    xs = json_data["a"]
+    pprint([
+      "IS FUNCTION WITH ARITY",
+      "%s = is_function(%s, %s) " % (pretty(xs[0]), pretty(xs[1]), pretty(xs[2]))
     ], tag)
   else:
     print "UNKNOWN OPCODE", tp

@@ -13,9 +13,9 @@ class ErlangPort:
   
   # Receive a command from Erlang
   def receive(self):
-    x = self.chan_in.read(2)
-    if (len(x) == 2):
-      sz = struct.unpack('!h', x)[0]
+    x = self.chan_in.read(4)
+    if (len(x) == 4):
+      sz = struct.unpack('!i', x)[0]
       return self.chan_in.read(sz)
   
   # Send data to Erlang
@@ -25,7 +25,7 @@ class ErlangPort:
     else:
       try:
         sz = len(data)
-        x = struct.pack('!h', sz)
+        x = struct.pack('!i', sz)
         self.chan_out.write(x)
         return self.chan_out.write(data)
       except:
@@ -65,7 +65,7 @@ def decode_get_model(erlport, erlz3, cmd):
   md = erlz3.model
   enc = erlz3.encode_model()
   erlport.send(cc.RSP_MODEL_DELIMITER_START)
-  erlport.send(str(md))
+#  erlport.send(str(md))
   for s, v in enc:
     erlport.send(str(json.dumps(s, sort_keys=True)))
     erlport.send(str(json.dumps(v, sort_keys=True)))
