@@ -13,7 +13,7 @@
 -type result()   :: {any(), any()}.
 -type class()    :: error | exit | throw.
 -type eval()     :: {named, module(), atom()}
-                  | {lambda, function()}
+                  | {lambda, function(), function() | cuter_symbolic:symbolic()}
                   | {letrec_func, {atom(), atom(), cerl:c_fun(), function()}}.
 -type value()    :: any().
 
@@ -24,7 +24,20 @@
 }).
 -type valuelist() :: #valuelist{}.
 
+%% ----------------------------------------------------------------------------
+%% Types and macros used for storing the information of applying a lambda
+%% that has a symbolic value.
+%% ----------------------------------------------------------------------------
 -define(WHITELIST_PREFIX, '__whitelisted_mfas').
+-define(LAMBDA_APP_KEY, '__lambda_app_key').
+-define(LAMBDA_APP, '__lambda_app').
+
+-record(?LAMBDA_APP, {
+  svar  :: cuter_symbolic:symbolic(),
+  arity :: arity(),
+  tag   :: cuter_cerl:tag()
+}).
+-type lambda_app() :: #?LAMBDA_APP{}.
 
 %% -------------------------------------------------------------------
 %% Wrapper exported function that spawns an interpreter process 
@@ -44,12 +57,15 @@ i(M, F, As, Servers) ->
       cuter_iserver:send_mapping(Root, Mapping),
       NMF = {named, M, F},
       try
-        Ret = eval(NMF, As, SymbAs, external, Servers, Fd),
+        CompiledAs = cuter_json:compile_lambdas_in_args(As),
+        Ret = eval(NMF, CompiledAs, SymbAs, external, Servers, Fd),
         cuter_iserver:int_return(Root, Ret)
       catch
         throw:Throw -> throw(Throw);
         exit:Exit -> exit(Exit);
-        error:Error -> error(Error)
+        error:Error ->
+          check_if_lambda_app(Fd, Error),
+          error(Error)
       after
         cuter_log:close_file(Fd)
       end
@@ -86,16 +102,16 @@ eval({named, erlang, F}, CAs, SAs, _CallType, Servers, Fd) when F =:= spawn; F =
   ChildP =
     case CAs of
       [Fun] ->
-        [_SFun] = SAs_e,
+        [SFun] = SAs_e,
         %% Constraint: SFun=Fun
-        EvalAs = [{lambda, Fun}, [], [], local, Servers],
+        EvalAs = [{lambda, Fun, SFun}, [], [], local, Servers],
         Child = subscribe_and_apply(Servers#svs.monitor, self(), EvalAs, Rf),
         erlang:F(Child);
       [Node, Fun] ->
-        [_SNode, _SFun] = SAs_e,
+        [_SNode, SFun] = SAs_e,
         %% Constraints: SNode=Node, SFun=Fun
         NSvs = cuter_monitor:node_servers(Servers#svs.monitor, Node),
-        EvalAs = [{lambda, Fun}, [], [], local, NSvs],
+        EvalAs = [{lambda, Fun, SFun}, [], [], local, NSvs],
         Child = subscribe_and_apply(NSvs#svs.monitor, self(), EvalAs, Rf),
         erlang:F(Node, Child);
       [Mod, Fun, Args] ->
@@ -130,9 +146,9 @@ eval({named, erlang, spawn_monitor}, CAs, SAs, _CallType, Servers, Fd) ->
   EvalAs =
     case CAs of
       [Fun] ->
-        [_SFun] = SAs_e,
+        [SFun] = SAs_e,
         %% Constraint: SFun=Fun
-        [{lambda, Fun}, [], [], local, Servers];
+        [{lambda, Fun, SFun}, [], [], local, Servers];
       [Mod, Fun, Args] ->
         [_SMod, _SFun, SArgs] = SAs_e,
         %% Constraints: SMod = Mod, SFun=Fun
@@ -157,16 +173,16 @@ eval({named, erlang, spawn_opt}, CAs, SAs, _CallType, Servers, Fd) ->
   R =
     case CAs of
       [Fun, Opts] ->
-        [_SFun, _SOpts] = SAs_e,
+        [SFun, _SOpts] = SAs_e,
         %% Constraints: SFun=Fun, SOpts=Opts
-        EvalAs = [{lambda, Fun}, [], [], local, Servers],
+        EvalAs = [{lambda, Fun, SFun}, [], [], local, Servers],
         Child = subscribe_and_apply(Servers#svs.monitor, self(), EvalAs, Rf),
         erlang:spawn_opt(Child, Opts);
       [Node, Fun, Opts] ->
-        [_SNode, _SFun, _SOpts] = SAs_e,
+        [_SNode, SFun, _SOpts] = SAs_e,
         %% Constraints: SNode=Node, SFun=Fun, SOpts=Opts
         NSVs = cuter_monitor:node_servers(Servers#svs.monitor, Node),
-        EvalAs = [{lambda, Fun}, [], [], local, NSVs],
+        EvalAs = [{lambda, Fun, SFun}, [], [], local, NSVs],
         Child = subscribe_and_apply(NSVs#svs.monitor, self(), EvalAs, Rf),
         erlang:spawn_opt(Node, Child, Opts);
       [Mod, Fun, Args, Opts] ->
@@ -367,9 +383,9 @@ eval({named, erlang, apply}, CAs, SAs, _CallType, Servers, Fd) ->
   SAs_e = cuter_symbolic:ensure_list(SAs, Arity, Fd),
   case CAs of
     [Fun, Args] ->
-      [_SFun, SArgs] = SAs_e,
+      [SFun, SArgs] = SAs_e,
       %% Constraint: Fun=SFun
-      eval({lambda, Fun}, Args, SArgs, local, Servers, Fd);
+      eval({lambda, Fun, SFun}, Args, SArgs, local, Servers, Fd);
     [M, F, Args] ->
       [_SMod, _SFun, SArgs] = SAs_e,
       %% Constraints: SMod = M, SFun=F
@@ -399,10 +415,20 @@ eval({named, M, F}, CAs_b, SAs_b, CallType, Servers, Fd) ->
   end;
 
 %% Handle a Closure
-eval({lambda, Closure}, CAs, SAs, _CallType, _Servers, Fd) ->
-  SAs_e = cuter_symbolic:ensure_list(SAs, length(CAs), Fd),
+eval({lambda, Closure, ClosureSymb}, CAs, SAs, _CallType, _Servers, Fd) ->
+  Arity = length(CAs),
+  SAs_e = cuter_symbolic:ensure_list(SAs, Arity, Fd),
   ZAs = zip_args(CAs, SAs_e),
-  apply(Closure, ZAs);
+  case cuter_symbolic:is_symbolic(ClosureSymb) of
+    false ->
+      apply(Closure, ZAs);
+    true ->
+      store_lambda_app(ClosureSymb, Arity),
+      Cv = apply(Closure, CAs),
+      erase_lambda_app(),
+      R = cuter_symbolic:evaluate_lambda(ClosureSymb, SAs_e, Fd),
+      {Cv, R}
+  end;
 
 %% Handle a function bound in a letrec expression
 eval({letrec_func, {M, _F, Def, E}}, CAs, SAs, _CallType, Servers, Fd) ->
@@ -422,7 +448,7 @@ eval({letrec_func, {M, _F, Def, E}}, CAs, SAs, _CallType, Servers, Fd) ->
 
 %% c_apply
 eval_expr({c_apply, _Anno, Op, Args}, M, Cenv, Senv, Servers, Fd) ->
-  {Op_c, _Op_s} = eval_expr(Op, M, Cenv, Senv, Servers, Fd),
+  {Op_c, Op_s} = eval_expr(Op, M, Cenv, Senv, Servers, Fd),
   Fun = 
     fun(A) ->
       {A_c, A_s} = eval_expr(A, M, Cenv, Senv, Servers, Fd),
@@ -450,7 +476,7 @@ eval_expr({c_apply, _Anno, Op, Args}, M, Cenv, Senv, Servers, Fd) ->
       eval({letrec_func, {Mod, Func, Def, E}}, CAs, SAs, local, Servers, Fd);
     Closure ->
       %% Constraint OP_s = OP_c (in case closure is made by make_fun)
-      eval({lambda, Closure}, CAs, SAs, local, Servers, Fd)
+      eval({lambda, Closure, Op_s}, CAs, SAs, local, Servers, Fd)
   end;
 
 %% c_binary
@@ -521,6 +547,7 @@ eval_expr({c_catch, _Anno, Body}, M, Cenv, Senv, Servers, Fd) ->
       %% It refers to the interpreter process's stacktrace
       %% Used for internal debugging
       {Cv, Sv} = unzip_one(Error),
+      check_if_lambda_app(Fd, Cv),
       Stacktrace = erlang:get_stacktrace(),
       {{'EXIT', {Cv, Stacktrace}}, {'EXIT', {Sv, Stacktrace}}}
   end;
@@ -642,6 +669,11 @@ eval_expr({c_try, _Anno, Arg, Vars, Body, Evars, Handler}, M, Cenv, Senv, Server
   catch
     Class:Reason ->
       {Cv, Sv} = unzip_one(Reason),
+      case Class of
+        error ->
+          check_if_lambda_app(Fd, Cv);
+        _ -> ok
+      end,
       {Cs, Ss} =
         case length(Evars) of
           3 -> {[Class, Cv, Class], [Class, Sv, Class]};
@@ -1687,3 +1719,59 @@ log_literal_match_failure_rec(Fd, Lit, Sv, Tag) when is_tuple(Lit), is_tuple(Sv)
   log_literal_match_failure(Fd, Xs, Ys, Tag);
 log_literal_match_failure_rec(Fd, Lit, Sv, Tag) ->
   cuter_log:log_equal(Fd, false, Lit, Sv, Tag).
+
+%% ----------------------------------------------------------------------------
+%% Before applying a lambda function with a symbolic representation, we store
+%% this call in the process dictionary.
+%% If this application fails with a badfun error, then it means that the term
+%% we assumed to be a lambda of the correct arity, was not.
+%% Therefore, we record this mismatch as a constraint.
+%% ----------------------------------------------------------------------------
+
+%% It is called when a runtime error occurs of type {badfun, arity()}.
+%% Checks if the error happened from the application of a lambda function
+%% that has a symbolic value.
+-spec check_if_lambda_app(file:io_device(), any()) -> ok.
+check_if_lambda_app(Fd, {badfun, _N}) ->
+  case has_lambda_app() of
+    false -> ok;
+    {true, LambdaApp} ->
+      cuter_log:log_not_lambda_with_arity(Fd, lamba_app_fun(LambdaApp),
+        lamba_app_arity(LambdaApp), lamba_app_tag(LambdaApp)),
+      erase_lambda_app(),
+      ok
+  end;
+check_if_lambda_app(_Fd, _Error) -> ok.
+
+-spec store_lambda_app(cuter_symbolic:symbolic(), arity()) -> ok.
+store_lambda_app(SVar, Arity) ->
+  put(?LAMBDA_APP_KEY, mk_lambda_app(SVar, Arity)),
+  ok.
+
+-spec has_lambda_app() -> {true, lambda_app()} | false.
+has_lambda_app() ->
+  case get(?LAMBDA_APP_KEY) of
+    undefined -> false;
+    Val -> {true, Val}
+  end.
+
+-spec erase_lambda_app() -> ok.
+erase_lambda_app() ->
+  erase(?LAMBDA_APP_KEY),
+  ok.
+
+-spec lamba_app_fun(lambda_app()) -> cuter_symbolic:symbolic().
+lamba_app_fun(LambdaApp) ->
+  LambdaApp#?LAMBDA_APP.svar.
+
+-spec lamba_app_arity(lambda_app()) -> arity().
+lamba_app_arity(LambdaApp) ->
+  LambdaApp#?LAMBDA_APP.arity.
+
+-spec lamba_app_tag(lambda_app()) -> cuter_cerl:tag().
+lamba_app_tag(LambdaApp) ->
+  LambdaApp#?LAMBDA_APP.tag.
+
+-spec mk_lambda_app(cuter_symbolic:symbolic(), arity()) -> lambda_app().
+mk_lambda_app(SVar, Arity) ->
+  #?LAMBDA_APP{svar = SVar, arity = Arity, tag = cuter_cerl:empty_tag()}.

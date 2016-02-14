@@ -4,7 +4,8 @@
 
 -export([command_to_json/2, json_to_command/1, term_to_json/1, json_to_term/1, encode_port_command/2]).
 %% MFAs concerning the representation of lambdas.
--export([mk_lambda/3, is_lambda/1, compile_lambda/1, lambda_arity/1, lambda_kvs/1, lambda_default/1]).
+-export([mk_lambda/3, is_lambda/1, compile_lambda/1, lambda_arity/1, lambda_kvs/1, lambda_default/1,
+         compile_lambdas_in_args/1]).
 
 -export_type([lambda/0]).
 
@@ -925,6 +926,16 @@ lambda_kvs(T) ->
 lambda_default(T) ->
   true = is_lambda(T),
   T#?lambda.default.
+
+-spec compile_lambdas_in_args([any()]) -> [any()].
+compile_lambdas_in_args(Args) ->
+  [ensure_compiled_value(A) || A <- Args].
+
+ensure_compiled_value(V) ->
+  case is_lambda(V) of
+    true  -> compile_lambda(V);
+    false -> V
+  end.
 
 -spec compile_lambda(lambda()) -> function().
 compile_lambda(T) ->

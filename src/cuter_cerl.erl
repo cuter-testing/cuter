@@ -301,6 +301,7 @@ annotate(Tree, TagGen, InPats) ->
       Pat = annotate(cerl:alias_pat(Tree), TagGen, InPats),
       cerl:update_c_alias(Tree, Var, Pat);
     'apply' ->
+      % TODO Annotate applications for lambda terms.
       Op = annotate(cerl:apply_op(Tree), TagGen, InPats),
       Args = annotate_all(cerl:apply_args(Tree), TagGen, InPats),
       cerl:update_c_apply(Tree, Op, Args);

@@ -52,6 +52,8 @@
 -define(SOLVER_STATUS_UNSAT, <<"unsat">>).
 -define(SOLVER_STATUS_TIMEOUT, <<"timeout">>).
 -define(SOLVER_STATUS_UNKNOWN, <<"unknown">>).
+-define(RSP_MODEL_DELIMITER_START, <<"model_start">>).
+-define(RSP_MODEL_DELIMITER_END, <<"model_end">>).
 
 -type solver_status() :: binary().
 
@@ -434,7 +436,7 @@ idle(Event, Data) ->
 -spec idle(any(), from(), fsm_state()) -> {reply, ok, python_started, fsm_state()} | err_sync().
 %% Open a port by executing an external program
 idle({exec, Command}, _From, Data) ->
-  Port = open_port({spawn, Command}, [{packet, 2}, binary, hide]),
+  Port = open_port({spawn, Command}, [{packet, 4}, binary, hide]),
   cuter_pp:fsm_started(Port),
   {reply, ok, python_started, Data#fsm_state{port = Port}};
 idle(Event, _From, Data) ->

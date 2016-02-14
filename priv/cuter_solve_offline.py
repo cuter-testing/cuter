@@ -33,6 +33,7 @@ def solve(fname, n, printConstraints, withPrint):
   if slv == "sat":
     m = erlz3.model
     if withPrint: print m
+    ps = erlz3.encode_parameters()
     return (slv, str(m))
 
 def usage():

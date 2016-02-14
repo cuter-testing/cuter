@@ -1,0 +1,4 @@
+Testing funs:f3/3 ...
+=== INPUTS THAT LEAD TO RUNTIME ERRORS ===
+#1 funs:f3(2, 0, 1)
+#2 funs:f3({'__lambda',1,[{[5],17},{[0],4},{[4],42},{[2],5}],17}, 0, 2)
