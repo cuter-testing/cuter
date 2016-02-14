@@ -93,6 +93,7 @@ class ErlangZ3:
   def command_toZ3(self, tp, json_data, rev):
     opts_normal = {
       # Constraints
+      cc.OP_LAMBDA: self.lambda_toZ3,
       cc.OP_GUARD_TRUE: self.guard_true_toZ3,
       cc.OP_GUARD_FALSE: self.guard_false_toZ3,
       cc.OP_MATCH_EQUAL_TRUE: self.match_equal_toZ3,
@@ -112,7 +113,6 @@ class ErlangZ3:
       # Other important commands
       cc.OP_PARAMS: self.params_toZ3,
       cc.OP_SPEC: self.spec_toZ3,
-      cc.OP_LAMBDA: self.lambda_toZ3,
       cc.OP_UNFOLD_TUPLE: self.unfold_tuple_toZ3,
       cc.OP_UNFOLD_LIST: self.unfold_list_toZ3,
       cc.OP_MAKE_BITSTR: self.make_bitstr_toZ3,
@@ -155,6 +155,7 @@ class ErlangZ3:
     
     opts_rev = {
       # Constraints
+      cc.OP_LAMBDA: self.lambda_toZ3_RV,
       cc.OP_GUARD_TRUE: self.guard_false_toZ3,
       cc.OP_GUARD_FALSE: self.guard_true_toZ3,
       cc.OP_MATCH_EQUAL_TRUE: self.match_not_equal_toZ3,
@@ -171,6 +172,7 @@ class ErlangZ3:
       cc.OP_BITMATCH_CONST_FALSE: self.bitmatch_const_false_toZ3_RV,
       cc.OP_BITMATCH_VAR_TRUE: self.bitmatch_var_true_toZ3_RV,
       cc.OP_BITMATCH_VAR_FALSE: self.bitmatch_var_false_toZ3_RV,
+      cc.OP_NOT_LAMBDA_WITH_ARITY: self.not_lambda_with_arity_toZ3_RV,
       # Erlang BIFs
       cc.OP_HD: self.hd_toZ3_RV,
       cc.OP_TL: self.tl_toZ3_RV,
@@ -182,7 +184,22 @@ class ErlangZ3:
   # ----------------------------------------------------------------------
   # Constraints
   # ----------------------------------------------------------------------
-  
+
+  def lambda_toZ3(self, *args):
+    erl = self.erl
+    T, L, arity, fmap = erl.Term, erl.List, erl.arity, erl.fmap
+    tResult, tFun, tArgs = args[0], args[1], args[2:]
+    sResult = self.env.freshVar(tResult["s"], T)
+    sFun = self.decode_term(tFun)
+    sArgs = L.nil
+    for t in reversed(tArgs):
+      sArgs = L.cons(self.decode_term(t), sArgs)
+    self.axs.extend([
+      T.is_fun(sFun),
+      arity(T.fval(sFun)) == len(tArgs),
+      fmap(T.fval(sFun))[sArgs] == sResult
+    ])
+
   # Guard True
   def guard_true_toZ3(self, term):
     t = self.decode_term(term)
@@ -380,7 +397,16 @@ class ErlangZ3:
     self.axs.append(Not(And(*axs)))
   
   ### Reversed ###
-  
+
+  def lambda_toZ3_RV(self, *args):
+    erl = self.erl
+    T, arity = erl.Term, erl.arity
+    tFun, tArgs = args[1], args[2:]
+    sFun = self.decode_term(tFun)
+    # TODO Add that the fun may be of the wrong arity as well.
+    # And(T.is_fun(sFun), arity(T.fval(sFun)) != len(tArgs))
+    self.axs.append(T.is_fun(sFun) == False)
+
   # NonEmpty List (Reversed)
   def list_nonempty_toZ3_RV(self, term):
     t = self.decode_term(term)
@@ -453,7 +479,19 @@ class ErlangZ3:
       self.axs.append(self.erl.List.is_cons(t))
       t = self.erl.List.tl(t)
     self.axs.append(t == self.erl.List.nil)
-  
+
+  # Not a lambda with arity (reversed)
+  def not_lambda_with_arity_toZ3_RV(self, tFun, tArity):
+    erl = self.erl
+    T, arity, = erl.Term, erl.arity
+    sFun = self.decode_term(tFun)
+    sArity = self.decode_term(tArity)
+    self.axs.extend([
+      T.is_fun(sFun),
+      T.is_int(sArity),
+      arity(T.fval(sFun)) == T.ival(sArity)
+    ])
+
   # Empty bitstring
   def empty_bitstr_toZ3_RV(self, term):
     T, B = self.erl.Term, self.erl.BitStr
@@ -727,21 +765,6 @@ class ErlangZ3:
   # ----------------------------------------------------------------------
   # Other Important Commands
   # ----------------------------------------------------------------------
-
-  def lambda_toZ3(self, *args):
-    erl = self.erl
-    T, L, arity, fmap = erl.Term, erl.List, erl.arity, erl.fmap
-    tResult, tFun, tArgs = args[0], args[1], args[2:]
-    sResult = self.env.freshVar(tResult["s"], T)
-    sFun = self.decode_term(tFun)
-    sArgs = L.nil
-    for t in reversed(tArgs):
-      sArgs = L.cons(self.decode_term(t), sArgs)
-    self.axs.extend([
-      T.is_fun(sFun),
-      arity(T.fval(sFun)) == len(tArgs),
-      fmap(T.fval(sFun))[sArgs] == sResult
-    ])
 
   # Entry Point MFA's symbolic parameters
   def params_toZ3(self, *args):

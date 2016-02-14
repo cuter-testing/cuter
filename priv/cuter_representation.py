@@ -79,7 +79,7 @@ class TermEncoder:
 
   def parseArity(self, model, handle):
     if model is None or handle is None or model[handle] is None:
-      return None
+      return defaultdict(lambda: 1)
     defn = model[handle].as_list()
     arity = defaultdict(lambda: simplify(defn[-1]).as_long())
     for x in defn[:-1]:
@@ -176,9 +176,9 @@ class TermEncoder:
     idx = simplify(n).as_long()
     # In case the solver randomly select a solution to be a fun
     # without fmap existing in the model
-    if self.fmap is None or self.fmap[idx] is None:
-      return self.defaultFun()
     arity = self.arity[idx]
+    if self.fmap is None or self.fmap[idx] is None:
+      return self.defaultFun(arity)
     defn = self.getArrayDecl(self.fmap[idx], self.erl.List).as_list()
     default = self.encodeDefault(defn[-1])
     kvs = [self.encodeKVPair(args, val) for [args, val] in defn[0:-1]]
@@ -196,9 +196,9 @@ class TermEncoder:
     T, L = self.erl.Term, self.erl.List
     return self.encode(T.tpl(L.cons(val, L.nil)))
 
-  def defaultFun(self):
+  def defaultFun(self, arity):
     default = self.encodeDefault(self.erl.Term.int(0))
-    return {"t": cc.JSON_TYPE_FUN, "v": [default], "x": 1}
+    return {"t": cc.JSON_TYPE_FUN, "v": [default], "x": arity}
 
 class TermDecoder:
   """
@@ -869,7 +869,7 @@ def fun_scenario9():
   encoder = TermEncoder(erl, m, fmap, arity)
   x_sol, f_sol = [encoder.encode(m[v]) for v in [x, f]]
   # Create the result
-  f_exp = encoder.defaultFun()
+  f_exp = encoder.defaultFun(1)
   compare_solutions(f_exp, f_sol)
 
 def fun_scenarios():

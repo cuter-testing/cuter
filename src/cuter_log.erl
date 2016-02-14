@@ -37,6 +37,7 @@
   , log_bitmatch_var_false/4
   , log_bitsize_not_equal/3
   , log_bitsize_equal/3
+  , log_not_lambda_with_arity/4
 ]).
 
 -export_type([opcode/0]).
@@ -249,6 +250,11 @@ log_list(Fd, not_lst, Sv, Tag) ->
     true  -> log(Fd, ?OP_LIST_NOT_LST, cuter_cerl:id_of_tag(Tag), [Sv])
   end.
 
+%% Not a lambda with arity.
+-spec log_not_lambda_with_arity(file:io_device(), cuter_symbolic:symbolic(), arity(), cuter_cerl:tag()) -> ok.
+log_not_lambda_with_arity(Fd, FunS, Arity, Tag) ->
+  log(Fd, ?OP_NOT_LAMBDA_WITH_ARITY, cuter_cerl:id_of_tag(Tag), [FunS, Arity]).
+
 %% ------------------------------------------------------------------
 %% Logging Function
 %% ------------------------------------------------------------------
@@ -281,6 +287,7 @@ mfa2op(MFA) ->
 %% Maps commands to their type
 %% (True constraint | False constraint | Everything else)
 -spec entry_type(opcode()) -> entry_type().
+entry_type(?OP_LAMBDA)  -> ?CONSTRAINT_TRUE;
 entry_type(?OP_GUARD_TRUE)  -> ?CONSTRAINT_TRUE;
 entry_type(?OP_GUARD_FALSE) -> ?CONSTRAINT_FALSE;
 entry_type(?OP_MATCH_EQUAL_TRUE)  -> ?CONSTRAINT_TRUE;
@@ -293,10 +300,11 @@ entry_type(?OP_LIST_EMPTY)     -> ?CONSTRAINT_FALSE;
 entry_type(?OP_LIST_NOT_LST)   -> ?CONSTRAINT_FALSE;
 entry_type(?OP_EMPTY_BITSTR)   -> ?CONSTRAINT_FALSE;
 entry_type(?OP_NONEMPTY_BITSTR) -> ?CONSTRAINT_TRUE;
-entry_type(?OP_BITMATCH_CONST_TRUE)  -> ?CONSTRAINT_TRUE;
-entry_type(?OP_BITMATCH_CONST_FALSE) -> ?CONSTRAINT_FALSE;
-entry_type(?OP_BITMATCH_VAR_TRUE)  -> ?CONSTRAINT_TRUE;
-entry_type(?OP_BITMATCH_VAR_FALSE) -> ?CONSTRAINT_FALSE;
+entry_type(?OP_BITMATCH_CONST_TRUE)   -> ?CONSTRAINT_TRUE;
+entry_type(?OP_BITMATCH_CONST_FALSE)  -> ?CONSTRAINT_FALSE;
+entry_type(?OP_BITMATCH_VAR_TRUE)     -> ?CONSTRAINT_TRUE;
+entry_type(?OP_BITMATCH_VAR_FALSE)    -> ?CONSTRAINT_FALSE;
+entry_type(?OP_NOT_LAMBDA_WITH_ARITY) -> ?CONSTRAINT_FALSE;
 entry_type(_) -> ?NOT_CONSTRAINT.
 
 %% Reduce the counter that controls the logging of constraints.

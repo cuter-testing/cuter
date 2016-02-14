@@ -89,7 +89,8 @@ FTEST_MODULES = \
 	otp_int \
 	complex_spec \
 	no_debug_info \
-	collection
+	collection \
+	funs
 
 PRIV_MODULES = \
 	cuter_io \
