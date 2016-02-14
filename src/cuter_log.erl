@@ -13,6 +13,7 @@
   , log_make_tuple/3
   , log_make_bitstring/4
   , log_mfa/4
+  , log_lambda/4
   , log_message_consumed/3
   , log_message_received/3
   , log_message_sent/3
@@ -57,7 +58,7 @@ close_file(Fd) ->
   ok = file:close(Fd).
 
 %% ------------------------------------------------------------------
-%% Log a symbolic MFA operation
+%% Log symbolic MFA & lambda applications
 %% ------------------------------------------------------------------
 
 -spec log_mfa(file:io_device(), mfa(), [any()], cuter_symbolic:symbolic()) -> ok.
@@ -65,6 +66,10 @@ log_mfa(Fd, MFA, SAs, X) ->
   %% SAs has at least one symbolic argument 
   %% as ensured by cuter_sumbolic:evaluate_mfa/4
   log(Fd, mfa2op(MFA), ?EMPTY_TAG_ID, [X | SAs]).
+
+-spec log_lambda(file:io_device(), cuter_symbolic:symbolic(), [any()], cuter_symbolic:symbolic()) -> ok.
+log_lambda(Fd, FunS, ArgsS, ResultS) ->
+  log(Fd, ?OP_LAMBDA, ?EMPTY_TAG_ID, [ResultS, FunS | ArgsS]).
 
 %% ------------------------------------------------------------------
 %% Log Entry Point MFA's parameters & spec

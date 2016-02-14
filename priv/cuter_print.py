@@ -403,6 +403,13 @@ def print_cmd(tp, tag, json_data, rev):
       "CONS",
       "%s = [ %s | %s ] " % (pretty(xs[0]), pretty(xs[1]), pretty(xs[2]))
     ], tag)
+  # Fun App
+  elif tp == cc.OP_LAMBDA:
+    xs = json_data["a"]
+    pprint([
+      "LAMBDA",
+      "%s = apply(%s, [ %s ]) " % (pretty(xs[0]), pretty(xs[1]), pretty(xs[2]))
+    ], tag)
   else:
     print "UNKNOWN OPCODE", tp
     xs = json_data["a"]

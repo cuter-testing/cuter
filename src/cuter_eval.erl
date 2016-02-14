@@ -13,7 +13,7 @@
 -type result()   :: {any(), any()}.
 -type class()    :: error | exit | throw.
 -type eval()     :: {named, module(), atom()}
-                  | {lambda, function()}
+                  | {lambda, function(), function() | cuter_symbolic:symbolic()}
                   | {letrec_func, {atom(), atom(), cerl:c_fun(), function()}}.
 -type value()    :: any().
 
@@ -44,7 +44,8 @@ i(M, F, As, Servers) ->
       cuter_iserver:send_mapping(Root, Mapping),
       NMF = {named, M, F},
       try
-        Ret = eval(NMF, As, SymbAs, external, Servers, Fd),
+        CompiledAs = cuter_json:compile_lambdas_in_args(As),
+        Ret = eval(NMF, CompiledAs, SymbAs, external, Servers, Fd),
         cuter_iserver:int_return(Root, Ret)
       catch
         throw:Throw -> throw(Throw);
@@ -86,16 +87,16 @@ eval({named, erlang, F}, CAs, SAs, _CallType, Servers, Fd) when F =:= spawn; F =
   ChildP =
     case CAs of
       [Fun] ->
-        [_SFun] = SAs_e,
+        [SFun] = SAs_e,
         %% Constraint: SFun=Fun
-        EvalAs = [{lambda, Fun}, [], [], local, Servers],
+        EvalAs = [{lambda, Fun, SFun}, [], [], local, Servers],
         Child = subscribe_and_apply(Servers#svs.monitor, self(), EvalAs, Rf),
         erlang:F(Child);
       [Node, Fun] ->
-        [_SNode, _SFun] = SAs_e,
+        [_SNode, SFun] = SAs_e,
         %% Constraints: SNode=Node, SFun=Fun
         NSvs = cuter_monitor:node_servers(Servers#svs.monitor, Node),
-        EvalAs = [{lambda, Fun}, [], [], local, NSvs],
+        EvalAs = [{lambda, Fun, SFun}, [], [], local, NSvs],
         Child = subscribe_and_apply(NSvs#svs.monitor, self(), EvalAs, Rf),
         erlang:F(Node, Child);
       [Mod, Fun, Args] ->
@@ -130,9 +131,9 @@ eval({named, erlang, spawn_monitor}, CAs, SAs, _CallType, Servers, Fd) ->
   EvalAs =
     case CAs of
       [Fun] ->
-        [_SFun] = SAs_e,
+        [SFun] = SAs_e,
         %% Constraint: SFun=Fun
-        [{lambda, Fun}, [], [], local, Servers];
+        [{lambda, Fun, SFun}, [], [], local, Servers];
       [Mod, Fun, Args] ->
         [_SMod, _SFun, SArgs] = SAs_e,
         %% Constraints: SMod = Mod, SFun=Fun
@@ -157,16 +158,16 @@ eval({named, erlang, spawn_opt}, CAs, SAs, _CallType, Servers, Fd) ->
   R =
     case CAs of
       [Fun, Opts] ->
-        [_SFun, _SOpts] = SAs_e,
+        [SFun, _SOpts] = SAs_e,
         %% Constraints: SFun=Fun, SOpts=Opts
-        EvalAs = [{lambda, Fun}, [], [], local, Servers],
+        EvalAs = [{lambda, Fun, SFun}, [], [], local, Servers],
         Child = subscribe_and_apply(Servers#svs.monitor, self(), EvalAs, Rf),
         erlang:spawn_opt(Child, Opts);
       [Node, Fun, Opts] ->
-        [_SNode, _SFun, _SOpts] = SAs_e,
+        [_SNode, SFun, _SOpts] = SAs_e,
         %% Constraints: SNode=Node, SFun=Fun, SOpts=Opts
         NSVs = cuter_monitor:node_servers(Servers#svs.monitor, Node),
-        EvalAs = [{lambda, Fun}, [], [], local, NSVs],
+        EvalAs = [{lambda, Fun, SFun}, [], [], local, NSVs],
         Child = subscribe_and_apply(NSVs#svs.monitor, self(), EvalAs, Rf),
         erlang:spawn_opt(Node, Child, Opts);
       [Mod, Fun, Args, Opts] ->
@@ -367,9 +368,9 @@ eval({named, erlang, apply}, CAs, SAs, _CallType, Servers, Fd) ->
   SAs_e = cuter_symbolic:ensure_list(SAs, Arity, Fd),
   case CAs of
     [Fun, Args] ->
-      [_SFun, SArgs] = SAs_e,
+      [SFun, SArgs] = SAs_e,
       %% Constraint: Fun=SFun
-      eval({lambda, Fun}, Args, SArgs, local, Servers, Fd);
+      eval({lambda, Fun, SFun}, Args, SArgs, local, Servers, Fd);
     [M, F, Args] ->
       [_SMod, _SFun, SArgs] = SAs_e,
       %% Constraints: SMod = M, SFun=F
@@ -399,10 +400,16 @@ eval({named, M, F}, CAs_b, SAs_b, CallType, Servers, Fd) ->
   end;
 
 %% Handle a Closure
-eval({lambda, Closure}, CAs, SAs, _CallType, _Servers, Fd) ->
+eval({lambda, Closure, ClosureSymb}, CAs, SAs, _CallType, _Servers, Fd) ->
   SAs_e = cuter_symbolic:ensure_list(SAs, length(CAs), Fd),
   ZAs = zip_args(CAs, SAs_e),
-  apply(Closure, ZAs);
+  case cuter_symbolic:is_symbolic(ClosureSymb) of
+    false ->
+      apply(Closure, ZAs);
+    true ->
+      R = cuter_symbolic:evaluate_lambda(ClosureSymb, SAs_e, Fd),
+      {apply(Closure, CAs), R}
+  end;
 
 %% Handle a function bound in a letrec expression
 eval({letrec_func, {M, _F, Def, E}}, CAs, SAs, _CallType, Servers, Fd) ->
@@ -422,7 +429,7 @@ eval({letrec_func, {M, _F, Def, E}}, CAs, SAs, _CallType, Servers, Fd) ->
 
 %% c_apply
 eval_expr({c_apply, _Anno, Op, Args}, M, Cenv, Senv, Servers, Fd) ->
-  {Op_c, _Op_s} = eval_expr(Op, M, Cenv, Senv, Servers, Fd),
+  {Op_c, Op_s} = eval_expr(Op, M, Cenv, Senv, Servers, Fd),
   Fun = 
     fun(A) ->
       {A_c, A_s} = eval_expr(A, M, Cenv, Senv, Servers, Fd),
@@ -450,7 +457,7 @@ eval_expr({c_apply, _Anno, Op, Args}, M, Cenv, Senv, Servers, Fd) ->
       eval({letrec_func, {Mod, Func, Def, E}}, CAs, SAs, local, Servers, Fd);
     Closure ->
       %% Constraint OP_s = OP_c (in case closure is made by make_fun)
-      eval({lambda, Closure}, CAs, SAs, local, Servers, Fd)
+      eval({lambda, Closure, Op_s}, CAs, SAs, local, Servers, Fd)
   end;
 
 %% c_binary

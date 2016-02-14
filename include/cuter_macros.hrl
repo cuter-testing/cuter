@@ -113,6 +113,8 @@
 %% MFA's Parameters & Spec definitions.
 -define(OP_PARAMS, 1).
 -define(OP_SPEC, 2).
+%% Lambda application.
+-define(OP_LAMBDA, 68).
 %% Constraints.
 -define(OP_GUARD_TRUE, 3).
 -define(OP_GUARD_FALSE, 4).

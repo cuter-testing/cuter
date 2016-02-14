@@ -15,59 +15,12 @@ class Erlang:
   def __init__(self):
     # Define the representation
     self.Term, self.List, self.Atom, self.BitStr = self.create_representation()
+    self.fmap = Function('fmap', IntSort(), ArraySort(self.List, self.Term))
+    self.arity = Function('arity', IntSort(), IntSort())
     # Define the boolean values.
     decoder = TermDecoder(self, cenv.Env())
     self.atmTrue = decoder.decode(json.loads("{\"t\": 3, \"v\": [116,114,117,101]}"), {})
     self.atmFalse = decoder.decode(json.loads("{\"t\": 3, \"v\": [102,97,108,115,101]}"), {})
-
-  def create_representation(self):
-    Term = Datatype('Term')
-    List = Datatype('List')
-    Tuple = Datatype('Tuple')
-    Atom = Datatype('Atom')
-    BitStr = Datatype('BitStr')
-    # Term
-    Term.declare('int', ('ival', IntSort()))
-    Term.declare('real', ('rval', RealSort()))
-    Term.declare('lst', ('lval', List))
-    Term.declare('tpl', ('tval', List))
-    Term.declare('atm', ('aval', Atom))
-    Term.declare('bin', ('bsz', IntSort()), ('bval', BitStr))
-    # List
-    List.declare('nil')
-    List.declare('cons', ('hd', Term), ('tl', List))
-    # Atom
-    Atom.declare('anil')
-    Atom.declare('acons', ('ahd', IntSort()), ('atl', Atom))
-    # Bitstring
-    BitStr.declare('bnil')
-    BitStr.declare('bcons', ('bhd', BitVecSort(1)), ('btl', BitStr))
-    # Return Datatypes
-    return CreateDatatypes(Term, List, Atom, BitStr)
-
-  def encode(self, z3Term):
-    """
-    Encode a Z3 term to an Erlang JSON term.
-    """
-    encoder = TermEncoder(self)
-    return encoder.encode(z3Term)
-
-  def encodeSymbolic(self, symbString):
-    """
-    Encode a symbolic parameter.
-    """
-    encoder = TermEncoder(self)
-    return encoder.toSymbolic(symbString)
-
-class ErlangExt(Erlang):
-  """
-  Erlang's Type System with funs.
-  """
-  def __init__(self):
-    # Override the representation
-    Erlang.__init__(self)
-    self.fmap = Function('fmap', IntSort(), ArraySort(self.List, self.Term))
-    self.arity = Function('arity', IntSort(), IntSort())
 
   def create_representation(self):
     Term = Datatype('Term')
@@ -94,6 +47,21 @@ class ErlangExt(Erlang):
     BitStr.declare('bcons', ('bhd', BitVecSort(1)), ('btl', BitStr))
     # Return Datatypes
     return CreateDatatypes(Term, List, Atom, BitStr)
+
+  def encode(self, z3Term, model):
+    """
+    Encode a Z3 term to an Erlang JSON term.
+    """
+    encoder = TermEncoder(self, model, self.fmap, self.arity)
+    return encoder.encode(z3Term)
+
+  def encodeSymbolic(self, symbString):
+    """
+    Encode a symbolic parameter.
+    """
+    encoder = TermEncoder(self)
+    return encoder.toSymbolic(symbString)
+
 
 # #############################################################################
 # Encode / Decode terms.
@@ -362,7 +330,7 @@ def test_encoder():
     )
   ]
   for x, y in terms:
-    z = erl.encode(x)
+    z = erl.encode(x, None)
     assert z == y, "Encoded {} is not {} but {}".format(x, y, z)
 
 def test_decoder_simple():
@@ -478,7 +446,7 @@ def fun_scenario1():
     f(3) = 42
     f(10) = 17
   """
-  erl = ErlangExt()
+  erl = Erlang()
   T, L, fmap, arity = erl.Term, erl.List, erl.fmap, erl.arity
   # Create the model
   slv = Solver()
@@ -525,7 +493,7 @@ def fun_scenario2():
     f(x) = 42
     f(y) = 10
   """
-  erl = ErlangExt()
+  erl = Erlang()
   T, L, fmap, arity = erl.Term, erl.List, erl.fmap, erl.arity
   # Create the model
   slv = Solver()
@@ -576,7 +544,7 @@ def fun_scenario3():
     t2 = f(y)
     f(t2) = 17
   """
-  erl = ErlangExt()
+  erl = Erlang()
   T, L, fmap, arity = erl.Term, erl.List, erl.fmap, erl.arity
   # Create the model
   slv = Solver()
@@ -626,7 +594,7 @@ def fun_scenario4():
     t1 = f(x)
     t1(y) = 42
   """
-  erl = ErlangExt()
+  erl = Erlang()
   T, L, fmap, arity = erl.Term, erl.List, erl.fmap, erl.arity
   # Create the model
   slv = Solver()
@@ -681,7 +649,7 @@ def fun_scenario5():
     f(x, y, z) = 42
     f(z, y, x) = 17
   """
-  erl = ErlangExt()
+  erl = Erlang()
   T, L, fmap, arity = erl.Term, erl.List, erl.fmap, erl.arity
   # Create the model
   slv = Solver()
@@ -723,7 +691,7 @@ def fun_scenario6():
     t2 = t1(42)
     t3 = t2(42)
   """
-  erl = ErlangExt()
+  erl = Erlang()
   T, L, fmap, arity = erl.Term, erl.List, erl.fmap, erl.arity
   # Create the model
   slv = Solver()
@@ -783,7 +751,7 @@ def fun_scenario7():
     l2 = []
     f(h2, t1) = 42
   """
-  erl = ErlangExt()
+  erl = Erlang()
   T, L, fmap, arity = erl.Term, erl.List, erl.fmap, erl.arity
   # Create the model
   slv = Solver()
@@ -839,7 +807,7 @@ def fun_scenario8():
     f(h2) = false
     l2 = []
   """
-  erl = ErlangExt()
+  erl = Erlang()
   T, L, fmap, arity, atmFalse = erl.Term, erl.List, erl.fmap, erl.arity, erl.atmFalse
   # Create the model
   slv = Solver()
@@ -884,7 +852,7 @@ def fun_scenario9():
   ERLANG CODE
   TRACE
   """
-  erl = ErlangExt()
+  erl = Erlang()
   T, L, fmap, arity = erl.Term, erl.List, erl.fmap, erl.arity
   # Create the model
   slv = Solver()

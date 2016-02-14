@@ -70,13 +70,13 @@ class ErlangZ3:
 
   def encode_parameter(self, p):
     x = self.env.lookup(p)
-    v = self.model[x]
-    erl = self.erl
+    m, erl = self.model, self.erl
+    v = m[x]
     symb = erl.encodeSymbolic(p)
     if (v is None):
       return symb, {"t": cc.JSON_TYPE_ANY}
     else:
-      return symb, erl.encode(v)
+      return symb, erl.encode(v, m)
 
   def decode_term(self, jdata):
     td = crp.TermDecoder(self.erl, self.env)
@@ -109,6 +109,7 @@ class ErlangZ3:
       # Other important commands
       cc.OP_PARAMS: self.params_toZ3,
       cc.OP_SPEC: self.spec_toZ3,
+      cc.OP_LAMBDA: self.lambda_toZ3,
       cc.OP_UNFOLD_TUPLE: self.unfold_tuple_toZ3,
       cc.OP_UNFOLD_LIST: self.unfold_list_toZ3,
       cc.OP_MAKE_BITSTR: self.make_bitstr_toZ3,
@@ -721,7 +722,22 @@ class ErlangZ3:
   # ----------------------------------------------------------------------
   # Other Important Commands
   # ----------------------------------------------------------------------
-  
+
+  def lambda_toZ3(self, *args):
+    erl = self.erl
+    T, L, arity, fmap = erl.Term, erl.List, erl.arity, erl.fmap
+    tResult, tFun, tArgs = args[0], args[1], args[2:]
+    sResult = self.env.freshVar(tResult["s"], T)
+    sFun = self.decode_term(tFun)
+    sArgs = L.nil
+    for t in reversed(tArgs):
+      sArgs = L.cons(self.decode_term(t), sArgs)
+    self.axs.extend([
+      T.is_fun(sFun),
+      arity(T.fval(sFun)) == len(tArgs),
+      fmap(T.fval(sFun))[sArgs] == sResult
+    ])
+
   # Entry Point MFA's symbolic parameters
   def params_toZ3(self, *args):
     e = self.env
