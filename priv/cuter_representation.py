@@ -185,7 +185,11 @@ class TermEncoder:
     # TODO What will happen if the arity is 0?
     # default = self.encodeDefault(defn[-1])
     kvs = [self.encodeKVPair(args, val) for [args, val] in defn[0:-1]]
-    return {"t": cc.JSON_TYPE_FUN, "v": kvs, "x": arity}
+    # Do not add the arity.
+    # It will be deducted from the number of the arguments of the
+    # first input.
+    # return {"t": cc.JSON_TYPE_FUN, "v": kvs, "x": arity}
+    return {"t": cc.JSON_TYPE_FUN, "v": kvs}
 
   def getArrayDecl(self, asArray, DomType):
     m = self.model
@@ -413,7 +417,9 @@ def mk_tuple(xs):
   return {"t": cc.JSON_TYPE_TUPLE, "v": xs}
 
 def mk_fun(xs, ar):
-  return {"t": cc.JSON_TYPE_FUN, "v": xs, "x": ar}
+  # Ignore the arity.
+  # return {"t": cc.JSON_TYPE_FUN, "v": xs, "x": ar}
+  return {"t": cc.JSON_TYPE_FUN, "v": xs}
 
 def compare_solutions(solExpected, solFound):
   deep_compare(solExpected, solFound)

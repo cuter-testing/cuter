@@ -630,6 +630,8 @@ decode_fun(JSON, Dec=#decoder{state = value_next_or_end}) ->
       case trim_whitespace(Rest) of
         <<$,, RestTrm/binary>> ->
           decode_fun(RestTrm, Dec#decoder{state = arity});
+        <<$\}, _/binary>> ->
+          {mk_lambda(Dec#decoder.acc), Rest};
         _ ->
           parse_error(parse_error, Dec)
       end;
@@ -891,6 +893,9 @@ encode_bitstring(<<B:1, Rest/bitstring>>, Bits) ->
 %% We need to keep them in a form that allows pretty printing and compilation
 %% to actual lambdas when needed.
 %% ============================================================================
+
+mk_lambda([{Args1, _} | _] = L) ->
+  mk_lambda(length(Args1), L).
 
 mk_lambda(Arity, L) ->
   None = no_default_value_found,
