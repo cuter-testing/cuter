@@ -893,8 +893,21 @@ encode_bitstring(<<B:1, Rest/bitstring>>, Bits) ->
 %% ============================================================================
 
 mk_lambda(Arity, L) ->
-  {KVs, Default} = mk_lambda_repr(L, [], ok),
-  mk_lambda(KVs, Default, Arity).
+  None = no_default_value_found,
+  case mk_lambda_repr(L, [], None) of
+    %% This should never occur.
+    {[], None} ->
+      mk_lambda([], ok, Arity);
+    %% Funs with just one element in their inputs will be
+    %% transformed into constant functions.
+    {[{_Args1, V1}], _Default} ->
+      mk_lambda([], V1, Arity);
+    {KVs, None} ->
+      {_Args1, V1} = hd(KVs),
+      mk_lambda(KVs, V1, Arity);
+    {KVs, Default} ->
+      mk_lambda(KVs, Default, Arity)
+  end.
 
 mk_lambda_repr([], KVs, Default) ->
   {KVs, Default};

@@ -1,5 +1,5 @@
 Testing funs:f41/3 ...
 === Inputs That Lead to Runtime Errors ===
 #1 funs:f41(2, 0, 1)
-#2 funs:f41(fun(0) -> 4; (_) -> 4 end, 0, 2)
-#3 funs:f41(fun(0) -> fun(2) -> 42; (_) -> 42 end; (_) -> fun(2) -> 42; (_) -> 42 end end, 0, 2)
+#2 funs:f41(fun(_) -> 4 end, 0, 2)
+#3 funs:f41(fun(_) -> fun(_) -> 42 end end, 0, 2)

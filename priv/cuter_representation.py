@@ -180,9 +180,12 @@ class TermEncoder:
     if self.fmap is None or self.fmap[idx] is None:
       return self.defaultFun(arity)
     defn = self.getArrayDecl(self.fmap[idx], self.erl.List).as_list()
-    default = self.encodeDefault(defn[-1])
+    # Do not add the defaut value.
+    # It will be selected as the value of the first input.
+    # TODO What will happen if the arity is 0?
+    # default = self.encodeDefault(defn[-1])
     kvs = [self.encodeKVPair(args, val) for [args, val] in defn[0:-1]]
-    return {"t": cc.JSON_TYPE_FUN, "v": kvs + [default], "x": arity}
+    return {"t": cc.JSON_TYPE_FUN, "v": kvs, "x": arity}
 
   def getArrayDecl(self, asArray, DomType):
     m = self.model
@@ -467,8 +470,7 @@ def fun_scenario1():
   # Create the result
   f_exp = mk_fun([
     mk_tuple([ mk_list([mk_int(3)]),  mk_int(42) ]),
-    mk_tuple([ mk_list([mk_int(10)]), mk_int(17) ]),
-    mk_tuple([mk_int(42)])
+    mk_tuple([ mk_list([mk_int(10)]), mk_int(17) ])
   ], 1)
   compare_solutions(f_exp, f_sol)
 
@@ -516,8 +518,7 @@ def fun_scenario2():
   # Create the result
   f_exp = mk_fun([
     mk_tuple([ mk_list([x_sol]), mk_int(42) ]),
-    mk_tuple([ mk_list([y_sol]), mk_int(10) ]),
-    mk_tuple([mk_int(42)])
+    mk_tuple([ mk_list([y_sol]), mk_int(10) ])
   ], 1)
   compare_solutions(f_exp, f_sol)
 
@@ -571,8 +572,7 @@ def fun_scenario3():
     mk_tuple([ mk_list([x_sol]),     mk_int(4)  ]),
     mk_tuple([ mk_list([mk_int(4)]), mk_int(42) ]),
     mk_tuple([ mk_list([y_sol]),     mk_int(5)  ]),
-    mk_tuple([ mk_list([mk_int(5)]), mk_int(17) ]),
-    mk_tuple([mk_int(4)])
+    mk_tuple([ mk_list([mk_int(5)]), mk_int(17) ])
   ], 1)
   compare_solutions(f_exp, f_sol)
 
@@ -618,12 +618,10 @@ def fun_scenario4():
   x_sol, y_sol, f_sol = [encoder.encode(m[v]) for v in [x, y, f]]
   # Create the result
   t1_exp = mk_fun([
-    mk_tuple([ mk_list([y_sol]), mk_int(42) ]),
-    mk_tuple([mk_int(42)])
+    mk_tuple([ mk_list([y_sol]), mk_int(42) ])
   ], 1)
   f_exp = mk_fun([
-    mk_tuple([ mk_list([x_sol]), t1_exp  ]),
-    mk_tuple([t1_exp])
+    mk_tuple([ mk_list([x_sol]), t1_exp  ])
   ], 1)
   compare_solutions(f_exp, f_sol)
 
@@ -673,8 +671,7 @@ def fun_scenario5():
   # Create the result
   f_exp = mk_fun([
     mk_tuple([ mk_list([x_sol, y_sol, z_sol]), mk_int(42) ]),
-    mk_tuple([ mk_list([z_sol, y_sol, x_sol]), mk_int(17) ]),
-    mk_tuple([mk_int(17)])
+    mk_tuple([ mk_list([z_sol, y_sol, x_sol]), mk_int(17) ])
   ], 3)
   compare_solutions(f_exp, f_sol)
 
@@ -719,16 +716,13 @@ def fun_scenario6():
   f_sol = encoder.encode(m[f])
   # Create the result
   t2_exp = mk_fun([
-    mk_tuple([ mk_list([mk_int(42)]), mk_int(42) ]),
-    mk_tuple([mk_int(42)])
+    mk_tuple([ mk_list([mk_int(42)]), mk_int(42) ])
   ], 1)
   t1_exp = mk_fun([
-    mk_tuple([ mk_list([mk_int(42)]), t2_exp ]),
-    mk_tuple([t2_exp])
+    mk_tuple([ mk_list([mk_int(42)]), t2_exp ])
   ], 1)
   f_exp = mk_fun([
-    mk_tuple([ mk_list([mk_int(42)]), t1_exp ]),
-    mk_tuple([t1_exp])
+    mk_tuple([ mk_list([mk_int(42)]), t1_exp ])
   ], 1)
   compare_solutions(f_exp, f_sol)
 
@@ -785,8 +779,7 @@ def fun_scenario7():
   # Create the result
   f_exp = mk_fun([
     mk_tuple([ mk_list([l_sol["v"][0], mk_int(0)]), mk_int(4)  ]),
-    mk_tuple([ mk_list([l_sol["v"][1], mk_int(4)]), mk_int(42) ]),
-    mk_tuple([mk_int(4)])
+    mk_tuple([ mk_list([l_sol["v"][1], mk_int(4)]), mk_int(42) ])
   ], 2)
   compare_solutions(f_exp, f_sol)
 
@@ -840,8 +833,7 @@ def fun_scenario8():
   # Create the result
   f_exp = mk_fun([
     mk_tuple([ mk_list([l_sol["v"][0]]), encoder.encode(atmFalse) ]),
-    mk_tuple([ mk_list([l_sol["v"][1]]), encoder.encode(atmFalse) ]),
-    mk_tuple([encoder.encode(atmFalse)])
+    mk_tuple([ mk_list([l_sol["v"][1]]), encoder.encode(atmFalse) ])
   ], 1)
   compare_solutions(f_exp, f_sol)
 
