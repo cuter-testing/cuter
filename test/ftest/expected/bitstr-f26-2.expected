@@ -1,4 +1,4 @@
 Testing bitstr:f26/2 ...
-=== INPUTS THAT LEAD TO RUNTIME ERRORS ===
+=== Inputs That Lead to Runtime Errors ===
 #1 bitstr:f26(<<"*">>, 8)
 #2 bitstr:f26(<<42:6>>, 6)

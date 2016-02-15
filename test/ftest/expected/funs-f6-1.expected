@@ -1,4 +1,4 @@
 Testing funs:f6/1 ...
-=== INPUTS THAT LEAD TO RUNTIME ERRORS ===
+=== Inputs That Lead to Runtime Errors ===
 #1 funs:f6(42)
 #2 funs:f6(fun(42) -> 42; (_) -> 42 end)

@@ -219,6 +219,3 @@
 
 %% All the MFAs that are supported for symbolic evaluation.
 -define(SUPPORTED_MFAS, gb_sets:from_list(dict:fetch_keys(?OPCODE_MAPPING))).
-
--define(UNSUPPORTED_MFAS,
-  gb_sets:from_list([ {cuter_erlang, unsupported_lt, 2} ])).

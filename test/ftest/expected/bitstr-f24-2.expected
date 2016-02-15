@@ -1,4 +1,4 @@
 Testing bitstr:f24/2 ...
-=== INPUTS THAT LEAD TO RUNTIME ERRORS ===
+=== Inputs That Lead to Runtime Errors ===
 #1 bitstr:f24(<<42:6>>, 6)
 #2 bitstr:f24(<<42:6>>, 6)

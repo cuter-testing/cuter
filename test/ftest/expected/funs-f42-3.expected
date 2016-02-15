@@ -1,5 +1,5 @@
 Testing funs:f42/3 ...
-=== INPUTS THAT LEAD TO RUNTIME ERRORS ===
+=== Inputs That Lead to Runtime Errors ===
 #1 funs:f42(fun(0) -> 4; (_) -> 4 end, 0, 2)
 #2 funs:f42(fun(0) -> {4, 5}; (_) -> {4, 5} end, 0, 2)
 #3 funs:f42(fun(0) -> fun(2) -> 42; (_) -> 42 end; (_) -> fun(2) -> 42; (_) -> 42 end end, 0, 2)
