@@ -1,6 +1,6 @@
 Testing funs:f8/2 ...
 === INPUTS THAT LEAD TO RUNTIME ERRORS ===
 #1 funs:f8(3, [])
-#2 funs:f8({'__lambda',1,[],0}, [])
-#3 funs:f8({'__lambda',1,[{[2],3}],3}, [2])
-#4 funs:f8({'__lambda',1,[{[2],false}],false}, [2])
+#2 funs:f8(fun(_) -> 0 end, [])
+#3 funs:f8(fun(2) -> 3; (_) -> 3 end, [2])
+#4 funs:f8(fun(2) -> false; (_) -> false end, [2])

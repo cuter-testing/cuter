@@ -80,6 +80,7 @@ UTEST_MODULES = \
 	cuter_solver_tests \
 	cuter_erlang_tests \
 	cuter_types_tests \
+	cuter_pp_tests \
 	types_and_specs \
 	types_and_specs2
 
