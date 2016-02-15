@@ -12,6 +12,7 @@
 props_test_() ->
   Props = [
     {"erlang:'<'/2 => cuter_erlang:'<'/2", prop_lt(), 2000}
+  , {"erlang:'<'/2 (bitstring) => cuter_erlang:'<'/2", prop_lt_bitstring(), 2000}
   , {"erlang:'=<'/2 => cuter_erlang:'=<'/2", prop_lteq(), 2000}
   , {"erlang:'>'/2 => cuter_erlang:'>'/2", prop_gt(), 2000}
   , {"erlang:'>='/2 => cuter_erlang:'>='/2", prop_gteq(), 2000}
@@ -27,6 +28,10 @@ props_test_() ->
 -spec prop_lt() -> proper:outer_test().
 prop_lt() ->
   ?FORALL({X,Y}, {any(),any()}, (X < Y) =:= cuter_erlang:'<'(X, Y)).
+
+-spec prop_lt_bitstring() -> proper:outer_test().
+prop_lt_bitstring() ->
+  ?FORALL({X,Y}, {bitstring(),bitstring()}, (X < Y) =:= cuter_erlang:'<'(X, Y)).
 
 -spec prop_lteq() -> proper:outer_test().
 prop_lteq() ->

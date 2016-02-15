@@ -4,7 +4,7 @@
 
 -export([simulate_behaviour/3, is_whitelisted/2, parse_whitelist/1,
          get_whitelisted_mfas/1, empty_whitelist/0, overriding_modules/0,
-         no_symbolic_evalution/1]).
+         no_symbolic_evalution/1, is_internal_without_symbolic_representation/1]).
 
 -export_type([whitelist/0]).
 
@@ -62,7 +62,7 @@ simulate_behaviour(erlang, _F, _A)        -> bif;
 %% cuter_erlang module
 simulate_behaviour(cuter_erlang, F, A) ->
   MFA = {cuter_erlang, F, A},
-  case gb_sets:is_member(MFA, ?SUPPORTED_MFAS) orelse gb_sets:is_member(MFA, ?UNSUPPORTED_MFAS) of
+  case gb_sets:is_member(MFA, ?SUPPORTED_MFAS) orelse is_internal_without_symbolic_representation(MFA) of
     true  -> bif;
     false -> {ok, MFA}
   end;
@@ -259,6 +259,19 @@ simulate_behaviour(M, F, A) ->
     true  -> bif;
     false -> {ok, Mfa}
   end.
+
+%% ----------------------------------------------------------------------------
+%% Internal MFAs without symbolic interpretation.
+%% ----------------------------------------------------------------------------
+
+%% Creates a set of MFAs that are defined in cuter_erlang in overriding some
+%% Erlang BIFs but have no symbolic interpretation (yet).
+internal_mfas_without_symbolic_representation() ->
+  gb_sets:from_list([ {cuter_erlang, unsupported_lt, 2} ]).
+
+-spec is_internal_without_symbolic_representation(mfa()) -> boolean().
+is_internal_without_symbolic_representation(MFA) ->
+  gb_sets:is_member(MFA, internal_mfas_without_symbolic_representation()).
 
 %% ----------------------------------------------------------------------------
 %% MFAs that have no meaning in being evaluated symbolically.

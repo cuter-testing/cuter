@@ -1,4 +1,4 @@
 Testing funs:f5/4 ...
-=== INPUTS THAT LEAD TO RUNTIME ERRORS ===
+=== Inputs That Lead to Runtime Errors ===
 #1 funs:f5(3, 0, 1, 2)
 #2 funs:f5(fun(2,1,0) -> 17; (0,1,2) -> 42; (_,_,_) -> 17 end, 0, 1, 2)

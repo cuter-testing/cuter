@@ -1,6 +1,6 @@
 Testing collection:h/1 ...
-=== INPUTS THAT LEAD TO RUNTIME ERRORS ===
+=== Inputs That Lead to Runtime Errors ===
 #1 collection:h(17)
 
-=== UNSUPPORTED MFAS ===
+=== BIFs Currently without Symbolic Interpretation ===
 erlang:get/1

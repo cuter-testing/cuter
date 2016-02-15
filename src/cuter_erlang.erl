@@ -615,7 +615,21 @@ lt_list([X|Xs], [Y|Ys]) ->
     false -> ?MODULE:'<'(X, Y)
   end.
 
--type t() :: atom() | bitstring() | function() | map() | maybe_improper_list()
+-spec lt_bitstring(bitstring(), bitstring()) -> boolean().
+lt_bitstring(<<>>, <<>>) ->
+  false;
+lt_bitstring(<<>>, _) ->
+  true;
+lt_bitstring(_, <<>>) ->
+  false;
+lt_bitstring(<<1:1, _/bitstring>>, <<0:1, _/bitstring>>) ->
+  false;
+lt_bitstring(<<0:1, _/bitstring>>, <<1:1, _/bitstring>>) ->
+  true;
+lt_bitstring(<<_:1, Xs/bitstring>>, <<_:1, Ys/bitstring>>) ->
+  lt_bitstring(Xs, Ys).
+
+-type t() :: atom() | function() | map() | maybe_improper_list()
            | number() | pid() | port() | reference()| tuple().
 -spec '<'(t(), any()) -> boolean().
 %% Left operand is a number.
@@ -681,10 +695,14 @@ lt_list([X|Xs], [Y|Ys]) ->
   false;
 '<'(X, _Y) when is_list(X) ->
   true;
-%% Left operand is a reference, a function, a port, a pid, a map or a bistring.
+'<'(X, Y) when is_bitstring(X), is_bitstring(Y) ->
+  lt_bitstring(X, Y);
+'<'(X, _Y) when is_bitstring(X) ->
+  false;
+%% Left operand is a reference, a function, a port, a pid, or a map.
 %% These terms are 'incomprehensible' for the solver, thus we directly call
 %% the erlang:'<'/2 operator.
-%'<'(X, Y) when is_reference(X); is_function(X); is_port(X); is_pid(X); is_map(X); is_bitstring(X) ->
+%'<'(X, Y) when is_reference(X); is_function(X); is_port(X); is_pid(X); is_map(X) ->
 '<'(X, Y) ->
   unsupported_lt(X, Y).
 

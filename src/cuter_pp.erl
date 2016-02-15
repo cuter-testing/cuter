@@ -812,9 +812,18 @@ pp_unsupported_mfas(Logs, Whitelist, false) ->
   case filter_non_reportable(UnsupportedMfas, Whitelist) of
     [] -> ok;
     Mfas ->
-      io:format("~n=== UNSUPPORTED MFAS ===~n"),
-      lists:foreach(fun pp_mfa/1, Mfas)
+      {Internal, External} =
+        lists:partition(fun cuter_mock:is_internal_without_symbolic_representation/1, Mfas),
+      io:format("~n=== BIFs Currently without Symbolic Interpretation ===~n"),
+      lists:foreach(fun pp_mfa/1, External),
+      pp_internal_unsupported(Internal)
   end.
+
+pp_internal_unsupported([]) ->
+  ok;
+pp_internal_unsupported(Mfas) ->
+  io:format("~n=== Internal BIFs Where Precision Was Lost ===~n"),
+  lists:foreach(fun pp_mfa/1, Mfas).
 
 pp_mfa({M, F, A}) ->
   io:format("~p:~p/~w~n", [M, F, A]).
@@ -875,10 +884,10 @@ pp_path_vertex_fully_verbose(Vertex) ->
 -spec pp_erroneous_inputs(cuter:erroneous_inputs(), mfa(), level()) -> ok.
 pp_erroneous_inputs([], _MFA, Level) ->
   pp_nl(true, Level =:= ?MINIMAL),
-  io:format("NO RUNTIME ERRORS OCCURED~n");
+  io:format("No Runtime Errors Occured~n");
 pp_erroneous_inputs(Errors, MFA, Level) ->
   pp_nl(true, Level =:= ?MINIMAL),
-  io:format("=== INPUTS THAT LEAD TO RUNTIME ERRORS ==="),
+  io:format("=== Inputs That Lead to Runtime Errors ==="),
   pp_erroneous_inputs_h(Errors, MFA, 1).
 
 pp_erroneous_inputs_h([], _MFA, _N) ->
