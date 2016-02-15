@@ -630,6 +630,8 @@ decode_fun(JSON, Dec=#decoder{state = value_next_or_end}) ->
       case trim_whitespace(Rest) of
         <<$,, RestTrm/binary>> ->
           decode_fun(RestTrm, Dec#decoder{state = arity});
+        <<$\}, _/binary>> ->
+          {mk_lambda(Dec#decoder.acc), Rest};
         _ ->
           parse_error(parse_error, Dec)
       end;
@@ -892,9 +894,25 @@ encode_bitstring(<<B:1, Rest/bitstring>>, Bits) ->
 %% to actual lambdas when needed.
 %% ============================================================================
 
+mk_lambda([{Args1, _} | _] = L) ->
+  mk_lambda(length(Args1), L).
+
 mk_lambda(Arity, L) ->
-  {KVs, Default} = mk_lambda_repr(L, [], ok),
-  mk_lambda(KVs, Default, Arity).
+  None = no_default_value_found,
+  case mk_lambda_repr(L, [], None) of
+    %% This should never occur.
+    {[], None} ->
+      mk_lambda([], ok, Arity);
+    %% Funs with just one element in their inputs will be
+    %% transformed into constant functions.
+    {[{_Args1, V1}], _Default} ->
+      mk_lambda([], V1, Arity);
+    {KVs, None} ->
+      {_Args1, V1} = hd(KVs),
+      mk_lambda(KVs, V1, Arity);
+    {KVs, Default} ->
+      mk_lambda(KVs, Default, Arity)
+  end.
 
 mk_lambda_repr([], KVs, Default) ->
   {KVs, Default};

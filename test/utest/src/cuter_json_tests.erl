@@ -119,6 +119,40 @@ dec_fun2_test_() ->
   Step2 = Step1(1),
   [{"Fun as return value", ?_assertEqual(2, Step2)}].
 
+-spec dec_fun_without_default_test_() -> term().
+dec_fun_without_default_test_() ->
+  Begin = "{\"t\":9,\"v\":[",
+  End = "],\"x\":1}",
+  KVs = "{\"t\": 5, \"v\": [{\"t\": 4, \"v\": [{\"t\": 1, \"v\": 3}]}, {\"t\": 1, \"v\": 42}]},"
+    ++ "{\"t\": 5, \"v\": [{\"t\": 4, \"v\": [{\"t\": 1, \"v\": 10}]}, {\"t\": 1, \"v\": 17}]}",
+  Fn = [Begin, KVs, End],
+  Json = list_to_binary(Fn),
+  Dec = cuter_json:json_to_term(Json),
+  CF = cuter_json:compile_lambda(Dec),
+  [{"Decode fun without default", [?_assertEqual(42, CF(3)), ?_assertEqual(17, CF(10)), ?_assertEqual(42, CF(4))]}].
+
+-spec dec_fun_const_test_() -> term().
+dec_fun_const_test_() ->
+  Begin = "{\"t\":9,\"v\":[",
+  End = "],\"x\":1}",
+  KVs = "{\"t\": 5, \"v\": [{\"t\": 4, \"v\": [{\"t\": 1, \"v\": 3}]}, {\"t\": 1, \"v\": 42}]}",
+  Fn = [Begin, KVs, End],
+  Json = list_to_binary(Fn),
+  Dec = cuter_json:json_to_term(Json),
+  CF = cuter_json:compile_lambda(Dec),
+  [{"Decode fun with one input", [?_assertEqual(42, CF(3)), ?_assertEqual(42, CF(10))]}].
+
+-spec dec_fun_no_arity_test_() -> term().
+dec_fun_no_arity_test_() ->
+  Begin = "{\"t\":9,\"v\":[",
+  End = "]}",
+  KVs = "{\"t\": 5, \"v\": [{\"t\": 4, \"v\": [{\"t\": 1, \"v\": 3}]}, {\"t\": 1, \"v\": 42}]}",
+  Fn = [Begin, KVs, End],
+  Json = list_to_binary(Fn),
+  Dec = cuter_json:json_to_term(Json),
+  CF = cuter_json:compile_lambda(Dec),
+  [{"Decode fun with one input", [?_assertEqual(42, CF(3)), ?_assertEqual(42, CF(10))]}].
+
 %% Encoding / Decoding Commands
 -spec encdec_cmd_test_() -> term().
 encdec_cmd_test_() ->
