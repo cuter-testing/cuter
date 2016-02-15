@@ -7,7 +7,7 @@
 -export([init/1, terminate/2, code_change/3, handle_info/2, handle_call/3, handle_cast/2]).
 -export([start/1, stop/0]).
 %% Report information about the concolic executions.
--export([mfa/1, input/2, error_retrieving_spec/2, execution_status/2,
+-export([mfa/1, input/2, error_retrieving_spec/2, execution_status/2, pp_lambda/1,
          execution_info/2, path_vertex/2, flush/1, errors_found/1,
          form_has_unsupported_type/1, invalid_ast_with_pmatch/2, code_logs/3]).
 %% Report information about solving.
@@ -719,12 +719,43 @@ pp_input_fully_verbose(Input, _MFA) ->
 
 pp_arguments([]) ->
   "()";
-pp_arguments([A|As]) ->
-  Xs = lists:foldl(
-        fun(X, Acc) -> [io_lib:format(", ~p", [X]) | Acc] end,
-        io_lib:format("~p", [A]),
-        As),
-  string:join(lists:reverse(Xs), "").
+pp_arguments(Args) ->
+  string:join([pp_argument(A) || A <- Args], ", ").
+
+pp_argument(X) ->
+  case cuter_json:is_lambda(X) of
+    true  -> pp_lambda(X);
+    false -> io_lib:format("~p", [X])
+  end.
+
+-spec pp_lambda(any()) -> string().
+pp_lambda(L) ->
+  case cuter_json:is_lambda(L) of
+    true ->
+      KVs = cuter_json:lambda_kvs(L),
+      Default = cuter_json:lambda_default(L),
+      Arity = cuter_json:lambda_arity(L),
+      ClauseList = pp_lambda_kvs(KVs) ++ [pp_lambda_default(Default, Arity)],
+      lists:flatten(["fun", string:join(ClauseList, "; "), " end"]);
+    false when is_list(L) ->
+      lists:flatten(["[", string:join([pp_lambda(X) || X <- L], ", "), "]"]);
+    false when is_tuple(L) ->
+      LL = tuple_to_list(L),
+      lists:flatten(["{", string:join([pp_lambda(X) || X <- LL], ", "), "}"]);
+    false ->
+      pp_argument(L)
+  end.
+
+pp_lambda_kvs(KVs) ->
+  [pp_lambda_kv(KV) || KV <- KVs].
+
+pp_lambda_kv({Args, Val}) ->
+  StrArgs = ["(", string:join([pp_lambda(A) || A <- Args], ","), ")"],
+  lists:flatten([StrArgs, " -> ", pp_lambda(Val)]).
+
+pp_lambda_default(X, Arity) ->
+  Args = string:join(["_" || _ <- lists:seq(1, Arity)], ","),
+  lists:flatten(["(", Args, ") -> ", pp_lambda(X)]).
 
 %% ----------------------------------------------------------------------------
 %% Report the execution logs
