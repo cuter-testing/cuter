@@ -426,8 +426,15 @@ eval({lambda, Closure, ClosureSymb}, CAs, SAs, _CallType, _Servers, Fd) ->
       store_lambda_app(ClosureSymb, Arity),
       Cv = apply(Closure, CAs),
       erase_lambda_app(),
-      R = cuter_symbolic:evaluate_lambda(ClosureSymb, SAs_e, Fd),
-      {Cv, R}
+      case is_cv_pair(Cv) of
+        false ->
+          R = cuter_symbolic:evaluate_lambda(ClosureSymb, SAs_e, Fd),
+          {Cv, R};
+        true ->
+          {_, Sv} = Cv,
+          cuter_log:log_evaluated_closure(Fd, ClosureSymb, SAs_e, Sv),
+          Cv
+      end
   end;
 
 %% Handle a function bound in a letrec expression
@@ -438,6 +445,9 @@ eval({letrec_func, {M, _F, Def, E}}, CAs, SAs, _CallType, Servers, Fd) ->
   NSenv = cuter_env:bind_parameters(SAs_e, Def#c_fun.vars, Senv),
   eval_expr(Def#c_fun.body, M, NCenv, NSenv, Servers, Fd).
 
+is_cv_pair({_, S}) ->
+  cuter_symbolic:is_symbolic(S);
+is_cv_pair(_) -> false.
 
 %% --------------------------------------------------------
 %% eval_expr
@@ -456,13 +466,11 @@ eval_expr({c_apply, _Anno, Op, Args}, M, Cenv, Senv, Servers, Fd) ->
       case A_c of
         {?FUNCTION_PREFIX, {F, Arity}} ->
           %% local func (external func is already in make_fun/3 in core erlang)
-          Clz = create_closure(M, F, Arity, local, Servers, Fd),
-          {Clz, Clz};
+          create_closure(M, F, Arity, local, Servers, Fd);
         {letrec_func, {Mod, F, Arity, Def, E}} ->
           %% letrec func
           {Ce, Se} = E(),
-          Clz = create_closure(Mod, F, Arity, {letrec_func, {Def, Ce, Se}}, Servers, Fd),
-          {Clz, Clz};
+          create_closure(Mod, F, Arity, {letrec_func, {Def, Ce, Se}}, Servers, Fd);
         _ ->
           {A_c, A_s}
       end
@@ -508,13 +516,11 @@ eval_expr({c_call, _Anno, Mod, Name, Args}, M, Cenv, Senv, Servers, Fd) ->
       case A_c of
         {?FUNCTION_PREFIX, {F, Arity}} ->
           %% local func (external func is already in make_fun/3 in core erlang)
-          Clz = create_closure(M, F, Arity, local, Servers, Fd),
-          {Clz, Clz};
+          create_closure(M, F, Arity, local, Servers, Fd);
         {letrec_func, {Mod, F, Arity, Def, E}} ->
           %% letrec func
           {Ce, Se} = E(),
-          Clz = create_closure(Mod, F, Arity, {letrec_func, {Def, Ce, Se}}, Servers, Fd),
-          {Clz, Clz};
+          create_closure(Mod, F, Arity, {letrec_func, {Def, Ce, Se}}, Servers, Fd);
         _ ->
           {A_c, A_s}
       end
@@ -565,8 +571,7 @@ eval_expr({c_cons, _Anno, Hd, Tl}, M, Cenv, Senv, Servers, Fd) ->
 %% c_fun
 eval_expr({c_fun, _Anno, Vars, Body}, M, Cenv, Senv, Servers, Fd) ->
   Arity = length(Vars),
-  Lambda = make_fun(Vars, Body, M, Arity, Cenv, Senv, Servers, Fd),
-  {Lambda, Lambda};
+  make_fun(Vars, Body, M, Arity, Cenv, Senv, Servers, Fd);
 
 %% c_let
 eval_expr({c_let, _Anno, Vars, Arg, Body}, M, Cenv, Senv, Servers, Fd) ->
@@ -1196,103 +1201,108 @@ create_closure(M, _F, Arity, {letrec_func, {Def, Cenv, Senv}}, Servers, Fd) ->
 %% The interpreted code is wrapped in a call to eval_expr.
 make_fun(Vars, Body, Mod, Arity, Cenv, Senv, Servers, Fd) ->
   Creator = self(),
-  case Arity of
-    0 ->
-      fun() ->
-        make_fun_h1(Mod, [], Servers, Vars, Body, Cenv, Senv, Creator, Fd)
-      end;
-    1 ->
-      fun(A) ->
-        Args = [A],
-        make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, Fd)
-      end;
-    2 ->
-      fun(A, B) ->
-        Args = [A, B],
-        make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, Fd)
-      end;
-    3 ->
-      fun(A, B, C) ->
-        Args = [A, B, C],
-        make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, Fd)
-      end;
-    4 ->
-      fun(A, B, C, D) ->
-        Args = [A, B, C, D],
-        make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, Fd)
-      end;
-    5 ->
-      fun(A, B, C, D, E) ->
-        Args = [A, B, C, D, E],
-        make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, Fd)
-      end;
-    6 ->
-      fun(A, B, C, D, E, F) ->
-        Args = [A, B, C, D, E, F],
-        make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, Fd)
-      end;
-    7 ->
-      fun(A, B, C, D, E, F, G) ->
-        Args = [A, B, C, D, E, F, G],
-        make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, Fd)
-      end;
-    8 ->
-      fun(A, B, C, D, E, F, G, H) ->
-        Args = [A, B, C, D, E, F, G, H],
-        make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, Fd)
-      end;
-    9 ->
-      fun(A, B, C, D, E, F, G, H, I) ->
-        Args = [A, B, C, D, E, F, G, H, I],
-        make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, Fd)
-      end;
-    10 ->
-      fun(A, B, C, D, E, F, G, H, I, J) ->
-        Args = [A, B, C, D, E, F, G, H, I, J],
-        make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, Fd)
-      end;
-    11 ->
-      fun(A, B, C, D, E, F, G, H, I, J, K) ->
-        Args = [A, B, C, D, E, F, G, H, I, J, K],
-        make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, Fd)
-      end;
-    12 ->
-      fun(A, B, C, D, E, F, G, H, I, J, K, L) ->
-        Args = [A, B, C, D, E, F, G, H, I, J, K, L],
-        make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, Fd)
-      end;
-    13 ->
-      fun(A, B, C, D, E, F, G, H, I, J, K, L, M) ->
-        Args = [A, B, C, D, E, F, G, H, I, J, K, L, M],
-        make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, Fd)
-      end;
-    14 ->
-      fun(A, B, C, D, E, F, G, H, I, J, K, L, M, N) ->
-        Args = [A, B, C, D, E, F, G, H, I, J, K, L, M, N],
-        make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, Fd)
-      end;
-    15 ->
-      fun(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O) ->
-        Args = [A, B, C, D, E, F, G, H, I, J, K, L, M, N, O],
-        make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, Fd)
-      end;
-    _ ->
-      exception(error, {over_lambda_fun_argument_limit, Arity})
-  end.
+  LambdaS = cuter_symbolic:fresh_lambda(Arity, Fd),
+  LambdaC =
+    case Arity of
+      0 ->
+        fun() ->
+          make_fun_h1(Mod, [], Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, Fd)
+        end;
+      1 ->
+        fun(A) ->
+          Args = [A],
+          make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, Fd)
+        end;
+      2 ->
+        fun(A, B) ->
+          Args = [A, B],
+          make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, Fd)
+        end;
+      3 ->
+        fun(A, B, C) ->
+          Args = [A, B, C],
+          make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, Fd)
+        end;
+      4 ->
+        fun(A, B, C, D) ->
+          Args = [A, B, C, D],
+          make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, Fd)
+        end;
+      5 ->
+        fun(A, B, C, D, E) ->
+          Args = [A, B, C, D, E],
+          make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, Fd)
+        end;
+      6 ->
+        fun(A, B, C, D, E, F) ->
+          Args = [A, B, C, D, E, F],
+          make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, Fd)
+        end;
+      7 ->
+        fun(A, B, C, D, E, F, G) ->
+          Args = [A, B, C, D, E, F, G],
+          make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, Fd)
+        end;
+      8 ->
+        fun(A, B, C, D, E, F, G, H) ->
+          Args = [A, B, C, D, E, F, G, H],
+          make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, Fd)
+        end;
+      9 ->
+        fun(A, B, C, D, E, F, G, H, I) ->
+          Args = [A, B, C, D, E, F, G, H, I],
+          make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, Fd)
+        end;
+      10 ->
+        fun(A, B, C, D, E, F, G, H, I, J) ->
+          Args = [A, B, C, D, E, F, G, H, I, J],
+          make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, Fd)
+        end;
+      11 ->
+        fun(A, B, C, D, E, F, G, H, I, J, K) ->
+          Args = [A, B, C, D, E, F, G, H, I, J, K],
+          make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, Fd)
+        end;
+      12 ->
+        fun(A, B, C, D, E, F, G, H, I, J, K, L) ->
+          Args = [A, B, C, D, E, F, G, H, I, J, K, L],
+          make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, Fd)
+        end;
+      13 ->
+        fun(A, B, C, D, E, F, G, H, I, J, K, L, M) ->
+          Args = [A, B, C, D, E, F, G, H, I, J, K, L, M],
+          make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, Fd)
+        end;
+      14 ->
+        fun(A, B, C, D, E, F, G, H, I, J, K, L, M, N) ->
+          Args = [A, B, C, D, E, F, G, H, I, J, K, L, M, N],
+          make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, Fd)
+        end;
+      15 ->
+        fun(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O) ->
+          Args = [A, B, C, D, E, F, G, H, I, J, K, L, M, N, O],
+          make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, Fd)
+        end;
+      _ ->
+        exception(error, {over_lambda_fun_argument_limit, Arity})
+    end,
+  {LambdaC, LambdaS}.
 
-make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, FileDescr) ->
-  {Ce, Se} = register_new_environments(Args, Vars, Cenv, Senv),
+make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, FileDescr) ->
+  {Ce, Se, SAs} = register_new_environments(Args, Vars, Cenv, Senv),
   NSvs = validate_servers(Servers),
   Fd = validate_file_descriptor(NSvs#svs.monitor, Creator, FileDescr),
-  eval_expr(Body, Mod, Ce, Se, NSvs, Fd).
+  {Cv, Sv} = eval_expr(Body, Mod, Ce, Se, NSvs, Fd),
+  cuter_log:log_evaluated_closure(Fd, LambdaS, SAs, Sv),
+  {Cv, Sv}.
 
 register_new_environments([], _Vars, Cenv, Senv) ->
-  {Cenv, Senv};
+  {Cenv, Senv, []};
 register_new_environments(Args, Vars, Cenv, Senv) ->
   {CAs, SAs} = unzip_args(Args),
   Ce = cuter_env:bind_parameters(CAs, Vars, Cenv),
   Se = cuter_env:bind_parameters(SAs, Vars, Senv),
-  {Ce, Se}.
+  {Ce, Se, SAs}.
 
 
 %% Creates a closure from an MFA (emulates the behaviour
@@ -1728,11 +1738,11 @@ log_literal_match_failure_rec(Fd, Lit, Sv, Tag) ->
 %% Therefore, we record this mismatch as a constraint.
 %% ----------------------------------------------------------------------------
 
-%% It is called when a runtime error occurs of type {badfun, arity()}.
+%% It is called when a runtime error occurs of type {badfun, Term}.
 %% Checks if the error happened from the application of a lambda function
 %% that has a symbolic value.
 -spec check_if_lambda_app(file:io_device(), any()) -> ok.
-check_if_lambda_app(Fd, {badfun, _N}) ->
+check_if_lambda_app(Fd, {badfun, _}) ->
   case has_lambda_app() of
     false -> ok;
     {true, LambdaApp} ->

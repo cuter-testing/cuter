@@ -109,6 +109,8 @@
 %% Lambda application.
 -define(OP_NOT_LAMBDA_WITH_ARITY, 71).
 -define(OP_LAMBDA, 68).
+-define(OP_FRESH_LAMBDA_WITH_ARITY, 72).
+-define(OP_EVALUATED_CLOSURE, 73).
 %% Constraints.
 -define(OP_GUARD_TRUE, 3).
 -define(OP_GUARD_FALSE, 4).

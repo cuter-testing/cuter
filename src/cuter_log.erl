@@ -38,6 +38,8 @@
   , log_bitsize_not_equal/3
   , log_bitsize_equal/3
   , log_not_lambda_with_arity/4
+  , log_fresh_lambda/3
+  , log_evaluated_closure/4
 ]).
 
 -export_type([opcode/0]).
@@ -71,6 +73,14 @@ log_mfa(Fd, MFA, SAs, X) ->
 -spec log_lambda(file:io_device(), cuter_symbolic:symbolic(), [any()], cuter_symbolic:symbolic()) -> ok.
 log_lambda(Fd, FunS, ArgsS, ResultS) ->
   log(Fd, ?OP_LAMBDA, ?EMPTY_TAG_ID, [ResultS, FunS | ArgsS]).
+
+-spec log_fresh_lambda(file:io_device(), cuter_symbolic:symbolic(), arity()) -> ok.
+log_fresh_lambda(Fd, FunS, Arity) ->
+  log(Fd, ?OP_FRESH_LAMBDA_WITH_ARITY, ?EMPTY_TAG_ID, [FunS, Arity]).
+
+-spec log_evaluated_closure(file:io_device(), cuter_symbolic:symbolic(), [any()], cuter_symbolic:symbolic()) -> ok.
+log_evaluated_closure(Fd, LambdaS, ArgsS, ResultS) ->
+  log(Fd, ?OP_EVALUATED_CLOSURE, ?EMPTY_TAG_ID, [ResultS, LambdaS | ArgsS]).
 
 %% ------------------------------------------------------------------
 %% Log Entry Point MFA's parameters & spec

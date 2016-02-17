@@ -8,7 +8,7 @@
   ensure_list/3, tpl_to_list/3, head/2, tail/2, cons/4, make_tuple/3,
   make_bitstring/5, match_bitstring_const_true/7, match_bitstring_var_true/7,
   non_empty_binary/2, concat_segments/3, match_bitstring_const_false/6,
-  match_bitstring_var_false/5, evaluate_lambda/3
+  match_bitstring_var_false/5, evaluate_lambda/3, fresh_lambda/2
 ]).
 
 -include("include/cuter_macros.hrl").
@@ -93,6 +93,12 @@ evaluate_supported_mfa(MFA, SAs, Fd) ->
 evaluate_lambda(LambdaSymb, SAs, Fd) ->
   X = fresh_symbolic_var(),
   cuter_log:log_lambda(Fd, LambdaSymb, SAs, X),
+  X.
+
+-spec fresh_lambda(arity(), file:io_device()) -> symbolic().
+fresh_lambda(Arity, Fd) ->
+  X = fresh_symbolic_var(),
+  cuter_log:log_fresh_lambda(Fd, X, Arity),
   X.
 
 %% =============================================================
