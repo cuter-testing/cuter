@@ -1,0 +1,5 @@
+Testing funs:f12/1 ...
+=== Inputs That Lead to Runtime Errors ===
+#1 funs:f12(1)
+#2 funs:f12(fun(_) -> 0 end)
+#3 funs:f12(fun(_) -> fun(_) -> 42 end end)

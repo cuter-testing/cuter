@@ -44,6 +44,7 @@ tests[36]="funs;f91;[1,1,1];4;-p 4 -s 4;funs-f91-3;no-whitelist"
 tests[37]="funs;f92;[1,1];4;-p 4 -s 4;funs-f92-2;no-whitelist"
 tests[38]="funs;f10;[1];4;-p 4 -s 4;funs-f10-1;no-whitelist"
 tests[39]="funs;f11;[1,1,1];4;-p 4 -s 4;funs-f11-3;no-whitelist"
+tests[39]="funs;f12;[1];4;-p 4 -s 4;funs-f12-1;no-whitelist"
 
 for element in "${tests[@]}"; do
   IFS=';' read -a t <<< "$element"
@@ -65,4 +66,3 @@ for element in "${tests[@]}"; do
   fi
 done
 exit 0
-

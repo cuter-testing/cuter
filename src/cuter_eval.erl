@@ -408,10 +408,7 @@ eval({named, erlang, make_fun}, CAs, SAs, _CallType, Servers, Fd) ->
   _ = cuter_symbolic:ensure_list(SAs, Arity, Fd),
   case CAs of
     [M, F, A] ->
-      CR = make_fun(M, F, A, Servers, Fd),
-      %% We assume that we cannot symbolically abstract the result of make_fun/3
-      %% TODO
-      mk_result(CR, CR);
+      make_fun(M, F, A, Servers, Fd);
     _ ->
       exception(error, {undef, {erlang, make_fun, Arity}})
   end;
@@ -1373,95 +1370,100 @@ register_new_environments(Args, Vars, Cenv, Senv) ->
 %% of erlang:make_fun/3) 
 make_fun(Mod, Func, Arity, Servers, Fd) ->
   Creator = self(),
-  case Arity of
-    0 ->
-      fun() ->
-        make_fun_h(Mod, Func, [], Servers, Creator, Fd)
-      end;
-    1 ->
-      fun(A) ->
-        Args = [A],
-        make_fun_h(Mod, Func, Args, Servers, Creator, Fd)
-      end;
-    2 ->
-      fun(A, B) ->
-        Args = [A, B],
-        make_fun_h(Mod, Func, Args, Servers, Creator, Fd)
-      end;
-    3 ->
-      fun(A, B, C) ->
-        Args = [A, B, C],
-        make_fun_h(Mod, Func, Args, Servers, Creator, Fd)
-      end;
-    4 ->
-      fun(A, B, C, D) ->
-        Args = [A, B, C, D],
-        make_fun_h(Mod, Func, Args, Servers, Creator, Fd)
-      end;
-    5 ->
-      fun(A, B, C, D, E) ->
-        Args = [A, B, C, D, E],
-        make_fun_h(Mod, Func, Args, Servers, Creator, Fd)
-      end;
-    6 ->
-      fun(A, B, C, D, E, F) ->
-        Args = [A, B, C, D, E, F],
-        make_fun_h(Mod, Func, Args, Servers, Creator, Fd)
-      end;
-    7 ->
-      fun(A, B, C, D, E, F, G) ->
-        Args = [A, B, C, D, E, F, G],
-        make_fun_h(Mod, Func, Args, Servers, Creator, Fd)
-      end;
-    8 ->
-      fun(A, B, C, D, E, F, G, H) ->
-        Args = [A, B, C, D, E, F, G, H],
-        make_fun_h(Mod, Func, Args, Servers, Creator, Fd)
-      end;
-    9 ->
-      fun(A, B, C, D, E, F, G, H, I) ->
-        Args = [A, B, C, D, E, F, G, H, I],
-        make_fun_h(Mod, Func, Args, Servers, Creator, Fd)
-      end;
-    10 ->
-      fun(A, B, C, D, E, F, G, H, I, J) ->
-        Args = [A, B, C, D, E, F, G, H, I, J],
-        make_fun_h(Mod, Func, Args, Servers, Creator, Fd)
-      end;
-    11 ->
-      fun(A, B, C, D, E, F, G, H, I, J, K) ->
-        Args = [A, B, C, D, E, F, G, H, I, J, K],
-        make_fun_h(Mod, Func, Args, Servers, Creator, Fd)
-      end;
-    12 ->
-      fun(A, B, C, D, E, F, G, H, I, J, K, L) ->
-        Args = [A, B, C, D, E, F, G, H, I, J, K, L],
-        make_fun_h(Mod, Func, Args, Servers, Creator, Fd)
-      end;
-    13 ->
-      fun(A, B, C, D, E, F, G, H, I, J, K, L, M) ->
-        Args = [A, B, C, D, E, F, G, H, I, J, K, L, M],
-        make_fun_h(Mod, Func, Args, Servers, Creator, Fd)
-      end;
-    14 ->
-      fun(A, B, C, D, E, F, G, H, I, J, K, L, M, N) ->
-        Args = [A, B, C, D, E, F, G, H, I, J, K, L, M, N],
-        make_fun_h(Mod, Func, Args, Servers, Creator, Fd)
-      end;
-    15 ->
-      fun(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O) ->
-        Args = [A, B, C, D, E, F, G, H, I, J, K, L, M, N, O],
-        make_fun_h(Mod, Func, Args, Servers, Creator, Fd)
-      end;
-    _ ->
-      exception(error, {over_lambda_fun_argument_limit, Arity})
-  end.
+  LambdaS = cuter_symbolic:fresh_lambda(Arity, Fd),
+  LambdaC =
+    case Arity of
+      0 ->
+        fun() ->
+          make_fun_h(Mod, Func, [], Servers, Creator, LambdaS, Fd)
+        end;
+      1 ->
+        fun(A) ->
+          Args = [A],
+          make_fun_h(Mod, Func, Args, Servers, Creator, LambdaS, Fd)
+        end;
+      2 ->
+        fun(A, B) ->
+          Args = [A, B],
+          make_fun_h(Mod, Func, Args, Servers, Creator, LambdaS, Fd)
+        end;
+      3 ->
+        fun(A, B, C) ->
+          Args = [A, B, C],
+          make_fun_h(Mod, Func, Args, Servers, Creator, LambdaS, Fd)
+        end;
+      4 ->
+        fun(A, B, C, D) ->
+          Args = [A, B, C, D],
+          make_fun_h(Mod, Func, Args, Servers, Creator, LambdaS, Fd)
+        end;
+      5 ->
+        fun(A, B, C, D, E) ->
+          Args = [A, B, C, D, E],
+          make_fun_h(Mod, Func, Args, Servers, Creator, LambdaS, Fd)
+        end;
+      6 ->
+        fun(A, B, C, D, E, F) ->
+          Args = [A, B, C, D, E, F],
+          make_fun_h(Mod, Func, Args, Servers, Creator, LambdaS, Fd)
+        end;
+      7 ->
+        fun(A, B, C, D, E, F, G) ->
+          Args = [A, B, C, D, E, F, G],
+          make_fun_h(Mod, Func, Args, Servers, Creator, LambdaS, Fd)
+        end;
+      8 ->
+        fun(A, B, C, D, E, F, G, H) ->
+          Args = [A, B, C, D, E, F, G, H],
+          make_fun_h(Mod, Func, Args, Servers, Creator, LambdaS, Fd)
+        end;
+      9 ->
+        fun(A, B, C, D, E, F, G, H, I) ->
+          Args = [A, B, C, D, E, F, G, H, I],
+          make_fun_h(Mod, Func, Args, Servers, Creator, LambdaS, Fd)
+        end;
+      10 ->
+        fun(A, B, C, D, E, F, G, H, I, J) ->
+          Args = [A, B, C, D, E, F, G, H, I, J],
+          make_fun_h(Mod, Func, Args, Servers, Creator, LambdaS, Fd)
+        end;
+      11 ->
+        fun(A, B, C, D, E, F, G, H, I, J, K) ->
+          Args = [A, B, C, D, E, F, G, H, I, J, K],
+          make_fun_h(Mod, Func, Args, Servers, Creator, LambdaS, Fd)
+        end;
+      12 ->
+        fun(A, B, C, D, E, F, G, H, I, J, K, L) ->
+          Args = [A, B, C, D, E, F, G, H, I, J, K, L],
+          make_fun_h(Mod, Func, Args, Servers, Creator, LambdaS, Fd)
+        end;
+      13 ->
+        fun(A, B, C, D, E, F, G, H, I, J, K, L, M) ->
+          Args = [A, B, C, D, E, F, G, H, I, J, K, L, M],
+          make_fun_h(Mod, Func, Args, Servers, Creator, LambdaS, Fd)
+        end;
+      14 ->
+        fun(A, B, C, D, E, F, G, H, I, J, K, L, M, N) ->
+          Args = [A, B, C, D, E, F, G, H, I, J, K, L, M, N],
+          make_fun_h(Mod, Func, Args, Servers, Creator, LambdaS, Fd)
+        end;
+      15 ->
+        fun(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O) ->
+          Args = [A, B, C, D, E, F, G, H, I, J, K, L, M, N, O],
+          make_fun_h(Mod, Func, Args, Servers, Creator, LambdaS, Fd)
+        end;
+      _ ->
+        exception(error, {over_lambda_fun_argument_limit, Arity})
+    end,
+  mk_result(LambdaC, LambdaS).
 
-make_fun_h(Mod, Func, Args, Servers, Creator, FileDescr) ->
+make_fun_h(Mod, Func, Args, Servers, Creator, LambdaS, FileDescr) ->
   {CAs, SAs} = unzip_args(Args), %% If Args =:= [] then unzip_args([]) will return {[], []}
   NSvs = validate_servers(Servers),
   Fd = validate_file_descriptor(NSvs#svs.monitor, Creator, FileDescr),
-  eval({named, Mod, Func}, CAs, SAs, external, NSvs, Fd).
+  Ret = eval({named, Mod, Func}, CAs, SAs, external, NSvs, Fd),
+  cuter_log:log_evaluated_closure(Fd, LambdaS, SAs, get_symbolic(Ret)),
+  Ret.
 
 %% --------------------------------------------------------
 %% Adjust the arguments of a function
