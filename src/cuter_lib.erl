@@ -9,7 +9,7 @@
          get_merged_tracefile/1, get_monitor_dir/1, logfile_name/2,
          clear_and_delete_dir/1, clear_and_delete_dir/2, list_dir/1,
          unique_string/0, ensure_port_or_pid/1, is_improper_list/1,
-         get_parts_of_list/1, create_improper_list/2]).
+         get_parts_of_list/1, create_improper_list/2, unzip_with/2]).
 
 
 %% Generate a unique string
@@ -118,3 +118,17 @@ get_parts_of_list(T, Acc) ->
 -spec create_improper_list(list(), any()) -> list().
 create_improper_list([], Acc) -> Acc;
 create_improper_list([H|T], Acc) -> create_improper_list(T, [H|Acc]).
+
+%% Unzips a list by
+%% 1) applying a function to each element of the list that
+%%    returns a tuple of two elements.
+%% 2) accumulates each element to two new lists.
+-spec unzip_with(fun((any()) -> {any(), any()}), list()) -> {list(), list()}.
+unzip_with(Fn, L) ->
+  unzip_with(Fn, L, [], []).
+
+unzip_with(_Fn, [], L1, L2) ->
+  {lists:reverse(L1), lists:reverse(L2)};
+unzip_with(Fn, [H|T], L1, L2) ->
+  {H1, H2} = Fn(H),
+  unzip_with(Fn, T, [H1|L1], [H2|L2]).

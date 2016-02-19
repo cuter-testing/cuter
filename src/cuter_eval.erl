@@ -3,6 +3,8 @@
 -module(cuter_eval).
 
 -export([i/4, eval/6, unzip_error/1]).
+%% The API for result().
+-export([get_concrete/1, get_symbolic/1]).
 
 -include("include/cuter_macros.hrl").
 -include_lib("compiler/src/core_parse.hrl").
@@ -10,12 +12,22 @@
 -export_type([result/0, valuelist/0, value/0]).
 
 -type calltype() :: local | external.
--type result()   :: {any(), any()}.
 -type class()    :: error | exit | throw.
 -type eval()     :: {named, module(), atom()}
                   | {lambda, function(), function() | cuter_symbolic:symbolic()}
                   | {letrec_func, {atom(), atom(), cerl:c_fun(), function()}}.
 -type value()    :: any().
+
+%% The result of the concolic execution.
+-define(RESULT, '__cresult').
+
+-type concrete() :: any().
+-type symbolic() :: any().
+-record(?RESULT, {
+  concrete :: concrete(),
+  symbolic :: symbolic()
+}).
+-type result() :: #?RESULT{}.
 
 %% Used to represent list of values for Core Erlang interpretation
 -record(valuelist, {
@@ -38,6 +50,32 @@
   tag   :: cuter_cerl:tag()
 }).
 -type lambda_app() :: #?LAMBDA_APP{}.
+
+%% -------------------------------------------------------------------
+%% API functions for result().
+%% -------------------------------------------------------------------
+
+-spec mk_result(concrete(), symbolic()) -> result().
+mk_result(Concrete, Symbolic) ->
+  #?RESULT{concrete = Concrete, symbolic = Symbolic}.
+
+-spec is_result(any()) -> boolean().
+is_result(#?RESULT{}) ->
+  true;
+is_result(_) ->
+  false.
+
+-spec get_concrete(result()) -> concrete().
+get_concrete(#?RESULT{concrete = Concrete}) ->
+  Concrete.
+
+-spec get_symbolic(result()) -> symbolic().
+get_symbolic(#?RESULT{symbolic = Symbolic}) ->
+  Symbolic.
+
+-spec to_tuple(result()) -> {concrete(), symbolic()}.
+to_tuple(#?RESULT{concrete = Concrete, symbolic = Symbolic}) ->
+  {Concrete, Symbolic}.
 
 %% -------------------------------------------------------------------
 %% Wrapper exported function that spawns an interpreter process 
@@ -135,7 +173,7 @@ eval({named, erlang, F}, CAs, SAs, _CallType, Servers, Fd) when F =:= spawn; F =
   receive
     {ChildP, registered} ->
       cuter_log:log_spawn(Fd, ChildP, Rf),
-      {ChildP, ChildP}
+      mk_result(ChildP, ChildP)
   end;
 
 %% spawn_monitor/{1,3}
@@ -162,7 +200,7 @@ eval({named, erlang, spawn_monitor}, CAs, SAs, _CallType, Servers, Fd) ->
   receive
     {ChildP, registered} ->
       cuter_log:log_spawn(Fd, ChildP, Rf),
-      {CC, CC}
+      mk_result(CC, CC)
   end;
 
 %% spawn_opt/{1,3,4,5}
@@ -211,7 +249,7 @@ eval({named, erlang, spawn_opt}, CAs, SAs, _CallType, Servers, Fd) ->
   receive
     {ChildP, registered} ->
       cuter_log:log_spawn(Fd, ChildP, Rf),
-      {R, R}
+      mk_result(R, R)
   end;
 
 %% Handle message sending primitives
@@ -232,14 +270,14 @@ eval({named, erlang, send}, CAs, SAs, _CallType, Servers, Fd) ->
       CDest = adjust_message_destination(CDest_u),
       Msg = encode_msg(Servers#svs.monitor, CDest, CMsg, SMsg, Fd),
       erlang:send(CDest, Msg),
-      {CMsg, SMsg};
+      mk_result(CMsg, SMsg);
     [CDest_u, CMsg, COpts] ->
       [_SDest, SMsg, _SOpts] = SAs_e,
       %% Constraint: CDest=SDest, COpts=SOpts
       CDest = adjust_message_destination(CDest_u),
       Msg = encode_msg(Servers#svs.monitor, CDest, CMsg, SMsg, Fd),
       R = erlang:send(CDest, Msg, COpts),
-      {R, R};
+      mk_result(R, R);
     _ ->
       exception(error, {undef, {erlang, send, Arity}})
   end;
@@ -255,7 +293,7 @@ eval({named, erlang, send_after}, CAs, SAs, _CallType, Servers, Fd) ->
       CDest = adjust_message_destination(CDest_u),
       Msg = encode_msg(Servers#svs.monitor, CDest, CMsg, SMsg, Fd),
       R = erlang:send_after(CTime, CDest, Msg),
-      {R, R};
+      mk_result(R, R);
     _ ->
       exception(error, {undef, {erlang, send_after, Arity}})
   end;
@@ -271,14 +309,14 @@ eval({named, erlang, send_nosuspend}, CAs, SAs, _CallType, Servers, Fd) ->
       CDest = adjust_message_destination(CDest_u),
       Msg = encode_msg(Servers#svs.monitor, CDest, CMsg, SMsg, Fd),
       R = erlang:send_nosuspend(CDest, Msg),
-      {R, R};
+      mk_result(R, R);
     [CDest_u, CMsg, COpts] ->
       [_SDest, SMsg, _SOpts] = SAs_e,
       %% Constraint CDest=SDest, COpts=SOpts
       CDest = adjust_message_destination(CDest_u),
       Msg = encode_msg(Servers#svs.monitor, CDest, CMsg, SMsg, Fd),
       R = erlang:send_nosuspend(CDest, Msg, COpts),
-      {R, R};
+      mk_result(R, R);
     _ ->
       exception(error, {undef, {erlang, send_nosuspend, Arity}})
   end;
@@ -325,7 +363,7 @@ eval({named, erlang, exit}, CAs, SAs, _CallType, _Servers, Fd) ->
           _ -> zip_one(CExit, SExit)
         end,
       R = erlang:exit(CDest, Exit),
-      {R, R};
+      mk_result(R, R);
     _ ->
       exception(error, {undef, {erlang, exit, Arity}})
   end;
@@ -372,7 +410,8 @@ eval({named, erlang, make_fun}, CAs, SAs, _CallType, Servers, Fd) ->
     [M, F, A] ->
       CR = make_fun(M, F, A, Servers, Fd),
       %% We assume that we cannot symbolically abstract the result of make_fun/3
-      {CR, CR};
+      %% TODO
+      mk_result(CR, CR);
     _ ->
       exception(error, {undef, {erlang, make_fun, Arity}})
   end;
@@ -426,12 +465,12 @@ eval({lambda, Closure, ClosureSymb}, CAs, SAs, _CallType, _Servers, Fd) ->
       store_lambda_app(ClosureSymb, Arity),
       Cv = apply(Closure, CAs),
       erase_lambda_app(),
-      case is_cv_pair(Cv) of
+      case is_result(Cv) of
         false ->
           R = cuter_symbolic:evaluate_lambda(ClosureSymb, SAs_e, Fd),
-          {Cv, R};
+          mk_result(Cv, R);
         true ->
-          {_, Sv} = Cv,
+          Sv = get_symbolic(Cv),
           cuter_log:log_evaluated_closure(Fd, ClosureSymb, SAs_e, Sv),
           Cv
       end
@@ -445,10 +484,6 @@ eval({letrec_func, {M, _F, Def, E}}, CAs, SAs, _CallType, Servers, Fd) ->
   NSenv = cuter_env:bind_parameters(SAs_e, Def#c_fun.vars, Senv),
   eval_expr(Def#c_fun.body, M, NCenv, NSenv, Servers, Fd).
 
-is_cv_pair({_, S}) ->
-  cuter_symbolic:is_symbolic(S);
-is_cv_pair(_) -> false.
-
 %% --------------------------------------------------------
 %% eval_expr
 %%
@@ -458,12 +493,12 @@ is_cv_pair(_) -> false.
 
 %% c_apply
 eval_expr({c_apply, _Anno, Op, Args}, M, Cenv, Senv, Servers, Fd) ->
-  {Op_c, Op_s} = eval_expr(Op, M, Cenv, Senv, Servers, Fd),
-  Fun = 
+  Op_ev = eval_expr(Op, M, Cenv, Senv, Servers, Fd),
+  Fun =
     fun(A) ->
-      {A_c, A_s} = eval_expr(A, M, Cenv, Senv, Servers, Fd),
+      A_ev = eval_expr(A, M, Cenv, Senv, Servers, Fd),
       %% Will create closures where appropriate
-      case A_c of
+      case get_concrete(A_ev) of
         {?FUNCTION_PREFIX, {F, Arity}} ->
           %% local func (external func is already in make_fun/3 in core erlang)
           create_closure(M, F, Arity, local, Servers, Fd);
@@ -472,69 +507,78 @@ eval_expr({c_apply, _Anno, Op, Args}, M, Cenv, Senv, Servers, Fd) ->
           {Ce, Se} = E(),
           create_closure(Mod, F, Arity, {letrec_func, {Def, Ce, Se}}, Servers, Fd);
         _ ->
-          {A_c, A_s}
+          A_ev
       end
     end,
   ZAs = [Fun(A) || A <- Args],
-  {CAs, SAs} = lists:unzip(ZAs),
-  case Op_c of %% See eval_expr(#c_var{}, ...) output for reference
+  {CAs, SAs} = cuter_lib:unzip_with(fun to_tuple/1, ZAs),
+  case get_concrete(Op_ev) of % See eval_expr(#c_var{}, ...) output for reference
     {?FUNCTION_PREFIX, {Func, _Arity}} ->
       eval({named, M, Func}, CAs, SAs, local, Servers, Fd);
     {letrec_func, {Mod, Func, _Arity, Def, E}} ->
       eval({letrec_func, {Mod, Func, Def, E}}, CAs, SAs, local, Servers, Fd);
     Closure ->
       %% Constraint OP_s = OP_c (in case closure is made by make_fun)
-      eval({lambda, Closure, Op_s}, CAs, SAs, local, Servers, Fd)
+      eval({lambda, Closure, get_symbolic(Op_ev)}, CAs, SAs, local, Servers, Fd)
   end;
 
 %% c_binary
 %% TODO Use the tags of segments.
 eval_expr({c_binary, _Anno, Segments}, M, Cenv, Senv, Servers, Fd) ->
   Segs = [eval_expr(S, M, Cenv, Senv, Servers, Fd) || S <- Segments],
-  {Cs, Ss} = lists:unzip(Segs),
+  {Cs, Ss} = cuter_lib:unzip_with(fun to_tuple/1, Segs),
   append_segments(Cs, Ss, Fd);
 
 %% c_bitstr
 eval_expr({c_bitstr, _Anno, Val, Size, Unit, Type, Flags}, M, Cenv, Senv, Servers, Fd) ->
-  {Cv, Sv} = eval_expr(Val, M, Cenv, Senv, Servers, Fd),
-  {Size_c, Size_s} = eval_expr(Size, M, Cenv, Senv, Servers, Fd),
-  {Unit_c, Unit_s} = eval_expr(Unit, M, Cenv, Senv, Servers, Fd),
-  {Type_c, Type_s} = eval_expr(Type, M, Cenv, Senv, Servers, Fd),
-  {Flags_c, Flags_s} = eval_expr(Flags, M, Cenv, Senv, Servers, Fd),
-  Bin_c = cuter_binlib:make_bitstring(Cv, Size_c, Unit_c, Type_c, Flags_c),
-  Bin_s = cuter_symbolic:make_bitstring(Sv, {Size_s, Unit_s, Type_s, Flags_s}, Bin_c, Size_c, Fd),
-  {Bin_c, Bin_s};
+  % Evaluate the value and the encoding.
+  Val_ev = eval_expr(Val, M, Cenv, Senv, Servers, Fd),
+  Size_ev = eval_expr(Size, M, Cenv, Senv, Servers, Fd),
+  Unit_ev = eval_expr(Unit, M, Cenv, Senv, Servers, Fd),
+  Type_ev = eval_expr(Type, M, Cenv, Senv, Servers, Fd),
+  Flags_ev = eval_expr(Flags, M, Cenv, Senv, Servers, Fd),
+  Size_c = get_concrete(Size_ev),
+  % Generate the concrete value.
+  Bin_c = cuter_binlib:make_bitstring(get_concrete(Val_ev), Size_c,
+    get_concrete(Unit_ev), get_concrete(Type_ev), get_concrete(Flags_ev)),
+  % Generate the symbolic value.
+  Encoding_s = {get_symbolic(Size_ev), get_symbolic(Unit_ev),
+    get_symbolic(Type_ev), get_symbolic(Flags_ev)},
+  Bin_s = cuter_symbolic:make_bitstring(get_symbolic(Val_ev), Encoding_s, Bin_c, Size_c, Fd),
+  % Return the result.
+  mk_result(Bin_c, Bin_s);
 
 %% c_call
 eval_expr({c_call, _Anno, Mod, Name, Args}, M, Cenv, Senv, Servers, Fd) ->
-  {Mod_c, _Mod_s} = eval_expr(Mod, M, Cenv, Senv, Servers, Fd),
-  {Fv_c, _Fv_s} = eval_expr(Name, M, Cenv, Senv, Servers, Fd),
-  Fun = 
+  Mod_ev = eval_expr(Mod, M, Cenv, Senv, Servers, Fd),
+  Fv_ev = eval_expr(Name, M, Cenv, Senv, Servers, Fd),
+  Fun =
     fun(A) ->
-      {A_c, A_s} = eval_expr(A, M, Cenv, Senv, Servers, Fd),
-      %% Will create closures where appropriate
-      case A_c of
+      A_ev = eval_expr(A, M, Cenv, Senv, Servers, Fd),
+      % Will create closures where appropriate
+      case get_concrete(A_ev) of
         {?FUNCTION_PREFIX, {F, Arity}} ->
-          %% local func (external func is already in make_fun/3 in core erlang)
+          % local func (external func is already in make_fun/3 in core erlang)
           create_closure(M, F, Arity, local, Servers, Fd);
         {letrec_func, {Mod, F, Arity, Def, E}} ->
-          %% letrec func
+          % letrec func
           {Ce, Se} = E(),
           create_closure(Mod, F, Arity, {letrec_func, {Def, Ce, Se}}, Servers, Fd);
         _ ->
-          {A_c, A_s}
+          A_ev
       end
     end,
   ZAs = [Fun(A) || A <- Args],
-  {CAs, SAs} = lists:unzip(ZAs),
-  %% Constraints Mod_c = Mod_s and Fv_c = Fv_s
-  eval({named, Mod_c, Fv_c}, CAs, SAs, find_call_type(M, Mod_c), Servers, Fd);
+  {CAs, SAs} = cuter_lib:unzip_with(fun to_tuple/1, ZAs),
+  % Constraints Mod_c = Mod_s and Fv_c = Fv_s
+  Mod_c = get_concrete(Mod_ev),
+  eval({named, Mod_c, get_concrete(Fv_ev)}, CAs, SAs, find_call_type(M, Mod_c), Servers, Fd);
 
 %% c_case
 eval_expr({c_case, _Anno, Arg, Clauses}, M, Cenv, Senv, Servers, Fd) ->
-  {Arg_c, Arg_s} = eval_expr(Arg, M, Cenv, Senv, Servers, Fd),
-  {Body, Ce, Se, _Cnt} = find_clause(Clauses, M, 'case', Arg_c, Arg_s, Cenv, Senv, Servers, Fd),
-  cuter_log:reduce_constraint_counter(),  %% Should also add this call to c_receive
+  Arg_ev = eval_expr(Arg, M, Cenv, Senv, Servers, Fd),
+  {Body, Ce, Se, _Cnt} = find_clause(Clauses, M, 'case', get_concrete(Arg_ev), get_symbolic(Arg_ev), Cenv, Senv, Servers, Fd),
+  cuter_log:reduce_constraint_counter(), % TODO Should also add this call to c_receive
   eval_expr(Body, M, Ce, Se, Servers, Fd);
 
 %% c_catch
@@ -546,27 +590,32 @@ eval_expr({c_catch, _Anno, Body}, M, Cenv, Senv, Servers, Fd) ->
     throw:Throw ->
       unzip_one(Throw);
     exit:Exit ->
-      {Cv, Sv} = unzip_one(Exit),
-      {{'EXIT', Cv}, {'EXIT', Sv}};
+      Exit1 = unzip_one(Exit),
+      Cv = {'EXIT', get_concrete(Exit1)},
+      Sv = {'EXIT', get_symbolic(Exit1)},
+      mk_result(Cv, Sv);
     error:Error ->
       %% CAUTION! Stacktrace info is not valid
       %% It refers to the interpreter process's stacktrace
       %% Used for internal debugging
-      {Cv, Sv} = unzip_one(Error),
-      check_if_lambda_app(Fd, Cv),
+      Error1 = unzip_one(Error),
+      Error1_c = get_concrete(Error1),
+      check_if_lambda_app(Fd, Error1_c),
       Stacktrace = erlang:get_stacktrace(),
-      {{'EXIT', {Cv, Stacktrace}}, {'EXIT', {Sv, Stacktrace}}}
+      Cv = {'EXIT', {Error1_c, Stacktrace}},
+      Sv = {'EXIT', {get_symbolic(Error1), Stacktrace}},
+      mk_result(Cv, Sv)
   end;
 %%eval_expr({c_catch, _Anno, Body}, M, Cenv, Senv, Servers, Fd) ->
 %%  eval_expr(Body, M, Cenv, Senv, Servers, Fd);
 
 %% c_cons
 eval_expr({c_cons, _Anno, Hd, Tl}, M, Cenv, Senv, Servers, Fd) ->
-  {Hd_c, Hd_s} = eval_expr(Hd, M, Cenv, Senv, Servers, Fd),
-  {Tl_c, Tl_s} = eval_expr(Tl, M, Cenv, Senv, Servers, Fd),
-  Cv = [Hd_c | Tl_c],
-  Sv = cuter_symbolic:cons(Hd_s, Tl_s, Cv, Fd),
-  {Cv, Sv};
+  Hd_ev = eval_expr(Hd, M, Cenv, Senv, Servers, Fd),
+  Tl_ev = eval_expr(Tl, M, Cenv, Senv, Servers, Fd),
+  Cv = [get_concrete(Hd_ev) | get_concrete(Tl_ev)],
+  Sv = cuter_symbolic:cons(get_symbolic(Hd_ev), get_symbolic(Tl_ev), Cv, Fd),
+  mk_result(Cv, Sv);
 
 %% c_fun
 eval_expr({c_fun, _Anno, Vars, Body}, M, Cenv, Senv, Servers, Fd) ->
@@ -576,7 +625,9 @@ eval_expr({c_fun, _Anno, Vars, Body}, M, Cenv, Senv, Servers, Fd) ->
 %% c_let
 eval_expr({c_let, _Anno, Vars, Arg, Body}, M, Cenv, Senv, Servers, Fd) ->
   Deg = length(Vars),
-  {Arg_c, Arg_s} = eval_expr(Arg, M, Cenv, Senv, Servers, Fd),
+  Arg_ev = eval_expr(Arg, M, Cenv, Senv, Servers, Fd),
+  Arg_c = get_concrete(Arg_ev),
+  Arg_s = get_symbolic(Arg_ev),
   case Deg of
     1 ->
       CAs = [Arg_c],
@@ -610,13 +661,13 @@ eval_expr({c_letrec, _Anno, Defs, Body}, M, Cenv, Senv, Servers, Fd) ->
 
 %% c_literal
 eval_expr({c_literal, _Anno, V}, _M, _Cenv, _Senv, _Servers, _Fd) ->
-  {V, V};
+  mk_result(V, V);
 
 %% c_primop
 eval_expr({c_primop, _Anno, Name, Args}, M, Cenv, Senv, Servers, Fd) ->
   PrimOp = Name#c_literal.val,
   ZAs = [eval_expr(A, M, Cenv, Senv, Servers, Fd) || A <- Args],
-  {CAs, SAs} = lists:unzip(ZAs),
+  {CAs, SAs} = cuter_lib:unzip_with(fun to_tuple/1, ZAs),
   %% TODO need to record and implement more primops
   %% like 'bs_context_to_binary', 'bs_init_writable'
   case PrimOp of
@@ -635,8 +686,10 @@ eval_expr({c_primop, _Anno, Name, Args}, M, Cenv, Senv, Servers, Fd) ->
 
 %% c_receive
 eval_expr({c_receive, _Anno, Clauses, Timeout, Action}, M, Cenv, Senv, Servers, Fd) ->
-  {CTimeout, STimeout} = eval_expr(Timeout, M, Cenv, Senv, Servers, Fd),
-  true = check_timeout(CTimeout, STimeout, Fd),
+  Timeout_ev = eval_expr(Timeout, M, Cenv, Senv, Servers, Fd),
+  Timeout_c = get_concrete(Timeout_ev),
+  Timeout_s = get_symbolic(Timeout_ev),
+  true = check_timeout(Timeout_c, Timeout_s, Fd),
   Start = os:timestamp(),  %% Start time of timeout timer
   {messages, Mailbox} = erlang:process_info(self(), messages),
   Message = find_message(Mailbox, Clauses, M, Cenv, Senv, Servers, Fd),
@@ -646,7 +699,7 @@ eval_expr({c_receive, _Anno, Clauses, Timeout, Action}, M, Cenv, Senv, Servers, 
       eval_expr(Body, M, NCenv, NSenv, Servers, Fd);
     false ->  %% No mailbox message matched, thus need to enter a receive loop
       CurrMsgs = length(Mailbox),
-      find_message_loop(Clauses, Action, CTimeout, STimeout, Start, CurrMsgs, M, Cenv, Senv, Servers, Fd)
+      find_message_loop(Clauses, Action, Timeout_c, Timeout_s, Start, CurrMsgs, M, Cenv, Senv, Servers, Fd)
   end;
 
 %% c_seq
@@ -659,7 +712,9 @@ eval_expr({c_seq, _Anno, Arg, Body}, M, Cenv, Senv, Servers, Fd) ->
 eval_expr({c_try, _Anno, Arg, Vars, Body, Evars, Handler}, M, Cenv, Senv, Servers, Fd) ->
   try
     Deg = length(Vars),
-    {A_c, A_s} = eval_expr(Arg, M, Cenv, Senv, Servers, Fd),
+    A_ev = eval_expr(Arg, M, Cenv, Senv, Servers, Fd),
+    A_c = get_concrete(A_ev),
+    A_s = get_concrete(A_ev),
     case Deg of
       1 ->
         CAs = [A_c],
@@ -673,7 +728,9 @@ eval_expr({c_try, _Anno, Arg, Vars, Body, Evars, Handler}, M, Cenv, Senv, Server
     eval_expr(Body, M, Ce, Se, Servers, Fd)
   catch
     Class:Reason ->
-      {Cv, Sv} = unzip_one(Reason),
+      Reason1 = unzip_one(Reason),
+      Cv = get_concrete(Reason1),
+      Sv = get_symbolic(Reason1),
       case Class of
         error ->
           check_if_lambda_app(Fd, Cv);
@@ -706,17 +763,19 @@ eval_expr({c_try, _Anno, Arg, Vars, Body, Evars, Handler}, M, Cenv, Senv, Server
 %% c_tuple
 eval_expr({c_tuple, _Anno, Es}, M, Cenv, Senv, Servers, Fd) ->
   Zes = [eval_expr(E, M, Cenv, Senv, Servers, Fd) || E <- Es],
-  {Es_c, Es_s} = lists:unzip(Zes),
+  {Es_c, Es_s} = cuter_lib:unzip_with(fun to_tuple/1, Zes),
   Cv = list_to_tuple(Es_c),
   Sv = cuter_symbolic:make_tuple(Es_s, Cv, Fd),
-  {Cv, Sv};
+  mk_result(Cv, Sv);
 
 %% c_values
 eval_expr({c_values, _Anno, Es}, M, Cenv, Senv, Servers, Fd) ->
   Deg = length(Es),
   Zes = [eval_expr(E, M, Cenv, Senv, Servers, Fd) || E <- Es],
-  {Es_c, Es_s} = lists:unzip(Zes),
-  {#valuelist{values=Es_c, degree=Deg}, #valuelist{values=Es_s, degree=Deg}};
+  {Es_c, Es_s} = cuter_lib:unzip_with(fun to_tuple/1, Zes),
+  Cv = #valuelist{values=Es_c, degree=Deg},
+  Sv = #valuelist{values=Es_s, degree=Deg},
+  mk_result(Cv, Sv);
 
 %% c_var
 eval_expr({c_var, _Anno, Name}, _M, Cenv, Senv, _Servers, _Fd) when is_tuple(Name) ->
@@ -726,21 +785,21 @@ eval_expr({c_var, _Anno, Name}, _M, Cenv, Senv, _Servers, _Fd) when is_tuple(Nam
       %% fun bound in a letrec
       {Fun, Arity} = Name,
       R = {letrec_func, {Mod, Fun, Arity, Def, E}},
-      {R, R};
+      mk_result(R, R);
     {ok, Closure} when is_function(Closure) ->
       %% closure
       {ok, Sv} = cuter_env:get_value(Name, Senv),
-      {Closure, Sv};
+      mk_result(Closure, Sv);
     error ->
       %% either local in module or external
       R = {?FUNCTION_PREFIX, Name},
-      {R, R}
+      mk_result(R, R)
   end;
 eval_expr({c_var, _Anno, Name}, _M, Cenv, Senv, _Servers, _Fd) ->
   %% If it's a variable then return its value
   {ok, Cv} = cuter_env:get_value(Name, Cenv),
   {ok, Sv} = cuter_env:get_value(Name, Senv),
-  {Cv, Sv};
+  mk_result(Cv, Sv);
 
 eval_expr(Cerl, _M, _Cenv, _Senv, _Servers, _Fd) ->
   exception(error, {unknown_cerl, Cerl}).
@@ -753,9 +812,10 @@ eval_expr(Cerl, _M, _Cenv, _Senv, _Servers, _Fd) ->
 evaluate_bif(MFA, CAs, SAs, Servers, Fd) ->
   Cv = evaluate_bif_concrete(MFA, CAs),
   Sv = cuter_symbolic:evaluate_mfa(MFA, SAs, Cv, Servers#svs.code, Fd),
-  {Cv, Sv}.
+  mk_result(Cv, Sv).
 
 %% Concrete evaluation of a BIF.
+-spec evaluate_bif_concrete(mfa(), [any()]) -> any().
 evaluate_bif_concrete({M, F, _A}=MFA, As) ->
   case cuter_symbolic:is_supported_mfa(MFA) of
     false -> apply(M, F, As);
@@ -787,6 +847,7 @@ access_mfa_code({Mod, Fun, Arity} = MFA, Servers) ->
       end
   end.
 
+-spec get_whitelist(pid()) -> cuter_mock:whitelist().
 get_whitelist(CodeServer) ->
   case get(?WHITELIST_PREFIX) of
     undefined ->
@@ -903,8 +964,8 @@ find_message([], _Clauses, _M, _Cenv, _Senv, _Servers, _Fd) ->
   false;
 
 find_message([Msg|Mailbox], Clauses, M, Cenv, Senv, Servers, Fd) ->
-  {LoggerFun, {Cv, Sv}} = decode_msg(Msg, Fd),
-  case find_clause(Clauses, M, 'receive', Cv, Sv, Cenv, Senv, Servers, Fd) of
+  {LoggerFun, Msg1} = decode_msg(Msg, Fd),
+  case find_clause(Clauses, M, 'receive', get_concrete(Msg1), get_symbolic(Msg1), Cenv, Senv, Servers, Fd) of
     false ->
       find_message(Mailbox, Clauses, M, Cenv, Senv, Servers, Fd);
     {Body, NCenv, NSenv, Cnt} ->
@@ -971,7 +1032,8 @@ match_clause({c_clause, Anno, Pats, Guard, Body}, M, Mode, Cv, Sv, Cenv, Senv, S
           Se = cuter_env:add_mappings_to_environment(SMs, Senv),
           %% Make silent guards
           Tags = cuter_cerl:get_tags(Anno),
-          try eval_expr(Guard, M, Ce, Se, Servers, Fd) of
+          Guard_ev = eval_expr(Guard, M, Ce, Se, Servers, Fd),
+          try to_tuple(Guard_ev) of
             {true, SGv} ->
               %% CONSTRAINT: SGv is a True guard
               visit_tag(Servers#svs.code, Tags#tags.this),
@@ -1123,13 +1185,14 @@ bit_pattern_match(BinAnno, [], _BitInfo, _Mode, _Cv, Sv, _CMaps, _SMaps, Servers
   false;
 
 bit_pattern_match(BinAnno, [{c_bitstr, Anno, {c_literal, _, LVal}, Sz, Unit, Tp, Fgs}|Bs], {M, Cenv, Senv} = Bnfo, Mode, Cv, Sv, CMaps, SMaps, Svs, Fd) ->
-  {Size_c, Size_s} = eval_expr(Sz, M, Cenv, Senv, Svs, Fd),
-  {Unit_c, Unit_s} = eval_expr(Unit, M, Cenv, Senv, Svs, Fd),
-  {Type_c, Type_s} = eval_expr(Tp, M, Cenv, Senv, Svs, Fd),
-  {Flags_c, Flags_s} = eval_expr(Fgs, M, Cenv, Senv, Svs, Fd),
-  Enc_s = {Size_s, Unit_s, Type_s, Flags_s},
+  Size_ev = eval_expr(Sz, M, Cenv, Senv, Svs, Fd),
+  Unit_ev = eval_expr(Unit, M, Cenv, Senv, Svs, Fd),
+  Type_ev = eval_expr(Tp, M, Cenv, Senv, Svs, Fd),
+  Flags_ev = eval_expr(Fgs, M, Cenv, Senv, Svs, Fd),
+  Size_c = get_concrete(Size_ev),
+  Enc_s = {get_symbolic(Size_ev), get_symbolic(Unit_ev), get_symbolic(Type_ev), get_symbolic(Flags_ev)},
   Tags = cuter_cerl:get_tags(Anno),
-  try cuter_binlib:match_bitstring_const(LVal, Size_c, Unit_c, Type_c, Flags_c, Cv) of
+  try cuter_binlib:match_bitstring_const(LVal, Size_c, get_concrete(Unit_ev), get_concrete(Type_ev), get_concrete(Flags_ev), Cv) of
     Rest_c ->
       visit_tag(Svs#svs.code, Tags#tags.this),
       Rest_s = cuter_symbolic:match_bitstring_const_true(LVal, Enc_s, Sv, Rest_c, Size_c, Tags#tags.next, Fd),
@@ -1142,13 +1205,14 @@ bit_pattern_match(BinAnno, [{c_bitstr, Anno, {c_literal, _, LVal}, Sz, Unit, Tp,
   end;
 
 bit_pattern_match(BinAnno, [{c_bitstr, Anno, {c_var, _, VarName}, Sz, Unit, Tp, Fgs}|Bs], {M, Cenv, Senv}, Mode, Cv, Sv, CMaps, SMaps, Svs, Fd) ->
-  {Size_c, Size_s} = eval_expr(Sz, M, Cenv, Senv, Svs, Fd),
-  {Unit_c, Unit_s} = eval_expr(Unit, M, Cenv, Senv, Svs, Fd),
-  {Type_c, Type_s} = eval_expr(Tp, M, Cenv, Senv, Svs, Fd),
-  {Flags_c, Flags_s} = eval_expr(Fgs, M, Cenv, Senv, Svs, Fd),
-  Enc_s = {Size_s, Unit_s, Type_s, Flags_s},
+  Size_ev = eval_expr(Sz, M, Cenv, Senv, Svs, Fd),
+  Unit_ev = eval_expr(Unit, M, Cenv, Senv, Svs, Fd),
+  Type_ev = eval_expr(Tp, M, Cenv, Senv, Svs, Fd),
+  Flags_ev = eval_expr(Fgs, M, Cenv, Senv, Svs, Fd),
+  Size_c = get_concrete(Size_ev),
+  Enc_s = {get_symbolic(Size_ev), get_symbolic(Unit_ev), get_symbolic(Type_ev), get_symbolic(Flags_ev)},
   Tags = cuter_cerl:get_tags(Anno),
-  try cuter_binlib:match_bitstring_var(Size_c, Unit_c, Type_c, Flags_c, Cv) of
+  try cuter_binlib:match_bitstring_var(Size_c, get_concrete(Unit_ev), get_concrete(Type_ev), get_concrete(Flags_ev), Cv) of
     {X_c, Rest_c} ->
       visit_tag(Svs#svs.code, Tags#tags.this),
       {X_s, Rest_s} = cuter_symbolic:match_bitstring_var_true(Enc_s, Sv, X_c, Rest_c, Size_c, Tags#tags.next, Fd),
@@ -1286,15 +1350,15 @@ make_fun(Vars, Body, Mod, Arity, Cenv, Senv, Servers, Fd) ->
       _ ->
         exception(error, {over_lambda_fun_argument_limit, Arity})
     end,
-  {LambdaC, LambdaS}.
+  mk_result(LambdaC, LambdaS).
 
 make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, FileDescr) ->
   {Ce, Se, SAs} = register_new_environments(Args, Vars, Cenv, Senv),
   NSvs = validate_servers(Servers),
   Fd = validate_file_descriptor(NSvs#svs.monitor, Creator, FileDescr),
-  {Cv, Sv} = eval_expr(Body, Mod, Ce, Se, NSvs, Fd),
-  cuter_log:log_evaluated_closure(Fd, LambdaS, SAs, Sv),
-  {Cv, Sv}.
+  Ret = eval_expr(Body, Mod, Ce, Se, NSvs, Fd),
+  cuter_log:log_evaluated_closure(Fd, LambdaS, SAs, get_symbolic(Ret)),
+  Ret.
 
 register_new_environments([], _Vars, Cenv, Senv) ->
   {Cenv, Senv, []};
@@ -1549,8 +1613,8 @@ decode_msg(Msg, _Fd) ->
 zip_one(Cv, Sv) -> {?ZIPPED_VALUE_PREFIX, Cv, Sv}.
 
 %% unzip_one
-unzip_one({?ZIPPED_VALUE_PREFIX, Cv, Sv}) -> {Cv, Sv};
-unzip_one(V) -> {V, V}.
+unzip_one({?ZIPPED_VALUE_PREFIX, Cv, Sv}) -> mk_result(Cv, Sv);
+unzip_one(V) -> mk_result(V, V).
 
 %% zip_args
 zip_args(CAs, SAs) when is_list(CAs), is_list(SAs) ->
@@ -1558,35 +1622,36 @@ zip_args(CAs, SAs) when is_list(CAs), is_list(SAs) ->
 
 %% unzip_args
 unzip_args(As) when is_list(As) ->
-   lists:unzip([unzip_one(A) || A <- As]).
+  UnzAs = [unzip_one(A) || A <- As],
+  cuter_lib:unzip_with(fun to_tuple/1, UnzAs).
 
 %% unzip_error // for exception reasons
--spec unzip_error(term()) -> result().
+-spec unzip_error(any()) -> result().
 unzip_error({nocatch, {?ZIPPED_VALUE_PREFIX, Cv, Sv}}) ->
-  {Cv, Sv};
+  mk_result(Cv, Sv);
 unzip_error({{?ZIPPED_VALUE_PREFIX, Cv, Sv}, Stack}) when is_list(Stack) ->
-  {Cv, Sv};
+  mk_result(Cv, Sv);
 unzip_error(V) ->
   unzip_one(V).
 
 %% unzip_msg
 %% Trapping exit and a monitored process died
 unzip_msg({'DOWN', MonitorRef, Type, Object, Info}) ->
-  {Cv, Sv} = unzip_error(Info),
-  CMsg = {'DOWN', MonitorRef, Type, Object, Cv},
-  SMsg = {'DOWN', MonitorRef, Type, Object, Sv},
-  {CMsg, SMsg};
+  Error = unzip_error(Info),
+  CMsg = {'DOWN', MonitorRef, Type, Object, get_concrete(Error)},
+  SMsg = {'DOWN', MonitorRef, Type, Object, get_symbolic(Error)},
+  mk_result(CMsg, SMsg);
 %% Trapping exit and got an exit signal
 unzip_msg({'EXIT', From, {Reason, Stack}}) ->
-  {Cv, Sv} = unzip_error(Reason),
-  CMsg = {'EXIT', From, {Cv, Stack}},
-  SMsg = {'EXIT', From, {Sv, Stack}},
-  {CMsg, SMsg};
+  Error = unzip_error(Reason),
+  CMsg = {'EXIT', From, {get_concrete(Error), Stack}},
+  SMsg = {'EXIT', From, {get_symbolic(Error), Stack}},
+  mk_result(CMsg, SMsg);
 unzip_msg({'EXIT', From, Reason}) ->
-  {Cv, Sv} = unzip_error(Reason),
-  CMsg = {'EXIT', From, Cv},
-  SMsg = {'EXIT', From, Sv},
-  {CMsg, SMsg};
+  Error = unzip_error(Reason),
+  CMsg = {'EXIT', From, get_concrete(Error)},
+  SMsg = {'EXIT', From, get_symbolic(Error)},
+  mk_result(CMsg, SMsg);
 %% Any other message
 unzip_msg(V) ->
   unzip_one(V).
@@ -1607,17 +1672,19 @@ is_patlist_compatible(Pats, Values) ->
 %% --------------------------------------------------------
 %% Concatenate a list of bistrings
 %% --------------------------------------------------------
+-spec append_segments([bitstring()], [bitstring()], file:io_device()) -> result().
 append_segments([], [], _Fd) ->
-  {<<>>, <<>>};
+  mk_result(<<>>, <<>>);
 append_segments([Cv], [Sv], _Fd) ->
-  {Cv, Sv};
+  mk_result(Cv, Sv);
 append_segments(Cs, Ss, Fd) ->
   [Cv|RCs] = lists:reverse(Cs),
   [Sv|RSs] = lists:reverse(Ss),
   append_segments(RCs, Cv, RSs, Sv, Fd).
 
+-spec append_segments([bitstring()], bitstring(), [any()], any(), file:io_device()) -> result().
 append_segments([], CAcc, [], SAcc, _Fd) ->
-  {CAcc, SAcc};
+  mk_result(CAcc, SAcc);
 append_segments([Cv|Cs], CAcc, [Sv|Ss], SAcc, Fd) ->
   case not cuter_symbolic:is_symbolic(Sv) andalso not cuter_symbolic:is_symbolic(SAcc) of
     true ->

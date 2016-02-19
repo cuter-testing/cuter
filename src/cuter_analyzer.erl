@@ -43,12 +43,12 @@
 
 
 -spec get_result(cuter_iserver:execution_status()) -> execution_result().
-get_result({success, {Cv, _Sv}}) ->
-  {success, Cv};
+get_result({success, Result}) ->
+  {success, cuter_eval:get_concrete(Result)};
 get_result({internal_error, _InternalError}) ->
   internal_error;
-get_result({runtime_error, {_Node, _Pid, {Cv, _Sv}}}) ->
-  {runtime_error, Cv}.
+get_result({runtime_error, {_Node, _Pid, Result}}) ->
+  {runtime_error, cuter_eval:get_concrete(Result)}.
 
 -spec is_runtime_error(execution_result()) -> boolean().
 is_runtime_error(internal_error) -> false;
