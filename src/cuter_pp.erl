@@ -675,16 +675,16 @@ pp_execution_status_verbose({internal_error, _InternalError}) ->
   io:format("INTERNAL ERROR").
 
 -spec pp_execution_status_fully_verbose(cuter_iserver:execution_status()) -> ok.
-pp_execution_status_fully_verbose({success, {Cv, Sv}}) ->
+pp_execution_status_fully_verbose({success, Result}) ->
   io:format("OK~n"),
-  io:format("  CONCRETE: ~p~n", [Cv]),
-  io:format("  SYMBOLIC: ~p~n", [Sv]);
-pp_execution_status_fully_verbose({runtime_error, {Node, Pid, {Cv, Sv}}}) ->
+  io:format("  CONCRETE: ~p~n", [cuter_eval:get_concrete(Result)]),
+  io:format("  SYMBOLIC: ~p~n", [cuter_eval:get_symbolic(Result)]);
+pp_execution_status_fully_verbose({runtime_error, {Node, Pid, Result}}) ->
   io:format("RUNTIME ERROR~n"),
   io:format("  NODE: ~p~n", [Node]),
   io:format("  PID: ~p~n", [Pid]),
-  io:format("  CONCRETE: ~p~n", [Cv]),
-  io:format("  SYMBOLIC: ~p~n", [Sv]);
+  io:format("  CONCRETE: ~p~n", [cuter_eval:get_concrete(Result)]),
+  io:format("  SYMBOLIC: ~p~n", [cuter_eval:get_symbolic(Result)]);
 pp_execution_status_fully_verbose({internal_error, {Type, Node, Why}}) ->
   io:format("INTERNAL ERROR~n"),
   io:format("  TYPE: ~p~n", [Type]),

@@ -1,6 +1,6 @@
 -module(funs).
 -export([f1/1, f2/3, f3/3, f41/3, f42/3, f5/4, f6/1, f7/2, f8/2,
-         f91/3, f92/2]).
+         f91/3, f92/2, f10/1, f11/3, f12/1]).
 
 -spec f1(fun((integer()) -> integer())) -> ok.
 f1(F) ->
@@ -109,4 +109,32 @@ f92(F, X) when is_function(F, 2) ->
   case F(X, X) of
     42 -> error(bug);
     R -> R
+  end.
+
+-spec f10(function()) -> ok.
+f10(F) ->
+  G = fun(_) -> 1 end,
+  case F(G) of
+    42 -> error(bug);
+    _ -> ok
+  end.
+
+-spec f11(function(), function(), any()) -> any().
+f11(F, G, X ) ->
+  case (y(F))(X) + (y(G))(X) of
+    9 -> error(bug);
+    _ -> X
+  end.
+
+y(F) ->
+  G = fun(H) ->
+      F(fun(Z) -> (H(H))(Z) end)
+    end,
+  G(G).
+
+-spec f12(function()) -> ok.
+f12(F) ->
+  case (F(fun lists:append/1))(1) of
+    42 -> error(bug);
+    _ -> ok
   end.

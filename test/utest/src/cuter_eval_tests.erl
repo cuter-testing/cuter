@@ -45,7 +45,7 @@ eval_cerl({F, As, Result, Dir}) ->
   R = execution_result(Server),
   ok = wait_for_iserver(Server),
   ok = cuter_codeserver:stop(CodeServer),
-  [{atom_to_list(F), ?_assertMatch({success, {Result, _}}, R)}].
+  [{atom_to_list(F), ?_assertMatch({success, {_, Result, _}}, R)}].
 
 execution_result(Server) -> 
   receive
