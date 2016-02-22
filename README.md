@@ -15,7 +15,7 @@ This is the source tree for CutEr, a concolic unit testing tool for Erlang.
 Licence
 -------
 
-Copyright 2014-2015 by Aggelos Giantsios, Nikolaos Papaspyrou and Kostis Sagonas.
+Copyright 2014-2016 by Aggelos Giantsios, Nikolaos Papaspyrou and Kostis Sagonas.
 
 This program is distributed under the GPL, version 3 or later. Please see the COPYING file for details.
 
@@ -143,6 +143,10 @@ can also be specified as an option of the `cuter` script:
 CutEr provides more API functions that also come with options that
 control the concolic execution of Erlang programs. These will be
 explained in a set of forthcoming tutorials. In the meantime, you can
-find out about them by browsing the source code of CutEr.
+find out about them by the command:
+
+    ./cuter --help
+
+and by browsing the source code of CutEr.
 
 Have fun with the tool!
