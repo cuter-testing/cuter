@@ -26,16 +26,16 @@ f2(F, X, Y) ->
 
 -spec f3(fun((integer()) -> integer()), integer(), integer()) -> ok.
 f3(F, X, Y) ->
-  case double(F, X) of
+  case twice(F, X) of
     42 ->
-      case double(F, Y) of
+      case twice(F, Y) of
        17 -> error(bug);
        _ -> ok
       end;
     _ -> ok
   end.
 
-double(F, X) -> F(F(X)).
+twice(F, X) -> F(F(X)).
 
 -spec f41(fun((integer()) -> any()), integer(), integer()) -> ok.
 f41(F, X, Y) ->
@@ -111,7 +111,7 @@ f92(F, X) when is_function(F, 2) ->
     R -> R
   end.
 
--spec f10(function()) -> ok.
+-spec f10(fun((any()) -> any())) -> ok.
 f10(F) ->
   G = fun(_) -> 1 end,
   case F(G) of
@@ -120,7 +120,7 @@ f10(F) ->
   end.
 
 -spec f11(function(), function(), any()) -> any().
-f11(F, G, X ) ->
+f11(F, G, X) ->
   case (y(F))(X) + (y(G))(X) of
     9 -> error(bug);
     _ -> X
