@@ -81,6 +81,8 @@ def pretty_type(d):
     return "{%s}" % ", ".join(map(pretty_type, d["a"]))
   if tp == cc.JSON_ERLTYPE_UNION:
     return "|".join(map(pretty_type, d["a"]))
+  if tp == cc.JSON_ERLTYPE_GENERIC_FUN:
+    return "fun()"
 
 def print_cmd(tp, tag, json_data, rev):
   # Symbolic parameters
@@ -92,8 +94,8 @@ def print_cmd(tp, tag, json_data, rev):
   # Symbolic parameters
   elif tp == cc.OP_SPEC:
     msg = ["SPEC"]
-#    for sp in json_data["a"]:
-#      msg.append("(%s) -> %s" % (pretty_list(sp["p"]), pretty(sp["r"])))
+    for sp in json_data["a"]:
+      msg.append("(%s) -> %s" % (pretty_list(sp["p"]), pretty(sp["r"])))
     pprint(msg, tag)
   # True guard constraint
   elif tp == cc.OP_GUARD_TRUE:

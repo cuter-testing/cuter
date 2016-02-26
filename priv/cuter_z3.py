@@ -639,6 +639,10 @@ class ErlangZ3:
       return self.nonEmptyListToAxioms(s, arg)
     elif tp.isBitstring():
       return self.bitstringToAxioms(s, arg)
+    elif tp.isGenericFun():
+      return self.genericFunToAxioms(s, arg)
+    elif tp.isFun():
+      return self.funToAxioms(s, arg)
     elif tp.isCons():
       axs = [T.is_lst(s), L.is_cons(T.lval(s))]
       children = tp.getChildren()
@@ -743,6 +747,9 @@ class ErlangZ3:
       sz = simplify(T.bsz(s))
       return And(T.is_bin(s), sz >= m, (sz - m) % n == 0)
 
+  def genericFunToAxioms(self, s, args):
+    return self.erl.Term.is_fun(s)
+
   def typeDeclToAxioms(self, s, tp):
     opts = {
       cc.JSON_ERLTYPE_ANY: self.anyToAxioms,
@@ -758,7 +765,8 @@ class ErlangZ3:
       cc.JSON_ERLTYPE_UNION: self.unionToAxioms,
       cc.JSON_ERLTYPE_RANGE: self.rangeToAxioms,
       cc.JSON_ERLTYPE_NONEMPTY_LIST: self.nonEmptyListToAxioms,
-      cc.JSON_ERLTYPE_BITSTRING: self.bitstringToAxioms
+      cc.JSON_ERLTYPE_BITSTRING: self.bitstringToAxioms,
+      cc.JSON_ERLTYPE_GENERIC_FUN: self.genericFunToAxioms
     }
     tpcode = tp["tp"]
     arg = tp["a"] if "a" in tp else None

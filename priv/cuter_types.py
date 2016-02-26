@@ -114,6 +114,14 @@ class ErlType:
     return cls.getType(typ) == cc.JSON_ERLTYPE_BITSTRING
 
   @classmethod
+  def isGenericFun(cls, typ):
+    return cls.getType(typ) == cc.JSON_ERLTYPE_GENERIC_FUN
+
+  @classmethod
+  def isFun(cls, typ):
+    return cls.getType(typ) == cc.JSON_ERLTYPE_FUN
+
+  @classmethod
   def isCons(cls, typ):
     return cls.getType(typ) == cc.JSON_ERLTYPE_CONS
 
@@ -422,6 +430,8 @@ class Type:
       return True
     elif ErlType.isNTuple(typ):
       return True
+    elif ErlType.isGenericFun(typ):
+      return True
 
   def isAny(self):
     return ErlType.isAny(self.typ)
@@ -464,6 +474,9 @@ class Type:
 
   def isBitstring(self):
     return ErlType.isBitstring(self.typ)
+
+  def isGenericFun(self):
+    return ErlType.isGenericFun(self.typ)
 
   def isCons(self):
     return ErlType.isCons(self.typ)

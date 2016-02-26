@@ -40,11 +40,11 @@ tests[32]="funs;f5;[fun(_,_,_) -> 1 end,0,0,0];2;-p 4 -s 4;funs-f5-4;no-whitelis
 tests[33]="funs;f6;[0];15;-p 4 -s 4;funs-f6-1;no-whitelist"
 tests[34]="funs;f7;[fun(_,_) -> 1 end,[]];6;-p 4 -s 4;funs-f7-2;no-whitelist"
 tests[35]="funs;f8;[fun(_) -> true end,[1]];4;-p 4 -s 4;funs-f8-2;no-whitelist"
-tests[36]="funs;f91;[1,1,1];4;-p 4 -s 4;funs-f91-3;no-whitelist"
-tests[37]="funs;f92;[1,1];4;-p 4 -s 4;funs-f92-2;no-whitelist"
-tests[38]="funs;f10;[1];4;-p 4 -s 4;funs-f10-1;no-whitelist"
-tests[39]="funs;f11;[1,1,1];4;-p 4 -s 4;funs-f11-3;no-whitelist"
-tests[39]="funs;f12;[1];4;-p 4 -s 4;funs-f12-1;no-whitelist"
+tests[36]="funs;f91;[fun(_) -> 1 end,1,1];4;-p 1 -s 1;funs-f91-3;no-whitelist"
+tests[37]="funs;f92;[fun(_) -> 1 end,1];4;-p 4 -s 4;funs-f92-2;no-whitelist"
+tests[38]="funs;f10;[fun(_) -> 1 end];4;-p 1 -s 1;funs-f10-1;no-whitelist"
+tests[39]="funs;f11;[fun(_) -> fun(_) -> 1 end end,fun(_) -> fun(_) -> 1 end end,1];4;-p 4 -s 4;funs-f11-3;no-whitelist"
+tests[40]="funs;f12;[fun(_) -> fun(_) -> 1 end end];4;-p 4 -s 4;funs-f12-1;no-whitelist"
 
 for element in "${tests[@]}"; do
   IFS=';' read -a t <<< "$element"

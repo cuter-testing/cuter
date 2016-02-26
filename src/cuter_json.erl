@@ -47,6 +47,7 @@
 -define(JSON_ERLTYPE_RANGE, 11).
 -define(JSON_ERLTYPE_NONEMPTY_LIST, 12).
 -define(JSON_ERLTYPE_BITSTRING, 13).
+-define(JSON_ERLTYPE_GENERIC_FUN, 14).
 
 -define(Q, $\").
 
@@ -186,7 +187,16 @@ json_encode_type(Type) ->
       U = json_encode_range_limit(Upper),
       ?ENCODE_COMPTYPE(integer_to_list(?JSON_ERLTYPE_RANGE), [$\[, L, $,, U, $\]]);
     %% TODO Properly encode t_function()
-    ?function_tag -> ?ENCODE_TYPE(integer_to_list(?JSON_ERLTYPE_ANY))
+    ?function_tag ->
+      json_encode_function(Type)
+  end.
+
+json_encode_function(Fun) ->
+  case cuter_types:is_generic_function(Fun) of
+    true ->
+      ?ENCODE_TYPE(integer_to_list(?JSON_ERLTYPE_GENERIC_FUN));
+    false ->
+      ?ENCODE_TYPE(integer_to_list(?JSON_ERLTYPE_GENERIC_FUN))
   end.
 
 json_encode_range_limit(Limit) ->

@@ -7,7 +7,7 @@
 
 -export([params_of_t_function_det/1, ret_of_t_function_det/1, atom_of_t_atom_lit/1, integer_of_t_integer_lit/1,
          elements_type_of_t_list/1, elements_type_of_t_nonempty_list/1, elements_types_of_t_tuple/1,
-         elements_types_of_t_union/1, bounds_of_t_range/1, segment_size_of_bitstring/1]).
+         elements_types_of_t_union/1, bounds_of_t_range/1, segment_size_of_bitstring/1, is_generic_function/1]).
 
 -export([t_atom/0, t_atom_lit/1, t_any/0, t_binary/0, t_bitstring/0, t_bitstring/2, t_char/0, t_float/0,
          t_function/0, t_function/2, t_function/3, t_integer/0, t_list/0, t_list/1,
@@ -38,7 +38,7 @@
 -type deps() :: ordsets:ordset(remote_type()).
 -record(t, {
   kind,
-  rep,
+  rep = undefined,
   deps = ordsets:new() :: deps()
 }).
 
@@ -565,6 +565,12 @@ t_string() ->
 %% ----------------------------------------------------------------------------
 %% API for type accessors.
 %% ----------------------------------------------------------------------------
+
+-spec is_generic_function(t_function()) -> boolean().
+is_generic_function(#t{kind = ?function_tag, rep = {_, _, _}}) ->
+  false;
+is_generic_function(#t{kind = ?function_tag}) ->
+  true.
 
 -spec fields_of_t_record(t_record()) -> [record_field_type()].
 fields_of_t_record(Record) ->
