@@ -1,5 +1,4 @@
 Testing funs:f7/2 ...
 === Inputs That Lead to Runtime Errors ===
-#1 funs:f7(fun() -> 0 end, [])
-#2 funs:f7(fun(_,_) -> 42 end, [3])
-#3 funs:f7(fun(3,0) -> 5; (4,5) -> 42; (_,_) -> 5 end, [3,4])
+#1 funs:f7(fun(_,_) -> 42 end, [3])
+#2 funs:f7(fun(3,0) -> 5; (4,5) -> 42; (_,_) -> 5 end, [3,4])

@@ -751,7 +751,12 @@ class ErlangZ3:
     return self.erl.Term.is_fun(s)
 
   def funToAxioms(self, s, args):
-    return self.erl.Term.is_fun(s) # FIXME
+    T, arity, = self.erl.Term, self.erl.arity
+    return And(
+      T.is_fun(s),
+      arity(T.fval(s)) == len(args) - 1
+    )
+
 
   def typeDeclToAxioms(self, s, tp):
     opts = {

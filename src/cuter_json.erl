@@ -197,7 +197,7 @@ json_encode_function(Fun) ->
   RetEncoded = json_encode_type(Ret),
   case cuter_types:is_generic_function(Fun) of
     true ->
-      ?ENCODE_COMPTYPE(integer_to_list(?JSON_ERLTYPE_FUN), [$\[, RetEncoded, $\]]);
+      ?ENCODE_COMPTYPE(integer_to_list(?JSON_ERLTYPE_GENERIC_FUN), [$\[, RetEncoded, $\]]);
     false ->
       Params = cuter_types:params_of_t_function_det(Fun),
       Fn = fun(X, Acc) -> [$,, json_encode_type(X) | Acc] end,

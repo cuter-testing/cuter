@@ -161,6 +161,7 @@ class Type:
   def __init__(self, typ):
     self.typ = deepcopy(typ)
     self.isFinal = self.isFinalType(typ)
+    self.hasFunBeenUsed = False  # Only applies to function types.
     self.children = None
     if ErlType.isNonemptyList(typ):
       h = Type(deepcopy(ErlType.getArgs(self.typ)))
@@ -433,7 +434,7 @@ class Type:
     elif ErlType.isGenericFun(typ):
       return True
     elif ErlType.isFun(typ):
-      return True # FIXME
+      return True
 
   def isAny(self):
     return ErlType.isAny(self.typ)
