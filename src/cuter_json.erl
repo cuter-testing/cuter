@@ -48,6 +48,7 @@
 -define(JSON_ERLTYPE_NONEMPTY_LIST, 12).
 -define(JSON_ERLTYPE_BITSTRING, 13).
 -define(JSON_ERLTYPE_GENERIC_FUN, 14).
+-define(JSON_ERLTYPE_FUN, 15).
 
 -define(Q, $\").
 
@@ -131,7 +132,7 @@ json_to_term(JSON, WithRem) ->
 -spec json_encode_spec_clause(cuter_types:erl_spec_clause()) -> encodable_data().
 json_encode_spec_clause(Fun) ->
   Params = cuter_types:params_of_t_function_det(Fun),
-  Ret = cuter_types:ret_of_t_function_det(Fun),
+  Ret = cuter_types:ret_of_t_function(Fun),
   Rt = json_encode_type(Ret),
   F = fun(X, Acc) -> [$,, json_encode_type(X) | Acc] end,
   case lists:foldl(F, [], lists:reverse(Params)) of
@@ -192,11 +193,20 @@ json_encode_type(Type) ->
   end.
 
 json_encode_function(Fun) ->
+  Ret = cuter_types:ret_of_t_function(Fun),
+  RetEncoded = json_encode_type(Ret),
   case cuter_types:is_generic_function(Fun) of
     true ->
-      ?ENCODE_TYPE(integer_to_list(?JSON_ERLTYPE_GENERIC_FUN));
+      ?ENCODE_COMPTYPE(integer_to_list(?JSON_ERLTYPE_FUN), [$\[, RetEncoded, $\]]);
     false ->
-      ?ENCODE_TYPE(integer_to_list(?JSON_ERLTYPE_GENERIC_FUN))
+      Params = cuter_types:params_of_t_function_det(Fun),
+      Fn = fun(X, Acc) -> [$,, json_encode_type(X) | Acc] end,
+      case lists:foldl(Fn, [], lists:reverse(Params)) of
+        [] ->
+          ?ENCODE_COMPTYPE(integer_to_list(?JSON_ERLTYPE_FUN), [$\[, $\]]);
+        [$, | Ts] ->
+          ?ENCODE_COMPTYPE(integer_to_list(?JSON_ERLTYPE_FUN), [$\[, Ts, $,, RetEncoded, $\]])
+      end
   end.
 
 json_encode_range_limit(Limit) ->

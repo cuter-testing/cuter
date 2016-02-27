@@ -432,6 +432,8 @@ class Type:
       return True
     elif ErlType.isGenericFun(typ):
       return True
+    elif ErlType.isFun(typ):
+      return True # FIXME
 
   def isAny(self):
     return ErlType.isAny(self.typ)
@@ -477,6 +479,9 @@ class Type:
 
   def isGenericFun(self):
     return ErlType.isGenericFun(self.typ)
+
+  def isFun(self):
+    return ErlType.isFun(self.typ)
 
   def isCons(self):
     return ErlType.isCons(self.typ)
