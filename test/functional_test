@@ -51,6 +51,7 @@ tests[40]="funs;f12;[fun(_) -> fun(_) -> 1 end end];4;${opts};funs-f12-1;no-whit
 tests[41]="funs;f1ws;[fun(_) -> 1 end];10;${opts};funs-f1ws-1;no-whitelist"
 tests[42]="funs;f2ws;[fun(_) -> 1 end,1,1];10;${opts};funs-f2ws-3;no-whitelist"
 tests[43]="funs;f3ws;[fun(_) -> 1 end,1,1];10;${opts};funs-f3ws-3;no-whitelist"
+tests[44]="funs;f5ws;[fun(_,_,_) -> 1 end,0,0,0];2;${opts};funs-f5ws-4;no-whitelist"
 
 for element in "${tests[@]}"; do
   IFS=';' read -a t <<< "$element"

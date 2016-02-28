@@ -202,10 +202,16 @@ class ErlangZ3:
       fmap(T.fval(sFun))[sArgs] == sResult
     ])
     # Elaborate the types.
-    # FIXME Types for parameters.
+    # FIXME What happens if they are concrete values?
     tpFun = env.lookupType(tFun["s"])
     env.addRoot(tResult["s"])
-    env.bindType(tResult["s"], tpFun.applyLambda())
+    tpArgs, tpResult = tpFun.applyLambda(len(tArgs))
+    for i, t in enumerate(tArgs):
+      if "s" in t:
+        currTp = env.lookupType(t["s"])
+        if not currTp.unify(tpArgs[i]):
+          self.axs.append(True == False)
+    env.bindType(tResult["s"], tpResult)
 
   # Guard True
   def guard_true_toZ3(self, term):
@@ -848,13 +854,18 @@ class ErlangZ3:
       fmap(T.fval(sFun))[sArgs] == sResult
     ])
     # Elaborate the types.
-    # FIXME Types for parameters.
-    # TODO What happens if they are concrete values?
+    # FIXME What happens if they are concrete values?
     tpFun = env.lookupType(tFun["s"])
     tpFun.lambdaUsed()
+    tpArgs, tpResult = tpFun.applyLambda(len(tArgs))
+    for i, t in enumerate(tArgs):
+      if "s" in t:
+        currTp = env.lookupType(t["s"])
+        if not currTp.unify(tpArgs[i]):
+          self.axs.append(True == False)
     if "s" in tResult:
       env.addRoot(tResult["s"])
-      env.bindType(tResult["s"], tpFun.applyLambda())
+      env.bindType(tResult["s"], tpResult)
 
   # Entry Point MFA's symbolic parameters
   def params_toZ3(self, *args):

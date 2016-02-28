@@ -170,6 +170,12 @@ class Type:
       self.isFinal = True
       self.children = [h, t]
 
+  def takenOverByType(self, tp):
+    self.typ = tp.typ
+    self.isFinal = tp.typ
+    self.hasFunBeenUsed = tp.hasFunBeenUsed
+    self.children = tp.children
+
   def getChildren(self):
     return self.children
 
@@ -218,20 +224,22 @@ class Type:
         # TODO Log inconsistency (if is not any())
         return Type(ErlType.generateListAnyType())
 
-  # FIXME Return types for the parameters.
-  def applyLambda(self):
+  def applyLambda(self, arity):
     if ErlType.isGenericFun(self.typ):
       self.hasFunBeenUsed = True
       [retType] = ErlType.getArgs(self.typ)
-      return Type(deepcopy(retType))
+      tpArgs = [Type(ErlType.generateAnyType()) for _ in range(arity)]
+      return tpArgs, Type(deepcopy(retType))
     elif ErlType.isFun(self.typ):
       self.hasFunBeenUsed = True
       types = ErlType.getArgs(self.typ)
       argsTypes, retType = types[:-1], types[-1]
-      return Type(deepcopy(retType))
+      tpArgs = [Type(deepcopy(tp)) for tp in argsTypes]
+      return tpArgs, Type(deepcopy(retType))
     else:
       # TODO Log inconsistency (if is not any())
-      return Type(ErlType.generateAnyType())
+      tpArgs = [Type(ErlType.generateAnyType()) for _ in range(arity)]
+      return tpArgs, Type(ErlType.generateAnyType())
 
   def lambdaUsed(self):
     self.hasFunBeenUsed = True
@@ -456,6 +464,109 @@ class Type:
       return True
     elif ErlType.isFun(typ):
       return True
+
+  def unify(self, tp):
+    # Any
+    if self.isAny():
+      self.takenOverByType(tp)
+      return True
+    if tp.isAny():
+      return True
+    # Atom
+    if self.isAtom():
+      return self.unifyWithAtom(tp)
+    if self.isAtomLit():
+      return self.unifyWithAtomLit(tp)
+    # Integer
+    if self.isInteger():
+      return self.unifyWithInteger(tp)
+    if self.isIntegerLit():
+      return self.unifyWithIntegerLit(tp)
+    # Float
+    if self.isFloat():
+      return self.unifyWithFloat(tp)
+    # FIXME Add more cases.
+    return True
+
+  def unifyWithAtom(self, tp):
+    if tp.isAtom():
+      return True
+    if tp.isAtomLit():
+      self.takenOverByType(tp)
+      return True
+    if tp.isUnion():
+      isCnd = lambda x: ErlType.isAtom(x)
+      candidates = [t for t in ErlType.getArgs(tp.typ) if isCnd(t)]
+      if len(candidates) > 0:
+        return True
+      isCnd = lambda x: ErlType.isAtomLit(x)
+      candidates = [t for t in ErlType.getArgs(tp.typ) if isCnd(t)]
+      if len(candidates) > 0:
+        ErlType.setArgs(candidates)
+        self.takenOverByType(tp)
+        return True
+    return False
+
+  def unifyWithAtomLit(self, tp):
+    if tp.isAtom():
+      return True
+    if tp.isAtomLit():
+      return ErlType.getArgs(self.typ) == ErlType.getArgs(tp.typ)
+    if tp.isUnion():
+      isCnd = lambda x: ErlType.isAtom(x)
+      candidates = [t for t in ErlType.getArgs(tp.typ) if isCnd(t)]
+      if len(candidates) > 0:
+        return True
+      isCnd = lambda x: ErlType.isAtomLit(x) and ErlType.getArgs(self.typ) == ErlType.getArgs(x)
+      candidates = [t for t in ErlType.getArgs(tp.typ) if isCnd(t)]
+      if len(candidates) > 0:
+        return True
+    return False
+
+  def unifyWithInteger(self, tp):
+    if tp.isInteger():
+      return True
+    if tp.isIntegerLit():
+      self.takenOverByType(tp)
+      return True
+    if tp.isUnion():
+      isCnd = lambda x: ErlType.isInteger(x)
+      candidates = [t for t in ErlType.getArgs(tp.typ) if isCnd(t)]
+      if len(candidates) > 0:
+        return True
+      isCnd = lambda x: ErlType.isIntegerLit(x)
+      candidates = [t for t in ErlType.getArgs(tp.typ) if isCnd(t)]
+      if len(candidates) > 0:
+        ErlType.setArgs(candidates)
+        self.takenOverByType(tp)
+        return True
+    return False
+
+  def unifyWithIntegerLit(self, tp):
+    if tp.isInteger():
+      return True
+    if tp.isIntegerLit():
+      return ErlType.getArgs(self.typ) == ErlType.getArgs(tp.typ)
+    if tp.isUnion():
+      isCnd = lambda x: ErlType.isInteger(x)
+      candidates = [t for t in ErlType.getArgs(tp.typ) if isCnd(t)]
+      if len(candidates) > 0:
+        return True
+      isCnd = lambda x: ErlType.isIntegerLit(x) and ErlType.getArgs(self.typ) == ErlType.getArgs(x)
+      candidates = [t for t in ErlType.getArgs(tp.typ) if isCnd(t)]
+      if len(candidates) > 0:
+        return True
+    return False
+
+  def unifyWithFloat(self, tp):
+    if tp.isFloat():
+      return True
+    if tp.isUnion():
+      isCnd = lambda x: ErlType.isFloat(x)
+      candidates = [t for t in ErlType.getArgs(tp.typ) if isCnd(t)]
+      if len(candidates) > 0:
+        return True
+    return False
 
   def isAny(self):
     return ErlType.isAny(self.typ)

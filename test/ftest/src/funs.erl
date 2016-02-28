@@ -1,6 +1,7 @@
 -module(funs).
 -export([f1/1, f2/3, f3/3, f41/3, f42/3, f5/4, f6/1, f7/2, f8/2,
-         f91/3, f92/2, f10/1, f11/3, f12/1, f1ws/1, f2ws/3, f3ws/3]).
+         f91/3, f92/2, f10/1, f11/3, f12/1, f1ws/1, f2ws/3, f3ws/3,
+         f5ws/4]).
 
 -spec f1(fun((integer()) -> integer())) -> ok.
 f1(F) ->
@@ -91,6 +92,17 @@ f42(F, X, Y) ->
 
 -spec f5(fun((integer(), integer(), integer()) -> integer()), integer(), integer(), integer()) -> ok.
 f5(F, X, Y, Z) ->
+  case F(X, Y, Z) of
+    42 ->
+      case F(Z, Y, X) of
+        17 -> error(bug);
+        _ -> ok
+      end;
+    _ -> ok
+  end.
+
+-spec f5ws(fun((integer(), integer(), atom()) -> integer()), integer(), integer(), integer()) -> ok.
+f5ws(F, X, Y, Z) ->
   case F(X, Y, Z) of
     42 ->
       case F(Z, Y, X) of
