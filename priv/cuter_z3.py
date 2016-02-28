@@ -188,7 +188,7 @@ class ErlangZ3:
   # ----------------------------------------------------------------------
 
   def lambda_toZ3(self, *args):
-    erl = self.erl
+    erl, env = self.erl, self.env
     T, L, arity, fmap = erl.Term, erl.List, erl.arity, erl.fmap
     tResult, tFun, tArgs = args[0], args[1], args[2:]
     sResult = self.env.freshVar(tResult["s"], T)
@@ -201,6 +201,11 @@ class ErlangZ3:
       arity(T.fval(sFun)) == len(tArgs),
       fmap(T.fval(sFun))[sArgs] == sResult
     ])
+    # Elaborate the types.
+    # FIXME Types for parameters.
+    tpFun = env.lookupType(tFun["s"])
+    env.addRoot(tResult["s"])
+    env.bindType(tResult["s"], tpFun.applyLambda())
 
   # Guard True
   def guard_true_toZ3(self, term):
@@ -596,10 +601,12 @@ class ErlangZ3:
   # ----------------------------------------------------------------------
 
   def generateSpecAxioms(self):
+    env = self.env
     axs = []
-    for param in self.env.params:
-      tp = self.env.lookupType(param)
-      sv = self.env.lookup(param)
+    allRoots = env.params + env.typeRoots
+    for param in allRoots:
+      tp = env.lookupType(param)
+      sv = env.lookup(param)
       paramAxs = self.typeToAxioms(sv, tp)
 #      clg.debug_info(param)
 #      clg.debug_info(paramAxs)
@@ -640,9 +647,9 @@ class ErlangZ3:
     elif tp.isBitstring():
       return self.bitstringToAxioms(s, arg)
     elif tp.isGenericFun():
-      return self.genericFunToAxioms(s, arg)
+      return self.genericFunToAxioms(s, arg, tp.unconstrainedFun())
     elif tp.isFun():
-      return self.funToAxioms(s, arg)
+      return self.funToAxioms(s, arg, tp.unconstrainedFun())
     elif tp.isCons():
       axs = [T.is_lst(s), L.is_cons(T.lval(s))]
       children = tp.getChildren()
@@ -747,16 +754,21 @@ class ErlangZ3:
       sz = simplify(T.bsz(s))
       return And(T.is_bin(s), sz >= m, (sz - m) % n == 0)
 
-  def genericFunToAxioms(self, s, args):
-    return self.erl.Term.is_fun(s)
+  def genericFunToAxioms(self, s, args, unconstrained = True):
+    axs = [self.erl.Term.is_fun(s)]
+    if unconstrained:
+      axs.extend(self.unconstraintedFunToAxioms(s, args))
+    return And(*axs) if len(axs) > 1 else axs[0]
 
-  def funToAxioms(self, s, args):
+  def funToAxioms(self, s, args, unconstrained = True):
     T, arity, = self.erl.Term, self.erl.arity
-    return And(
+    axs = [
       T.is_fun(s),
       arity(T.fval(s)) == len(args) - 1
-    )
-
+    ]
+    if unconstrained:
+      axs.extend(self.unconstraintedFunToAxioms(s, args))
+    return And(*axs)
 
   def typeDeclToAxioms(self, s, tp):
     opts = {
@@ -781,6 +793,31 @@ class ErlangZ3:
     arg = tp["a"] if "a" in tp else None
     return opts[tpcode](s, arg)
 
+  def unconstraintedFunToAxioms(self, sFun, args):
+    T, L, env, fmap = self.erl.Term, self.erl.List, self.env, self.erl.fmap
+    tRet = args[-1]
+    sRet = env.justFreshVar(T)
+    axs = []
+    axRet = self.typeDeclToAxioms(sRet, tRet)
+    if axRet != None:
+      axs.append(axRet)
+    # Funs
+    if len(args) > 1:
+      tArgs = args[:-1]
+      sArgs = L.nil
+      for tArg in reversed(tArgs):
+        sArg = env.justFreshVar(T)
+        axArg = self.typeDeclToAxioms(sArg, tArg)
+        if axArg != None:
+          axs.append(axArg)
+        sArgs = L.cons(sArg, sArgs)
+      axs.append(fmap(T.fval(sFun))[sArgs] == sRet)
+    # Generic Funs
+    else:
+      sArgs = env.justFreshVar(L)
+      axs.append(Exists(sArgs, fmap(T.fval(sFun))[sArgs] == sRet))
+    return axs
+
   # ----------------------------------------------------------------------
   # Other Important Commands
   # ----------------------------------------------------------------------
@@ -797,10 +834,10 @@ class ErlangZ3:
     ])
 
   def evaluated_closure_toZ3(self, *args):
-    erl = self.erl
+    erl, env = self.erl, self.env
     T, L, arity, fmap = erl.Term, erl.List, erl.arity, erl.fmap
     tResult, tFun, tArgs = args[0], args[1], args[2:]
-    sResult = self.decode_term(tFun)
+    sResult = self.decode_term(tResult)
     sFun = self.decode_term(tFun)
     sArgs = L.nil
     for t in reversed(tArgs):
@@ -810,6 +847,14 @@ class ErlangZ3:
       arity(T.fval(sFun)) == len(tArgs),
       fmap(T.fval(sFun))[sArgs] == sResult
     ])
+    # Elaborate the types.
+    # FIXME Types for parameters.
+    # TODO What happens if they are concrete values?
+    tpFun = env.lookupType(tFun["s"])
+    tpFun.lambdaUsed()
+    if "s" in tResult:
+      env.addRoot(tResult["s"])
+      env.bindType(tResult["s"], tpFun.applyLambda())
 
   # Entry Point MFA's symbolic parameters
   def params_toZ3(self, *args):

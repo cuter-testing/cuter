@@ -83,6 +83,9 @@ def pretty_type(d):
     return "|".join(map(pretty_type, d["a"]))
   if tp == cc.JSON_ERLTYPE_GENERIC_FUN:
     return "fun()"
+  if tp == cc.JSON_ERLTYPE_FUN:
+    args, ret = d["a"][:-1], d["a"][-1]
+    return "fun(({}) -> {})".format(", ".join(map(pretty_type, args)), pretty_type(ret))
 
 def print_cmd(tp, tag, json_data, rev):
   # Symbolic parameters

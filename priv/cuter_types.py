@@ -176,6 +176,9 @@ class Type:
   def getType(self):
     return self.typ
 
+  def unconstrainedFun(self):
+    return not self.hasFunBeenUsed
+
   @classmethod
   def generateAny(cls):
     return Type(ErlType.generateAnyType())
@@ -214,6 +217,24 @@ class Type:
       else:
         # TODO Log inconsistency (if is not any())
         return Type(ErlType.generateListAnyType())
+
+  # FIXME Return types for the parameters.
+  def applyLambda(self):
+    if ErlType.isGenericFun(self.typ):
+      self.hasFunBeenUsed = True
+      [retType] = ErlType.getArgs(self.typ)
+      return Type(deepcopy(retType))
+    elif ErlType.isFun(self.typ):
+      self.hasFunBeenUsed = True
+      types = ErlType.getArgs(self.typ)
+      argsTypes, retType = types[:-1], types[-1]
+      return Type(deepcopy(retType))
+    else:
+      # TODO Log inconsistency (if is not any())
+      return Type(ErlType.generateAnyType())
+
+  def lambdaUsed(self):
+    self.hasFunBeenUsed = True
 
   def matchCons(self):
     if not self.isFinal:

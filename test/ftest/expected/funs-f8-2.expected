@@ -1,5 +1,4 @@
 Testing funs:f8/2 ...
 === Inputs That Lead to Runtime Errors ===
-#1 funs:f8(fun(_) -> 0 end, [])
-#2 funs:f8(fun(_) -> 3 end, [0])
-#3 funs:f8(fun(_) -> false end, [2])
+#1 funs:f8(fun(_) -> false end, [2])
+#2 funs:f8(fun(_) -> true end, [])
