@@ -1,7 +1,7 @@
 -module(funs).
 -export([f1/1, f2/3, f3/3, f41/3, f42/3, f5/4, f6/1, f7/2, f8/2,
          f91/3, f92/2, f10/1, f11/3, f12/1, f1ws/1, f2ws/3, f3ws/3,
-         f5ws/4]).
+         f5ws/4, f1hs/1]).
 
 -spec f1(fun((integer()) -> integer())) -> ok.
 f1(F) ->
@@ -19,6 +19,19 @@ f1ws(F) ->
   case F(3) of
     42 ->
       case F(10) of
+        17 -> error(bug);
+        _ -> ok
+      end;
+    _ -> ok
+  end.
+
+-spec f1hs(fun((integer()) -> integer())) -> ok.
+f1hs(F) ->
+  Id = fun (X) -> X end,
+  G = Id(F),
+  case G(3) of
+    42 ->
+      case G(10) of
         17 -> error(bug);
         _ -> ok
       end;
