@@ -864,8 +864,9 @@ class ErlangZ3:
         if not currTp.unify(tpArgs[i]):
           self.axs.append(True == False)
     if "s" in tResult:
-      env.addRoot(tResult["s"])
-      env.bindType(tResult["s"], tpResult)
+      currTp = env.lookupType(tResult["s"])
+      if not currTp.unify(tpResult):
+          self.axs.append(True == False)
 
   # Entry Point MFA's symbolic parameters
   def params_toZ3(self, *args):

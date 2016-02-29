@@ -422,6 +422,20 @@ def print_cmd(tp, tag, json_data, rev):
       "IS FUNCTION WITH ARITY",
       "%s = is_function(%s, %s) " % (pretty(xs[0]), pretty(xs[1]), pretty(xs[2]))
     ], tag)
+  # Fresh lambda with arity
+  elif tp == cc.OP_FRESH_LAMBDA_WITH_ARITY:
+    xs = json_data["a"]
+    pprint([
+      "FRESH LAMBDA WITH ARITY",
+      "is_function(%s, %s) " % (pretty(xs[0]), pretty(xs[1]))
+    ], tag)
+  # Evaluated Closure
+  elif tp == cc.OP_EVALUATED_CLOSURE:
+    xs = json_data["a"]
+    pprint([
+      "EVALUATED CLOSURE",
+      "%s = apply(%s, [ %s ]) " % (pretty(xs[0]), pretty(xs[1]), pretty_list(xs[2:]))
+    ], tag)
   else:
     print "UNKNOWN OPCODE", tp
     xs = json_data["a"]

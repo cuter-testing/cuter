@@ -43,6 +43,7 @@
 -define(WHITELIST_PREFIX, '__whitelisted_mfas').
 -define(LAMBDA_APP_KEY, '__lambda_app_key').
 -define(LAMBDA_APP, '__lambda_app').
+-define(CLOSURE_SYMBOLIC, '__closure_symbs').
 
 -record(?LAMBDA_APP, {
   svar  :: cuter_symbolic:symbolic(),
@@ -460,16 +461,23 @@ eval({lambda, Closure, ClosureSymb}, CAs, SAs, _CallType, _Servers, Fd) ->
       apply(Closure, ZAs);
     true ->
       store_lambda_app(ClosureSymb, Arity),
-      Cv = apply(Closure, CAs),
-      erase_lambda_app(),
-      case is_result(Cv) of
-        false ->
-          R = cuter_symbolic:evaluate_lambda(ClosureSymb, SAs_e, Fd),
-          mk_result(Cv, R);
+      case is_created_closure(ClosureSymb) of
         true ->
-          Sv = get_symbolic(Cv),
-          cuter_log:log_evaluated_closure(Fd, ClosureSymb, SAs_e, Sv),
-          Cv
+          R = apply(Closure, ZAs),
+          erase_lambda_app(),
+          R;
+        false ->
+          Cv = apply(Closure, CAs),
+          erase_lambda_app(),
+          case is_result(Cv) of
+            false ->
+              R = cuter_symbolic:evaluate_lambda(ClosureSymb, SAs_e, Fd),
+              mk_result(Cv, R);
+            true ->
+              Sv = get_symbolic(Cv),
+              cuter_log:log_evaluated_closure(Fd, ClosureSymb, SAs_e, Sv),
+              Cv
+          end
       end
   end;
 
@@ -1263,6 +1271,7 @@ create_closure(M, _F, Arity, {letrec_func, {Def, Cenv, Senv}}, Servers, Fd) ->
 make_fun(Vars, Body, Mod, Arity, Cenv, Senv, Servers, Fd) ->
   Creator = self(),
   LambdaS = cuter_symbolic:fresh_lambda(Arity, Fd),
+  add_to_created_closure(LambdaS),
   LambdaC =
     case Arity of
       0 ->
@@ -1371,6 +1380,7 @@ register_new_environments(Args, Vars, Cenv, Senv) ->
 make_fun(Mod, Func, Arity, Servers, Fd) ->
   Creator = self(),
   LambdaS = cuter_symbolic:fresh_lambda(Arity, Fd),
+  add_to_created_closure(LambdaS),
   LambdaC =
     case Arity of
       0 ->
@@ -1854,3 +1864,18 @@ lamba_app_tag(LambdaApp) ->
 -spec mk_lambda_app(cuter_symbolic:symbolic(), arity()) -> lambda_app().
 mk_lambda_app(SVar, Arity) ->
   #?LAMBDA_APP{svar = SVar, arity = Arity, tag = cuter_cerl:empty_tag()}.
+
+is_created_closure(SymbVar) ->
+  case get(?CLOSURE_SYMBOLIC) of
+    undefined -> false;  % TODO Fallback and call the iserver.
+    Symbs -> gb_sets:is_element(SymbVar, Symbs)
+  end.
+
+add_to_created_closure(SymbVar) ->
+  %% TODO Also update the iserver.
+  case get(?CLOSURE_SYMBOLIC) of
+    undefined ->
+      put(?CLOSURE_SYMBOLIC, gb_sets:from_list([SymbVar]));
+    Symbs ->
+      put(?CLOSURE_SYMBOLIC, gb_sets:add_element(SymbVar, Symbs))
+  end.
