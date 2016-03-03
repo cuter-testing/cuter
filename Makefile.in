@@ -176,8 +176,10 @@ clean:
 clean_tests:
 	$(RM) $(UTEST_EBIN)/*.beam $(FTEST_EBIN)/*.beam
 
-cleangen:
-	$(RM) .depend .cuter_plt
+cleandep:
+	$(RM) .depend
+
+cleangen: cleandep
+	$(RM) .cuter_plt
 
 distclean: clean clean_tests cleangen
-

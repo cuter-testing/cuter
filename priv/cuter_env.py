@@ -20,10 +20,14 @@ class Env:
     self.bitv_cnt = 0
     self.valueDb = {}
     self.params = []
+    self.typeRoots = []
     self.typeDb = defaultdict(lambda: ctp.Type.generateAny())
 
   def addParam(self, x):
     self.params.append(x)
+
+  def addRoot(self, x):
+    self.typeRoots.append(x)
 
   def bind(self, s, v):
     self.valueDb[s] = v
@@ -42,6 +46,11 @@ class Env:
     self.paramsCnt += 1
     x = Const("x%s" % self.paramsCnt, Type)
     self.valueDb[s] = x
+    return x
+
+  def justFreshVar(self, Type):
+    self.paramsCnt += 1
+    x = Const("x%s" % self.paramsCnt, Type)
     return x
 
   def generate_const(self, Type):

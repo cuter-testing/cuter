@@ -1,5 +1,5 @@
 Testing funs:f92/2 ...
 === Inputs That Lead to Runtime Errors ===
-#1 funs:f92(1, 1)
+#1 funs:f92(fun() -> 3 end, 1)
 #2 funs:f92(fun(_) -> 42 end, 2)
 #3 funs:f92(fun(_,_) -> 42 end, 1)

@@ -5,9 +5,9 @@
 -export([parse_spec/3, retrieve_types/1, retrieve_specs/1, find_spec/2, get_kind/1,
          find_remote_deps_of_type/2, find_remote_deps_of_spec/2]).
 
--export([params_of_t_function_det/1, ret_of_t_function_det/1, atom_of_t_atom_lit/1, integer_of_t_integer_lit/1,
+-export([params_of_t_function_det/1, ret_of_t_function/1, atom_of_t_atom_lit/1, integer_of_t_integer_lit/1,
          elements_type_of_t_list/1, elements_type_of_t_nonempty_list/1, elements_types_of_t_tuple/1,
-         elements_types_of_t_union/1, bounds_of_t_range/1, segment_size_of_bitstring/1]).
+         elements_types_of_t_union/1, bounds_of_t_range/1, segment_size_of_bitstring/1, is_generic_function/1]).
 
 -export([t_atom/0, t_atom_lit/1, t_any/0, t_binary/0, t_bitstring/0, t_bitstring/2, t_char/0, t_float/0,
          t_function/0, t_function/2, t_function/3, t_integer/0, t_list/0, t_list/1,
@@ -38,7 +38,7 @@
 -type deps() :: ordsets:ordset(remote_type()).
 -record(t, {
   kind,
-  rep,
+  rep = undefined,
   deps = ordsets:new() :: deps()
 }).
 
@@ -106,7 +106,8 @@
 -type t_bitstring() :: #t{kind :: ?bitstring_tag, rep :: seg_sizes()}.
 
 %% Funs.
--type t_function()     :: #t{kind :: ?function_tag} | t_function_det().
+-type t_function()     :: t_function_gen() | t_function_det().
+-type t_function_gen() :: #t{kind :: ?function_tag, rep :: {raw_type(), [t_constraint()]}, deps :: deps()}.
 -type t_function_det() :: #t{kind :: ?function_tag, rep :: {[raw_type()], raw_type(), [t_constraint()]}, deps :: deps()}.
 -type t_constraint()   :: {t_type_var(), raw_type()}.
 
@@ -327,10 +328,10 @@ t_from_form({type, _, bitstring, []}) ->
 %% function()
 t_from_form({type, _, function, []}) ->
   t_function();
-%% fun((TList) -> Type)
+%% fun((TList) -> Type) | fun((...) -> Type)
 t_from_form({type, _, 'fun', [_Product, _RetType]}=Fun) ->
   t_function_from_form(Fun);
-%% fun((TList) -> Type) (bounded_fun)
+%% fun((TList) -> Type) | fun((...) -> Type) (bounded_fun)
 t_from_form({type, _, 'bounded_fun', [_Fun, _Cs]}=BoundedFun) ->
   t_bounded_function_from_form(BoundedFun);
 %% ann_type
@@ -371,16 +372,24 @@ t_bound_field_from_form({type, _, field_type, [{atom, _, Name}, Type]}) ->
 t_function_from_form({type, _, 'fun', [{type, _, 'product', Types}, RetType]}) ->
   Ret = safe_t_from_form(RetType),
   Ts = [safe_t_from_form(T) || T <- Types],
-  t_function(Ts, Ret).
+  t_function(Ts, Ret);
+t_function_from_form({type, _, 'fun', [{type, _, any}, RetType]}) ->
+  Ret = safe_t_from_form(RetType),
+  t_function(Ret, []).
 
 %% Parses the declaration of a bounded fun.
 -spec t_bounded_function_from_form(cuter_cerl:cerl_bounded_func()) -> t_function_det().
 t_bounded_function_from_form({type, _, 'bounded_fun', [Fun, Constraints]}) ->
-  {type, _, 'fun', [{type, _, 'product', Types}, RetType]} = Fun,
-  Ret = safe_t_from_form(RetType),
-  Ts = [safe_t_from_form(T) || T <- Types],
   Cs = [t_constraint_from_form(C) || C <- Constraints],
-  t_function(Ts, Ret, Cs).
+  case Fun of
+    {type, _, 'fun', [{type, _, any}, RetType]} ->
+      Ret = safe_t_from_form(RetType),
+      t_function(Ret, Cs);
+    {type, _, 'fun', [{type, _, 'product', Types}, RetType]} ->
+      Ret = safe_t_from_form(RetType),
+      Ts = [safe_t_from_form(T) || T <- Types],
+      t_function(Ts, Ret, Cs)
+  end.
 
 %% Parses the constraints of a bounded fun.
 -spec t_constraint_from_form(cuter_cerl:cerl_constraint()) -> t_constraint().
@@ -494,14 +503,20 @@ t_bitstring(M, N) ->
 t_binary() ->
   t_bitstring(0, 8).
 
--spec t_function() -> t_function().
+-spec t_function() -> t_function_gen().
 t_function() ->
-  #t{kind = ?function_tag}.
+  Rep = {t_any(), []},
+  #t{kind = ?function_tag, rep = Rep}.
 
--spec t_function([raw_type()], raw_type()) -> t_function_det().
-t_function(Types, Ret) ->
+-spec t_function([raw_type()], raw_type()) -> t_function_det()
+              ; (raw_type(), [t_constraint()]) -> t_function_gen().
+t_function(Types, Ret) when is_list(Types) ->
   Rep = {Types, Ret, []},
-  #t{kind = ?function_tag, rep = Rep, deps = unify_deps([Ret|Types])}.
+  #t{kind = ?function_tag, rep = Rep, deps = unify_deps([Ret|Types])};
+t_function(Ret, Constraints) ->
+  Rep = {Ret, Constraints},
+  Ts = [T || {_V, T} <- Constraints],
+  #t{kind = ?function_tag, rep = Rep, deps = unify_deps([Ret|Ts])}.
 
 -spec t_function([raw_type()], raw_type(), [t_constraint()]) -> t_function_det().
 t_function(Types, Ret, Constraints) ->
@@ -566,6 +581,12 @@ t_string() ->
 %% API for type accessors.
 %% ----------------------------------------------------------------------------
 
+-spec is_generic_function(t_function()) -> boolean().
+is_generic_function(#t{kind = ?function_tag, rep = {_, _, _}}) ->
+  false;
+is_generic_function(#t{kind = ?function_tag, rep = {_, _}}) ->
+  true.
+
 -spec fields_of_t_record(t_record()) -> [record_field_type()].
 fields_of_t_record(Record) ->
   Rep = Record#t.rep,
@@ -575,8 +596,10 @@ fields_of_t_record(Record) ->
 params_of_t_function_det(#t{kind = ?function_tag, rep = {Params, _Ret, _Constraints}}) ->
   Params.
 
--spec ret_of_t_function_det(t_function_det()) -> raw_type().
-ret_of_t_function_det(#t{kind = ?function_tag, rep = {_Params, Ret, _Constraints}}) ->
+-spec ret_of_t_function(t_function()) -> raw_type().
+ret_of_t_function(#t{kind = ?function_tag, rep = {_Params, Ret, _Constraints}}) ->
+  Ret;
+ret_of_t_function(#t{kind = ?function_tag, rep = {Ret, _Constraints}}) ->
   Ret.
 
 -spec atom_of_t_atom_lit(t_atom_lit()) -> atom().
@@ -747,6 +770,11 @@ simplify(#t{kind = ?function_tag, rep = {Params, Ret, Constraints}}=Raw, CurrMod
   ParamsSimplified = [simplify(P, CurrModule, Env1, Visited, Conf) || P <- Params],
   RetSimplified = simplify(Ret, CurrModule, Env1, Visited, Conf),
   Rep = {ParamsSimplified, RetSimplified, []},
+  Raw#t{rep = Rep};
+simplify(#t{kind = ?function_tag, rep = {Ret, Constraints}}=Raw, CurrModule, Env, Visited, Conf) ->
+  Env1 = simplify_constraints(Constraints, CurrModule, Env, Visited, Conf),
+  RetSimplified = simplify(Ret, CurrModule, Env1, Visited, Conf),
+  Rep = {RetSimplified, []},
   Raw#t{rep = Rep};
 %% tuple
 simplify(#t{kind = ?tuple_tag, rep = Types}=Raw, CurrModule, Env, Visited, Conf) ->

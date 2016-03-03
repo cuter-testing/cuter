@@ -184,7 +184,11 @@ class TermEncoder:
     # It will be selected as the value of the first input.
     # TODO What will happen if the arity is 0?
     # default = self.encodeDefault(defn[-1])
-    kvs = [self.encodeKVPair(args, val) for [args, val] in defn[0:-1]]
+    # Also prune keys with the wrong arity (mainly to genericFun specs adding an Exists axiom)
+    kvs = [self.encodeKVPair(args, val) for [args, val] in defn[0:-1] if self.getActualArity(args) == arity]
+    if len(kvs) == 0:
+      default = self.encodeDefault(defn[-1])
+      return {"t": cc.JSON_TYPE_FUN, "v": [default], "x": arity}
     # Do not add the arity.
     # It will be deducted from the number of the arguments of the
     # first input.
@@ -206,6 +210,13 @@ class TermEncoder:
   def defaultFun(self, arity):
     default = self.encodeDefault(self.erl.Term.int(0))
     return {"t": cc.JSON_TYPE_FUN, "v": [default], "x": arity}
+
+  def getActualArity(self, t):
+    L = self.erl.List
+    if is_true(simplify(L.is_cons(t))):
+      return 1 + self.getActualArity(simplify(L.tl(t)))
+    else:
+      return 0
 
 class TermDecoder:
   """

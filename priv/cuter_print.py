@@ -81,6 +81,11 @@ def pretty_type(d):
     return "{%s}" % ", ".join(map(pretty_type, d["a"]))
   if tp == cc.JSON_ERLTYPE_UNION:
     return "|".join(map(pretty_type, d["a"]))
+  if tp == cc.JSON_ERLTYPE_GENERIC_FUN:
+    return "fun()"
+  if tp == cc.JSON_ERLTYPE_FUN:
+    args, ret = d["a"][:-1], d["a"][-1]
+    return "fun(({}) -> {})".format(", ".join(map(pretty_type, args)), pretty_type(ret))
 
 def print_cmd(tp, tag, json_data, rev):
   # Symbolic parameters
@@ -92,8 +97,8 @@ def print_cmd(tp, tag, json_data, rev):
   # Symbolic parameters
   elif tp == cc.OP_SPEC:
     msg = ["SPEC"]
-#    for sp in json_data["a"]:
-#      msg.append("(%s) -> %s" % (pretty_list(sp["p"]), pretty(sp["r"])))
+    for sp in json_data["a"]:
+      msg.append("(%s) -> %s" % (pretty_list(sp["p"]), pretty(sp["r"])))
     pprint(msg, tag)
   # True guard constraint
   elif tp == cc.OP_GUARD_TRUE:
@@ -416,6 +421,20 @@ def print_cmd(tp, tag, json_data, rev):
     pprint([
       "IS FUNCTION WITH ARITY",
       "%s = is_function(%s, %s) " % (pretty(xs[0]), pretty(xs[1]), pretty(xs[2]))
+    ], tag)
+  # Fresh lambda with arity
+  elif tp == cc.OP_FRESH_LAMBDA_WITH_ARITY:
+    xs = json_data["a"]
+    pprint([
+      "FRESH LAMBDA WITH ARITY",
+      "is_function(%s, %s) " % (pretty(xs[0]), pretty(xs[1]))
+    ], tag)
+  # Evaluated Closure
+  elif tp == cc.OP_EVALUATED_CLOSURE:
+    xs = json_data["a"]
+    pprint([
+      "EVALUATED CLOSURE",
+      "%s = apply(%s, [ %s ]) " % (pretty(xs[0]), pretty(xs[1]), pretty_list(xs[2:]))
     ], tag)
   else:
     print "UNKNOWN OPCODE", tp
