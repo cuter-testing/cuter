@@ -485,7 +485,17 @@ class Type:
     # Float
     if self.isFloat():
       return self.unifyWithFloat(tp)
-    # FIXME Add more cases.
+    # Bitstring
+    if self.isBitstring():
+      return self.unifyWithBitstring(tp)
+    # Tuple
+    if self.isTuple():
+      return self.unifyWithTuple(tp)
+    if self.isTupleDet():
+      return self.unifyWithTupleDet(tp)
+    if self.isNTuple():
+      return self.unifywithNTuple(tp)
+    # FIXME Add cases for unions, lists & funs.
     return True
 
   def unifyWithAtom(self, tp):
@@ -529,12 +539,14 @@ class Type:
     if tp.isIntegerLit():
       self.takenOverByType(tp)
       return True
+    if tp.isRange():
+      self.takenOverByType(tp)
     if tp.isUnion():
       isCnd = lambda x: ErlType.isInteger(x)
       candidates = [t for t in ErlType.getArgs(tp.typ) if isCnd(t)]
       if len(candidates) > 0:
         return True
-      isCnd = lambda x: ErlType.isIntegerLit(x)
+      isCnd = lambda x: ErlType.isIntegerLit(x) or ErlType.isRange(x)
       candidates = [t for t in ErlType.getArgs(tp.typ) if isCnd(t)]
       if len(candidates) > 0:
         ErlType.setArgs(candidates)
@@ -556,6 +568,11 @@ class Type:
       candidates = [t for t in ErlType.getArgs(tp.typ) if isCnd(t)]
       if len(candidates) > 0:
         return True
+      # FIXME Check for range properly
+      isCnd = lambda x: ErlType.isRange(x)
+      candidates = [t for t in ErlType.getArgs(tp.typ) if isCnd(t)]
+      if len(candidates) > 0:
+        return True
     return False
 
   def unifyWithFloat(self, tp):
@@ -566,6 +583,78 @@ class Type:
       candidates = [t for t in ErlType.getArgs(tp.typ) if isCnd(t)]
       if len(candidates) > 0:
         return True
+    return False
+
+  def unifyWithBitstring(self, tp):
+    if tp.isBitstring():
+      # FIXME Have to check if m * n is compatible
+      return True
+    if tp.isUnion():
+      isCnd = lambda x: ErlType.isBitstring(x)
+      candidates = [t for t in ErlType.getArgs(tp.typ) if isCnd(t)]
+      if len(candidates) > 0:
+        return True
+    return False
+
+  def unifyWithTuple(self, tp):
+    if tp.isTuple():
+      return True
+    if tp.isTupleDet():
+      self.takenOverByType(tp)
+      return True
+    if tp.isUnion():
+      isCnd = lambda x: ErlType.isTuple(x)
+      candidates = [t for t in ErlType.getArgs(tp.typ) if isCnd(t)]
+      if len(candidates) > 0:
+        return True
+      isCnd = lambda x: ErlType.isTupleDet(x)
+      candidates = [t for t in ErlType.getArgs(tp.typ) if isCnd(t)]
+      if len(candidates) > 0:
+        # FIXME Have to check specify the type with tupledet
+        return True
+      isCnd = lambda x: ErlType.isNTuple(x)
+      candidates = [t for t in ErlType.getArgs(tp.typ) if isCnd(t)]
+      if len(candidates) > 0:
+        # FIXME Have to check specify the type with ntuple
+        return True
+    return False
+
+  def unifyWithTupleDet(self, tp):
+    if tp.isTuple():
+      return True
+    if tp.isTupleDet():
+      args = ErlType.getArgs(self.typ)
+      tpArgs =  ErlType.getArgs(tp.typ)
+      if len(args) != len(tpArgs):
+        return False
+      else:
+        # FIXME unify the types of the elements
+        return True
+    if tp.isNTuple():
+      # FIXME unify with n-tuple
+      return True
+    if tp.isUnion():
+      # unify with union
+      return True
+    return False
+
+  def unifyWithNTuple(self, tp):
+    if tp.isTuple():
+      return True
+    if tp.isTupleDet():
+      n = ErlType.getArgs(self.typ)
+      tpArgs =  ErlType.getArgs(tp.typ)
+      if n != len(tpArgs):
+        return False
+      else:
+        # FIXME unify the types of the elements
+        return True
+    if tp.isNTuple():
+      # FIXME unify with n-tuple
+      return True
+    if tp.isUnion():
+      # unify with union
+      return True
     return False
 
   def isAny(self):

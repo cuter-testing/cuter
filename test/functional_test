@@ -53,6 +53,8 @@ tests[42]="funs;f2ws;[fun(_) -> 1 end,1,1];10;${opts};funs-f2ws-3;no-whitelist"
 tests[43]="funs;f3ws;[fun(_) -> 1 end,1,1];10;${opts};funs-f3ws-3;no-whitelist"
 tests[44]="funs;f5ws;[fun(_,_,_) -> 1 end,0,0,0];2;${opts};funs-f5ws-4;no-whitelist"
 tests[45]="funs;f1hs;[fun(_) -> 1 end];2;${opts};funs-f1hs-1;no-whitelist"
+tests[46]="funs;f13a;[fun(_) -> 1 end, {}];5;${opts};funs-f13a-2;no-whitelist"
+tests[47]="funs;f13b;[fun(_) -> 1 end, <<>>];25;${opts};funs-f13b-2;no-whitelist"
 
 for element in "${tests[@]}"; do
   IFS=';' read -a t <<< "$element"
