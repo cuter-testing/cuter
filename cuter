@@ -31,16 +31,16 @@ def main():
   # Parse the arguments
   args = parser.parse_args()
 
-  # First, recompile the module, if requested.
-  if args.recompile:
-    if compileModule(args.module, True) == 1:
-      sys.exit(1)
-
   # The directories that will be appended to the code path.
   paths = "".join([
     "-pa " + " ".join(args.pa) if len(args.pa) > 0 else "",
     "-pz " + " ".join(args.pz) if len(args.pz) > 0 else ""
   ])
+
+  # First, recompile the module, if requested.
+  if args.recompile:
+    if compileModule(args.module, paths, True) == 1:
+      sys.exit(1)
 
   # Export ERL_LIBS.
   erl_libs = os.getenv("ERL_LIBS")
@@ -60,7 +60,7 @@ def main():
 
   # If the module is non_existing try to compile it.
   if out == "non_existing":
-    if compileModule(args.module) == 1:
+    if compileModule(args.module, paths) == 1:
       sys.exit(1)
   elif len(out) < 4 or out[-4:] != "beam":
     print "Module {} is {} ...".format(args.module, out)
@@ -95,7 +95,7 @@ def main():
 def getDirectory():
   return os.path.dirname(os.path.realpath(__file__))
 
-def compileModule(module, again = False):
+def compileModule(module, paths, again = False):
   """
   Tries to compile the module.
   It expects that the erl file is located in the current working directory.
@@ -107,7 +107,8 @@ def compileModule(module, again = False):
       print "Cannot locate {} ...  ".format(erl)
       return 1
     print "Compiling {} ...".format(erl),
-    p = subp.Popen(["erlc", "+debug_info", erl], stdout=subp.PIPE, stderr=subp.PIPE)
+    pathParts = paths.split(" ")
+    p = subp.Popen(["erlc"] + pathParts + ["+debug_info", erl], stdout=subp.PIPE, stderr=subp.PIPE)
     out, err = p.communicate()
     print "OK" if p.returncode == 0 else "ERROR"
     return p.returncode, "\n".join([out.strip(), err.strip()]).strip()
