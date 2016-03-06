@@ -1,0 +1,6 @@
+Testing sum:classify/1 ...
+=== Inputs That Lead to Runtime Errors ===
+#1 sum:classify([-5450,8365,1796])
+#2 sum:classify([2437,2274])
+#3 sum:classify([4711])
+#4 sum:classify([4711.0])
