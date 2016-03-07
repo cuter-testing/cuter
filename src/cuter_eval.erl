@@ -1821,7 +1821,7 @@ log_literal_match_failure_rec(Fd, Lit, Sv, Tag) ->
 %% Checks if the error happened from the application of a lambda function
 %% that has a symbolic value.
 -spec check_if_lambda_app(file:io_device(), any()) -> ok.
-check_if_lambda_app(Fd, {badfun, _}) ->
+check_if_lambda_app(Fd, {Reason, _}) when Reason =:= badfun; Reason =:= badarity ->
   case has_lambda_app() of
     false -> ok;
     {true, LambdaApp} ->
