@@ -107,8 +107,12 @@ def compileModule(module, paths, again = False):
       print "Cannot locate {} ...  ".format(erl)
       return 1
     print "Compiling {} ...".format(erl),
-    pathParts = paths.split(" ")
-    p = subp.Popen(["erlc"] + pathParts + ["+debug_info", erl], stdout=subp.PIPE, stderr=subp.PIPE)
+    if len(paths) > 0:
+      pathParts = paths.split(" ")
+      cmdParts = ["erlc"] + pathParts + ["+debug_info", erl]
+    else:
+      cmdParts = ["erlc", "+debug_info", erl]
+    p = subp.Popen(cmdParts, stdout=subp.PIPE, stderr=subp.PIPE)
     out, err = p.communicate()
     print "OK" if p.returncode == 0 else "ERROR"
     return p.returncode, "\n".join([out.strip(), err.strip()]).strip()
