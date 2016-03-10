@@ -5,14 +5,14 @@ This is the source tree for CutEr, a concolic unit testing tool for Erlang.
 
 [![Build Status](https://travis-ci.org/aggelgian/cuter.svg?branch=master)](https://travis-ci.org/aggelgian/cuter)
 
-***CAUTION: This tool is still under heavy development (and not yet released!)***
+***CAUTION: This tool is still under heavy development***
 
-* [Licence](#licence)
+* [License](#license)
 * [Dependencies](#dependencies)
-* [Installing](#installing)
+* [Installation](#installation)
 * [Usage](#usage)
 
-Licence
+License
 -------
 
 Copyright 2014-2016 by Aggelos Giantsios, Nikolaos Papaspyrou and Kostis Sagonas.
@@ -22,12 +22,13 @@ This program is distributed under the GPL, version 3 or later. Please see the CO
 Dependencies
 ------------
 
-In order to use the tool, you need the following programs:
+In order to use CutEr, you need the following programs:
 
 1. **Erlang/OTP**
 
+  We support releases Erlang/OTP 17.x or later.
   Note that using a pre-built package or binaries will not suffice if
-  the library's modules have not been compiled with debug information.
+  the library modules have not been compiled with debug information.
   In that case, you will need to build and install Erlang/OTP from source.
 
   Download the latest [source code distribution of
@@ -42,8 +43,7 @@ In order to use the tool, you need the following programs:
 
 2. **Python 2.x**
 
-  Download and install the latest [Python 2.x
-  distribution](http://www.python.org).
+  Download and install the latest [Python 2.x distribution](http://www.python.org).
 
 3. **Z3 Theorem Prover**
 
@@ -92,7 +92,7 @@ Installing
 Usage
 -----
 
-Let's say that you just wrote a simple module `foo` that just contains
+Let's say that you have a simple module `foo` that just contains
 the exported function `bar/2`. The source file `foo.erl` is:
 
 ```erlang
