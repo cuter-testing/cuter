@@ -743,7 +743,7 @@ class ErlangZ3:
 
   def nonEmptyListToAxioms(self, s, typ):
     T, L = self.erl.Term, self.erl.List
-    ax = self.typeDeclToAxioms(s, tp)
+    ax = self.typeDeclToAxioms(s, typ)
     return And(ax, L.is_cons(T.lval(s)), L.is_nil(L.tl(T.lval(s))))  # Use base case.
 
   def bitstringToAxioms(self, s, args):
