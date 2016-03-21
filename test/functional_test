@@ -56,6 +56,7 @@ tests[45]="funs;f1hs;[fun(_) -> 1 end];2;${opts};funs-f1hs-1;no-whitelist"
 tests[46]="funs;f13a;[fun(_) -> 1 end, {}];5;${opts};funs-f13a-2;no-whitelist"
 tests[47]="funs;f13b;[fun(_) -> 1 end, <<>>];25;${opts};funs-f13b-2;no-whitelist"
 tests[48]="sum;classify;[[]];25;${opts} -pa ../lib/proper/ebin;sum-classify-1;no-whitelist"
+tests[49]="funs;f14;[fun(_) -> 1 end, []];25;${opts};funs-f14-2;no-whitelist"
 
 for element in "${tests[@]}"; do
   IFS=';' read -a t <<< "$element"
