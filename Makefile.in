@@ -32,8 +32,10 @@ DIALYZER_APPS = erts kernel stdlib compiler crypto
 DIALYZER_FLAGS = -Wunmatched_returns -Wunderspecs
 
 WARNS = +warn_exported_vars +warn_unused_import +warn_missing_spec #+warn_untyped_record
+WARNS_FTEST = +warn_exported_vars +warn_unused_import #+warn_missing_spec +warn_untyped_record
 ERLC_INCLUDE = -I $(INCLUDE)
 ERLC_FLAGS = +debug_info $(WARNS) -Werror
+ERLC_FLAGS_FTEST = +debug_info $(WARNS_FTEST) -Werror
 ERLC_FLAGS_NO_DBG = $(WARNS) -Werror
 ERLC_MACROS = -DEBIN=\"$(PWD)/$(EBIN)\" -DPYTHON_PATH=\"@PYTHON_PATH@\" -DPRIV=\"$(PRIV)\"
 
@@ -146,7 +148,7 @@ $(FTEST_EBIN)/no_debug_info.beam: no_debug_info.erl
 
 $(FTEST_EBIN)/%.beam: %.erl
 	@echo "ERLC $<"
-	@$(ERLC) $(ERLC_INCLUDE) $(ERLC_FLAGS) $(ERLC_MACROS) -o $(FTEST_EBIN) $<
+	@$(ERLC) $(ERLC_INCLUDE) $(ERLC_FLAGS_FTEST) $(ERLC_MACROS) -o $(FTEST_EBIN) $<
 
 utest: $(TARGETS)
 	@(./$(TEST)/eunit_test -e $(EBIN) -u $(UTEST_EBIN) -- $(SRC_MODULES))
