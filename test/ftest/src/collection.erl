@@ -1,5 +1,5 @@
 -module(collection).
--export([f/1, g/1, g1/1, h/1, f1/1]).
+-export([f/1, g/1, g1/1, h/1, f1/1, eval_nif/1]).
 
 -type t() :: [complex_spec:int()].
 
@@ -43,4 +43,9 @@ f1(X) ->
   case types_and_specs:f11(X) of
     42.0 -> error(bug);
     _ -> ok
+  end.
+
+eval_nif(T) ->
+  case erts_debug:flat_size(T) of
+    Sz when is_integer(Sz) -> ok
   end.
