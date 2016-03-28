@@ -130,3 +130,15 @@ f37(X) ->
     <<_:42>> -> error(not_ok);
     _ -> ok
   end.
+
+-spec byte_sz(bitstring()) -> ok.
+byte_sz(Bits) ->
+  case byte_size(Bits) of
+    Sz when Sz < 2 -> ok
+  end.
+
+-spec bit_sz(bitstring()) -> ok.
+bit_sz(Bits) ->
+  case bit_size(Bits) of
+    Sz when Sz < 4 -> ok
+  end.

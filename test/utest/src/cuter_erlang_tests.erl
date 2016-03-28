@@ -82,6 +82,8 @@ reversible_bifs_test_() ->
   , {"erlang:list_to_tuple/1 => cuter_erlang:list_to_tuple/1", prop_list_to_tuple(), 1000}
   , {"erlang:tuple_to_list/1 => cuter_erlang:tuple_to_list/1", prop_tuple_to_list(), 1000}
   , {"erlang:atom_to_list/1 => cuter_erlang:atom_to_list/1", prop_atom_to_list(), 1000}
+  , {"erlang:byte_size/1 => cuter_erlang:byte_size/1", prop_byte_size(), 4000}
+  , {"erlang:bit_size/1 => cuter_erlang:bit_size/1", prop_bit_size(), 4000}
   ],
   [{Descr, {timeout, 10000, ?_assert(proper:quickcheck(Prop, [{to_file, user}, {numtests, N}]))}} || {Descr, Prop, N} <- Props].
 
@@ -127,3 +129,11 @@ prop_tuple_to_list() ->
 -spec prop_atom_to_list() -> proper:outer_test().
 prop_atom_to_list() ->
   ?FORALL(X, atom(), atom_to_list(X) =:= cuter_erlang:atom_to_list(X)).
+
+-spec prop_byte_size() -> proper:outer_test().
+prop_byte_size() ->
+  ?FORALL(X, bitstring(), erlang:byte_size(X) =:= cuter_erlang:byte_size(X)).
+
+-spec prop_bit_size() -> proper:outer_test().
+prop_bit_size() ->
+  ?FORALL(X, bitstring(), erlang:bit_size(X) =:= cuter_erlang:bit_size(X)).

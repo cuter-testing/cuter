@@ -58,6 +58,8 @@ tests[47]="funs;f13b;[fun(_) -> 1 end, <<>>];25;${opts};funs-f13b-2;no-whitelist
 tests[48]="sum;classify;[[]];25;${opts} -pa ../lib/proper/ebin;sum-classify-1;no-whitelist"
 tests[49]="funs;f14;[fun(_) -> 1 end, []];25;${opts};funs-f14-2;no-whitelist"
 tests[50]="collection;eval_nif;[ok];25;${opts};collection-eval_nif-1;no-whitelist"
+tests[51]="bitstr;bit_sz;[<<>>];15;${opts};bitstr-bit_sz-1;no-whitelist"
+tests[52]="bitstr;byte_sz;[<<>>];42;${opts};bitstr-byte_sz-1;no-whitelist"
 
 for element in "${tests[@]}"; do
   IFS=';' read -a t <<< "$element"
