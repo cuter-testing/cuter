@@ -17,7 +17,7 @@ script:
   - make depend
   - make all
 otp_release:
-  - 18.2
+  - 18.3
   #- 18.0
-  - 17.4
+  - 17.5
   - 17.0
