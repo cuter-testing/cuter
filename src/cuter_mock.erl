@@ -255,7 +255,7 @@ simulate_behaviour(slave, start, _A) -> bif;
 %% The rest MFAs are not BIFs if they should be symbolically evaluated.
 simulate_behaviour(M, F, A) ->
   Mfa = {M, F, A},
-  case no_symbolic_evalution(Mfa) of
+  case no_symbolic_evalution(Mfa) orelse erlang:is_builtin(M, F, A) of
     true  -> bif;
     false -> {ok, Mfa}
   end.

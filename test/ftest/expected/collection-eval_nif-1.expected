@@ -1,0 +1,5 @@
+Testing collection:eval_nif/1 ...
+No Runtime Errors Occured
+
+=== BIFs Currently without Symbolic Interpretation ===
+erts_debug:flat_size/1
