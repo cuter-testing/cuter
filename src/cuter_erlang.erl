@@ -27,7 +27,7 @@
         , '+'/2, '-'/2, '*'/2, '/'/2
         , hd/1, tl/1
         , '++'/2, '--'/2, reverse/2, member/2, keyfind/3
-        , is_binary/1
+        , is_binary/1, bit_size/1, byte_size/1
         ]).
 
 %% XXX When adding type constraints for spec, the overriding funs must be ignored
@@ -911,4 +911,31 @@ is_binary(<<_:1, Bin/bitstring>>, N) ->
   case N of
     7 -> is_binary(Bin, 0);
     _ -> is_binary(Bin, N+1)
+  end.
+
+%%
+%% Simulate erlang:bit_size/1
+%%
+%% Calculates the size of a bitstring in bits.
+-spec bit_size(bitstring()) -> non_neg_integer().
+bit_size(Bin) -> bit_size(Bin, 0).
+
+bit_size(<<>>, Sz) -> Sz;
+bit_size(<<_:1, Bin/bitstring>>, Sz) -> bit_size(Bin, Sz+1).
+
+%%
+%% Simulate erlang:byte_size/1
+%%
+%% Calculates the size of a bitstring in bytes.
+%% Rounds up if the size is not divisible by 8.
+-spec byte_size(bitstring()) -> non_neg_integer().
+byte_size(<<>>) -> 0;
+byte_size(Bin) -> byte_size(Bin, 0, 1).
+
+byte_size(<<>>, _, Sz) ->
+  Sz;
+byte_size(<<_:1, Bin/bitstring>>, N, Sz) ->
+  case N of
+    8 -> byte_size(Bin, 1, Sz+1);
+    _ -> byte_size(Bin, N+1, Sz)
   end.
