@@ -28,6 +28,7 @@
         , hd/1, tl/1
         , '++'/2, '--'/2, reverse/2, member/2, keyfind/3
         , is_binary/1, bit_size/1, byte_size/1
+        , 'bsl'/2, 'bsr'/2
         ]).
 
 %% XXX When adding type constraints for spec, the overriding funs must be ignored
@@ -938,4 +939,32 @@ byte_size(<<_:1, Bin/bitstring>>, N, Sz) ->
   case N of
     8 -> byte_size(Bin, 1, Sz+1);
     _ -> byte_size(Bin, N+1, Sz)
+  end.
+
+-spec 'bsl'(integer(), integer()) -> integer().
+'bsl'(X, Y) when is_integer(X) andalso is_integer(Y) ->
+  case Y < 0 of
+    true  -> bsr_h(X, -Y);
+    false -> bsl_h(X, Y)
+  end.
+
+bsl_h(X, 0) -> X;
+bsl_h(X, N) -> bsl_h(X + X, N - 1).
+
+-spec 'bsr'(integer(), integer()) -> integer().
+'bsr'(X, Y) when is_integer(X) andalso is_integer(Y) ->
+  case Y < 0 of
+    true  -> bsl_h(X, -Y);
+    false -> bsr_h(X, Y)
+  end.
+
+bsr_h(X, 0) -> X;
+bsr_h(X, N) ->
+  case X < 0 of
+    true ->
+      X1 = - safe_pos_div(1 - X, 2),
+      bsr_h(X1, N - 1);
+    false ->
+      X1 = safe_pos_div(X, 2),
+      bsr_h(X1, N - 1)
   end.

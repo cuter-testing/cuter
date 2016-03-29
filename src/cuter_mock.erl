@@ -59,6 +59,8 @@ simulate_behaviour(erlang, '/',             2) -> {ok, {cuter_erlang, '/',      
 simulate_behaviour(erlang, is_binary,       1) -> {ok, {cuter_erlang, is_binary,       1}};
 simulate_behaviour(erlang, bit_size,        1) -> {ok, {cuter_erlang, bit_size,        1}};
 simulate_behaviour(erlang, byte_size,       1) -> {ok, {cuter_erlang, byte_size,       1}};
+simulate_behaviour(erlang, 'bsl',           2) -> {ok, {cuter_erlang, 'bsl',           2}};
+simulate_behaviour(erlang, 'bsr',           2) -> {ok, {cuter_erlang, 'bsr',           2}};
 simulate_behaviour(erlang, _F, _A)        -> bif;
 
 %% cuter_erlang module

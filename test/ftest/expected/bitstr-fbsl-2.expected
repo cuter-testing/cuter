@@ -1,0 +1,6 @@
+Testing bitstr:fbsl/2 ...
+=== Inputs That Lead to Runtime Errors ===
+#1 bitstr:fbsl(21, 1)
+#2 bitstr:fbsl(42, 0)
+#3 bitstr:fbsl(84, -1)
+#4 bitstr:fbsl(168, -2)

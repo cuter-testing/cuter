@@ -84,6 +84,8 @@ reversible_bifs_test_() ->
   , {"erlang:atom_to_list/1 => cuter_erlang:atom_to_list/1", prop_atom_to_list(), 1000}
   , {"erlang:byte_size/1 => cuter_erlang:byte_size/1", prop_byte_size(), 4000}
   , {"erlang:bit_size/1 => cuter_erlang:bit_size/1", prop_bit_size(), 4000}
+  , {"erlang:'bsl'/2 => cuter_erlang:'bsl'/2", prop_bsl(), 4000}
+  , {"erlang:'bsr'/2 => cuter_erlang:'bsr'/2", prop_bsr(), 4000}
   ],
   [{Descr, {timeout, 10000, ?_assert(proper:quickcheck(Prop, [{to_file, user}, {numtests, N}]))}} || {Descr, Prop, N} <- Props].
 
@@ -137,3 +139,11 @@ prop_byte_size() ->
 -spec prop_bit_size() -> proper:outer_test().
 prop_bit_size() ->
   ?FORALL(X, bitstring(), erlang:bit_size(X) =:= cuter_erlang:bit_size(X)).
+
+-spec prop_bsl() -> proper:outer_test().
+prop_bsl() ->
+  ?FORALL({X, Y}, {integer(), integer()}, (X bsl Y) =:= cuter_erlang:'bsl'(X, Y)).
+
+-spec prop_bsr() -> proper:outer_test().
+prop_bsr() ->
+  ?FORALL({X, Y}, {integer(), integer()}, (X bsr Y) =:= cuter_erlang:'bsr'(X, Y)).
