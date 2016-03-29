@@ -142,3 +142,41 @@ bit_sz(Bits) ->
   case bit_size(Bits) of
     Sz when Sz < 4 -> ok
   end.
+
+-spec fbsl(integer(), integer()) -> ok.
+fbsl(X, Y) ->
+  case X bsl Y of
+    42 -> error(bug);
+    _ -> ok
+  end.
+
+-spec bsl_big(integer()) -> ok.
+bsl_big(X) ->
+  M = 123456789012345,
+  L = 123456789012345678901234567890,
+  XL = 1234567890123456789012345678901234567890123456789012345678901234567890,
+  case X bsl 4 of
+    Y when Y > M, Y < L -> error(bug1);
+    Y when Y > L, Y < XL -> error(bug2);
+    Y when Y > XL -> error(bug3);
+    _ -> ok
+  end.
+
+-spec fbsr(integer(), integer()) -> ok.
+fbsr(X, Y) ->
+  case X bsr Y of
+    42 -> error(bug);
+    _ -> ok
+  end.
+
+-spec bsr_big(integer()) -> ok.
+bsr_big(X) ->
+  M = 123456789012345,
+  L = 123456789012345678901234567890,
+  XL = 1234567890123456789012345678901234567890123456789012345678901234567890,
+  case X bsr 4 of
+    Y when Y > M, Y < L -> error(bug1);
+    Y when Y > L, Y < XL -> error(bug2);
+    Y when Y > XL -> error(bug3);
+    _ -> ok
+  end.

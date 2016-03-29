@@ -1,0 +1,5 @@
+Testing bitstr:bsl_big/1 ...
+=== Inputs That Lead to Runtime Errors ===
+#1 bitstr:bsl_big(7716049313272)
+#2 bitstr:bsl_big(7716049313271604931327160494)
+#3 bitstr:bsl_big(77160493132716049313271604931327160493132716049313271604931327160494)
