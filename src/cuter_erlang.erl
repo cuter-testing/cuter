@@ -28,7 +28,7 @@
         , hd/1, tl/1
         , '++'/2, '--'/2, reverse/2, member/2, keyfind/3
         , is_binary/1, bit_size/1, byte_size/1
-        , 'bsl'/2, 'bsr'/2
+        , 'bsl'/2, 'bsr'/2, 'bnot'/1
         ]).
 
 %% XXX When adding type constraints for spec, the overriding funs must be ignored
@@ -976,3 +976,10 @@ bsr_h(X, N) ->
       X1 = safe_pos_div(X, 2),
       bsr_h(X1, N - 1)
   end.
+
+%%
+%% Simulate erlang:'bnot'/1
+%%
+%% Calculates the bitwise unary not of X.
+-spec 'bnot'(integer()) -> integer().
+'bnot'(X) -> -X-1.

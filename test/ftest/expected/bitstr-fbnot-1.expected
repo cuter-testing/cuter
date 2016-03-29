@@ -1,0 +1,3 @@
+Testing bitstr:fbnot/1 ...
+=== Inputs That Lead to Runtime Errors ===
+#1 bitstr:fbnot(-43)
