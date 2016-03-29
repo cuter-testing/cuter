@@ -941,6 +941,10 @@ byte_size(<<_:1, Bin/bitstring>>, N, Sz) ->
     _ -> byte_size(Bin, N+1, Sz)
   end.
 
+%%
+%% Simulate erlang:'bsr'/2
+%%
+%% Calculates the logical right shift of X by Y bits.
 -spec 'bsl'(integer(), integer()) -> integer().
 'bsl'(X, Y) when is_integer(X) andalso is_integer(Y) ->
   case Y < 0 of
@@ -951,6 +955,10 @@ byte_size(<<_:1, Bin/bitstring>>, N, Sz) ->
 bsl_h(X, 0) -> X;
 bsl_h(X, N) -> bsl_h(X + X, N - 1).
 
+%%
+%% Simulate erlang:'bsl'/2
+%%
+%% Calculates the logical left shift of X by Y bits.
 -spec 'bsr'(integer(), integer()) -> integer().
 'bsr'(X, Y) when is_integer(X) andalso is_integer(Y) ->
   case Y < 0 of
