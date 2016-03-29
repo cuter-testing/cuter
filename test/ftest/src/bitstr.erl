@@ -180,3 +180,22 @@ bsr_big(X) ->
     Y when Y > XL -> error(bug3);
     _ -> ok
   end.
+
+-spec fbnot(integer()) -> ok.
+fbnot(X) ->
+  case bnot X of
+    42 -> error(bug);
+    _ -> ok
+  end.
+
+-spec bnot_big(integer()) -> ok.
+bnot_big(X) ->
+  M = 123456789012345,
+  L = 123456789012345678901234567890,
+  XL = 1234567890123456789012345678901234567890123456789012345678901234567890,
+  case bnot X of
+    Y when Y > M, Y < L -> error(bug1);
+    Y when Y > L, Y < XL -> error(bug2);
+    Y when Y > XL -> error(bug3);
+    _ -> ok
+  end.

@@ -64,6 +64,8 @@ tests[53]="bitstr;fbsl;[1, 1];25;${opts};bitstr-fbsl-2;no-whitelist"
 tests[54]="bitstr;bsl_big;[1];100;${opts};bitstr-bsl_big-1;no-whitelist"
 tests[55]="bitstr;fbsr;[1, 1];25;${opts};bitstr-fbsr-2;no-whitelist"
 tests[56]="bitstr;bsr_big;[1];100;${opts};bitstr-bsr_big-1;no-whitelist"
+tests[57]="bitstr;fbnot;[1];25;${opts};bitstr-fbnot-1;no-whitelist"
+tests[58]="bitstr;bnot_big;[1];50;${opts};bitstr-bnot_big-1;no-whitelist"
 
 for element in "${tests[@]}"; do
   IFS=';' read -a t <<< "$element"
