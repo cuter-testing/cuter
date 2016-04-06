@@ -16,7 +16,7 @@
         , float/1
         , atom_to_list/1, list_to_tuple/1, tuple_to_list/1, integer_to_list/1
         , 'and'/2, 'andalso'/2, 'not'/1, 'or'/2, 'orelse'/2, 'xor'/2
-        , 'div'/2, 'rem'/2
+        , 'div'/2, 'rem'/2, trunc/1, safe_trunc/1
         , element/2, setelement/3
         , length/1, tuple_size/1
         , make_tuple/2
@@ -356,6 +356,18 @@ safe_pos_rem(X, Y) -> X rem Y.
   safe_pos_rem(X, -Y);
 'rem'(X, Y) when is_integer(X), is_integer(Y), X < 0, Y > 0 ->
   - safe_pos_rem(-X, Y).
+
+%%
+%% Simulate erlang:trunc/1
+%%
+%% Truncate a number.
+%%
+
+-spec trunc(number()) -> integer().
+trunc(X) when is_number(X) -> safe_trunc(X).
+
+-spec safe_trunc(number()) -> integer().
+safe_trunc(X) -> erlang:trunc(X).
 
 %% ----------------------------------------------------------------------------
 %% BOOLEAN OPERATIONS

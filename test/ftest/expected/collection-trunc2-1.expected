@@ -1,0 +1,4 @@
+Testing collection:trunc2/1 ...
+=== Inputs That Lead to Runtime Errors ===
+#1 collection:trunc2(-42.75)
+#2 collection:trunc2([])
