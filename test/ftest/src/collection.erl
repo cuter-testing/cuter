@@ -50,6 +50,7 @@ eval_nif(T) ->
     Sz when is_integer(Sz) -> ok
   end.
 
+-spec trunc1(number()) -> ok.
 trunc1(X) ->
   case trunc(X) of
     2 ->
@@ -60,6 +61,7 @@ trunc1(X) ->
     _ -> ok
   end.
 
+-spec trunc2(number()) -> ok.
 trunc2(X) ->
   case trunc(X) of
     -42 ->
