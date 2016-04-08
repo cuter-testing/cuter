@@ -152,7 +152,8 @@ class ErlangZ3:
       cc.OP_POW: self.pow_toZ3,
       cc.OP_IS_BITSTRING: self.is_bitstring_toZ3,
       cc.OP_IS_FUN: self.is_fun_toZ3,
-      cc.OP_IS_FUN_WITH_ARITY: self.is_fun_with_arity_toZ3
+      cc.OP_IS_FUN_WITH_ARITY: self.is_fun_with_arity_toZ3,
+      cc.OP_TRUNC: self.trunc_toZ3
     }
     
     opts_rev = {
@@ -1343,7 +1344,25 @@ class ErlangZ3:
         )
       )
     ))
-  
+
+  def trunc_toZ3(self, term, term1):
+    T = self.erl.Term
+    s = term["s"]
+    t1 = self.decode_term(term1)
+    self.axs.append(
+      Or(T.is_int(t1), T.is_real(t1))
+    )
+    # ToInt(-1.75) == 2, ToInt(1.75) == 1
+    self.env.bind(s, If(
+      T.is_real(t1),
+      If(
+        T.rval(t1) > 0.0,
+        T.int(ToInt(T.rval(t1))),
+        T.int(- ToInt(- T.rval(t1)))
+      ),
+      t1
+    ))
+
   # ----------------------------------------------------------------------
   # Comparisons
   # ----------------------------------------------------------------------

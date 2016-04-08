@@ -157,6 +157,7 @@
 -define(OP_REM_NAT, 39).
 -define(OP_UNARY, 40).
 -define(OP_POW, 58).
+-define(OP_TRUNC, 74).
 %% Operations on atoms.
 -define(OP_ATOM_NIL, 49).
 -define(OP_ATOM_HEAD, 50).
@@ -203,6 +204,7 @@
                  , { {cuter_erlang, safe_hd,            1}, ?OP_HD            }
                  , { {cuter_erlang, safe_tl,            1}, ?OP_TL            }
                  , { {cuter_erlang, basic_eq,           2}, ?OP_EQUAL         }
+                 , { {cuter_erlang, safe_trunc,         1}, ?OP_TRUNC         }
                  , { {bogus_erlang, cons,               2}, ?OP_CONS          }
                    %% Actual erlang BIFs
                  , { {erlang, is_integer,    1}, ?OP_IS_INTEGER        }

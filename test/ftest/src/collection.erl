@@ -1,5 +1,5 @@
 -module(collection).
--export([f/1, g/1, g1/1, h/1, f1/1, eval_nif/1]).
+-export([f/1, g/1, g1/1, h/1, f1/1, eval_nif/1, trunc1/1, trunc2/1]).
 
 -type t() :: [complex_spec:int()].
 
@@ -48,4 +48,26 @@ f1(X) ->
 eval_nif(T) ->
   case erts_debug:flat_size(T) of
     Sz when is_integer(Sz) -> ok
+  end.
+
+-spec trunc1(number()) -> ok.
+trunc1(X) ->
+  case trunc(X) of
+    2 ->
+      case X - 2 > 0.5 of
+        true -> error(bug);
+        false -> ok
+      end;
+    _ -> ok
+  end.
+
+-spec trunc2(number()) -> ok.
+trunc2(X) ->
+  case trunc(X) of
+    -42 ->
+      case X + 43 < 0.5 of
+        true -> error(bug);
+        false -> ok
+      end;
+    _ -> ok
   end.
