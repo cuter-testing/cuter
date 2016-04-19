@@ -212,7 +212,7 @@ beam_path(M) ->
   end.
 
 %% Gets the abstract code from a module's beam file, if possible.
--spec get_abstract_code(cuter:mod(), file:name()) -> list().	%% XXX: abstract_code()
+-spec get_abstract_code(cuter:mod(), file:name()) -> [erl_parse:abstract_form()].
 get_abstract_code(Mod, Beam) ->
   case beam_lib:chunks(Beam, [abstract_code]) of
     {ok, {Mod, [{abstract_code, {_, AbstractCode}}]}} -> AbstractCode;
