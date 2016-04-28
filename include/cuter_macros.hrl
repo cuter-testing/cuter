@@ -182,6 +182,8 @@
 -define(OP_BITMATCH_CONST_FALSE, 64).
 -define(OP_BITMATCH_VAR_TRUE, 65).
 -define(OP_BITMATCH_VAR_FALSE, 66).
+%% Bitwise operations.
+-define(OP_BAND, 75).
 
 %% Maps MFAs to their JSON Opcodes
 -define(OPCODE_MAPPING,
@@ -219,6 +221,7 @@
                  , { {erlang, is_bitstring,  1}, ?OP_IS_BITSTRING      }
                  , { {erlang, is_function,   1}, ?OP_IS_FUN            }
                  , { {erlang, is_function,   2}, ?OP_IS_FUN_WITH_ARITY }
+                 , { {erlang, 'band',        2}, ?OP_BAND              }
                  ])).
 
 %% All the MFAs that are supported for symbolic evaluation.

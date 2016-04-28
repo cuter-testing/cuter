@@ -199,3 +199,38 @@ bnot_big(X) ->
     Y when Y > XL -> error(bug3);
     _ -> ok
   end.
+
+-spec fband(integer(), integer()) -> ok.
+fband(X, Y) ->
+  case X band Y of
+    42 -> error(bug);
+    _ -> ok
+  end.
+
+-spec fband2(integer(), integer()) -> ok.
+fband2(X, Y) ->
+  case X band Y of
+    1267650600228229401496703205376 -> error(bug); % 2^100
+    _ -> ok
+  end.
+
+-spec fband_neg(integer(), integer()) -> ok.
+fband_neg(X, Y) ->
+  case X band Y of
+    -42 -> error(bug);
+    _ -> ok
+  end.
+
+-spec fband3(integer(), integer()) -> ok.
+fband3(X, Y) ->
+  case (X + Y) band (X - Y) of
+    1208425819634629144706176 -> error(bug);
+    _ -> ok
+  end.
+
+-spec fband2_neg(integer(), integer()) -> ok.
+fband2_neg(X, Y) ->
+  case X band Y of
+    -1299341865233935136534120785510400 -> error(bug); % - 2^110 - 2^100
+    _ -> ok
+  end.

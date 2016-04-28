@@ -33,6 +33,13 @@ class ErlangZ3:
     self.check = None
     self.model = None
 
+    # For the bitwise operations: band.
+    # We've made the concession to be sound for integers up to 128 bits long.
+    # The implementation is incomplete for larger integers.
+    self.int2bvSize = 128
+    self.max_pos = BitVecVal(2**(self.int2bvSize - 1) - 1, self.int2bvSize)
+    self.max_uint = 2**self.int2bvSize - 1
+
   # Reset the solver
   def reset_solver(self):
     self.slv = Solver()
@@ -153,7 +160,8 @@ class ErlangZ3:
       cc.OP_IS_BITSTRING: self.is_bitstring_toZ3,
       cc.OP_IS_FUN: self.is_fun_toZ3,
       cc.OP_IS_FUN_WITH_ARITY: self.is_fun_with_arity_toZ3,
-      cc.OP_TRUNC: self.trunc_toZ3
+      cc.OP_TRUNC: self.trunc_toZ3,
+      cc.OP_BAND: self.band_toZ3
     }
     
     opts_rev = {
@@ -1361,6 +1369,51 @@ class ErlangZ3:
         T.int(- ToInt(- T.rval(t1)))
       ),
       t1
+    ))
+
+  # ----------------------------------------------------------------------
+  # Bitwise operations
+  # ----------------------------------------------------------------------
+
+  def band_toZ3(self, term, term1, term2):
+    T = self.erl.Term
+    s = term["s"]
+    t1 = self.decode_term(term1)
+    t2 = self.decode_term(term2)
+    tmp = self.env.generate_bitvec(self.int2bvSize)
+    b1 = self.env.generate_bitvec(self.int2bvSize)
+    b2 = self.env.generate_bitvec(self.int2bvSize)
+    self.axs.extend([
+      T.is_int(t1),
+      T.is_int(t2),
+      If(
+        T.ival(t1) >= 0,
+        And(
+          T.ival(t1) == BV2Int(b1),
+          ULE(b1, self.max_pos)
+        ),
+        And(
+          T.ival(t1) == BV2Int(b1) - self.max_uint - 1,
+          ULT(self.max_pos, b1)
+        )
+      ),
+      If(
+        T.ival(t2) >= 0,
+        And(
+          T.ival(t2) == BV2Int(b2),
+          ULE(b2, self.max_pos)
+        ),
+        And(
+          T.ival(t2) == BV2Int(b2) - self.max_uint - 1,
+          ULT(self.max_pos, b2)
+        )
+      ),
+      b1 & b2 == tmp
+    ])
+    self.env.bind(s, If(
+      ULE(tmp, self.max_pos),
+      T.int(BV2Int(tmp)),
+      T.int(BV2Int(tmp) - self.max_uint - 1)
     ))
 
   # ----------------------------------------------------------------------
