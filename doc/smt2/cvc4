@@ -1,0 +1,12 @@
+#! /bin/bash
+
+docker ps -a &> /dev/null
+if [ $? -ne 0 ]; then
+  echo "Docker is not installed or this user is not in the docker group."
+  exit 1
+fi
+if [ $# -eq 0 ]; then
+  echo "No SMT file supplied."
+  exit 1
+fi
+docker run -i --rm aggelgian/smt-solvers cvc4 --lang smt < $1
