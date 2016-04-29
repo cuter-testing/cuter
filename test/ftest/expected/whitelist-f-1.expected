@@ -1,3 +1,0 @@
-Testing whitelist:f/1 ...
-=== Inputs That Lead to Runtime Errors ===
-#1 whitelist:f(424242)

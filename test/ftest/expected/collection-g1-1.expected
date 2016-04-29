@@ -1,5 +1,0 @@
-Testing collection:g1/1 ...
-=== Inputs That Lead to Runtime Errors ===
-#1 collection:g1(1)
-#2 collection:g1(42)
-#3 collection:g1([0])

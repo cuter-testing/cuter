@@ -1,6 +1,0 @@
-Testing collection:h/1 ...
-=== Inputs That Lead to Runtime Errors ===
-#1 collection:h(17)
-
-=== BIFs Currently without Symbolic Interpretation ===
-erlang:get/1

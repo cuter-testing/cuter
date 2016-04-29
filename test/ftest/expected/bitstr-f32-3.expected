@@ -1,3 +1,0 @@
-Testing bitstr:f32/3 ...
-=== Inputs That Lead to Runtime Errors ===
-#1 bitstr:f32(<<64,3:3>>, 0, 0)

@@ -1,3 +1,0 @@
-Testing otp_int:obsolete/3 ...
-=== Inputs That Lead to Runtime Errors ===
-#1 otp_int:obsolete(ssl, negotiated_next_protocol, 1)

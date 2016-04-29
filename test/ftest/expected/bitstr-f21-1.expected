@@ -1,3 +1,0 @@
-Testing bitstr:f21/1 ...
-=== Inputs That Lead to Runtime Errors ===
-#1 bitstr:f21(<<0,42:7>>)

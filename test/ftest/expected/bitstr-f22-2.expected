@@ -1,3 +1,0 @@
-Testing bitstr:f22/2 ...
-=== Inputs That Lead to Runtime Errors ===
-#1 bitstr:f22(<<42:6>>, 6)
