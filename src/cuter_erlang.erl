@@ -44,7 +44,7 @@
 %% Return the term in the n-th position of a tuple.
 %%
 
--spec element(pos_integer(), tuple()) -> any().
+-spec element(pos_integer(), tuple()) -> term().
 element(N, T) when is_tuple(T), is_integer(N) ->
   L = erlang:tuple_to_list(T),
   lists:nth(N, L).
@@ -55,7 +55,7 @@ element(N, T) when is_tuple(T), is_integer(N) ->
 %% Set the term in the n-th position of a tuple.
 %%
 
--spec setelement(pos_integer(), tuple(), any()) -> tuple().
+-spec setelement(pos_integer(), tuple(), term()) -> tuple().
 setelement(N, T, V) ->
   L = erlang:tuple_to_list(T),
   set_nth_element(N, V, L, 1, []).
@@ -96,7 +96,7 @@ tuple_size(T) when is_tuple(T) ->
 %% Create a tuple with N copies of a term.
 %%
 
--spec make_tuple(non_neg_integer(), any()) -> tuple().
+-spec make_tuple(non_neg_integer(), term()) -> tuple().
 make_tuple(N, X) when is_integer(N) ->
   case lt_int(N, 0) of
     true  -> error(badarg);
@@ -309,9 +309,9 @@ abs(X) when is_float(X) ->
 %%  12345 = -293 * -42 + 39
 %% -12345 =  293 * -42 - 39
 %%
-%% In order to be consistent with Erlang, we call the safe_pos_div/2 function that
-%% returns the quotient of the integer division of two natural numbers and then we
-%% set the proper sign.
+%% In order to be consistent with Erlang, we call the safe_pos_div/2 function
+%% that returns the quotient of the integer division of two natural numbers
+%% and then we set the proper sign.
 %%
 
 -spec safe_pos_div(non_neg_integer(), pos_integer()) -> non_neg_integer().
@@ -339,9 +339,9 @@ safe_pos_div(X, Y) -> X div Y.
 %%  12345 = -293 * -42 + 39
 %% -12345 =  293 * -42 - 39
 %%
-%% In order to be consistent with Erlang, we call the safe_pos_rem/2 function that
-%% returns the remainder of the integer division of two natural numbers and
-%% then we set the proper sign.
+%% In order to be consistent with Erlang, we call the safe_pos_rem/2 function
+%% that returns the remainder of the integer division of two natural numbers
+%% and then we set the proper sign.
 %%
 
 -spec safe_pos_rem(non_neg_integer(), pos_integer()) -> non_neg_integer().
@@ -505,10 +505,10 @@ safe_trunc(X) -> erlang:trunc(X).
 %% number < atom < reference < fun < port < pid < tuple < map < list < bit string
 %% ----------------------------------------------------------------------------
 
--spec basic_eq(any(), any()) -> boolean().
+-spec basic_eq(term(), term()) -> boolean().
 basic_eq(X, Y) -> X =:= Y.
 
--spec '=:='(any(), any()) -> boolean().
+-spec '=:='(term(), term()) -> boolean().
 '=:='([], []) ->
   true;
 '=:='([H1|T1], [H2|T2]) ->
@@ -522,7 +522,7 @@ basic_eq(X, Y) -> X =:= Y.
 '=:='(X, Y) ->
   basic_eq(X, Y).
 
--spec '=/='(any(), any()) -> boolean().
+-spec '=/='(term(), term()) -> boolean().
 '=/='(X, Y) -> not '=:='(X, Y).
 
 %%
@@ -539,7 +539,7 @@ basic_eq(X, Y) -> X =:= Y.
 %% erlang:'=:='/2 for the comparison.
 %%
 
--spec '=='(any(), any()) -> boolean().
+-spec '=='(term(), term()) -> boolean().
 '=='(X, Y) when is_integer(X), is_float(Y) ->
   erlang:float(X) =:= Y;
 '=='(X, Y) when is_float(X), is_integer(Y) ->
@@ -561,7 +561,7 @@ basic_eq(X, Y) -> X =:= Y.
 %% erlang:'=/='/2 for the comparison.
 %%
 
--spec '/='(any(), any()) -> boolean().
+-spec '/='(term(), term()) -> boolean().
 '/='(X, Y) when is_integer(X), is_float(Y) ->
   erlang:float(X) =/= Y;
 '/='(X, Y) when is_float(X), is_integer(Y) ->
@@ -591,7 +591,7 @@ lt_float(X, Y) -> X < Y.
 %% Used to wrap a call to erlang'<'/2 when the solver cannot 'understand' the
 %% left operand. i.e. when it's a term like reference, fun, pid etc.
 -type ut() :: reference() | function() | port() | pid() | map() | bitstring().
--spec unsupported_lt(ut(), any()) -> boolean().
+-spec unsupported_lt(ut(), term()) -> boolean().
 unsupported_lt(X, Y) -> X < Y.
 
 -spec lt_atom(string(), string()) -> boolean().
@@ -606,7 +606,7 @@ lt_atom([X|Xs], [X|Ys]) ->
 lt_atom([X|_Xs], [Y|_Ys]) ->
   lt_int(X, Y).
 
--spec lt_tuple([any()], [any()]) -> boolean().
+-spec lt_tuple([term()], [term()]) -> boolean().
 lt_tuple([], []) ->
   false;
 lt_tuple([X|Xs], [Y|Ys]) ->
@@ -615,7 +615,7 @@ lt_tuple([X|Xs], [Y|Ys]) ->
     false -> ?MODULE:'<'(X, Y)
   end.
 
--spec lt_list([any()], [any()]) -> boolean().
+-spec lt_list([term()], [term()]) -> boolean().
 lt_list([], []) ->
   false;
 lt_list(_, []) ->
@@ -644,7 +644,7 @@ lt_bitstring(<<_:1, Xs/bitstring>>, <<_:1, Ys/bitstring>>) ->
 
 -type t() :: atom() | function() | map() | maybe_improper_list()
            | number() | pid() | port() | reference()| tuple().
--spec '<'(t(), any()) -> boolean().
+-spec '<'(t(), term()) -> boolean().
 %% Left operand is a number.
 %% Comparing integers and floats will convert the term with the lesser
 %% precision into the other term's type before the comparison.
@@ -723,7 +723,7 @@ lt_bitstring(<<_:1, Xs/bitstring>>, <<_:1, Ys/bitstring>>) ->
 %% Simulate erlang:'=<'/2
 %%
 
--spec '=<'(any(), any()) -> boolean().
+-spec '=<'(term(), term()) -> boolean().
 '=<'(X, Y) ->
   case ?MODULE:'=='(X, Y) of
     true  -> true;
@@ -734,7 +734,7 @@ lt_bitstring(<<_:1, Xs/bitstring>>, <<_:1, Ys/bitstring>>) ->
 %% Simulate erlang:'>'/2
 %%
 
--spec '>'(any(), any()) -> boolean().
+-spec '>'(term(), term()) -> boolean().
 %'>'(X, Y) ->
 %  ?MODULE:'not'(?MODULE:'=<'(X, Y)).
 '>'(X, Y) when is_integer(X), is_integer(Y) ->
@@ -808,7 +808,7 @@ lt_bitstring(<<_:1, Xs/bitstring>>, <<_:1, Ys/bitstring>>) ->
 %% Simulate erlang'>='/2
 %%
 
--spec '>='(t(), any()) -> boolean().
+-spec '>='(t(), term()) -> boolean().
 '>='(X, Y) ->
   ?MODULE:'not'(?MODULE:'<'(X, Y)).
 
@@ -818,7 +818,7 @@ lt_bitstring(<<_:1, Xs/bitstring>>, <<_:1, Ys/bitstring>>) ->
 %% Compare two terms and return the maximum.
 %%
 
--spec max(any(), any()) -> any().
+-spec max(term(), term()) -> term().
 max(X, Y) ->
   case X >= Y of
     true  -> X;
@@ -831,7 +831,7 @@ max(X, Y) ->
 %% Compare two terms and return the minimum.
 %%
 
--spec min(any(), any()) -> any().
+-spec min(term(), term()) -> term().
 min(X, Y) ->
   case X =< Y of
     true  -> X;
@@ -845,21 +845,21 @@ min(X, Y) ->
 %%
 %% Simulate erlang:hd/1
 %%
--spec hd([any(), ...]) -> any().
+-spec hd([term(), ...]) -> term().
 hd([H|_]) -> H;
 hd(_) -> error(badarg).
 
--spec safe_hd([any(), ...]) -> any().
+-spec safe_hd([term(), ...]) -> term().
 safe_hd(L) -> erlang:hd(L).
 
 %%
 %% Simulate erlang:tl/1
 %%
--spec tl([any(), ...]) -> any().
+-spec tl([term(), ...]) -> term().
 tl([_|T]) -> T;
 tl(_) -> error(badarg).
 
--spec safe_tl([any(), ...]) -> any().
+-spec safe_tl([term(), ...]) -> term().
 safe_tl(L) -> erlang:tl(L).
 
 %%
@@ -893,7 +893,7 @@ reverse([H|T], Y) -> reverse(T, [H|Y]).
 %% Simulate lists:member/2
 %%
 
--spec member(any(), [any()]) -> boolean().
+-spec member(term(), list()) -> boolean().
 member(X, [X|_]) -> true;
 member(X, [_|Y]) -> member(X, Y);
 member(_X, []) -> false.
@@ -902,7 +902,7 @@ member(_X, []) -> false.
 %% Simulate lists:keyfind/3
 %%
 
--spec keyfind(any(), pos_integer(), [tuple()]) -> tuple() | false.
+-spec keyfind(term(), pos_integer(), [tuple()]) -> tuple() | false.
 keyfind(_Key, _N, []) ->
   false;
 keyfind(Key, N, [H|T]) when is_tuple(H) ->
