@@ -184,6 +184,7 @@
 -define(OP_BITMATCH_VAR_FALSE, 66).
 %% Bitwise operations.
 -define(OP_BAND, 75).
+-define(OP_BXOR, 76).
 
 %% Maps MFAs to their JSON Opcodes
 -define(OPCODE_MAPPING,
@@ -222,6 +223,7 @@
                  , { {erlang, is_function,   1}, ?OP_IS_FUN            }
                  , { {erlang, is_function,   2}, ?OP_IS_FUN_WITH_ARITY }
                  , { {erlang, 'band',        2}, ?OP_BAND              }
+                 , { {erlang, 'bxor',        2}, ?OP_BXOR              }
                  ])).
 
 %% All the MFAs that are supported for symbolic evaluation.
