@@ -276,3 +276,38 @@ fbxor3_neg(X, Y) ->
     -1321678065467065468706546708964 -> error(bug);
     _ -> ok
   end.
+
+-spec fbor(integer(), integer()) -> ok.
+fbor(X, Y) ->
+  case X bor Y of
+    42 -> error(bug);
+    _ -> ok
+  end.
+
+-spec fbor2(integer(), integer()) -> ok.
+fbor2(X, Y) ->
+  case X bor Y of
+    654654621354008904 -> error(bug);
+    _ -> ok
+  end.
+
+-spec fbor3(integer(), integer()) -> ok.
+fbor3(X, Y) ->
+  case X bor Y of
+    132167806349873198573065468706546708964 -> error(bug);
+    _ -> ok
+  end.
+
+-spec fbor_neg(integer(), integer()) -> ok.
+fbor_neg(X, Y) ->
+  case X bor Y of
+    -3 -> error(bug);
+    _ -> ok
+  end.
+
+-spec fbor2_neg(integer(), integer()) -> ok.
+fbor2_neg(X, Y) ->
+  case X bor Y of
+    -2581098572349081592347598712638 -> error(bug);
+    _ -> ok
+  end.

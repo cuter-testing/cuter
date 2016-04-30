@@ -185,6 +185,7 @@
 %% Bitwise operations.
 -define(OP_BAND, 75).
 -define(OP_BXOR, 76).
+-define(OP_BOR, 77).
 
 %% Maps MFAs to their JSON Opcodes
 -define(OPCODE_MAPPING,
@@ -223,6 +224,7 @@
                  , { {erlang, is_function,   1}, ?OP_IS_FUN            }
                  , { {erlang, is_function,   2}, ?OP_IS_FUN_WITH_ARITY }
                  , { {erlang, 'band',        2}, ?OP_BAND              }
+                 , { {erlang, 'bor',         2}, ?OP_BOR               }
                  , { {erlang, 'bxor',        2}, ?OP_BXOR              }
                  ])).
 

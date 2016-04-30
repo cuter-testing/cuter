@@ -740,6 +740,61 @@
             "solutions": [
                 "[-148528931426514002676418943389977804784, 148528930104835937209353474683431095820]"
             ]
+        },
+        {
+            "module": "bitstr",
+            "function": "fbor",
+            "args": "[1, 1]",
+            "depth": "25",
+            "errors": true,
+            "validate": true,
+            "solutions": [
+                "[34, 8]"
+            ]
+        },
+        {
+            "module": "bitstr",
+            "function": "fbor2",
+            "args": "[1, 1]",
+            "depth": "25",
+            "errors": true,
+            "validate": true,
+            "solutions": [
+                "[576531571286646856, 78123050067394816]"
+            ]
+        },
+        {
+            "module": "bitstr",
+            "function": "fbor3",
+            "args": "[1, 1]",
+            "depth": "25",
+            "errors": true,
+            "validate": true,
+            "solutions": [
+                "[46598350958186933355168341451912384804, 85569455391686265217897127254634324160]"
+            ]
+        },
+        {
+            "module": "bitstr",
+            "function": "fbor_neg",
+            "args": "[1, 1]",
+            "depth": "25",
+            "errors": true,
+            "validate": true,
+            "solutions": [
+                "[-122858486675391948889053936672818495856, 122858486675391948889053938871841751405]"
+            ]
+        },
+        {
+            "module": "bitstr",
+            "function": "fbor2_neg",
+            "args": "[1, 1]",
+            "depth": "25",
+            "errors": true,
+            "validate": true,
+            "solutions": [
+                "[-127665441727703630643001662293994373054, 127665439146605058293920069946395660416]"
+            ]
         }
     ]
 }
