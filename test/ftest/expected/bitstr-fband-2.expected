@@ -1,3 +1,0 @@
-Testing bitstr:fband/2 ...
-=== Inputs That Lead to Runtime Errors ===
-#1 bitstr:fband(-115245587226975570856629698659936890834, 115244775925639664041776219450078580218)

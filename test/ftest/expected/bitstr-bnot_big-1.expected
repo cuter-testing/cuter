@@ -1,5 +1,0 @@
-Testing bitstr:bnot_big/1 ...
-=== Inputs That Lead to Runtime Errors ===
-#1 bitstr:bnot_big(-1234567890123456789012345678901234567890123456789012345678901234567892)
-#2 bitstr:bnot_big(-123456789012345678901234567892)
-#3 bitstr:bnot_big(-123456789012347)

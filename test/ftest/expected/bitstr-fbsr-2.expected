@@ -1,6 +1,0 @@
-Testing bitstr:fbsr/2 ...
-=== Inputs That Lead to Runtime Errors ===
-#1 bitstr:fbsr(21, -1)
-#2 bitstr:fbsr(42, 0)
-#3 bitstr:fbsr(84, 1)
-#4 bitstr:fbsr(168, 2)

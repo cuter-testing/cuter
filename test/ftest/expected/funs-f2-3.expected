@@ -1,3 +1,0 @@
-Testing funs:f2/3 ...
-=== Inputs That Lead to Runtime Errors ===
-#1 funs:f2(fun(2) -> 42; (3) -> 17; (_) -> 42 end, 2, 3)

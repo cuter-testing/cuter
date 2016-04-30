@@ -1,3 +1,0 @@
-Testing complex_spec:f/1 ...
-=== Inputs That Lead to Runtime Errors ===
-#1 complex_spec:f([{[1,2],[{[[1],[2]],[3.14]},2]}])

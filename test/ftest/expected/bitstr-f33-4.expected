@@ -1,4 +1,0 @@
-Testing bitstr:f33/4 ...
-=== Inputs That Lead to Runtime Errors ===
-#1 bitstr:f33(<<0:1>>, 0, 0, <<0:1>>)
-#2 bitstr:f33(<<0:1>>, 0, 0, <<0:1>>)
