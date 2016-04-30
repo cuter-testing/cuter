@@ -234,3 +234,45 @@ fband2_neg(X, Y) ->
     -1299341865233935136534120785510400 -> error(bug); % - 2^110 - 2^100
     _ -> ok
   end.
+
+-spec fbxor(integer(), integer()) -> ok.
+fbxor(X, Y) ->
+  case X bxor Y of
+    42 -> error(bug);
+    _ -> ok
+  end.
+
+-spec fbxor2(integer(), integer()) -> ok.
+fbxor2(X, Y) ->
+  case X bxor Y of
+    546546546546546 -> error(bug);
+    _ -> ok
+  end.
+
+-spec fbxor3(integer(), integer()) -> ok.
+fbxor3(X, Y) ->
+  case X bxor Y of
+    1321678065467065468706546708964 -> error(bug);
+    _ -> ok
+  end.
+
+-spec fbxor_neg(integer(), integer()) -> ok.
+fbxor_neg(X, Y) ->
+  case X bxor Y of
+    -42 -> error(bug);
+    _ -> ok
+  end.
+
+-spec fbxor2_neg(integer(), integer()) -> ok.
+fbxor2_neg(X, Y) ->
+  case X bxor Y of
+    -546546546546546 -> error(bug);
+    _ -> ok
+  end.
+
+-spec fbxor3_neg(integer(), integer()) -> ok.
+fbxor3_neg(X, Y) ->
+  case X bxor Y of
+    -1321678065467065468706546708964 -> error(bug);
+    _ -> ok
+  end.

@@ -674,6 +674,72 @@
             "solutions": [
                 "[-10722113295479264474453651513181749953, -25081040589696498295982299549491773275]"
             ]
+        },
+        {
+            "module": "bitstr",
+            "function": "fbxor",
+            "args": "[1, 1]",
+            "depth": "25",
+            "errors": true,
+            "validate": true,
+            "solutions": [
+                "[8098239615821597375497340003855403778, 8098239615821597375497340003855403816]"
+            ]
+        },
+        {
+            "module": "bitstr",
+            "function": "fbxor2",
+            "args": "[1, 1]",
+            "depth": "25",
+            "errors": true,
+            "validate": true,
+            "solutions": [
+                "[10746391985634429997612810101056519776, 10746391985634429997612967280874891538]"
+            ]
+        },
+        {
+            "module": "bitstr",
+            "function": "fbxor3",
+            "args": "[1, 1]",
+            "depth": "25",
+            "errors": true,
+            "validate": true,
+            "solutions": [
+                "[3714386857363838068689887652, 1317963678609701630637856821312]"
+            ]
+        },
+        {
+            "module": "bitstr",
+            "function": "fbxor_neg",
+            "args": "[1, 1]",
+            "depth": "25",
+            "errors": true,
+            "validate": true,
+            "solutions": [
+                "[154038586524071506316860854678694172406, -154038586524071506316860854678694172384]"
+            ]
+        },
+        {
+            "module": "bitstr",
+            "function": "fbxor2_neg",
+            "args": "[1, 1]",
+            "depth": "25",
+            "errors": true,
+            "validate": true,
+            "solutions": [
+                "[132438649102067967026620554223683666340, -132438649102067967026620960032741791446]"
+            ]
+        },
+        {
+            "module": "bitstr",
+            "function": "fbxor3_neg",
+            "args": "[1, 1]",
+            "depth": "25",
+            "errors": true,
+            "validate": true,
+            "solutions": [
+                "[-148528931426514002676418943389977804784, 148528930104835937209353474683431095820]"
+            ]
         }
     ]
 }
