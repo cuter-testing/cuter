@@ -5,10 +5,11 @@ from subprocess import Popen, PIPE
 from pprint import pprint
 
 testDir = os.path.dirname(os.path.realpath(__file__))
+baseDir = testDir[:-len('/test')]
 ftestEbin = os.path.join(testDir, "ftest", "ebin")
 utestEbin = os.path.join(testDir, "utest", "ebin")
-properEbin = os.path.join(testDir, "..", "lib", "proper", "ebin")
-cuterScript = os.path.join(testDir, "..", "cuter")
+properEbin = os.path.join(baseDir, "lib", "proper", "ebin")
+cuterScript = os.path.join(baseDir, "cuter")
 testsJson = os.path.join(testDir, "ftests.json")
 nCores = multiprocessing.cpu_count()
 defaultOpts = "-p {} -s {}".format(nCores, nCores * 2)
@@ -50,7 +51,7 @@ with open(testsJson) as fd:
     cmd = "{} {} {} '{}' -d {} {} --sorted-errors".format(
       cuterScript, test["module"], test["function"], test["args"], test["depth"], opts
     )
-    print "\n[Test #{}]\n{} ...".format(i + 1, cmd)
+    print "\n[Test #{}]\n{}".format(i + 1, cmd)
     p = Popen(cmd, stdin=PIPE, stdout=PIPE, shell=True)
     output, err = p.communicate()
     # Validate the presence of errors or not.
