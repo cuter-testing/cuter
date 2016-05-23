@@ -14,20 +14,21 @@
 %% Exported for debugging use.
 -export([classify_attributes/1]).
 
-%% We are using the records representation of the Core Erlang Abstract
-%% Syntax Tree as they are defined in core_parse.hrl
+%% We are using the records representation of Core Erlang Abstract Syntax Trees
 -include_lib("compiler/src/core_parse.hrl").
 
 -include("include/cuter_macros.hrl").
 
--export_type([compile_error/0, cerl_spec/0, cerl_func/0, cerl_type/0, visited_tags/0,
-              cerl_bounded_func/0, cerl_constraint/0, tagID/0, tag/0, tag_generator/0,
-              cerl_attr_type/0, cerl_recdef/0, cerl_typedef/0, cerl_record_field/0, cerl_type_record_field/0,
-              cerl_attr_spec/0, cerl_spec_func/0, node_types/0]).
+-export_type([compile_error/0, cerl_attr_spec/0, cerl_attr_type/0,
+	      cerl_bounded_func/0, cerl_constraint/0, cerl_func/0,
+	      cerl_recdef/0, cerl_record_field/0, cerl_spec/0,
+	      cerl_spec_func/0, cerl_type/0, cerl_typedef/0,
+	      cerl_type_record_field/0, node_types/0,
+	      tagID/0, tag/0, tag_generator/0, visited_tags/0]).
 
--type info()          :: anno | attributes | exports | name.
--type compile_error() :: {error, string()}.
--type load_error()    :: {error, preloaded} | compile_error().
+-type info()          :: 'anno' | 'attributes' | 'exports' | 'name'.
+-type compile_error() :: {'error', string()}.
+-type load_error()    :: {'error', 'preloaded'} | compile_error().
 
 -type tagID() :: integer().
 -opaque tag() :: {?BRANCH_TAG_PREFIX, tagID()}.
@@ -119,7 +120,7 @@
 -type cerl_type_record_field() :: {'type', lineno(), 'field_type', [cerl_type_literal_atom() | cerl_type()]}.
 -type cerl_type_local() :: {'type' | 'user_type', lineno(), cerl_type_literal_atom(), [cerl_type()]}.
 -type cerl_type_map() :: {'type', lineno(), 'map', any()}.  %% TODO Refine map representation.
--type cerl_type_var() :: {var, lineno(), atom()}.
+-type cerl_type_var() :: {'var', lineno(), atom()}.
 -type cerl_type_function() :: {'type', lineno(), 'function', []}
                             | cerl_func() | cerl_bounded_func().
 
@@ -130,22 +131,11 @@
 -spec load(M, cuter_codeserver:module_cache(), tag_generator(), boolean()) -> {ok, M} | load_error() when M :: cuter:mod().
 load(Mod, Cache, TagGen, WithPmatch) ->
   case get_core(Mod, WithPmatch) of
-    {ok, AST} ->
-      case is_valid_ast(WithPmatch, AST) of
-        false ->
-          cuter_pp:invalid_ast_with_pmatch(Mod, AST),
-          load(Mod, Cache, TagGen, false);
-        true ->
-          store_module(Mod, AST, Cache, TagGen),
-          {ok, Mod}
-      end;
+    {ok, #c_module{}=AST} -> % just a sanity check that we get back a module
+      store_module(Mod, AST, Cache, TagGen),
+      {ok, Mod};
     {error, _} = Error -> Error
   end.
-
-is_valid_ast(false, _AST) ->
-  true;
-is_valid_ast(true, AST) ->
-  erlang:is_record(AST, c_module).
 
 %% Retrieves the spec of a function from a stored module's info.
 -spec retrieve_spec(cuter_codeserver:module_cache(), fa()) -> {ok, cuter_types:stored_spec_value()} | error.
