@@ -1,21 +1,26 @@
 %% -*- erlang-indent-level: 2 -*-
 %%------------------------------------------------------------------------------
 -module(cuter_codeserver).
+
 -behaviour(gen_server).
 
 %% external exports
--export([start/3, start/5, stop/1, load/2, unsupported_mfa/2, retrieve_spec/2, get_feasible_tags/2,
-         get_logs/1, get_whitelist/1, calculate_callgraph/2, get_visited_tags/1, visit_tag/2,
+-export([start/3, start/5, stop/1, load/2, unsupported_mfa/2, retrieve_spec/2,
+	 get_feasible_tags/2, get_logs/1, get_whitelist/1, get_visited_tags/1,
+	 visit_tag/2, calculate_callgraph/2,
          %% Work with module cache
-         merge_dumped_cached_modules/2, no_cached_modules/0, modules_of_dumped_cache/1,
-         lookup_in_module_cache/2, insert_in_module_cache/3,
+         merge_dumped_cached_modules/2, modules_of_dumped_cache/1,
+	 lookup_in_module_cache/2, insert_in_module_cache/3,
+	 no_cached_modules/0,
          %% Access logs
          cachedMods_of_logs/1, visitedTags_of_logs/1, tagsAddedNo_of_logs/1,
          unsupportedMfas_of_logs/1, loadedMods_of_logs/1]).
 %% gen_server callbacks
--export([init/1, terminate/2, code_change/3, handle_info/2, handle_call/3, handle_cast/2]).
+-export([init/1, terminate/2, code_change/3,
+	 handle_info/2, handle_call/3, handle_cast/2]).
 %% Counter of branches & Tag generator.
--export([set_branch_counter/1, generate_tag/0, get_branch_counter/0, initial_branch_counter/0]).
+-export([set_branch_counter/1, get_branch_counter/0, initial_branch_counter/0,
+	 generate_tag/0]).
 
 -include("include/cuter_macros.hrl").
 
@@ -302,14 +307,15 @@ load_all_deps([Remote={M, TypeName, Arity}|Rest], State, VisitedRemotes, DepMods
               %% TODO Report that we cannot access the definition of the type.
               error;
             {ok, {Type, _Params}} ->
-              % Get the remote dependencies of the type.
+              %% Get the remote dependencies of the type.
               Deps = cuter_types:find_remote_deps_of_type(Type, LocalTypesCache),
-              % Queue the ones that we haven't encountered yet.
-              NewRemotes = lists:filter(fun(R) -> not ordsets:is_element(R, VisitedRemotes1) end, Deps),
+              %% Queue the ones that we haven't encountered yet.
+              NewRemotes = [R || R <- Deps,
+				 not ordsets:is_element(R, VisitedRemotes1)],
               load_all_deps(NewRemotes ++ Rest, State, VisitedRemotes1, DepMods1)
           end;
         _Msg ->
-          % TODO Report that we cannot load the module.
+          %% TODO Report that we cannot load the module.
           error
       end
   end.
@@ -439,13 +445,13 @@ drop_module_cache(Db) ->
 %% Returns the names of all the modules in the cache.
 -spec modules_in_cache(cache()) -> [module()].
 modules_in_cache(Db) ->
-  ModNames = ets:foldl(fun({M, _MDb}, Ms) -> [M|Ms] end, [], Db),
-  ModNames.
+  ets:foldl(fun({M, _MDb}, Ms) -> [M|Ms] end, [], Db).
 
 %% Dumps the cached modules' info into a dict.
 -spec dump_cached_modules(cache()) -> cached_modules().
 dump_cached_modules(Db) ->
-  ets:foldl(fun({M, MDb}, Stored) -> dict:store(M, ets:tab2list(MDb), Stored) end, dict:new(), Db).
+  Fun = fun({M, MDb}, Stored) -> dict:store(M, ets:tab2list(MDb), Stored) end,
+  ets:foldl(Fun, dict:new(), Db).
 
 %% Creates an empty modules' cache.
 -spec no_cached_modules() -> cached_modules().
@@ -464,16 +470,13 @@ modules_of_dumped_cache(Cached) ->
 %% Populates the DB with the stored modules provided.
 -spec add_cached_modules(cache(), cached_modules()) -> ok.
 add_cached_modules(Db, CachedMods) ->
-  dict:fold(
-    fun(M, Info, CDb) ->
-      MDb = ets:new(M, [ordered_set, protected]),
-      ets:insert(MDb, Info),
-      ets:insert(CDb, {M, MDb}),
-      CDb
-    end,
-    Db,
-    CachedMods
-  ),
+  Fun = fun(M, Info, CDb) ->
+	    MDb = ets:new(M, [ordered_set, protected]),
+	    ets:insert(MDb, Info),
+	    ets:insert(CDb, {M, MDb}),
+	    CDb
+	end,
+  dict:fold(Fun, Db, CachedMods),
   ok.
 
 %% ----------------------------------------------------------------------------
