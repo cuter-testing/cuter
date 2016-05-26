@@ -2,7 +2,7 @@
 %%------------------------------------------------------------------------------
 -module(cuter_minheap).
 
--export([new/1, delete/1, heap_size/1, is_empty/1, min/1, take_min/1, insert/2, from_list/2]).
+-export([new/1, delete/1, heap_size/1, is_empty/1, min/1, take_min/1, insert/2, from_list/2, rearrange/2]).
 
 -export_type([minheap/0]).
 
@@ -92,6 +92,18 @@ pop(H) ->
       end,
       combine(H, 1, HS_n),
       Head
+  end.
+
+%% Re-arranges the minheap using a new cost function.
+-spec rearrange(minheap(), compare_function()) -> minheap().
+rearrange(H, Fn) ->
+  H1 = H#heap{lt = Fn},
+  case ets:lookup(H1#heap.htab, 1) of
+    [] -> H;
+    [{1, _Head}] ->
+      HS = heap_size(H1),
+      combine(H1, 1, HS),
+      H1
   end.
 
 %% Re-arranges the heap in a top-down manner.

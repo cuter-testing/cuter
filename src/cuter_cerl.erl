@@ -6,7 +6,7 @@
 -export([retrieve_spec/2, get_tags/1, id_of_tag/1, tag_from_id/1, empty_tag/0,
          get_stored_types/1, empty_tagId/0, collect_feasible_tags/2]).
 %% Core AST extraction.
--export([load/4, get_core/2]).
+-export([load/5, get_core/2]).
 %% Node types generators.
 -export([node_types_branches/0, node_types_branches_nocomp/0, node_types_all/0,
          node_types_conditions/0, node_types_conditions_nocomp/0,
@@ -128,11 +128,11 @@
 %%====================================================================
 %% External exports
 %%====================================================================
--spec load(M, cuter_codeserver:module_cache(), tag_generator(), boolean()) -> {ok, M} | load_error() when M :: cuter:mod().
-load(Mod, Cache, TagGen, WithPmatch) ->
+-spec load(M, cuter_codeserver:module_cache(), tag_generator(), boolean(), pid()) -> {ok, M} | load_error() when M :: cuter:mod().
+load(Mod, Cache, TagGen, WithPmatch, Scheduler) ->
   case get_core(Mod, WithPmatch) of
     {ok, #c_module{}=AST} -> % just a sanity check that we get back a module
-      store_module(Mod, AST, Cache, TagGen),
+      store_module(Mod, AST, Cache, TagGen, Scheduler),
       {ok, Mod};
     {error, _} = Error -> Error
   end.
@@ -161,13 +161,13 @@ get_stored_types(Cache) ->
 %% exported             [{M :: module(), Fun :: atom(), Arity :: arity()}]
 %% attributes           Attrs :: [{cerl(), cerl()}]
 %% {M, Fun, Arity}      {Def :: #c_fun{}, Exported :: boolean()}
--spec store_module(cuter:mod(), cerl:cerl(), cuter_codeserver:module_cache(), tag_generator()) -> ok.
-store_module(M, AST, Cache, TagGen) ->
+-spec store_module(cuter:mod(), cerl:cerl(), cuter_codeserver:module_cache(), tag_generator(), pid()) -> ok.
+store_module(M, AST, Cache, TagGen, Scheduler) ->
   store_module_info(anno, M, AST, Cache),
   store_module_info(name, M, AST, Cache),
   store_module_info(exports, M, AST, Cache),
   store_module_info(attributes, M, AST, Cache),
-  store_module_funs(M, AST, Cache, TagGen).
+  store_module_funs(M, AST, Cache, TagGen, Scheduler).
 
 %% Gets the Core Erlang AST of a module.
 -spec get_core(cuter:mod(), boolean()) -> {ok, cerl:cerl()} | load_error().
@@ -240,14 +240,16 @@ store_module_info(name, _M, AST, Cache) ->
   cuter_codeserver:insert_in_module_cache(name, ModName, Cache).
 
 %% Store exported functions of a module
--spec store_module_funs(cuter:mod(), cerl:cerl(), cuter_codeserver:module_cache(), tag_generator()) -> ok.
-store_module_funs(M, AST, Cache, TagGen) ->
+-spec store_module_funs(cuter:mod(), cerl:cerl(), cuter_codeserver:module_cache(), tag_generator(), pid()) -> ok.
+store_module_funs(M, AST, Cache, TagGen, Scheduler) ->
   Funs = AST#c_module.defs,
   {ok, Exps} = cuter_codeserver:lookup_in_module_cache(exported, Cache),
-  lists:foreach(fun(X) -> store_fun(Exps, M, X, Cache, TagGen) end, Funs).
+  UsefulInfo = [store_fun(Exps, M, X, Cache, TagGen) || X <- Funs],
+  % TODO Possibly combine the UsefulInfo of each fun.
+  ok = cuter_scheduler_maxcover:get_useful_info(Scheduler, UsefulInfo).
 
 %% Store the AST of a function
--spec store_fun([atom()], cuter:mod(), {cerl:c_var(), cerl:c_fun()}, cuter_codeserver:module_cache(), tag_generator()) -> ok.
+-spec store_fun([atom()], cuter:mod(), {cerl:c_var(), cerl:c_fun()}, cuter_codeserver:module_cache(), tag_generator()) -> any().
 store_fun(Exps, M, {Fun, Def}, Cache, TagGen) ->
   {FunName, Arity} = Fun#c_var.name,
   MFA = {M, FunName, Arity},
@@ -256,9 +258,11 @@ store_fun(Exps, M, {Fun, Def}, Cache, TagGen) ->
 %  io:format("BEFORE~n"),
 %  io:format("~p~n", [Def]),
   AnnDef = annotate(Def, TagGen),
+  UsefulInfo = get_useful_info_from_ann(AnnDef),
 %  io:format("AFTER~n"),
 %  io:format("~p~n", [AnnDef]),
-  cuter_codeserver:insert_in_module_cache(MFA, {AnnDef, Exported}, Cache).
+  cuter_codeserver:insert_in_module_cache(MFA, {AnnDef, Exported}, Cache),
+  UsefulInfo.
 
 -spec classify_attributes([cerl_attr()]) -> {[cerl_attr_type()], [cerl_attr_spec()]}.
 classify_attributes(Attrs) ->
@@ -405,6 +409,13 @@ mark_last_clause(Clauses) when is_list(Clauses) ->
   [Last|Rvs] = lists:reverse(Clauses),
   AnnLast = cerl:add_ann([last_clause], Last),
   lists:reverse([AnnLast|Rvs]).
+
+%% ----------------------------------------------------------------------------
+%% Get useful info from the annotated AST.
+%% ----------------------------------------------------------------------------
+
+%% TODO
+get_useful_info_from_ann(_Tree) -> ok.
 
 %% ----------------------------------------------------------------------------
 %% Collect tags from AST for a specific mfa.

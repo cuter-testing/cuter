@@ -4,7 +4,8 @@
 -behaviour(gen_server).
 
 %% External API.
--export([start/4, stop/1, request_input/1, store_execution/3, request_operation/1, solver_reply/2]).
+-export([start/4, stop/1, request_input/1, store_execution/3, request_operation/1, solver_reply/2,
+         get_useful_info/2]).
 %% Get logs API.
 -export([get_visited_tags/1, get_erroneous_inputs/1, get_solved_models/1, get_not_solved_models/1]).
 %% gen_server callbacks.
@@ -112,6 +113,10 @@ request_operation(Scheduler) ->
 solver_reply(Scheduler, Result) ->
   gen_server:call(Scheduler, {solver_reply, Result}, infinity).
 
+-spec get_useful_info(pid(), any()) -> ok.
+get_useful_info(Scheduler, UsefulInfo) ->
+  gen_server:cast(Scheduler, {useful_info, UsefulInfo}).
+
 %% ----------------------------------------------------------------------------
 %% Get logs API
 %% ----------------------------------------------------------------------------
@@ -141,7 +146,7 @@ get_not_solved_models(Scheduler) ->
 -spec init(init_arg()) -> {ok, state()}.
 init([Python, Depth, SeedInput, CodeServer]) ->
   _ = set_execution_counter(0),
-  TagsQueue = cuter_minheap:new(fun erlang:'<'/2),
+  TagsQueue = cuter_minheap:new(fun erlang:'<'/2), % TODO Change cost function.
   InpQueue = queue:in({1, SeedInput}, queue:new()),
   {ok, #st{ codeServer = CodeServer
           , infoTab = dict:new()
@@ -273,9 +278,13 @@ handle_call(get_not_solved_models, _From, State=#st{not_solved = NotSolved}) ->
 
 
 %% handle_cast/2
--spec handle_cast(any(), state()) -> {noreply, state()}.
-handle_cast(_Msg, State) ->
-  {noreply, State}.
+-spec handle_cast({useful_info, any()}, state()) -> {noreply, state()}.
+%% TODO Get useful info.
+handle_cast({useful_info, _UsefulInfo}, State=#st{tagsQueue = TagsQueue}) ->
+  %% Probably generate a new cost function and rearrange the heap.
+  NewQueue = cuter_minheap:rearrange(TagsQueue, fun erlang:'<'/2),
+  {noreply, State#st{tagsQueue = NewQueue}}.
+
 
 %% ----------------------------------------------------------------------------
 %% Functions for tags

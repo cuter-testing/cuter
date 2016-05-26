@@ -6,21 +6,21 @@
 
 %% external exports
 -export([start/3, start/5, stop/1, load/2, unsupported_mfa/2, retrieve_spec/2,
-	 get_feasible_tags/2, get_logs/1, get_whitelist/1, get_visited_tags/1,
-	 visit_tag/2, calculate_callgraph/2,
+         get_feasible_tags/2, get_logs/1, get_whitelist/1, get_visited_tags/1,
+         visit_tag/2, calculate_callgraph/2, set_scheduler/2,
          %% Work with module cache
          merge_dumped_cached_modules/2, modules_of_dumped_cache/1,
-	 lookup_in_module_cache/2, insert_in_module_cache/3,
-	 no_cached_modules/0,
+         lookup_in_module_cache/2, insert_in_module_cache/3,
+         no_cached_modules/0,
          %% Access logs
          cachedMods_of_logs/1, visitedTags_of_logs/1, tagsAddedNo_of_logs/1,
          unsupportedMfas_of_logs/1, loadedMods_of_logs/1]).
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3,
-	 handle_info/2, handle_call/3, handle_cast/2]).
+         handle_info/2, handle_call/3, handle_cast/2]).
 %% Counter of branches & Tag generator.
 -export([set_branch_counter/1, get_branch_counter/0, initial_branch_counter/0,
-	 generate_tag/0]).
+         generate_tag/0]).
 
 -include("include/cuter_macros.hrl").
 
@@ -80,6 +80,8 @@
 %% unsupportedMfas :: sets:set(mfa())
 %%   The set of mfa() that are not supported for symbolic execution but were
 %%   encountered during the concolic executions.
+%% scheduler :: pid() | undefined
+%%   The PID of the scheduler.
 
 -record(st, {
   db                           :: cache(),
@@ -90,7 +92,8 @@
   workers = []                 :: [pid()],
   unsupportedMfas = sets:new() :: sets:set(mfa()),
   whitelist                    :: cuter_mock:whitelist(),
-  callgraph                    :: cuter_callgraph:callgraph() | 'undefined'
+  callgraph                    :: cuter_callgraph:callgraph() | undefined,
+  scheduler                    :: pid() | undefined
 }).
 -type state() :: #st{}.
 
@@ -116,6 +119,10 @@ start(Super, StoredMods, TagsN, WithPmatch, Whitelist) ->
 -spec stop(pid()) -> ok.
 stop(CodeServer) ->
   gen_server:cast(CodeServer, {stop, self()}).
+
+-spec set_scheduler(pid(), pid()) -> ok.
+set_scheduler(CodeServer, Scheduler) ->
+  gen_server:call(CodeServer, {set_scheduler, Scheduler}).
 
 %% Requests a module's cache.
 -spec load(pid(), module()) -> load_reply().
@@ -206,6 +213,7 @@ handle_info(_Msg, State) ->
                ; (get_whitelist, from(), state()) -> {reply, cuter_mock:whitelist(), state()}
                ; ({get_feasible_tags, cuter_cerl:node_types()}, from(), state()) -> {reply, cuter_cerl:visited_tags(), state()}
                ; ({calculate_callgraph, mfa()}, from(), state()) -> {reply, ok, state()}
+               ; ({set_scheduler, pid()}, from(), state()) -> {reply, ok, state()}
                .
 handle_call({load, M}, _From, State) ->
   {reply, try_load(M, State), State};
@@ -254,7 +262,9 @@ handle_call({calculate_callgraph, Mfa}, _From, State=#st{whitelist = Whitelist})
         end,
       cuter_callgraph:foreachModule(LoadFn, Callgraph),
       {reply, ok, State#st{callgraph = Callgraph}}
-  end.
+  end;
+handle_call({set_scheduler, Scheduler}, _From, State) ->
+  {reply, ok, State#st{scheduler = Scheduler}}.
 
 %% gen_server callback : handle_cast/2
 -spec handle_cast({stop, pid()}, state()) -> {stop, normal, state()} | {noreply, state()}
@@ -361,10 +371,10 @@ try_load(M, State) ->
 
 %% Load a module's code
 -spec load_mod(module(), state()) -> {ok, module_cache()} | cuter_cerl:compile_error().
-load_mod(M, #st{db = Db, withPmatch = WithPmatch}) ->
+load_mod(M, #st{db = Db, withPmatch = WithPmatch, scheduler = Scheduler}) ->
   Cache = ets:new(M, [ordered_set, protected]),  %% Create an ETS table to store the code of the module
   ets:insert(Db, {M, Cache}),                    %% Store the tid of the ETS table
-  Reply = cuter_cerl:load(M, Cache, fun generate_tag/0, WithPmatch),  %% Load the code of the module
+  Reply = cuter_cerl:load(M, Cache, fun generate_tag/0, WithPmatch, Scheduler),  %% Load the code of the module
   case Reply of
     {ok, M} -> {ok, Cache};
     _ -> Reply

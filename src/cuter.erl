@@ -195,6 +195,7 @@ initialize_app(M, F, As, Depth, Options) ->
   Whitelist = get_whitelist(Options),
   CodeServer = cuter_codeserver:start(self(), WithPmatch, Whitelist),
   SchedPid = cuter_scheduler_maxcover:start(?PYTHON_CALL, Depth, As, CodeServer),
+  ok = cuter_codeserver:set_scheduler(CodeServer, SchedPid),
   cuter_pp:mfa({M, F, length(As)}),
   #conf{ codeServer = CodeServer
        , mod = M
