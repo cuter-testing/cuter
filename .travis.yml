@@ -17,7 +17,6 @@ script:
   - make depend
   - make all
 otp_release:
+  - 19.0
   - 18.3
   - 18.1	# 18.0 has a problem in dialyzer
-  - 17.5
-  - 17.0

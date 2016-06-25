@@ -111,7 +111,7 @@ create_logfile(Fname, As, CreateLogs) ->
 
 just_params({_Dir, Fname, Python}) ->
   %% Create a random number of random integers to serve as the arguments
-  As = [random:uniform(42) || _ <- lists:seq(1, random:uniform(42))],
+  As = [rand:uniform(42) || _ <- lists:seq(1, rand:uniform(42))],
   Mapping = create_logfile(Fname, As, fun just_params_logs/2),
   {ok, Sol} = cuter_solver:solve({Python, Mapping, Fname, 42}),
   [{"The solution equals the input", ?_assertEqual(As, Sol)}].
