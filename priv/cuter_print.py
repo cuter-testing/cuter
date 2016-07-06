@@ -97,8 +97,11 @@ def print_cmd(tp, tag, json_data, rev):
   # Symbolic parameters
   elif tp == cc.OP_SPEC:
     msg = ["SPEC"]
-    for sp in json_data["a"]:
-      msg.append("(%s) -> %s" % (pretty_list(sp["p"]), pretty(sp["r"])))
+    try:
+      for sp in json_data["a"]:
+        msg.append("(%s) -> %s" % (pretty_list(sp["p"]), pretty(sp["r"])))
+    except:
+      msg.append("Failed to parse the spec.")
     pprint(msg, tag)
   # True guard constraint
   elif tp == cc.OP_GUARD_TRUE:
