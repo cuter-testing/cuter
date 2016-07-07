@@ -28,6 +28,7 @@ simulate_behaviour(erlang, element,         2) -> {ok, {cuter_erlang, element,  
 simulate_behaviour(erlang, float,           1) -> {ok, {cuter_erlang, float,           1}};
 simulate_behaviour(erlang, hd,              1) -> {ok, {cuter_erlang, hd,              1}};
 simulate_behaviour(erlang, integer_to_list, 1) -> {ok, {cuter_erlang, integer_to_list, 1}};
+simulate_behaviour(erlang, list_to_integer, 1) -> {ok, {cuter_erlang, list_to_integer, 1}};
 simulate_behaviour(erlang, length,          1) -> {ok, {cuter_erlang, length,          1}};
 simulate_behaviour(erlang, list_to_tuple,   1) -> {ok, {cuter_erlang, list_to_tuple,   1}};
 simulate_behaviour(erlang, make_tuple,      2) -> {ok, {cuter_erlang, make_tuple,      2}};

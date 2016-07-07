@@ -14,7 +14,7 @@
           %% Overriding functions
         , abs/1
         , float/1
-        , atom_to_list/1, list_to_tuple/1, tuple_to_list/1, integer_to_list/1
+        , atom_to_list/1, list_to_tuple/1, tuple_to_list/1, integer_to_list/1, list_to_integer/1
         , 'and'/2, 'andalso'/2, 'not'/1, 'or'/2, 'orelse'/2, 'xor'/2
         , 'div'/2, 'rem'/2, trunc/1, safe_trunc/1
         , element/2, setelement/3
@@ -219,6 +219,17 @@ safe_integer_to_list(I, Acc) when I < 10 ->
 safe_integer_to_list(I, Acc) ->
   D = int_to_char(I rem 10),
   safe_integer_to_list(I div 10, [D|Acc]).
+
+-spec list_to_integer([43 | 45 | 48..57, ...]) -> integer().
+list_to_integer([]) -> erlang:error(badarg);
+list_to_integer([$-|L]) -> -1 * list_to_integer_10(L, 0);
+list_to_integer([$+|L]) -> list_to_integer_10(L, 0);
+list_to_integer(L) -> list_to_integer_10(L, 0).
+
+list_to_integer_10([], Acc) -> Acc;
+list_to_integer_10([H|T], Acc) when H >= $0 andalso H =< $9 ->
+  list_to_integer_10(T, 10 * Acc + (H - $0));
+list_to_integer_10(_, _) -> erlang:error(badarg).
 
 %% ----------------------------------------------------------------------------
 %% ARITHMETIC OPERATIONS

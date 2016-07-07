@@ -795,6 +795,29 @@
             "solutions": [
                 "[-127665441727703630643001662293994373054, 127665439146605058293920069946395660416]"
             ]
+        },
+        {
+            "module": "collection",
+            "function": "l2i",
+            "args": "[[49]]",
+            "depth": "70",
+            "errors": true,
+            "solutions": [
+                "[\"42\"]"
+            ]
+        },
+        {
+            "module": "collection",
+            "function": "l2in",
+            "args": "[[49]]",
+            "depth": "80",
+            "errors": true,
+            "whitelist": "collection-l2in-1",
+            "solutions": [
+                "[\"+42\"]",
+                "[\"-42\"]",
+                "[\"42\"]"
+            ]
         }
     ]
 }
