@@ -222,6 +222,8 @@ safe_integer_to_list(I, Acc) ->
 
 -spec list_to_integer([43 | 45 | 48..57, ...]) -> integer().
 list_to_integer([]) -> erlang:error(badarg);
+list_to_integer([$-]) -> erlang:error(badarg);
+list_to_integer([$+]) -> erlang:error(badarg);
 list_to_integer([$-|L]) -> -1 * list_to_integer_10(L, 0);
 list_to_integer([$+|L]) -> list_to_integer_10(L, 0);
 list_to_integer(L) -> list_to_integer_10(L, 0).
