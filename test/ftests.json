@@ -814,8 +814,6 @@
             "errors": true,
             "whitelist": "collection-l2in-1",
             "solutions": [
-                "[\"+42\"]",
-                "[\"-42\"]",
                 "[\"42\"]"
             ]
         }
