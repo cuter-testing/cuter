@@ -81,7 +81,7 @@ l2i(L) ->
 
 -spec l2in([45 | 43 | 48..57, ...]) -> ok.
 l2in(L) ->
-  case re:run(L, "^(\\+|-)?[0-9]*$") of
+  case re:run(L, "^(\\+|-)?[0-9]+$") of
     nomatch -> ok;
     _ ->
       case list_to_integer(L) of
