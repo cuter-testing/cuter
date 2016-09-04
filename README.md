@@ -134,7 +134,7 @@ but also a numeric argument `Depth` that denotes the depth of the search
 (i.e. roughly the number of branches that will be explored).  This depth
 can also be specified as an option of the `cuter` script:
 
-    ./cuter foo erl '[[1], [2]]' -d 42
+    ./cuter foo bar '[[1], [2]]' -d 42
 
 CutEr provides more API functions that also come with options that
 control the concolic execution of Erlang programs. These will be
