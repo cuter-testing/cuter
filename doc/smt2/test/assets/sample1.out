@@ -1,0 +1,12 @@
+(model 
+  (define-fun atomTrue () Term
+    (let ((a!1 (icons 116 (icons 114 (icons 117 (icons 101 inil))))))
+  (atom a!1)))
+  (define-fun atomFalse () Term
+    (let ((a!1 (icons 97 (icons 108 (icons 115 (icons 101 inil))))))
+  (atom (icons 102 a!1))))
+  (define-fun y () Term
+    (real (/ 157.0 50.0)))
+  (define-fun x () Term
+    (int 42))
+)
