@@ -816,6 +816,13 @@
             "solutions": [
                 "[\"42\"]"
             ]
+        },
+        {
+            "module": "collection",
+            "function": "to_upper",
+            "args": "[[]]",
+            "depth": "7",
+            "errors": false
         }
     ]
 }
