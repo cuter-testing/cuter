@@ -928,8 +928,9 @@ keyfind(Key, N, [H|T]) when is_tuple(H) ->
 %% BINARY / BITSTRING OPERATIONS
 %% ----------------------------------------------------------------------------
 
--spec is_binary(bitstring()) -> boolean().
-is_binary(Bin) -> is_binary(Bin, 0).
+-spec is_binary(any()) -> boolean().
+is_binary(Bin) when is_bitstring(Bin) -> is_binary(Bin, 0);
+is_binary(_) -> false.
 
 is_binary(<<>>, 0) -> true;
 is_binary(<<>>, _) -> false;

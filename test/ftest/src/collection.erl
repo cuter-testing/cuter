@@ -1,5 +1,6 @@
 -module(collection).
--export([f/1, g/1, g1/1, h/1, f1/1, eval_nif/1, trunc1/1, trunc2/1, l2i/1, l2in/1]).
+-export([f/1, g/1, g1/1, h/1, f1/1, eval_nif/1, trunc1/1, trunc2/1, l2i/1, l2in/1,
+         to_upper/1]).
 
 -type t() :: [complex_spec:int()].
 
@@ -90,3 +91,19 @@ l2in(L) ->
         I when is_integer(I) -> ok
       end
   end.
+
+%% This testcase checks that given the below spec for the mfa, CutEr does not
+%% explore the path of the first clause.
+%% This behaviour was reported in Issue #86. It included a slightly different
+%% program and the error was related with the behaviour of erlang:is_binary/1.
+-spec to_upper(string()) -> string().
+to_upper(S) when is_binary(S) ->
+  error(bug);
+to_upper(S) when is_list(S) ->
+  [char_to_upper(C) || C <- S];
+to_upper(C) when is_integer(C) ->
+  char_to_upper(C).
+
+char_to_upper(16#0061) -> 16#0041;
+char_to_upper(16#0062) -> 16#0042;
+char_to_upper(C) -> C.
