@@ -1,13 +1,12 @@
+sudo: required
+dist: trusty
 language: erlang
 before_install:
-  - git clone https://github.com/Z3Prover/z3.git
-  - cd z3
-  - git checkout z3-4.4.1
-  - python scripts/mk_make.py
-  - cd build
-  - make -j 4
-  - sudo make install
-  - cd ../..
+  - wget https://github.com/Z3Prover/z3/releases/download/z3-4.4.1/z3-4.4.1-x64-ubuntu-14.04.zip
+  - unzip z3-4.4.1-x64-ubuntu-14.04.zip
+  - export PATH=$PWD/z3-4.4.1-x64-ubuntu-14.04/bin:$PATH
+  - export PYTHONPATH=$PWD/z3-4.4.1-x64-ubuntu-14.04/bin:$PYTHONPATH
+  - export C_INCLUDE_PATH=$PWD/z3-4.4.1-x64-ubuntu-14.04/include/:$C_INCLUDE_PATH
 script:
   - git submodule update
   - git submodule foreach make
