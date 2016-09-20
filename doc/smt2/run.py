@@ -1,11 +1,12 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+#!/usr/bin/python3
 
+from parser import *
 import fileinput
-import parser
 
 smt = ""
-for line in fileinput.input() :
+for line in fileinput.input():
 	smt += line
-nodes = parser.parse( smt )
-parser.print_nodes( nodes )
+
+root = SMT_List.construct(smt)
+
+root.simplify()
