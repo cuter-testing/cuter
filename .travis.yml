@@ -17,7 +17,7 @@ script:
   - ./configure --with-protoc=$PWD/lib/protoc-3.1.0/bin/protoc
   - make depend
   - make all
-  - cd doc/smt2/; python -m unittest discover test; cd -
+  - cd doc/smt2/; python -m unittest discover test
 otp_release:
   - 19.0
   - 18.3
