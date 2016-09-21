@@ -1,0 +1,13 @@
+(model
+(declare-datatypes () ((Term (int (ival Int)) (real (rval Real)) (list (lval TList)) (tuple (tval TList)) (atom (aval IList)) (bin (sz Int) (bval BVList)) (fun (fval Int)))
+(TList (nil) (cons (hd Term) (tl TList)))
+(IList (inil) (icons (ihd Int) (itl IList)))
+(BVList (bnil) (bcons (bhd (_ BitVec 1)) (btl BVList)))
+))
+(define-fun arity ((BOUND_VARIABLE_351 Int)) Int 0)
+(define-fun fmap ((BOUND_VARIABLE_355 Int)) (Array TList Term) ((as const (Array TList Term)) (int 0)))
+(define-fun atomTrue () Term (atom (icons 116 (icons 114 (icons 117 (icons 101 inil))))))
+(define-fun atomFalse () Term (atom (icons 102 (icons 97 (icons 108 (icons 115 (icons 101 inil)))))))
+(define-fun x () Term (int 42))
+(define-fun y () Term (real (/ 157 50)))
+)

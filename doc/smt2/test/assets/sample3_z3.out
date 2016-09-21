@@ -1,0 +1,60 @@
+(model 
+  (define-fun x11 () Term
+    (let ((a!1 (icons 116 (icons 114 (icons 117 (icons 101 inil))))))
+  (atom a!1)))
+  (define-fun x13 () Term
+    (int 42))
+  (define-fun x9 () Term
+    (let ((a!1 (icons 116 (icons 114 (icons 117 (icons 101 inil))))))
+  (atom a!1)))
+  (define-fun p1 () Term
+    (int 4))
+  (define-fun x8 () Term
+    (int 6))
+  (define-fun x2 () Term
+    (let ((a!1 (list (cons (int 2) (cons (int 6) nil)))))
+(let ((a!2 (cons (list (cons (int 3) (cons a!1 nil))) nil)))
+  (tuple (cons (int 5) a!2)))))
+  (define-fun x1 () Term
+    (let ((a!1 (icons 116 (icons 114 (icons 117 (icons 101 inil))))))
+  (atom a!1)))
+  (define-fun x6 () Term
+    (list (cons (int 2) (cons (int 6) nil))))
+  (define-fun x10 () Term
+    (int 7719))
+  (define-fun p2 () Term
+    (fun 0))
+  (define-fun atomTrue () Term
+    (let ((a!1 (icons 116 (icons 114 (icons 117 (icons 101 inil))))))
+  (atom a!1)))
+  (define-fun x3 () Term
+    (int 5))
+  (define-fun atomFalse () Term
+    (let ((a!1 (icons 97 (icons 108 (icons 115 (icons 101 inil))))))
+  (atom (icons 102 a!1))))
+  (define-fun x12 () Term
+    (let ((a!1 (icons 116 (icons 114 (icons 117 (icons 101 inil))))))
+  (atom a!1)))
+  (define-fun x4 () Term
+    (let ((a!1 (list (cons (int 2) (cons (int 6) nil)))))
+  (list (cons (int 3) (cons a!1 nil)))))
+  (define-fun x5 () Term
+    (int 3))
+  (define-fun p0 () Term
+    (int (- 7677)))
+  (define-fun x7 () Term
+    (int 2))
+  (define-fun arity ((x!1 Int)) Int
+    (ite (= x!1 0) 1
+      1))
+  (define-fun fmap ((x!1 Int)) (Array TList Term)
+    (ite (= x!1 0) (_ as-array k!0)
+      (_ as-array k!0)))
+  (define-fun k!0 ((x!1 TList)) Term
+    (ite (= x!1 (cons (int 3) nil)) (int 7719)
+    (ite (= x!1 (cons (int 4) nil))
+      (let ((a!1 (list (cons (int 2) (cons (int 6) nil)))))
+      (let ((a!2 (cons (list (cons (int 3) (cons a!1 nil))) nil)))
+        (tuple (cons (int 5) a!2))))
+      (int 7719))))
+)
