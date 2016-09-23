@@ -1,5 +1,5 @@
-from parser.list import List
+from parser.group import Group
 
-class Atom(List):
+class Atom(Group):
 	def value(self, table = {}):
 		return self.nodes[1].value(table)

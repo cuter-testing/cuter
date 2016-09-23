@@ -1,6 +1,6 @@
-from parser.list import List
+from parser.group import Group
 
-class Let(List):
+class Let(Group):
 	def value(self):
 		table = {}
 		for node in self.nodes[1].nodes:

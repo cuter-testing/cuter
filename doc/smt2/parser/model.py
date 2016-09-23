@@ -1,6 +1,6 @@
-from parser.list import List
+from parser.group import Group
 
-class Model(List):
+class Model(Group):
 	def simplify(self, level = 0):
 		print("\t" * level + "(")
 		for node in self.nodes:

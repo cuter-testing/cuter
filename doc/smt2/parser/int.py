@@ -1,5 +1,5 @@
-from parser.list import List
+from parser.group import Group
 
-class Int(List):
+class Int(Group):
 	def value(self, table = {}):
 		return int(self.nodes[1].smt)

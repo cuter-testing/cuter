@@ -17,3 +17,5 @@ class Leaf(Node):
 			return table[self.smt]
 		elif self.smt == "inil":
 			return deque()
+		elif self.smt == "nil":
+			return deque()

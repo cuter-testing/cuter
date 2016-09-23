@@ -1,6 +1,6 @@
 from parser.node import Node
 from parser.leaf import Leaf
-from parser.list import List
+from parser.group import Group
 from parser.model import Model
 from parser.func import Func
 from parser.let import Let
@@ -8,9 +8,12 @@ from parser.icons import Icons
 from parser.atom import Atom
 from parser.real import Real
 from parser.int import Int
+from parser.cons import Cons
+from parser.tuple import Tuple
+from parser.list import List
 
 def preview_type(smt, cur):
-	"find the type of a list without parsing it"
+	"find the type of a node without parsing it"
 	if smt[cur] != "(":
 		return "_leaf"
 	# smt begins with an opening parenthesis
@@ -18,10 +21,10 @@ def preview_type(smt, cur):
 	# ignore white spaces
 	while smt[cur].isspace():
 		cur += 1
-	# check whether list is empty
+	# check whether group is empty
 	if smt[cur] == ")":
 		return None
-	# check whether first item is a list
+	# check whether first item is a group
 	if smt[cur] == "(":
 		return None
 	# type is a word
@@ -51,5 +54,11 @@ def parse(smt, cur = 0):
 		return Real(smt, cur)
 	elif t == "int":
 		return Int(smt, cur)
-	else:
+	elif t == "cons":
+		return Cons(smt, cur)
+	elif t == "tuple":
+		return Tuple(smt, cur)
+	elif t == "list":
 		return List(smt, cur)
+	else:
+		return Group(smt, cur)
