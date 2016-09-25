@@ -3,6 +3,7 @@ from parser.node import Node
 
 class Group(Node):
 	def __init__(self, smt, cur):
+		self.is_leaf = False
 		assert smt[cur] == "(", "group must begin with an opening parenthesis"
 		self.beg = cur
 		self.nodes = []

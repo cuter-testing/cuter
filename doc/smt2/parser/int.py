@@ -1,9 +1,8 @@
-from parser.leaf import Leaf
 from parser.group import Group
 
 class Int(Group):
 	def value(self, table = {}):
-		if isinstance(self.nodes[1], Leaf):
+		if self.nodes[1].is_leaf:
 			return int(self.nodes[1].smt)
 		else:
 			nodes = self.nodes[1].nodes

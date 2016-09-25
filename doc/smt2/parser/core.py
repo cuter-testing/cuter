@@ -11,6 +11,7 @@ from parser.int import Int
 from parser.cons import Cons
 from parser.tuple import Tuple
 from parser.list import List
+from parser.ite import Ite
 
 def preview_type(smt, cur):
 	"find the type of a node without parsing it"
@@ -60,5 +61,26 @@ def parse(smt, cur = 0):
 		return Tuple(smt, cur)
 	elif t == "list":
 		return List(smt, cur)
+	elif t == "ite":
+		return Ite(smt, cur)
 	else:
 		return Group(smt, cur)
+
+def compare(node1, node2):
+	if node1.is_leaf:
+		if node2.is_leaf:
+			return node1.smt == node2.smt
+		else:
+			return False
+	else:
+		if node2.is_leaf:
+			return False
+		else:
+			len1 = len(node1.nodes)
+			len2 = len(node2.nodes)
+			if len1 != len2:
+				return False
+			for cnt in range(len1):
+				if not compare(node1.nodes[cnt], node2.nodes[cnt]):
+					return False
+			return True

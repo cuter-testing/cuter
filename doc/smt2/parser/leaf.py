@@ -4,6 +4,7 @@ from collections import deque
 
 class Leaf(Node):
 	def __init__(self, smt, cur):
+		self.is_leaf = True
 		while smt[cur].isspace():
 			cur += 1
 		self.beg = cur
@@ -15,7 +16,5 @@ class Leaf(Node):
 	def value(self, table = {}):
 		if self.smt in table:
 			return table[self.smt]
-		elif self.smt == "inil":
-			return deque()
-		elif self.smt == "nil":
+		elif self.smt == "nil" or self.smt == "inil" or self.smt == "bnil":
 			return deque()
