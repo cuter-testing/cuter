@@ -3,5 +3,7 @@
 assets_directory = "test/assets/"
 
 def load_asset( fname ):
-	with open( assets_directory + fname, "r" ) as f:
-		return f.read()
+	f = open( assets_directory + fname, "r")
+	smt = f.read()
+	f.close()
+	return smt
