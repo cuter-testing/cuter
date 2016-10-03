@@ -4,7 +4,7 @@ import argparse
 argparser = argparse.ArgumentParser()
 argparser.add_argument(
 	"-f", "--file", type=str,
-	help="input file (omit to read from standard input)"
+	help="input file (omit argument to read from standard input)"
 )
 args = argparser.parse_args()
 if args.file is None:

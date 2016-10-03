@@ -1,6 +1,6 @@
 from parser.group import Group
 
-class Func(Group):
+class DefineFun(Group):
 	def simplify(self, level = 0):
 		if self.nodes[2].nodes:
 			self.print(level)
