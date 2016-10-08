@@ -8,7 +8,8 @@
             "errors": true,
             "solutions": [
                 "[42]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "bitstr",
@@ -18,7 +19,8 @@
             "errors": true,
             "solutions": [
                 "[0, 5, 2]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "bitstr",
@@ -28,7 +30,8 @@
             "errors": true,
             "solutions": [
                 "[3, 2, 3]", "[6, 3, 2]", "[26, 5, 0]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "bitstr",
@@ -38,7 +41,8 @@
             "errors": true,
             "solutions": [
                 "[<<0,42:7>>]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "bitstr",
@@ -48,7 +52,8 @@
             "errors": true,
             "solutions": [
                 "[<<42:6>>, 6]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "bitstr",
@@ -58,7 +63,8 @@
             "errors": true,
             "solutions": [
                 "[9, 5]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "bitstr",
@@ -68,7 +74,8 @@
             "errors": true,
             "solutions": [
                 "[<<42:6>>, 6]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "bitstr",
@@ -78,7 +85,8 @@
             "errors": true,
             "solutions": [
                 "[<<42:6>>, 6]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "bitstr",
@@ -88,14 +96,16 @@
             "errors": true,
             "solutions": [
                 "[<<\"*\">>, 8]", "[<<42:6>>, 6]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "bitstr",
             "function": "f27",
             "args": "[<<>>, 0]",
             "depth": "20",
-            "errors": false
+            "errors": false,
+            "skip": true
         },
         {
             "module": "bitstr",
@@ -105,7 +115,8 @@
             "errors": true,
             "solutions": [
                 "[<<0:4>>, 0]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "bitstr",
@@ -115,7 +126,8 @@
             "errors": true,
             "solutions": [
                 "[<<64,3:3>>, 0, 0]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "bitstr",
@@ -125,28 +137,32 @@
             "errors": true,
             "solutions": [
                 "[<<0:1>>, 0, 0, <<0:1>>]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "bitstr",
             "function": "f34",
             "args": "[<<>>, 0]",
             "depth": "50",
-            "errors": false
+            "errors": false,
+            "skip": true
         },
         {
             "module": "bitstr",
             "function": "f35",
             "args": "[<<>>]",
             "depth": "50",
-            "errors": false
+            "errors": false,
+            "skip": true
         },
         {
             "module": "bitstr",
             "function": "f36",
             "args": "[<<>>]",
             "depth": "50",
-            "errors": false
+            "errors": false,
+            "skip": true
         },
         {
             "module": "bitstr",
@@ -156,7 +172,8 @@
             "errors": true,
             "solutions": [
                 "[<<0,0,0,0,0,0:2>>]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "otp_int",
@@ -166,7 +183,8 @@
             "errors": true,
             "solutions": [
                 "[ssl, negotiated_next_protocol, 1]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "whitelist",
@@ -177,7 +195,8 @@
             "errors": true,
             "solutions": [
                 "[424242]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "whitelist",
@@ -188,7 +207,8 @@
             "errors": true,
             "solutions": [
                 "[4242]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "whitelist",
@@ -199,7 +219,8 @@
             "errors": true,
             "solutions": [
                 "[42]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "complex_spec",
@@ -209,7 +230,8 @@
             "errors": true,
             "solutions": [
                 "[[{[1,2],[{[[1],[2]],[3.14]},2]}]]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "collection",
@@ -219,7 +241,8 @@
             "errors": true,
             "solutions": [
                 "[[17,17,42]]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "collection",
@@ -229,7 +252,8 @@
             "errors": true,
             "solutions": [
                 "[42]", "[[0]]", "[\"*\"]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "collection",
@@ -239,7 +263,8 @@
             "errors": true,
             "solutions": [
                 "[42]", "[1]", "[[0]]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "collection",
@@ -252,7 +277,8 @@
             ],
             "bifs": [
                 "erlang:get/1"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "collection",
@@ -263,7 +289,8 @@
             "withUtestBin": true,
             "solutions": [
                 "[38.86]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "funs",
@@ -273,7 +300,8 @@
             "errors": true,
             "solutions": [
                 "[fun(3) -> 42; (10) -> 17; (_) -> 42 end]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "funs",
@@ -283,7 +311,8 @@
             "errors": true,
             "solutions": [
                 "[fun(2) -> 42; (3) -> 17; (_) -> 42 end, 2, 3]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "funs",
@@ -293,7 +322,8 @@
             "errors": true,
             "solutions": [
                 "[fun(5) -> 17; (2) -> 4; (4) -> 42; (3) -> 5; (_) -> 17 end, 2, 3]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "funs",
@@ -304,7 +334,8 @@
             "solutions": [
                 "[fun(_) -> 4 end, 2, 3]",
                 "[fun(_) -> fun(_) -> 42 end end, 2, 3]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "funs",
@@ -316,7 +347,8 @@
                 "[fun(_) -> 4 end, 2, 3]",
                 "[fun(_) -> {4, 5} end, 2, 3]",
                 "[fun(_) -> fun(_) -> 42 end end, 2, 3]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "funs",
@@ -326,7 +358,8 @@
             "errors": true,
             "solutions": [
                 "[fun(4,2,1) -> 17; (1,2,4) -> 42; (_,_,_) -> 17 end, 1, 2, 4]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "funs",
@@ -342,7 +375,8 @@
                 "[fun(_) -> fun(_) -> fun(_) -> fun(_) -> 42 end end end end]",
                 "[fun(_) -> fun(_) -> fun(_) -> fun(_) -> fun(_) -> 42 end end end end end]",
                 "[fun(_) -> fun(_) -> fun(_) -> fun(_) -> fun(_) -> fun(_) -> 42 end end end end end end]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "funs",
@@ -353,7 +387,8 @@
             "solutions": [
                 "[fun(_,_) -> 42 end, [3]]",
                 "[fun(3,0) -> 5; (4,5) -> 42; (_,_) -> 5 end, [3,4]]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "funs",
@@ -364,7 +399,8 @@
             "solutions": [
                 "[fun(_) -> false end, [2]]",
                 "[fun(_) -> true end, []]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "funs",
@@ -377,7 +413,8 @@
                 "[fun(_) -> 3 end, 1, 2]",
                 "[fun(_) -> 42 end, 2, 1]",
                 "[fun(_,_) -> 42 end, 1, 2]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "funs",
@@ -389,7 +426,8 @@
                 "[fun() -> 3 end, 1]",
                 "[fun(_) -> 42 end, 2]",
                 "[fun(_,_) -> 42 end, 1]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "funs",
@@ -399,7 +437,8 @@
             "errors": true,
             "solutions": [
                 "[fun(_) -> 42 end]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "funs",
@@ -414,7 +453,8 @@
                 "[fun(_) -> fun(_) -> 7719 end end, fun(_) -> fun(_) -> -7710 end end, 10]",
                 "[fun(_) -> fun(_) -> [] end end, fun(_) -> fun(_) -> 10 end end, 5]",
                 "[fun(_) -> fun(_) -> [] end end, fun(_) -> fun(_) -> [] end end, 9]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "funs",
@@ -425,35 +465,40 @@
             "solutions": [
                 "[fun(_) -> 3 end]",
                 "[fun(_) -> fun(_) -> 42 end end]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "funs",
             "function": "f1ws",
             "args": "[fun(_) -> 1 end]",
             "depth": "10",
-            "errors": false
+            "errors": false,
+            "skip": true
         },
         {
             "module": "funs",
             "function": "f2ws",
             "args": "[fun(_) -> 1 end, 1, 1]",
             "depth": "10",
-            "errors": false
+            "errors": false,
+            "skip": true
         },
         {
             "module": "funs",
             "function": "f3ws",
             "args": "[fun(_) -> 1 end, 1, 1]",
             "depth": "10",
-            "errors": false
+            "errors": false,
+            "skip": true
         },
         {
             "module": "funs",
             "function": "f5ws",
             "args": "[fun(_,_,_) -> 1 end, 0, 0, 0]",
             "depth": "2",
-            "errors": false
+            "errors": false,
+            "skip": true
         },
         {
             "module": "funs",
@@ -463,7 +508,8 @@
             "errors": true,
             "solutions": [
                 "[fun(3) -> 42; (10) -> 17; (_) -> 42 end]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "funs",
@@ -473,7 +519,8 @@
             "errors": true,
             "solutions": [
                 "[fun(_) -> 3 end, {4,2}]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "funs",
@@ -484,7 +531,8 @@
             "solutions": [
                 "[fun(_) -> 1 end, <<5>>]",
                 "[fun(_) -> 10 end, <<5:6>>]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "sum",
@@ -495,7 +543,8 @@
             "errors": true,
             "solutions": [
                 "[[-5450,8365,1796]]", "[[2437,2274]]", "[[4711]]", "[[4711.0]]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "funs",
@@ -505,14 +554,16 @@
             "errors": true,
             "solutions": [
                 "[fun(_) -> [1, 2, 3] end, [4]]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "collection",
             "function": "eval_nif",
             "args": "[ok]",
             "depth": "25",
-            "errors": false
+            "errors": false,
+            "skip": true
         },
         {
             "module": "bitstr",
@@ -522,7 +573,8 @@
             "errors": true,
             "solutions": [
                 "[<<0:4>>]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "bitstr",
@@ -532,7 +584,8 @@
             "errors": true,
             "solutions": [
                 "[<<0,0:1>>]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "bitstr",
@@ -542,7 +595,8 @@
             "errors": true,
             "solutions": [
                 "[21, 1]", "[42, 0]", "[84, -1]", "[168, -2]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "bitstr",
@@ -554,7 +608,8 @@
                 "[7716049313272]",
                 "[7716049313271604931327160494]",
                 "[77160493132716049313271604931327160493132716049313271604931327160494]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "bitstr",
@@ -564,7 +619,8 @@
             "errors": true,
             "solutions": [
                 "[21, -1]", "[42, 0]", "[84, 1]", "[168, 2]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "bitstr",
@@ -576,7 +632,8 @@
                 "[1975308624197536]",
                 "[1975308624197530862419753086256]",
                 "[19753086241975308624197530862419753086241975308624197530862419753086256]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "bitstr",
@@ -586,7 +643,8 @@
             "errors": true,
             "solutions": [
                 "[-43]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "bitstr",
@@ -598,7 +656,8 @@
                 "[-1234567890123456789012345678901234567890123456789012345678901234567892]",
                 "[-123456789012345678901234567892]",
                 "[-123456789012347]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "collection",
@@ -608,7 +667,8 @@
             "errors": true,
             "solutions": [
                 "[2.75]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "collection",
@@ -618,7 +678,8 @@
             "errors": true,
             "solutions": [
                 "[-42.75]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "bitstr",
@@ -629,7 +690,8 @@
             "validate": true,
             "solutions": [
                 "[-115245587226975570856629698659936890834, 115244775925639664041776219450078580218]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "bitstr",
@@ -640,7 +702,8 @@
             "validate": true,
             "solutions": [
                 "[-10, -34]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "bitstr",
@@ -651,7 +714,8 @@
             "validate": true,
             "solutions": [
                 "[1267650600228229401496703205376, 1267650600228229401496703205376]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "bitstr",
@@ -662,7 +726,8 @@
             "validate": true,
             "solutions": [
                 "[-1298114088876869206436467930326479, -1227781192769208556173848975922]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "bitstr",
@@ -673,7 +738,8 @@
             "validate": true,
             "solutions": [
                 "[-10722113295479264474453651513181749953, -25081040589696498295982299549491773275]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "bitstr",
@@ -684,7 +750,8 @@
             "validate": true,
             "solutions": [
                 "[8098239615821597375497340003855403778, 8098239615821597375497340003855403816]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "bitstr",
@@ -695,7 +762,8 @@
             "validate": true,
             "solutions": [
                 "[10746391985634429997612810101056519776, 10746391985634429997612967280874891538]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "bitstr",
@@ -706,7 +774,8 @@
             "validate": true,
             "solutions": [
                 "[3714386857363838068689887652, 1317963678609701630637856821312]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "bitstr",
@@ -717,7 +786,8 @@
             "validate": true,
             "solutions": [
                 "[154038586524071506316860854678694172406, -154038586524071506316860854678694172384]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "bitstr",
@@ -728,7 +798,8 @@
             "validate": true,
             "solutions": [
                 "[132438649102067967026620554223683666340, -132438649102067967026620960032741791446]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "bitstr",
@@ -739,7 +810,8 @@
             "validate": true,
             "solutions": [
                 "[-148528931426514002676418943389977804784, 148528930104835937209353474683431095820]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "bitstr",
@@ -750,7 +822,8 @@
             "validate": true,
             "solutions": [
                 "[34, 8]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "bitstr",
@@ -761,7 +834,8 @@
             "validate": true,
             "solutions": [
                 "[576531571286646856, 78123050067394816]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "bitstr",
@@ -772,7 +846,8 @@
             "validate": true,
             "solutions": [
                 "[46598350958186933355168341451912384804, 85569455391686265217897127254634324160]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "bitstr",
@@ -783,7 +858,8 @@
             "validate": true,
             "solutions": [
                 "[-122858486675391948889053936672818495856, 122858486675391948889053938871841751405]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "bitstr",
@@ -794,7 +870,8 @@
             "validate": true,
             "solutions": [
                 "[-127665441727703630643001662293994373054, 127665439146605058293920069946395660416]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "collection",
@@ -804,7 +881,8 @@
             "errors": true,
             "solutions": [
                 "[\"42\"]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "collection",
@@ -815,14 +893,16 @@
             "whitelist": "collection-l2in-1",
             "solutions": [
                 "[\"42\"]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "collection",
             "function": "to_upper",
             "args": "[[]]",
             "depth": "7",
-            "errors": false
+            "errors": false,
+            "skip": true
         }
     ]
 }

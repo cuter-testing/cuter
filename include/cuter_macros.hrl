@@ -26,7 +26,7 @@
 %%====================================================================
 
 -define(RELATIVE_TMP_DIR, "temp").
--define(PYTHON_CALL, ?PYTHON_PATH ++ " -u " ++ ?PRIV ++ "/cuter_interface.py").
+-define(PYTHON_CALL, ?PYTHON_PATH ++ " -u " ++ ?PRIV ++ "/cuter_interface.py --smt").
 
 %%====================================================================
 %% Prefixes
