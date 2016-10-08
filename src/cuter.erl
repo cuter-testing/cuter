@@ -129,21 +129,25 @@ start(Conf, N_Pollers, N_Solvers) ->
   Depth = Conf#conf.depth,
   Pollers = [cuter_poller:start(CodeServer, Scheduler, M, F, Dir, Depth) || _ <- lists:seq(1, N_Pollers)],
   Solvers = [cuter_solver:start(Scheduler) || _ <- lists:seq(1, N_Solvers)],
-  ok = wait_for_processes(Pollers),
-  lists:foreach(fun cuter_solver:send_stop_message/1, Solvers),
-  ok = wait_for_processes(Solvers),
+  ok = wait_for_processes(Pollers, fun cuter_poller:send_stop_message/1),
+  LiveSolvers = lists:filter(fun is_process_alive/1, Solvers),
+  lists:foreach(fun cuter_solver:send_stop_message/1, LiveSolvers),
+  ok = wait_for_processes(LiveSolvers, fun cuter_solver:send_stop_message/1),
   stop_and_report(Conf).
 
--spec wait_for_processes([pid()]) -> ok.
-wait_for_processes([]) ->
+-spec wait_for_processes([pid()], fun((pid()) -> ok)) -> ok.
+wait_for_processes([], _StopFn) ->
   ok;
-wait_for_processes(Procs) ->
+wait_for_processes(Procs, StopFn) ->
   receive
     {'EXIT', Who, normal} ->
-      wait_for_processes(Procs -- [Who]);
+      wait_for_processes(Procs -- [Who], StopFn);
     {'EXIT', Who, Why} ->
       io:format("Proccess ~p exited with ~p~n", [Who, Why]),
-      wait_for_processes(Procs -- [Who])
+      io:format("Shutting down the execution...~n"),
+      Rest = Procs -- [Who],
+      lists:foreach(StopFn, Rest),
+      wait_for_processes(Rest, StopFn)
   end.
 
 -spec stop_and_report(configuration()) -> erroneous_inputs().
