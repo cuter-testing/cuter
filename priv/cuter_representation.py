@@ -309,10 +309,13 @@ class TermDecoder:
         # TODO Propery decode references once they are supported.
         return self.erl.Term.int(42)
 
-
 # =============================================================================
 # Unit Tests
 # =============================================================================
+
+def z3_version():
+    (vA, vB, vC, _) = get_version()
+    return (vA, vB, vC)
 
 def test_encoder():
     erl = Erlang()
@@ -423,6 +426,9 @@ def decode_and_check(erl, env, terms):
 
 def mk_int(i):
     return {"t": cc.JSON_TYPE_INT, "v": i}
+
+def mk_float(f):
+    return {"t": cc.JSON_TYPE_FLOAT, "v": f}
 
 def mk_list(xs):
     return {"t": cc.JSON_TYPE_LIST, "v": xs}
@@ -587,14 +593,24 @@ def fun_scenario3():
     m = slv.model()
     encoder = TermEncoder(erl, m, fmap, arity)
     x_sol, y_sol, f_sol = [encoder.encode(m[v]) for v in [x, y, f]]
-    # Create the result
-    f_exp = mk_fun([
+    # Create the result (Z3 4.4.1)
+    f_expA = mk_fun([
         mk_tuple([ mk_list([x_sol]),     mk_int(4)  ]),
         mk_tuple([ mk_list([mk_int(4)]), mk_int(42) ]),
         mk_tuple([ mk_list([y_sol]),     mk_int(5)  ]),
         mk_tuple([ mk_list([mk_int(5)]), mk_int(17) ])
     ], 1)
-    compare_solutions(f_exp, f_sol)
+    # Create the result (Z3 4.4.2)
+    f_expB = mk_fun([
+        mk_tuple([ mk_list([x_sol]),         mk_float(0.0) ]),
+        mk_tuple([ mk_list([mk_float(0.0)]), mk_int(42)    ]),
+        mk_tuple([ mk_list([y_sol]),         mk_float(1.0) ]),
+        mk_tuple([ mk_list([mk_float(1.0)]), mk_int(17)    ])
+    ], 1)
+    if z3_version() == (4, 4, 2):
+        compare_solutions(f_expB, f_sol)
+    else:
+        compare_solutions(f_expA, f_sol)
 
 def fun_scenario4():
     """
@@ -796,12 +812,20 @@ def fun_scenario7():
     m = slv.model()
     encoder = TermEncoder(erl, m, fmap, arity)
     l_sol, f_sol = [encoder.encode(m[v]) for v in [l, f]]
-    # Create the result
-    f_exp = mk_fun([
+    # Create the result (Z3 4.4.1)
+    f_expA = mk_fun([
         mk_tuple([ mk_list([l_sol["v"][0], mk_int(0)]), mk_int(4)  ]),
         mk_tuple([ mk_list([l_sol["v"][1], mk_int(4)]), mk_int(42) ])
     ], 2)
-    compare_solutions(f_exp, f_sol)
+    # Create the result (Z3 4.4.2)
+    f_expB = mk_fun([
+        mk_tuple([ mk_list([l_sol["v"][0], mk_int(0)]),     mk_float(1.0) ]),
+        mk_tuple([ mk_list([l_sol["v"][1], mk_float(1.0)]), mk_int(42)    ])
+    ], 2)
+    if z3_version() == (4, 4, 2):
+        compare_solutions(f_expB, f_sol)
+    else:
+        compare_solutions(f_expA, f_sol)
 
 def fun_scenario8():
     """
