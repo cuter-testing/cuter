@@ -16,3 +16,4 @@
 # Custom rules for development
 
 dev/*
+temp/

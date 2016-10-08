@@ -52,6 +52,9 @@ with open(testsJson) as fd:
       cuterScript, test["module"], test["function"], test["args"], test["depth"], opts
     )
     print "\n[Test #{}]\n{}".format(i + 1, cmd)
+    if "skip" in test and test["skip"]:
+      print "Skipping ..."
+      continue
     p = Popen(cmd, stdin=PIPE, stdout=PIPE, shell=True)
     output, err = p.communicate()
     # Validate the presence of errors or not.
