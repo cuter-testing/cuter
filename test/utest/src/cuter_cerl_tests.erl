@@ -6,7 +6,7 @@
 -include("include/eunit_config.hrl").
 -include("include/cuter_macros.hrl").
 
--spec test() -> ok | {error | term()}. %% Silence dialyzer warning
+-spec test() -> 'ok' | {'error', term()}.  %% This should be provided by EUnit
 
 %% Load the modules
 -spec just_load_test_() -> any().

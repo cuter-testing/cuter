@@ -5,7 +5,7 @@
 -include_lib("eunit/include/eunit.hrl").
 -include("include/eunit_config.hrl").
 
--spec test() -> ok | {error | term()}. %% Silence dialyzer warning
+-spec test() -> 'ok' | {'error', term()}.  %% This should be provided by EUnit
 
 %% Encoding / Decoding tests
 -spec encdec_test_() -> term().

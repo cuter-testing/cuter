@@ -4,7 +4,7 @@
 
 -include_lib("eunit/include/eunit.hrl").
 
--spec test() -> ok | {error, term()}. %% Silence dialyzer warning
+-spec test() -> 'ok' | {'error', term()}.  %% This should be provided by EUnit
 
 -spec parse_basic_types_test_() -> term().
 parse_basic_types_test_() ->

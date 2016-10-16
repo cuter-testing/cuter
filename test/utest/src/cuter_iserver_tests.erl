@@ -5,8 +5,7 @@
 -include_lib("eunit/include/eunit.hrl").
 -include("include/eunit_config.hrl").
 
--spec test() -> ok | {error | term()}. %% Silence dialyzer warning
-
+-spec test() -> 'ok' | {'error', term()}.  %% This should be provided by EUnit
 
 -define(Pmatch, true).
 
@@ -14,10 +13,9 @@
 -spec start_stop_test_() -> any().
 start_stop_test_() ->
   {_Dir, Server} = Start = setup(),
-  R = 
-    receive
-      {Server, ExStatus, _Result} -> ExStatus
-    end,
+  R = receive
+        {Server, ExStatus, _Result} -> ExStatus
+      end,
   Stop = cleanup(Start),
   [{"Start & Finish", ?_assertEqual(ok, Stop)},
    {"Expected Result", ?_assertMatch({success, {_, [17,42], _}}, R)}].

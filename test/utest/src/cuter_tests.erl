@@ -6,7 +6,7 @@
 
 -export([t0/1, t1/1, t2/2]).
 
--spec test() -> ok | {error | any()}. %% Silence dialyzer warning
+-spec test() -> 'ok' | {'error', term()}.  %% This should be provided by EUnit
 
 %% Ensure it runs properly
 -spec run_test() -> ok.

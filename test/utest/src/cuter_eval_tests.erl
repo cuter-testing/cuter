@@ -14,7 +14,7 @@
 
 -define(Pmatch, false).
 
--spec test() -> ok | {error | term()}. %% Silence dialyzer warning
+-spec test() -> 'ok' | {'error', term()}.  %% This should be provided by EUnit
 
 -spec eval_cerl_test_() -> term().
 eval_cerl_test_() ->

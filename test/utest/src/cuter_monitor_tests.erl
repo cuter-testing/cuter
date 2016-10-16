@@ -5,8 +5,9 @@
 -include_lib("eunit/include/eunit.hrl").
 -include("include/eunit_config.hrl").
 
--spec test() -> ok | {error | term()}. %% Silence dialyzer warning
+-spec test() -> 'ok' | {'error', term()}.  %% This should be provided by EUnit
 
+-define(ISERVER, cuter_iserver).
 
 %% Ensure start/stop runs properly
 -spec start_stop_test_() -> any().
@@ -32,7 +33,6 @@ validate_subscribers(MonitorServer, N) ->
   Pids = [spawn_link(fun() -> validate_subscriber(MonitorServer, Me) end) || _ <- lists:seq(1, N)],
   Fds = [receive {Pid, check_fd, X} -> X end || Pid <- Pids],
   Mons = [receive {Pid, is_monitored, X} -> X end || Pid <- Pids],
-  
   lists:foreach(fun(Pid) -> Pid ! {Me, stop} end, Pids),
   lists:foreach(fun(Pid) -> receive {'EXIT', Pid, normal} -> ok end end, Pids),
   [{"Validate file descriptors", ?_assertEqual(true, lists:all(fun(X) -> X end, Fds))},
@@ -48,8 +48,8 @@ validate_subscriber(MonitorServer, Parent) ->
 
 setup() ->
   Me = self(),
-  meck:new(cuter_iserver),
-  meck:expect(cuter_iserver, monitor_logs, fun(_, _) -> Me ! mock_ok, ok end),
+  meck:new(?ISERVER),
+  meck:expect(?ISERVER, monitor_logs, fun(_, _) -> Me ! mock_ok, ok end),
   Dir = cuter_tests_lib:setup_dir(),
   MonitorServer = cuter_monitor:start(Dir, self(), ?TRACE_DEPTH, ?EXEC_PREFIX),
   {Dir, MonitorServer}.
@@ -61,5 +61,5 @@ cleanup({Dir, MonitorServer}) ->
   after
     5000 -> ok
   end,
-  meck:unload(cuter_iserver),
+  meck:unload(?ISERVER),
   cuter_lib:clear_and_delete_dir(Dir).

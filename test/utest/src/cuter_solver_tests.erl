@@ -5,7 +5,7 @@
 -include_lib("eunit/include/eunit.hrl").
 -include("include/eunit_config.hrl").
 
--spec test() -> ok | {error | term()}. %% Silence dialyzer warning
+-spec test() -> 'ok' | {'error', term()}.  %% This should be provided by EUnit
 
 %% Simple models to test the semantics of each log entry.
 -spec solve_simple_test_() -> term().

@@ -4,7 +4,7 @@
 
 -include_lib("eunit/include/eunit.hrl").
 
--spec test() -> ok | {error | term()}. %% Silence dialyzer warning
+-spec test() -> 'ok' | {'error', term()}.  %% This should be provided by EUnit
 
 -define(MODS_LIST, [lists, dict, orddict, ets, os, string, filelib, beam_lib, cerl]).
 -define(Pmatch, false).
@@ -51,10 +51,10 @@ get_spec_test_() ->
   Cleanup = fun cleanup/1,
   Inst = fun(_) ->
     Cs = cuter_codeserver:start(self(), ?Pmatch, cuter_mock:empty_whitelist()),
-    % types_and_specs:foo/0
+    %% types_and_specs:foo/0
     Spec0 = cuter_codeserver:retrieve_spec(Cs, {types_and_specs, foo, 0}),
     Expected0 = [cuter_types:t_function([], cuter_types:t_atom_lit(ok))],
-    % types_and_specs:f11/1, f12/1
+    %% types_and_specs:f11/1, f12/1
     Spec11 = cuter_codeserver:retrieve_spec(Cs, {types_and_specs, f11, 1}),
     Spec12 = cuter_codeserver:retrieve_spec(Cs, {types_and_specs, f12, 1}),
     Expected1 = [cuter_types:t_function([cuter_types:t_float()], cuter_types:t_float())],
