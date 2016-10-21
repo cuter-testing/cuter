@@ -10,7 +10,7 @@
 /configure
 /config.log
 /config.status
-/.cuter_plt
+/.plt/.cuter_plt
 /.depend
 
 # Custom rules for development

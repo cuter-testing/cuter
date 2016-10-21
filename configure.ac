@@ -200,7 +200,7 @@ Erlang Compiler:    $ERLC
 Python:             $PYTHON_PATH
 Z3Py:               $HAS_Z3_MSG
 Meck:               $HAS_MECK_MSG
-Proper:             $HAS_PROPER_MSG
+PropEr:             $HAS_PROPER_MSG
 
 To build CutEr, execute:
   make depend

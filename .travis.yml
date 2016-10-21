@@ -19,3 +19,7 @@ otp_release:
   - 19.0
   - 18.3
   - 18.1	# 18.0 has a problem in dialyzer
+
+cache:
+  directories:
+  - .plt
