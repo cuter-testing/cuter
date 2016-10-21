@@ -110,7 +110,8 @@ PRIV_MODULES = \
 	cuter_representation
 
 PROTOBUFS = \
-	erlang_term
+	erlang_term \
+	solver_command
 
 ###----------------------------------------------------------------------
 ### Targets
@@ -182,7 +183,7 @@ utest: $(TARGETS)
 ftest: $(TARGETS)
 	@(./$(TEST)/functional_test)
 
-dialyzer: .plt/.cuter_plt cuter_target
+dialyzer: cuter_target .plt/.cuter_plt
 	dialyzer --plt $< $(DIALYZER_FLAGS) $(EBIN)/*.beam
 
 .plt/.cuter_plt:
@@ -190,12 +191,12 @@ dialyzer: .plt/.cuter_plt cuter_target
 
 -include .depend
 
-depend: cleandep $(PROTOBUFS:%=$(SRC)/%.erl) $(SRC_MODULES:%=%.dep) $(HRL_FILES:%=%.hrl)
+depend: cleandep $(SRC_MODULES:%=%.dep) $(HRL_FILES:%=%.hrl)
 	@echo ""
 	@echo "To build CutEr, execute:"
 	@echo "  make"
 
-%.dep: %.erl
+%.dep: %.erl $(PROTOBUFS:%=$(INCLUDE)/%.hrl)
 	@echo "ERLC -M -MT $<"
 	@$(ERLC) $(ERLC_INCLUDE) -M -MT $(patsubst $(SRC)/%.erl,$(EBIN)/%.beam,$<) $< >> .depend
 
@@ -206,12 +207,12 @@ clean_tests:
 	$(RM) $(UTEST_EBIN)/*.beam $(FTEST_EBIN)/*.beam
 
 cleandep:
-	@$(RM) .depend
+	$(RM) .depend
 
-cleangen: cleandep cleanprotos
+cleangen: cleandep cleanprotobufs
 	$(RM) .plt/.cuter_plt
 
-cleanprotos:
+cleanprotobufs:
 	$(RM) $(PROTOBUFS:%=$(SRC)/%.erl) $(PROTOBUFS:%=$(INCLUDE)/%.hrl)
 
-distclean: clean clean_tests cleangen cleanprotos
+distclean: clean clean_tests cleangen cleanprotobufs

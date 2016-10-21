@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+import "erlang_term.proto";
+
+message SolverCommand {
+
+    /**
+     * The supported commands.
+     */
+    enum Type {
+        LOAD_TRACE_FILE = 0;
+        SOLVE = 1;
+        GET_MODEL = 2;
+        ADD_AXIOMS = 3;
+        FIX_VARIABLE = 4;
+        RESET_SOLVER = 5;
+        STOP = 6;
+    }
+
+    Type type = 1;
+
+    // Only used by the "Load Trace File" commands.
+    string filename = 2;
+    int64 to_constraint = 3;
+
+    // Only used by the "Fix Variable" commands.
+    ErlangTerm symbvar = 4;
+    ErlangTerm symbvar_value = 5;
+}

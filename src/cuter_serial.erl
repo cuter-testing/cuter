@@ -3,25 +3,45 @@
 -module(cuter_serial).
 
 -export([from_term/1, to_term/1]).
+-export([solver_command/1, solver_command/2]).
 
 -include("include/cuter_macros.hrl").
 -include("include/cuter_types.hrl").
 -include("include/erlang_term.hrl").
+-include("include/solver_command.hrl").
 
 -type erlang_term() :: #'ErlangTerm'{}.
 -type supported_term() :: atom() | bitstring() | pid() | reference() | [any()]
                         | number() | tuple() | map().
 
+-type commands_no_opts() :: solve | get_model | add_axioms | reset_solver | stop.
+
+%% ============================================================================
+%% Public API.
+%% ============================================================================
+
+%% Serialize an Erlang term to binary data.
 -spec from_term(supported_term()) -> binary().
 from_term(Term) ->
   Msg = to_erlang_term(Term),
-  io:format("~p~n", [Msg]),
   erlang_term:encode_msg(Msg).
 
+%% De-serialize an Erlang term from binary data.
 -spec to_term(binary()) -> supported_term().
 to_term(Msg) ->
   ErlangTerm = erlang_term:decode_msg(Msg, 'ErlangTerm'),
   from_erlang_term(ErlangTerm).
+
+-spec solver_command(commands_no_opts()) -> binary().
+solver_command(Command) -> solver_command(Command, none).
+
+-spec solver_command(load_trace_file, {file:name(), integer()}) -> binary()
+                  ; (fix_variable, {cuter_symbolic:symbolic(), any()}) -> binary()
+                  ; (commands_no_opts(), none) -> binary().
+solver_command(Command, Options) ->
+  Msg = to_solver_command(Command, Options),
+  io:format("~p~n", [Msg]),
+  solver_command:encode_msg(Msg).
 
 %% ============================================================================
 %% Encode Terms to ErlangTerm messages.
@@ -243,3 +263,24 @@ from_erlang_term(T=#'ErlangTerm'{type=Type}, Shared) when Type =:= 'MAP' ->
 
 from_map_entry(#'ErlangTerm.MapEntry'{key=K, value=V}, Shared) ->
   {from_erlang_term(K, Shared), from_erlang_term(V, Shared)}.
+
+%% ============================================================================
+%% Encode commands to the solver as SolverCommand messages.
+%% ============================================================================
+
+to_solver_command(load_trace_file, {File, To}) ->
+  #'SolverCommand'{type='LOAD_TRACE_FILE', filename=File, to_constraint=To};
+to_solver_command(solve, none) ->
+  #'SolverCommand'{type='SOLVE'};
+to_solver_command(get_model, none) ->
+  #'SolverCommand'{type='GET_MODEL'};
+to_solver_command(add_axioms, none) ->
+  #'SolverCommand'{type='ADD_AXIOMS'};
+to_solver_command(fix_variable, {SymbVar, Value}) ->
+  #'SolverCommand'{type='FIX_VARIABLE',
+                   symbvar=to_erlang_term(SymbVar),
+                   symbvar_value=to_erlang_term(Value)};
+to_solver_command(reset_solver, none) ->
+  #'SolverCommand'{type='RESET_SOLVER'};
+to_solver_command(stop, none) ->
+  #'SolverCommand'{type='stop'}.
