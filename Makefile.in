@@ -28,7 +28,7 @@ export ERL_LIBS := $(PROPER):$(MECK):$$ERL_LIBS
 ### Flags
 ###----------------------------------------------------------------------
 
-DIALYZER_APPS = erts kernel stdlib compiler crypto hipe
+DIALYZER_APPS = erts kernel stdlib compiler crypto hipe syntax_tools
 DIALYZER_FLAGS = -Wunmatched_returns -Wunderspecs
 
 WARNS = +warn_exported_vars +warn_unused_import +warn_missing_spec #+warn_untyped_record
@@ -180,7 +180,7 @@ clean_tests:
 	$(RM) $(UTEST_EBIN)/*.beam $(FTEST_EBIN)/*.beam
 
 cleandep:
-	$(RM) .depend
+	@$(RM) .depend
 
 cleangen: cleandep
 	$(RM) .plt/.cuter_plt
