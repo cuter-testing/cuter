@@ -253,7 +253,7 @@
             "solutions": [
                 "[42]", "[[0]]", "[\"*\"]"
             ],
-            "skip": true
+            "skip": false
         },
         {
             "module": "collection",

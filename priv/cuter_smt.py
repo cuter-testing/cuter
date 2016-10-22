@@ -8,6 +8,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
     def __init__(self):
         self.model = None
         self.params = []
+        self.axs = []
 
     # =========================================================================
     # Public API.
@@ -17,7 +18,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
         """
         Fixes a symbolic variable to a specific value.
         """
-        pass
+        self.axs.append("(assert (= {} {}))".format(p, v))
 
     def add_axioms(self):
         """
@@ -71,13 +72,19 @@ class ErlangSMT(cgs.AbstractErlangSolver):
         """
         Asserts the predicate: term1 == term2
         """
-        pass
+        self.axs.append("(assert (= {} {}))".format(term1, term2))
 
     def match_not_equal(self, term1, term2):
         """
         Asserts the predicate: term1 != term2
         """
-        pass
+        self.axs.append("(assert (not (= {} {})))".format(term1, term2))
+
+    def list_not_lst(self, term):
+        """
+        Asserts that: term is not list.
+        """
+        print "list_not_lst called\n" # TODO
 
     # -------------------------------------------------------------------------
     # Reversed constraints.
@@ -87,10 +94,16 @@ class ErlangSMT(cgs.AbstractErlangSolver):
         """
         Asserts the predicate: Not (term1 == term2)
         """
-        pass
+        self.match_not_equal(term1, term2)
 
     def match_not_equal_reversed(self, term1, term2):
         """
         Asserts the predicate: Not (term1 != term2)
         """
-        pass
+        self.match_equal(term1, term2)
+
+    def list_not_lst_reversed(self, term):
+        """
+        Asserts that: Not (term is not list).
+        """
+        print "list_not_lst_reversed called\n" # TODO
