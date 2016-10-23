@@ -275,17 +275,17 @@ log_make_tuple(Fd, Sv, Xs) ->
 log_make_bitstring(Fd, Sv, V, Sz) ->
   log(Fd, 'OP_MAKE_BITSTR', ?EMPTY_TAG_ID, [Sv, V, Sz]).
 
-%% TODO Use a proper tags.
+%% TODO Use a proper tag.
 -spec log_empty_bitstring(file:io_device(), cuter_symbolic:symbolic()) -> ok.
 log_empty_bitstring(Fd, Sv) ->
   log(Fd, 'OP_EMPTY_BITSTR', ?EMPTY_TAG_ID, [Sv]).
 
-%% TODO Use a proper tags.
+%% TODO Use a proper tag.
 -spec log_nonempty_bitstring(file:io_device(), cuter_symbolic:symbolic(), cuter_symbolic:symbolic(), cuter_symbolic:symbolic()) -> ok.
 log_nonempty_bitstring(Fd, H, T, Sv) ->
   log(Fd, 'OP_NONEMPTY_BITSTR', ?EMPTY_TAG_ID, [H, T, Sv]).
 
-%% TODO Use a proper tags.
+%% TODO Use a proper tag.
 -spec log_concat_segments(file:io_device(), cuter_symbolic:symbolic(), [any()], any()) -> ok.
 log_concat_segments(Fd, Sv1, Bits, Sv) ->
   log(Fd, 'OP_CONCAT_SEGS', ?EMPTY_TAG_ID, [Sv1, Sv | Bits]).

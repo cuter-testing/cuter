@@ -453,7 +453,7 @@ python_started(Event, Data) ->
 -spec python_started(any(), from(), fsm_state()) -> {reply, ok, trace_loaded, fsm_state()} | err_sync().
 %% Send a trace file to the solver and load the generated axioms to a list
 python_started({load_trace_file, FileInfo}, _From, Data=#fsm_state{port = Port}) ->
-  Cmd = cuter_json:encode_port_command(load_trace_file, FileInfo),
+  Cmd = cuter_serial:solver_command(load_trace_file, FileInfo),
   cuter_pp:send_cmd(python_started, Cmd, "Load Trace File"),
   Port ! {self(), {command, Cmd}},
   {reply, ok, trace_loaded, Data};
@@ -471,7 +471,7 @@ trace_loaded(Event, Data) ->
 -spec trace_loaded(any(), from(), fsm_state()) -> {reply, ok, axioms_added, fsm_state()} | err_sync().
 %% Add the loaded axioms from the trace file to the solver
 trace_loaded(add_axioms, _From, Data=#fsm_state{port = Port}) ->
-  Cmd = cuter_json:encode_port_command(add_axioms, nil),
+  Cmd = cuter_serial:solver_command(add_axioms),
   cuter_pp:send_cmd(trace_loaded, Cmd, "Load axioms"),
   Port ! {self(), {command, Cmd}},
   {reply, ok, axioms_added, Data};
@@ -489,13 +489,13 @@ axioms_added(Event, Data) ->
 -spec axioms_added(any(), from(), fsm_state()) -> {next_state, solving, fsm_state()} | err_sync().
 %% Query the solver for the satisfiability of the model
 axioms_added(check_model, From, Data=#fsm_state{port = Port}) ->
-  Cmd = cuter_json:encode_port_command(solve, nil),
+  Cmd = cuter_serial:solver_command(solve),
   cuter_pp:send_cmd(axioms_added, Cmd, "Check the model"),
   Port ! {self(), {command, Cmd}},
   {next_state, solving, Data#fsm_state{from = From}};
 %% Fix a symbolic variable to a specific value
 axioms_added({fix_variable, Mapping}, _From, Data=#fsm_state{port = Port}) ->
-  Cmd = cuter_json:encode_port_command(fix_variable, Mapping),
+  Cmd = cuter_serial:solver_command(fix_variable, Mapping),
   cuter_pp:send_cmd(axioms_added, Cmd, "Fix a variable"),
   Port ! {self(), {command, Cmd}},
   {reply, ok, axioms_added, Data};
@@ -513,13 +513,13 @@ failed(Event, Data) ->
 -spec failed(any(), from(), fsm_state()) -> {reply, ok, finished, fsm_state()} | err_sync().
 %% Reset the solver by unloading all the axioms
 failed(reset_solver, _From, Data=#fsm_state{port = Port}) ->
-  Cmd = cuter_json:encode_port_command(reset_solver, nil),
+  Cmd = cuter_serial:solver_command(reset_solver),
   cuter_pp:send_cmd(failed, Cmd, "Reset the solver"),
   Port ! {self(), {command, Cmd}},
   {reply, ok, trace_loaded, Data};
 %% Terminate the solver
 failed(stop_exec, _From, Data=#fsm_state{port = Port}) ->
-  Cmd = cuter_json:encode_port_command(stop, nil),
+  Cmd = cuter_serial:solver_command(stop),
   cuter_pp:send_cmd(failed, Cmd, "Stop the execution"),
   Port ! {self(), {command, Cmd}},
   {reply, ok, finished, Data};
@@ -537,7 +537,7 @@ solved(Event, Data) ->
 -spec solved(any(), from(), fsm_state()) -> {next_state, generating_model, fsm_state()} | err_sync().
 %% Request the solution from the solver
 solved(get_model, From, Data=#fsm_state{port = Port}) ->
-  Cmd = cuter_json:encode_port_command(get_model, nil),
+  Cmd = cuter_serial:solver_command(get_model),
   cuter_pp:send_cmd(solved, Cmd, "Get the model"),
   Port ! {self(), {command, Cmd}},
   {next_state, generating_model, Data#fsm_state{from = From}};
@@ -590,7 +590,7 @@ model_received(Event, Data) ->
 -spec model_received(any(), from(), fsm_state()) -> {reply, ok, finished, fsm_state()} | err_sync().
 %% Stop the solver
 model_received(stop_exec, _From, Data=#fsm_state{port = Port}) ->
-  Cmd = cuter_json:encode_port_command(stop, nil),
+  Cmd = cuter_serial:solver_command(stop),
   cuter_pp:send_cmd(model_received, Cmd, "Stop the execution"),
   Port ! {self(), {command, Cmd}},
   {reply, ok, finished, Data};

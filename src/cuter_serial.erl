@@ -42,7 +42,6 @@ solver_command(Command) -> solver_command(Command, none).
                   ; (commands_no_opts(), none) -> binary().
 solver_command(Command, Options) ->
   Msg = to_solver_command(Command, Options),
-  io:format("~p~n", [Msg]),
   solver_command:encode_msg(Msg).
 
 -spec to_log_entry(cuter_log:opcode(), [any()]) -> binary().
@@ -298,4 +297,4 @@ to_solver_command(fix_variable, {SymbVar, Value}) ->
 to_solver_command(reset_solver, none) ->
   #'SolverCommand'{type='RESET_SOLVER'};
 to_solver_command(stop, none) ->
-  #'SolverCommand'{type='stop'}.
+  #'SolverCommand'{type='STOP'}.
