@@ -82,3 +82,21 @@ enc_fail_test_() ->
     {"Fun", fun() -> ok end}
   ],
   {"JSON Encoding Fail", [{Dsr, ?_assertThrow({unsupported_term, _}, Enc(T))} || {Dsr, T} <- Ts]}.
+
+%% Encoding / Decoding Commands
+-spec encdec_cmd_test_() -> term().
+encdec_cmd_test_() ->
+  Cs = [
+    {"I", {'OP_PARAMS', [self(), erlang:make_ref()]}},
+    {"II", {'OP_PARAMS', [cuter_symbolic:fresh_symbolic_var(), 42]}},
+    {"III", {'OP_CONS', [cuter_symbolic:fresh_symbolic_var(), cuter_symbolic:fresh_symbolic_var(), [<<"false">>]]}}
+  ],
+  Setup = fun(T) -> fun() -> T end end,
+  Inst = fun encode_decode_cmd/1,
+  [{"JSON Encoding / Decoding Command: " ++ C, {setup, Setup(T), Inst}} || {C, T} <- Cs].
+
+encode_decode_cmd({OpCode, Args}) ->
+  MaybeArgs = [maybe(A) || A <- Args],
+  Enc = cuter_serial:to_log_entry(OpCode, Args),
+  Dec = cuter_serial:from_log_entry(Enc),
+  [?_assertEqual( {OpCode, MaybeArgs}, Dec )].

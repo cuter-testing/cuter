@@ -85,16 +85,15 @@
   with_remainder
 }).
 
-
 %% =============================================================
 %% Exported JSON Encoding / Decoding functions
 %% =============================================================
 
--spec command_to_json(integer(), [any()]) -> binary().
-command_to_json(?OP_SPEC, [Spec]) ->
+-spec command_to_json(cuter_log:iopcode(), [any()]) -> binary().
+command_to_json(OP=2, [Spec]) ->
   F = fun(X, Acc) -> [$,, json_encode_spec_clause(X) | Acc] end,
   [$, | Es] = lists:foldl(F, [], lists:reverse(Spec)),
-  C = ?ENCODE_CMD(integer_to_list(?OP_SPEC), [Es]),
+  C = ?ENCODE_CMD(integer_to_list(OP), [Es]),
   list_to_binary(C);
 command_to_json(Cmd, Args) when is_list(Args) ->
   F = fun(X, Acc) -> [$,, json_encode(X) | Acc] end,

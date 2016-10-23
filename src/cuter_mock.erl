@@ -69,7 +69,7 @@ simulate_behaviour(erlang, _F, _A)        -> bif;
 %% cuter_erlang module
 simulate_behaviour(cuter_erlang, F, A) ->
   MFA = {cuter_erlang, F, A},
-  case gb_sets:is_member(MFA, ?SUPPORTED_MFAS) orelse is_internal_without_symbolic_representation(MFA) of
+  case gb_sets:is_member(MFA, cuter_log:supported_mfas()) orelse is_internal_without_symbolic_representation(MFA) of
     true  -> bif;
     false -> {ok, MFA}
   end;

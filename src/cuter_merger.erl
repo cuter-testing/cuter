@@ -8,7 +8,7 @@
 
 -export_type([goal/0]).
 
--type goal()  :: {cuter_log:opcode(), string()}.
+-type goal()  :: {cuter_log:iopcode(), string()}.
 
 -record(st, {
   currFd       :: file:io_device() | 'undefined',
@@ -24,9 +24,19 @@
 
 -type entry_type() :: ?CONSTRAINT_TRUE | ?CONSTRAINT_FALSE | ?NOT_CONSTRAINT.
 -type data()       :: binary().
--type entry() :: {entry_type(), cuter_log:opcode(), cuter_cerl:tagID(), data()}.
+-type entry() :: {entry_type(), cuter_log:iopcode(), cuter_cerl:tagID(), data()}.
 -type validation() :: 'ok' | {'error', entry()}.
 -type known_set()  :: gb_sets:set(cuter_symbolic:symbolic()).
+
+%% FIXME Temporary macros.
+-define(OP_SPAWN, 14).
+-define(OP_SPAWNED, 15).
+-define(OP_MSG_SEND, 16).
+-define(OP_MSG_RECEIVE, 17).
+-define(OP_MSG_CONSUME, 18).
+-define(OP_PARAMS, 1).
+-define(OP_UNFOLD_TUPLE, 19).
+-define(OP_UNFOLD_LIST, 20).
 
 %% Merge the traces of an execution into one file.
 -spec merge_traces(cuter_analyzer:raw_info(), file:name()) -> ok.
@@ -237,7 +247,7 @@ validate_entries(Fd, Known) ->
       end
   end.
 
--spec validate_entry(entry_type(), cuter_log:opcode(), [any()], known_set()) -> {ok, known_set()} | error.
+-spec validate_entry(entry_type(), cuter_log:iopcode(), [any()], known_set()) -> {ok, known_set()} | error.
 validate_entry(?NOT_CONSTRAINT, ?OP_PARAMS, Args, Known) ->
   add_symbolic_vars(Args, Known);
 validate_entry(Kind, _Tp, Args, Known) when Kind =:= ?CONSTRAINT_TRUE; Kind =:= ?CONSTRAINT_FALSE ->

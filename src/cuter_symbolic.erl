@@ -67,7 +67,7 @@ deserialize(L) when is_list(L) -> {?SYMBOLIC_PREFIX, L}.
 %% The MFAs the are supported for symbolic evaluation.
 -spec is_supported_mfa(mfa()) -> boolean().
 is_supported_mfa(MFA) ->
-  gb_sets:is_member(MFA, ?SUPPORTED_MFAS).
+  gb_sets:is_member(MFA, cuter_log:supported_mfas()).
 
 -spec evaluate_mfa(mfa(), [maybe_s(any())], any(), pid(), file:io_device()) -> maybe_s(any()).
 evaluate_mfa(MFA, SAs, Cv, CodeServer, Fd) ->

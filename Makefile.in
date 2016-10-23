@@ -111,7 +111,8 @@ PRIV_MODULES = \
 
 PROTOBUFS = \
 	erlang_term \
-	solver_command
+	solver_command \
+	log_entry
 
 ###----------------------------------------------------------------------
 ### Targets
@@ -183,10 +184,11 @@ utest: $(TARGETS)
 ftest: $(TARGETS)
 	@(./$(TEST)/functional_test)
 
-dialyzer: cuter_target .plt/.cuter_plt
+dialyzer: .plt/.cuter_plt cuter_target
 	dialyzer --plt $< $(DIALYZER_FLAGS) $(EBIN)/*.beam
 
 .plt/.cuter_plt:
+	@mkdir -p .plt/
 	dialyzer --build_plt --output_plt $@ --apps $(DIALYZER_APPS)
 
 -include .depend

@@ -4,11 +4,13 @@
 
 -export([from_term/1, to_term/1]).
 -export([solver_command/1, solver_command/2]).
+-export([to_log_entry/2, from_log_entry/1]).
 
 -include("include/cuter_macros.hrl").
 -include("include/cuter_types.hrl").
 -include("include/erlang_term.hrl").
 -include("include/solver_command.hrl").
+-include("include/log_entry.hrl").
 
 -type erlang_term() :: #'ErlangTerm'{}.
 -type supported_term() :: atom() | bitstring() | pid() | reference() | [any()]
@@ -42,6 +44,19 @@ solver_command(Command, Options) ->
   Msg = to_solver_command(Command, Options),
   io:format("~p~n", [Msg]),
   solver_command:encode_msg(Msg).
+
+-spec to_log_entry(cuter_log:opcode(), [any()]) -> binary().
+to_log_entry(OpCode, Arguments) ->
+  Parts = [to_erlang_term(A) || A <- Arguments],
+  Msg = #'LogEntry'{type=OpCode, arguments=Parts},
+  log_entry:encode_msg(Msg).
+
+-spec from_log_entry(binary()) -> {cuter_log:opcode(), [any()]}.
+from_log_entry(Msg) ->
+  LogEntry = log_entry:decode_msg(Msg, 'LogEntry'),
+  Arguments = [from_erlang_term(A) || A <- LogEntry#'LogEntry'.arguments],
+  {LogEntry#'LogEntry'.type, Arguments}.
+
 
 %% ============================================================================
 %% Encode Terms to ErlangTerm messages.
