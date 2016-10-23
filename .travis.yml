@@ -7,12 +7,14 @@ before_install:
   - export PATH=$PWD/z3-4.4.1-x64-ubuntu-14.04/bin:$PATH
   - export PYTHONPATH=$PWD/z3-4.4.1-x64-ubuntu-14.04/bin:$PYTHONPATH
   - export C_INCLUDE_PATH=$PWD/z3-4.4.1-x64-ubuntu-14.04/include/:$C_INCLUDE_PATH
+  - pip install protobuf==3.1.0
 script:
   - git submodule update
   - git submodule foreach make
   - export ERL_LIBS=$PWD/lib/proper:$ERL_LIBS
+  - ./fetch_protoc.sh
   - autoconf
-  - ./configure
+  - ./configure --with-protoc=$PWD/lib/protoc-3.1.0/bin/protoc
   - make depend
   - make all
 otp_release:

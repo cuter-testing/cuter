@@ -68,7 +68,6 @@ if test "$HAS_PYTHON" = "0"; then
    AC_MSG_ERROR([You need Python 2.x. Please download Python at http://python.org])
 fi
 
-
 ###############################################
 #
 # Testing Z3Py
@@ -92,8 +91,68 @@ else
 fi
 rm -f test_z3.py
 
-if test "$HAS_Z3" = "0"; then 
+if test "$HAS_Z3" = "0"; then
    AC_MSG_ERROR([You need Z3 and Z3Py. Please download Z3 at https://github.com/Z3Prover/z3 and follow the instructions.])
+fi
+
+###############################################
+#
+# Testing protobuf
+#
+###############################################
+cat > test_protobuf.py <<EOF
+try:
+  __import__('google.protobuf')
+except:
+  exit(1)
+else:
+  exit(0)
+EOF
+
+if $PYTHON_PATH test_protobuf.py; then
+  HAS_PROTOBUF="1"
+  HAS_PROTOBUF_MSG="yes"
+else
+  HAS_PROTOBUF="0"
+  HAS_PROTOBUF_MSG="no"
+fi
+rm -f test_protobuf.py
+
+if test "$HAS_PROTOBUF" = "0"; then
+  AC_MSG_ERROR([The Python protobuf library is missing. Please install version 3.1.0 by running: pip install protobuf==3.1.0])
+fi
+
+###############################################
+#
+# Testing protoc
+#
+###############################################
+AC_ARG_WITH(protoc,
+[AS_HELP_STRING([--with-protoc=PROTOC_PATH],
+		[specify the location of the protoc executable.])])
+
+PROTOC_PATH="protoc"
+if test "x$with_protoc" != x; then
+  PROTOC_PATH="$with_protoc"
+fi
+
+AC_SUBST(PROTOC_PATH)
+
+cat > person.proto <<EOF
+syntax = "proto3";
+message Person { string name = 1; }
+EOF
+
+if $PROTOC_PATH --python_out=. person.proto; then
+  HAS_PROTOC="1"
+  rm -f person_pb2.py
+else
+  HAS_PROTOC="0"
+fi
+rm -f person.proto
+
+if test "$HAS_PROTOC" = "0"; then
+  AC_MSG_ERROR([protoc is missing. Please download version 3.1.0 of the package at https://github.com/google/protobuf/releases/tag/v3.1.0 and follow the instructions in the README. If you have a linux installation, then you can run ./fetch_protoc.sh and follow the instructions.])
 fi
 
 ###############################################
@@ -134,8 +193,8 @@ fi
 rm -f test_meck.erl test_meck.beam
 
 if test "$HAS_MECK" = "0"; then
-   MECK=
-   AC_MSG_NOTICE([Meck is missing. You will not be able to run the tests. Download it at https://github.com/eproxus/meck.])
+  MECK=
+  AC_MSG_NOTICE([Meck is missing. You will not be able to run the tests. Download it at https://github.com/eproxus/meck.])
 fi
 
 ###############################################
@@ -176,8 +235,8 @@ fi
 rm -f test_proper.erl test_proper.beam
 
 if test "$HAS_PROPER" = "0"; then
-   PROPER=
-   AC_MSG_ERROR([PropEr is missing. You will not be able to run the tests. Download it at https://github.com/manopapad/proper and follow the instructions.])
+  PROPER=
+  AC_MSG_ERROR([PropEr is missing. You will not be able to run the tests. Download it at https://github.com/manopapad/proper and follow the instructions.])
 fi
 
 ###############################################
@@ -215,8 +274,8 @@ fi
 rm -f message.proto message.erl message.hrl
 
 if test "$HAS_GPB" = "0"; then
-   GPB=
-   AC_MSG_NOTICE([GPB is missing. Run git submodule update --init && git submodule foreach make and re-run the configure script.])
+  GPB=
+  AC_MSG_NOTICE([GPB is missing. Run: git submodule update --init && git submodule foreach make, then re-run the configure script.])
 fi
 
 ###############################################
@@ -236,7 +295,9 @@ cat <<EOF
 CutEr was configured with success.
 Erlang Compiler:    $ERLC
 Python:             $PYTHON_PATH
+protoc:             $PROTOC_PATH
 Z3Py:               $HAS_Z3_MSG
+protobuf (Python):  $HAS_PROTOBUF_MSG
 Meck:               $HAS_MECK_MSG
 PropEr:             $HAS_PROPER_MSG
 GPB:                $HAS_GPB_MSG

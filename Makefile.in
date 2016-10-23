@@ -21,6 +21,7 @@ PROPER = $(realpath @PROPER@)
 GPB = $(realpath @GPB@)
 PROTOC-ERL = $(GPB)/bin/protoc-erl
 GPB_INCLUDE = $(GPB)/include
+PROTOC=@PROTOC_PATH@
 
 ###----------------------------------------------------------------------
 ### Set Environment Variables
@@ -137,6 +138,8 @@ vpath %.hrl $(HRL_DIRS)
 
 vpath %.proto $(SRC)
 
+vpath %.py $(PRIV)
+
 default: cuter_target
 
 suite: utest_target ftest_target
@@ -145,7 +148,7 @@ test: utest ftest
 
 all: $(TARGETS) dialyzer utest ftest
 
-cuter_target: $(SRC_MODULES:%=$(EBIN)/%.beam) $(PROTOBUFS:%=$(EBIN)/%.beam)
+cuter_target: $(SRC_MODULES:%=$(EBIN)/%.beam) $(PROTOBUFS:%=$(EBIN)/%.beam) $(PROTOBUFS:%=$(PRIV)/%_pb2.py)
 
 utest_target: $(UTEST_MODULES:%=$(UTEST_EBIN)/%.beam)
 
@@ -156,6 +159,10 @@ $(PROTOBUFS:%=$(INCLUDE)/%.hrl): $(PROTOBUFS:%=$(SRC)/%.erl)
 $(SRC)/%.erl: %.proto
 	@echo "PROTOC-ERL $(notdir  $<)"
 	@$(PROTOC-ERL) -I $(SRC) -o-erl $(SRC) -o-hrl $(INCLUDE) $(notdir  $<)
+
+$(PRIV)/%_pb2.py: %.proto
+	@echo "PROTOC $(notdir  $<)"
+	@$(PROTOC) -I $(SRC) --python_out=$(PRIV) $<
 
 $(EBIN)/%.beam: %.erl
 	@echo "ERLC $<"

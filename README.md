@@ -45,6 +45,17 @@ In order to use CutEr, you need the following programs:
 
   Download and install the latest [Python 2.x distribution](http://www.python.org).
 
+  Also, you need to install the *protobuf* package.
+  You can either run
+
+        pip install protobuf==3.1.0
+
+  or use *virtualenv*:
+
+        virtualenv venv
+        source venv/bin/activate
+        pip install protobuf==3.1.0
+
 3. **Z3 Theorem Prover**
 
   Download the v4.4.1 [Z3 release](https://github.com/Z3Prover/z3/releases/tag/z3-4.4.1)
@@ -60,6 +71,15 @@ In order to use CutEr, you need the following programs:
 
   If this sequence of commands does not work for you, follow the instructions in Z3's [GitHub repository](https://github.com/Z3Prover/z3/).
   Also, make sure that Z3Py (Python Interface) is installed.
+
+4. **Protocol Buffer Compiler**
+
+  Download the [3.1.0 version](https://github.com/google/protobuf/releases/tag/v3.1.0) of **protoc** for your OS
+  and follow the instructions in *readme.txt*.
+
+  If you have a Linux installation, then you can run the provided `fetch_protoc.sh` script and follow the instructions.
+
+        ./fetch_protoc.sh
 
 Installation
 ------------
@@ -79,6 +99,16 @@ Installation
         ./configure
         make depend
         make
+
+   **[If required]** If you have installed the *protobuf* library with *virtualenv*, then you need to specify the path of
+   the python binary in the virtual environment to the configure script. For example:
+
+        ./configure --with-python=$PWD/venv/bin/python
+
+   **[If required]** If you have installed *protoc* using `fetch_protoc.sh`, then you need to specify the path of *protoc* to the
+   configure script. For example
+
+        ./configure --with-protoc=$PWD/lib/protoc-3.1.0/bin/protoc
 
 * **[Optional]** Now you can build and run the unit & functional tests with `make test`
 
