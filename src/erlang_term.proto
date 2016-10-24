@@ -19,8 +19,9 @@ message ErlangTerm {
         REFERENCE = 8;
         BITSTRING = 9;
         MAP = 10;
-        SYMBOLIC_VARIABLE = 11;
-        SUBTERM = 12;
+        FUN = 12;
+        SYMBOLIC_VARIABLE = 13;
+        SUBTERM = 14;
     }
 
     /**
@@ -28,6 +29,14 @@ message ErlangTerm {
      */
     message MapEntry {
         ErlangTerm key = 1;
+        ErlangTerm value = 2;
+    }
+
+    /**
+     * The type of a function's single point.
+     */
+    message FunEntry {
+        repeated ErlangTerm arguments = 1;
         ErlangTerm value = 2;
     }
 
@@ -50,4 +59,9 @@ message ErlangTerm {
 
     // Only used for maps.
     repeated MapEntry map_entries = 8;
+
+    // Only uses for funs.
+    repeated FunEntry points = 9;
+    ErlangTerm otherwise = 10;
+    int32 arity = 11;
 }

@@ -12,13 +12,13 @@
 encdec_test_() ->
   Ts = [
     {"Simple funs", [
-      {"Fun I", cuter_json:mk_lambda([{[0], 42}], ok, 1), "fun(0) -> 42; (_) -> ok end"},
-      {"Fun II", cuter_json:mk_lambda([{[0], 42}, {[foo], bar}], ok, 1),
+      {"Fun I", cuter_lib:mk_lambda([{[0], 42}], ok, 1), "fun(0) -> 42; (_) -> ok end"},
+      {"Fun II", cuter_lib:mk_lambda([{[0], 42}, {[foo], bar}], ok, 1),
         "fun(0) -> 42; (foo) -> bar; (_) -> ok end"},
-      {"Fun III", cuter_json:mk_lambda([{[0, 1], 42}], ok, 2), "fun(0,1) -> 42; (_,_) -> ok end"}
+      {"Fun III", cuter_lib:mk_lambda([{[0, 1], 42}], ok, 2), "fun(0,1) -> 42; (_,_) -> ok end"}
     ]},
     {"Higher order", [
-      {"Fun I", cuter_json:mk_lambda([{[0], cuter_json:mk_lambda([{[0], 42}], ok, 1)}], ok, 1),
+      {"Fun I", cuter_lib:mk_lambda([{[0], cuter_lib:mk_lambda([{[0], 42}], ok, 1)}], ok, 1),
         "fun(0) -> fun(0) -> 42; (_) -> ok end; (_) -> ok end"}
     ]}
   ],

@@ -7,7 +7,10 @@
 
 -spec test() -> 'ok' | {'error', term()}.  %% This should be provided by EUnit
 
-%% Serializing / De-Serializing tests.
+%% ----------------------------------------------------------------------------
+%% Serializing / De-Serializing first-order values.
+%% ----------------------------------------------------------------------------
+
 -spec encdec_test_() -> term().
 encdec_test_() ->
   Ts = [
@@ -83,7 +86,10 @@ enc_fail_test_() ->
   ],
   {"JSON Encoding Fail", [{Dsr, ?_assertThrow({unsupported_term, _}, Enc(T))} || {Dsr, T} <- Ts]}.
 
-%% Encoding / Decoding Commands
+%% ----------------------------------------------------------------------------
+%% Serializing / De-Serializing log entries.
+%% ----------------------------------------------------------------------------
+
 -spec encdec_cmd_test_() -> term().
 encdec_cmd_test_() ->
   Cs = [
@@ -100,3 +106,56 @@ encode_decode_cmd({OpCode, Args}) ->
   Enc = cuter_serial:to_log_entry(OpCode, Args),
   Dec = cuter_serial:from_log_entry(Enc),
   [?_assertEqual( {OpCode, MaybeArgs}, Dec )].
+
+%% ----------------------------------------------------------------------------
+%% Serializing / De-Serializing funs.
+%% ----------------------------------------------------------------------------
+
+-spec dec_fun_test_() -> term().
+dec_fun_test_() ->
+  Ts = [
+    {"1-arity", fun1()},
+    {"2-arity", fun2()}
+  ],
+  Setup = fun(T) -> fun() -> T end end,
+  Inst = fun decode_fun/1,
+  [{"JSON Decoding Fun: " ++ C, {setup, Setup(T), Inst}} || {C, T} <- Ts].
+
+decode_fun({Bin, KVs, Def}) ->
+  Dec = cuter_serial:to_term(Bin),
+  CF = cuter_lib:compile_lambda(Dec),
+  Arity = cuter_lib:lambda_arity(Dec),
+  F =
+    case Arity of
+      1 -> fun([X1]) -> CF(X1) end;
+      2 -> fun([X1, X2]) -> CF(X1, X2) end
+    end,
+  ElseKey = [self() || _ <- lists:seq(1, Arity)],
+  [?_assertEqual(V, F(K)) || {K, V} <- KVs] ++ [?_assertEqual(Def, F(ElseKey))].
+
+-spec dec_fun2_test_() -> term().
+dec_fun2_test_() ->
+  L1 = cuter_lib:mk_lambda([{[1], 2}], 42, 1),
+  L2 = cuter_lib:mk_lambda([{[2], L1}], 42, 1),
+  Enc = cuter_serial:from_term(L2),
+  Dec = cuter_serial:to_term(Enc),
+  CF = cuter_lib:compile_lambda(Dec),
+  Step1 = CF(2),
+  Step2 = Step1(1),
+  [{"Fun as return value", ?_assertEqual(2, Step2)}].
+
+%% helper functions
+
+fun1() ->
+  KVs = [{[1], 2}, {[ok], 3.14}, {[4], <<1>>}],
+  Default = 42,
+  Arity = 1,
+  Lambda = cuter_lib:mk_lambda(KVs, Default, Arity),
+  {cuter_serial:from_term(Lambda), KVs, Default}.
+
+fun2() ->
+  KVs = [{[1, 2], 32}, {[ok, foo], 1}, {[4, <<>>], 1}],
+  Default = boo,
+  Arity = 2,
+  Lambda = cuter_lib:mk_lambda(KVs, Default, Arity),
+  {cuter_serial:from_term(Lambda), KVs, Default}.

@@ -13,8 +13,8 @@
 -include("include/log_entry.hrl").
 
 -type erlang_term() :: #'ErlangTerm'{}.
--type supported_term() :: atom() | bitstring() | pid() | reference() | [any()]
-                        | number() | tuple() | map().
+-type supported_term() :: atom() | bitstring() | pid() | reference() | list()
+                        | number() | tuple() | map() | cuter_lib:lambda().
 
 -type commands_no_opts() :: solve | get_model | add_axioms | reset_solver | stop.
 
@@ -29,7 +29,7 @@ from_term(Term) ->
   erlang_term:encode_msg(Msg).
 
 %% De-serialize an Erlang term from binary data.
--spec to_term(binary()) -> supported_term().
+-spec to_term(binary()) -> supported_term() | function().
 to_term(Msg) ->
   ErlangTerm = erlang_term:decode_msg(Msg, 'ErlangTerm'),
   from_erlang_term(ErlangTerm).
@@ -55,7 +55,6 @@ from_log_entry(Msg) ->
   LogEntry = log_entry:decode_msg(Msg, 'LogEntry'),
   Arguments = [from_erlang_term(A) || A <- LogEntry#'LogEntry'.arguments],
   {LogEntry#'LogEntry'.type, Arguments}.
-
 
 %% ============================================================================
 %% Encode Terms to ErlangTerm messages.
@@ -184,7 +183,17 @@ encode_term(M, Seen) when is_map(M) ->
   MapEntries = lists:map(Fn, maps:keys(M)),
   #'ErlangTerm'{type='MAP', map_entries=MapEntries};
 encode_term(Term, _Seen) ->
-  throw({unsupported_term, Term}).
+  case cuter_lib:is_lambda(Term) of
+    %% fun (cuter_lib:lambda())
+    %% TODO Use the same Seen set.
+    true ->
+      Points = cuter_lib:lambda_kvs(Term),
+      Otherwise = cuter_lib:lambda_default(Term),
+      Arity = cuter_lib:lambda_arity(Term),
+      encode_fun(Points, Otherwise, Arity);
+    %% unknown type
+    false -> throw({unsupported_term, Term})
+  end.
 
 encode_maybe_shared_term(T, Seen) when is_integer(T); is_float(T); is_atom(T); is_bitstring(T);
                                        is_list(T); is_tuple(T); is_pid(T); is_reference(T); is_map(T) ->
@@ -221,6 +230,19 @@ encode_bitstring(<<B:1, Rest/bitstring>>, Bits) ->
 encode_shared(Shared, Seen) ->
   F = fun({K, V}, Acc) -> [{K, encode_term(V, Seen)} | Acc] end,
   ets:foldl(F, [], Shared).
+
+encode_fun(Points, Otherwise, Arity) ->
+  Ps = [encode_fun_entry(As, V) || {As, V} <- Points],
+  O = to_erlang_term(Otherwise),
+  #'ErlangTerm'{type='FUN',
+                points=Ps,
+                arity=Arity,
+                otherwise=O}.
+
+encode_fun_entry(Args, Value) ->
+  As = [to_erlang_term(A) || A <- Args],
+  V = to_erlang_term(Value),
+  #'ErlangTerm.FunEntry'{arguments=As, value=V}.
 
 %% ============================================================================
 %% Decode ErlangTerm messages to Terms.
@@ -273,10 +295,24 @@ from_erlang_term(T=#'ErlangTerm'{type=Type}, _Shared) when Type =:= 'BITSTRING' 
 from_erlang_term(T=#'ErlangTerm'{type=Type}, Shared) when Type =:= 'MAP' ->
   MapEntries = T#'ErlangTerm'.map_entries,
   KVs = [from_map_entry(E, Shared) || E <- MapEntries],
-  maps:from_list(KVs).
+  maps:from_list(KVs);
+%% fun
+from_erlang_term(T=#'ErlangTerm'{type=Type}, Shared) when Type =:= 'FUN' ->
+  Arity = T#'ErlangTerm'.arity,
+  Points = [from_fun_entry(E, Shared) || E <- T#'ErlangTerm'.points],
+  Otherwise = from_erlang_term(T#'ErlangTerm'.otherwise, Shared),
+  case Points of
+    %% Funs with just one element in their inputs will be
+    %% transformed into constant functions.
+    [{_As, V}] -> cuter_lib:mk_lambda([], V, Arity);
+    _ -> cuter_lib:mk_lambda(Points, Otherwise, Arity)
+  end.
 
 from_map_entry(#'ErlangTerm.MapEntry'{key=K, value=V}, Shared) ->
   {from_erlang_term(K, Shared), from_erlang_term(V, Shared)}.
+
+from_fun_entry(#'ErlangTerm.FunEntry'{arguments=As, value=V}, Shared) ->
+  {[from_erlang_term(A, Shared) || A <- As], from_erlang_term(V, Shared)}.
 
 %% ============================================================================
 %% Encode commands to the solver as SolverCommand messages.

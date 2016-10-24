@@ -96,7 +96,7 @@ i(M, F, As, Servers) ->
       cuter_iserver:send_mapping(Root, Mapping),
       NMF = {named, M, F},
       try
-        CompiledAs = cuter_json:compile_lambdas_in_args(As),
+        CompiledAs = cuter_lib:compile_lambdas_in_args(As),
         Ret = eval(NMF, CompiledAs, SymbAs, external, Servers, Fd),
         cuter_iserver:int_return(Root, Ret)
       catch
