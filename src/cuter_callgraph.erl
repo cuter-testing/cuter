@@ -11,11 +11,12 @@
 -type module_cache() :: dict:dict(atom(), module_cache_entry()).
 -type visited_mfas() :: gb_sets:set(mfa()).
 -type visited_modules() :: sets:set(cuter:mod()).
--type callgraph() :: {visited_modules(), visited_mfas()}.
 
--record(conf, {
-  whitelist :: cuter_mock:whitelist()
-}).
+-record(callgraph, {visited_modules :: visited_modules(),
+		    visited_mfas    :: visited_mfas()}).
+-opaque callgraph() :: #callgraph{}.
+
+-record(conf, {whitelist :: cuter_mock:whitelist()}).
 %-type configuration() :: #conf{}.
 
 %% ----------------------------------------------------------------------------
@@ -28,11 +29,11 @@ foreachModule(Fn, Callgraph) ->
   foldModule(FoldFn, ok, Callgraph).
 
 -spec foldModule(fun((cuter:mod(), any()) -> any()), any(), callgraph()) -> ok.
-foldModule(Fn, Acc0, {VisitedModules, _}) ->
+foldModule(Fn, Acc0, #callgraph{visited_modules = VisitedModules}) ->
   sets:fold(Fn, Acc0, VisitedModules).
 
 -spec get_visited_mfas(callgraph()) -> visited_mfas().
-get_visited_mfas({_, VisitedMfas}) -> VisitedMfas.
+get_visited_mfas(#callgraph{visited_mfas = VisitedMfas}) -> VisitedMfas.
 
 %% ----------------------------------------------------------------------------
 %% Configuration API.
@@ -46,14 +47,14 @@ mk_conf(Whitelist) ->
 %% ----------------------------------------------------------------------------
 
 -spec get_callgraph(mfa(), cuter_mock:whitelist()) -> {ok, callgraph()} | {error, string()}.
-get_callgraph(Mfa, Whitelist) ->
+get_callgraph(MFA, Whitelist) ->
   try
-    cuter_pp:callgraph_calculation_started(Mfa),
+    cuter_pp:callgraph_calculation_started(MFA),
     Conf = mk_conf(Whitelist),
-    {VisitedMfas, _} = get_callgraph(Mfa, gb_sets:empty(), dict:new(), Conf),
+    {VisitedMfas, _} = get_callgraph(MFA, gb_sets:empty(), dict:new(), Conf),
     VisitedMods = visited_modules(VisitedMfas),
     cuter_pp:callgraph_calculation_succeeded(),
-    {ok, {VisitedMods, VisitedMfas}}
+    {ok, #callgraph{visited_modules = VisitedMods, visited_mfas = VisitedMfas}}
   catch
     throw:Reason ->
       cuter_pp:callgraph_calculation_failed(Reason),

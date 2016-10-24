@@ -156,10 +156,10 @@ get_logs(CodeServer) ->
 get_whitelist(CodeServer) ->
   gen_server:call(CodeServer, get_whitelist).
 
-%% Gets the callgraph of an Mfa.
+%% Calculates the callgraph from an MFA.
 -spec calculate_callgraph(pid(), mfa()) -> ok | error.
-calculate_callgraph(CodeServer, Mfa) ->
-  gen_server:call(CodeServer, {calculate_callgraph, Mfa}).
+calculate_callgraph(CodeServer, MFA) ->
+  gen_server:call(CodeServer, {calculate_callgraph, MFA}).
 
 %% Gets the feasible tags.
 -spec get_feasible_tags(pid(), cuter_cerl:node_types()) -> cuter_cerl:visited_tags().
@@ -219,10 +219,10 @@ handle_call({get_spec, {M, F, A}=MFA}, _From, State) ->
         {ok, CerlSpec} ->
           DepMods = load_all_deps_of_spec(CerlSpec, M, MDb, State),
           Fn = fun(Mod) ->
-              {ok, ModDb} = try_load(Mod, State),
-              StoredTypes = cuter_cerl:get_stored_types(ModDb),
-              {Mod, StoredTypes}
-            end,
+		   {ok, ModDb} = try_load(Mod, State),
+		   StoredTypes = cuter_cerl:get_stored_types(ModDb),
+		   {Mod, StoredTypes}
+	       end,
           ManyStoredTypes = [Fn(Mod) || Mod <- DepMods],
           Parsed = cuter_types:parse_spec(MFA, CerlSpec, ManyStoredTypes),
           {reply, {ok, Parsed}, State}
@@ -243,15 +243,15 @@ handle_call(get_whitelist, _From, State=#st{whitelist = Whitelist}) ->
 handle_call({get_feasible_tags, NodeTypes}, _From, State=#st{callgraph = Callgraph}) ->
   Tags = get_feasible_tags(Callgraph, NodeTypes, State),
   {reply, Tags, State};
-handle_call({calculate_callgraph, Mfa}, _From, State=#st{whitelist = Whitelist}) ->
-  case cuter_callgraph:get_callgraph(Mfa, Whitelist) of
+handle_call({calculate_callgraph, MFA}, _From, State=#st{whitelist = Whitelist}) ->
+  case cuter_callgraph:get_callgraph(MFA, Whitelist) of
     {error, _Reason} ->
       {reply, error, State};
     {ok, Callgraph} ->
       LoadFn = fun(M) ->
-          cuter_pp:loading_visited_module(M),
-          try_load(M, State)
-        end,
+		   cuter_pp:loading_visited_module(M),
+		   try_load(M, State)
+	       end,
       cuter_callgraph:foreachModule(LoadFn, Callgraph),
       {reply, ok, State#st{callgraph = Callgraph}}
   end.
