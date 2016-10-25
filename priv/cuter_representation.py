@@ -7,6 +7,7 @@ from collections import defaultdict
 import cuter_env as cenv
 import cuter_common as cc
 import cuter_global as cglb
+import erlang_term_pb2 as etrm
 
 class Erlang:
     """
@@ -230,6 +231,10 @@ class TermDecoder:
         self.env = env
         self.aliasDb = {}
 
+    def decodeTerm(self, jdata):
+        dct = jdata["d"] if ("d" in jdata) else {}
+        return self.decode(jdata, dct)
+
     def decode(self, t, dct):
         if "s" in t:
             x = self.env.lookup(t["s"])
@@ -306,6 +311,101 @@ class TermDecoder:
         return self.erl.Term.int(42)
 
     def decode_ref(self, v, dct):
+        # TODO Propery decode references once they are supported.
+        return self.erl.Term.int(42)
+
+class TermDecoderPB:
+    """
+      Decoder from ErlangTerm protobuf objects to Z3 terms.
+    """
+
+    def __init__(self, erl, env):
+        self.erl = erl
+        self.env = env
+        self.aliasDb = {}
+
+    def decodeTerm(self, data):
+        t = etrm.ErlangTerm()
+        t.ParseFromString(data)
+        return self.decode(t, t.shared)
+
+    def decode(self, t, shared):
+        opts = {
+            etrm.ErlangTerm.INTEGER: self.decode_int,
+            etrm.ErlangTerm.FLOAT: self.decode_float,
+            etrm.ErlangTerm.LIST: self.decode_list,
+            etrm.ErlangTerm.IMPROPER_LIST: self.decode_improper_list,
+            etrm.ErlangTerm.TUPLE: self.decode_tuple,
+            etrm.ErlangTerm.ATOM: self.decode_atom,
+            etrm.ErlangTerm.BITSTRING: self.decode_bitstring,
+            etrm.ErlangTerm.PID: self.decode_pid,
+            etrm.ErlangTerm.REFERENCE: self.decode_ref,
+            etrm.ErlangTerm.SUBTERM: self.decode_alias,
+            etrm.ErlangTerm.SYMBOLIC_VARIABLE: self.decode_symbolic
+        }
+        return opts[t.type](t, shared)
+
+    def decode_symbolic(self, t, shared):
+        s = self.env.lookup(t.value)
+        assert s is not None, "Symbolic Variable lookup"
+        return s
+
+    def decode_alias(self, t, shared):
+        l = t.value
+        if l in self.aliasDb:
+            return self.aliasDb[l]
+        else:
+            x = self.decode(shared[l], shared)
+            self.aliasDb[l] = x
+            return x
+
+    def decode_int(self, t, shared):
+        return self.erl.Term.int(int(t.value))
+
+    def decode_float(self, t, shared):
+        return self.erl.Term.real(float(t.value))
+
+    def decode_list(self, t, shared):
+        erl = self.erl
+        tl = erl.List.nil
+        for v in reversed(t.subterms):
+            enc_v = self.decode(v, shared)
+            tl = erl.List.cons(enc_v, tl)
+        return erl.Term.lst(tl)
+
+    def decode_tuple(self, t, shared):
+        erl = self.erl
+        tl = erl.List.nil
+        for v in reversed(t.subterms):
+            enc_v = self.decode(v, shared)
+            tl = erl.List.cons(enc_v, tl)
+        return erl.Term.tpl(tl)
+
+    def decode_atom(self, t, shared):
+        erl = self.erl
+        tl = erl.Atom.anil
+        for v in reversed(t.atom_chars):
+            tl = erl.Atom.acons(v, tl)
+        return erl.Term.atm(tl)
+
+    def decode_bitstring(self, t, shared):
+        erl = self.erl
+        tl = erl.BitStr.bnil
+        sz = len(t.bits)
+        for v in reversed(t.bits):
+            b = BitVecVal(1 if v else 0, 1)
+            tl = erl.BitStr.bcons(b, tl)
+        return erl.Term.bin(sz, tl)
+
+    def decode_improper_list(self, t, shared):
+        # TODO Propery decode improper lists once they are supported.
+        return self.erl.Term.int(42)
+
+    def decode_pid(self, t, shared):
+        # TODO Propery decode PIDs once they are supported.
+        return self.erl.Term.int(42)
+
+    def decode_ref(self, t, shared):
         # TODO Propery decode references once they are supported.
         return self.erl.Term.int(42)
 
@@ -416,7 +516,133 @@ def test_decoder_complex():
 
 def decode_and_check(erl, env, terms):
     for x, y in terms:
-        z = TermDecoder(erl, env).decode(x, x["d"] if "d" in x else {})
+        z = TermDecoder(erl, env).decodeTerm(x)
+        s = Solver()
+        s.add(z == y)
+        assert s.check() == sat, "Decoded {} is not {} but {}".format(x, y, z)
+
+def mk_int_pb(i):
+    t = etrm.ErlangTerm()
+    t.type = etrm.ErlangTerm.INTEGER
+    t.value = str(i)
+    return t
+
+def mk_float_pb(f):
+    t = etrm.ErlangTerm()
+    t.type = etrm.ErlangTerm.FLOAT
+    t.value = str(f)
+    return t
+
+def mk_atom_pb(chars):
+    t = etrm.ErlangTerm()
+    t.type = etrm.ErlangTerm.ATOM
+    t.atom_chars.extend(chars)
+    return t
+
+def mk_list_pb(subterms):
+    t = etrm.ErlangTerm()
+    t.type = etrm.ErlangTerm.LIST
+    t.subterms.extend(subterms)
+    return t
+
+def mk_tuple_pb(subterms):
+    t = etrm.ErlangTerm()
+    t.type = etrm.ErlangTerm.TUPLE
+    t.subterms.extend(subterms)
+    return t
+
+def mk_bitstring_pb(bits):
+    t = etrm.ErlangTerm()
+    t.type = etrm.ErlangTerm.BITSTRING
+    t.bits.extend(bits)
+    return t
+
+def mk_alias_pb(s):
+    t = etrm.ErlangTerm()
+    t.type = etrm.ErlangTerm.SUBTERM
+    t.value = s
+    return t
+
+def mk_symb_pb(s):
+    t = etrm.ErlangTerm()
+    t.type = etrm.ErlangTerm.SYMBOLIC_VARIABLE
+    t.value = s
+    return t
+
+def test_decoder_simple_pb():
+    erl = Erlang()
+    env = cenv.Env()
+    T, L, A, B = erl.Term, erl.List, erl.Atom, erl.BitStr
+    # Create the term with shared subterms.
+    tal = mk_alias_pb("0.0.0.42")
+    x = mk_tuple_pb([tal, tal])
+    xv = x.shared["0.0.0.42"]
+    xv.type = etrm.ErlangTerm.LIST
+    xv.subterms.extend([mk_int_pb(1)])
+    terms = [
+        ( # 42
+            mk_int_pb(42).SerializeToString(),
+            T.int(42)
+        ),
+        ( # 42.42
+            mk_float_pb(42.42).SerializeToString(),
+            T.real(42.42)
+        ),
+        ( # ok
+            mk_atom_pb([111,107]).SerializeToString(),
+            T.atm(A.acons(111,A.acons(107,A.anil)))
+        ),
+        ( # [1,2]
+            mk_list_pb([mk_int_pb(1), mk_int_pb(2)]).SerializeToString(),
+            T.lst(L.cons(T.int(1),L.cons(T.int(2),L.nil)))
+        ),
+        ( # {1,2}
+            mk_tuple_pb([mk_int_pb(1), mk_int_pb(2)]).SerializeToString(),
+            T.tpl(L.cons(T.int(1),L.cons(T.int(2),L.nil)))
+        ),
+        ( # {[1],[1]}
+            x.SerializeToString(),
+            T.tpl (L.cons(T.lst(L.cons(T.int(1),L.nil)),L.cons(T.lst(L.cons(T.int(1),L.nil)),L.nil)))
+        ),
+        ( # <<1:2>>
+            mk_bitstring_pb([False, True]).SerializeToString(),
+            T.bin(2, B.bcons(BitVecVal(0,1),B.bcons(BitVecVal(1,1),B.bnil)))
+        )
+    ]
+    decode_and_check_pb(erl, env, terms)
+
+def test_decoder_complex_pb():
+    erl = Erlang()
+    T, L = erl.Term, erl.List
+    s1, s2 = "0.0.0.39316", "0.0.0.39317"
+    env = cenv.Env()
+    env.bind(s1, T.int(1))
+    env.bind(s2, T.int(2))
+    # Create the term with shared subterms.
+    tal = mk_alias_pb("0.0.0.42")
+    x = mk_tuple_pb([tal, tal])
+    xv = x.shared["0.0.0.42"]
+    xv.type = etrm.ErlangTerm.LIST
+    xv.subterms.extend([mk_symb_pb(s1)])
+    terms = [
+        ( # [1,2]
+            mk_list_pb([mk_symb_pb(s1), mk_symb_pb(s2)]).SerializeToString(),
+            T.lst(L.cons(T.int(1),L.cons(T.int(2),L.nil)))
+        ),
+        ( # {1,2}
+            mk_tuple_pb([mk_int_pb(1), mk_symb_pb(s2)]).SerializeToString(),
+            T.tpl(L.cons(T.int(1),L.cons(T.int(2),L.nil)))
+        ),
+        ( # {[1],[1]}
+            x.SerializeToString(),
+            T.tpl(L.cons(T.lst(L.cons(T.int(1),L.nil)),L.cons(T.lst(L.cons(T.int(1),L.nil)),L.nil)))
+        ),
+    ]
+    decode_and_check_pb(erl, env, terms)
+
+def decode_and_check_pb(erl, env, terms):
+    for x, y in terms:
+        z = TermDecoderPB(erl, env).decodeTerm(x)
         s = Solver()
         s.add(z == y)
         assert s.check() == sat, "Decoded {} is not {} but {}".format(x, y, z)
@@ -903,5 +1129,7 @@ if __name__ == '__main__':
     cglb.init()
     test_encoder()
     test_decoder_simple()
+    test_decoder_simple_pb()
     test_decoder_complex()
+    test_decoder_complex_pb()
     fun_scenarios()

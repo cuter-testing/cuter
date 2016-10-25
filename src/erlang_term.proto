@@ -14,14 +14,13 @@ message ErlangTerm {
         TUPLE = 3;
         LIST = 4;
         IMPROPER_LIST = 5;
-        FUNCTION = 6;
-        PID = 7;
-        REFERENCE = 8;
-        BITSTRING = 9;
-        MAP = 10;
-        FUN = 12;
-        SYMBOLIC_VARIABLE = 13;
-        SUBTERM = 14;
+        PID = 6;
+        REFERENCE = 7;
+        BITSTRING = 8;
+        MAP = 9;
+        FUN = 10;
+        SYMBOLIC_VARIABLE = 11;
+        SUBTERM = 12;
     }
 
     /**

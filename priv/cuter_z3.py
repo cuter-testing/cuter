@@ -106,8 +106,7 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         Decodes a JSON term to its Z3 representation.
         """
         td = crp.TermDecoder(self.erl, self.env)
-        dct = jdata["d"] if ("d" in jdata) else {}
-        return td.decode(jdata, dct)
+        return td.decodeTerm(jdata)
 
     # -------------------------------------------------------------------------
     # Parse internal commands.
