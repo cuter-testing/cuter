@@ -7,7 +7,8 @@ from collections import defaultdict
 import cuter_env as cenv
 import cuter_common as cc
 import cuter_global as cglb
-import erlang_term_pb2 as etrm
+import cuter_logger as clg
+from erlang_term_pb2 import ErlangTerm
 
 class Erlang:
     """
@@ -21,8 +22,8 @@ class Erlang:
         self.arity = Function('arity', IntSort(), IntSort())
         # Define the boolean values.
         decoder = TermDecoder(self, cenv.Env())
-        self.atmTrue = decoder.decode(json.loads("{\"t\": 3, \"v\": [116,114,117,101]}"), {})
-        self.atmFalse = decoder.decode(json.loads("{\"t\": 3, \"v\": [102,97,108,115,101]}"), {})
+        self.atmTrue = decoder.decodeTerm(cc.mk_atom([116,114,117,101]))
+        self.atmFalse = decoder.decodeTerm(cc.mk_atom([102,97,108,115,101]))
 
     def create_representation(self):
         Term = Datatype('Term')
@@ -64,14 +65,13 @@ class Erlang:
         encoder = TermEncoder(self)
         return encoder.toSymbolic(symbString)
 
-
 # =============================================================================
 # Encode / Decode terms.
 # =============================================================================
 
 class TermEncoder:
     """
-      Encoder from Z3 terms to Erlang terms (in JSON representation).
+      Encoder from Z3 terms to ErlangTerm messages.
     """
 
     def __init__(self, erl, model = None, fmap = None, arity = None):
@@ -99,15 +99,21 @@ class TermEncoder:
             fmap[simplify(x[0]).as_long()] = simplify(x[1])
         return fmap
 
+    def encodeTerm(self, t):
+        return self.encode(t).SerializeToString()
+
     def toSymbolic(self, s):
-        return {"s": s}
+        t = ErlangTerm()
+        t.type = ErlangTerm.SYMBOLIC_VARIABLE
+        t.value = s
+        return t
 
     def encode(self, t):
         T = self.erl.Term
         if (is_true(simplify(T.is_int(t)))):
             return self.toInt(T.ival(t))
         elif (is_true(simplify(T.is_real(t)))):
-            return self.toReal(T.rval(t))
+            return self.toFloat(T.rval(t))
         elif (is_true(simplify(T.is_lst(t)))):
             return self.toList(T.lval(t))
         elif (is_true(simplify(T.is_tpl(t)))):
@@ -121,59 +127,76 @@ class TermEncoder:
         else:
             raise Exception("Could not recognise the type of term: " + str(t))
 
-    def toInt(self, t):
-        return {"t": cc.JSON_TYPE_INT, "v": simplify(t).as_long()}
+    def toInt(self, term):
+        t = ErlangTerm()
+        t.type = ErlangTerm.INTEGER
+        t.value = str(simplify(term).as_long())
+        return t
 
-    def toReal(self, t):
-        s = simplify(t)
-        f = float(s.numerator_as_long()) / float(s.denominator_as_long())
-        return {"t": cc.JSON_TYPE_FLOAT, "v": f}
+    def toFloat(self, term):
+        s = simplify(term)
+        t = ErlangTerm()
+        t.type = ErlangTerm.FLOAT
+        t.value = str(float(s.numerator_as_long()) / float(s.denominator_as_long()))
+        return t
 
-    def toList(self, t):
+    def toList(self, term):
         L = self.erl.List
-        s = simplify(t)
-        r = []
+        s = simplify(term)
+        subterms = []
         while (is_true(simplify(L.is_cons(s)))):
             hd = simplify(L.hd(s))
             s = simplify(L.tl(s))
-            r.append(self.encode(hd))
-        return {"t": cc.JSON_TYPE_LIST, "v": r}
+            subterms.append(self.encode(hd))
+        t = ErlangTerm()
+        t.type = ErlangTerm.LIST
+        t.subterms.extend(subterms)
+        return t
 
-    def toTuple(self, t):
+    def toTuple(self, term):
         L = self.erl.List
-        s = simplify(t)
-        r = []
+        s = simplify(term)
+        subterms = []
         while (is_true(simplify(L.is_cons(s)))):
             hd = simplify(L.hd(s))
             s = simplify(L.tl(s))
-            r.append(self.encode(hd))
-        return {"t": cc.JSON_TYPE_TUPLE, "v": r}
+            subterms.append(self.encode(hd))
+        t = ErlangTerm()
+        t.type = ErlangTerm.TUPLE
+        t.subterms.extend(subterms)
+        return t
 
-    def toAtom(self, t):
+    def toAtom(self, term):
         A = self.erl.Atom
-        s = simplify(t)
-        r = []
+        s = simplify(term)
+        chars = []
         while (is_true(simplify(A.is_acons(s)))):
             hd = simplify(A.ahd(s))
             s = simplify(A.atl(s))
-            r.append(simplify(hd).as_long())
-        return {"t": cc.JSON_TYPE_ATOM, "v": r}
+            chars.append(simplify(hd).as_long())
+        t = ErlangTerm()
+        t.type = ErlangTerm.ATOM
+        t.atom_chars.extend(chars)
+        return t
 
-    def toBitstring(self, n, t):
+    def toBitstring(self, n, term):
         sz = simplify(n).as_long()
         if sz < 0:
             sz = 0
         B = self.erl.BitStr
-        s = simplify(t)
-        r = []
+        s = simplify(term)
+        bits = []
         while (is_true(simplify(B.is_bcons(s)))) and sz > 0:
             sz -= 1
             hd = simplify(B.bhd(s))
             s = simplify(B.btl(s))
-            r.append(simplify(hd).as_long())
+            bits.append(True if simplify(hd).as_long() == 1 else False)
         if sz > 0:
-            r.extend([0] * sz)
-        return {"t": cc.JSON_TYPE_BITSTRING, "v": r}
+            bits.extend([0] * sz)
+        t = ErlangTerm()
+        t.type = ErlangTerm.BITSTRING
+        t.bits.extend(bits)
+        return t
 
     def toFun(self, n):
         idx = simplify(n).as_long()
@@ -183,20 +206,18 @@ class TermEncoder:
         if self.fmap is None or self.fmap[idx] is None:
             return self.defaultFun(arity)
         defn = self.getArrayDecl(self.fmap[idx], self.erl.List).as_list()
-        # Do not add the defaut value.
-        # It will be selected as the value of the first input.
-        # TODO What will happen if the arity is 0?
-        # default = self.encodeDefault(defn[-1])
         # Also prune keys with the wrong arity (mainly to genericFun specs adding an Exists axiom)
         kvs = [self.encodeKVPair(args, val) for [args, val] in defn[0:-1] if self.getActualArity(args) == arity]
         if len(kvs) == 0:
             default = self.encodeDefault(defn[-1])
-            return {"t": cc.JSON_TYPE_FUN, "v": [default], "x": arity}
+            return cc.mk_const_fun(arity, default)
+        else:
+            default = cc.get_value_from_fun_entry(kvs[0])
         # Do not add the arity.
         # It will be deducted from the number of the arguments of the
         # first input.
         # return {"t": cc.JSON_TYPE_FUN, "v": kvs, "x": arity}
-        return {"t": cc.JSON_TYPE_FUN, "v": kvs}
+        return cc.mk_fun(arity, kvs, default)
 
     def getArrayDecl(self, asArray, DomType):
         m = self.model
@@ -204,15 +225,18 @@ class TermEncoder:
 
     def encodeKVPair(self, arg, value):
         T, L = self.erl.Term, self.erl.List
+        earg = self.encode(T.lst(arg))
+        v = self.encode(value)
+        return cc.mk_fun_entry(earg.subterms, v)
         return self.encode(T.tpl(L.cons(T.lst(arg), L.cons(value, L.nil))))
 
     def encodeDefault(self, val):
         T, L = self.erl.Term, self.erl.List
-        return self.encode(T.tpl(L.cons(val, L.nil)))
+        return self.encode(val)
 
     def defaultFun(self, arity):
         default = self.encodeDefault(self.erl.Term.int(0))
-        return {"t": cc.JSON_TYPE_FUN, "v": [default], "x": arity}
+        return cc.mk_const_fun(arity, default)
 
     def getActualArity(self, t):
         L = self.erl.List
@@ -223,99 +247,6 @@ class TermEncoder:
 
 class TermDecoder:
     """
-      Decoder from Erlang terms (in JSON representation) to Z3 terms.
-    """
-
-    def __init__(self, erl, env):
-        self.erl = erl
-        self.env = env
-        self.aliasDb = {}
-
-    def decodeTerm(self, jdata):
-        dct = jdata["d"] if ("d" in jdata) else {}
-        return self.decode(jdata, dct)
-
-    def decode(self, t, dct):
-        if "s" in t:
-            x = self.env.lookup(t["s"])
-            assert x is not None, "Symbolic Variable lookup"
-            return x
-        if "l" in t:
-            l = t["l"]
-            if l in self.aliasDb:
-                return self.aliasDb[l]
-            else:
-                x = self.decode(dct[l], dct)
-                self.aliasDb[l] = x
-                return x
-        else:
-            opts = {
-                cc.JSON_TYPE_INT: self.decode_int,
-                cc.JSON_TYPE_FLOAT: self.decode_float,
-                cc.JSON_TYPE_LIST: self.decode_list,
-                cc.JSON_TYPE_TUPLE: self.decode_tuple,
-                cc.JSON_TYPE_ATOM: self.decode_atom,
-                cc.JSON_TYPE_BITSTRING: self.decode_bitstring,
-                cc.JSON_TYPE_PID: self.decode_pid,
-                cc.JSON_TYPE_REF: self.decode_ref
-            }
-            return opts[t["t"]](t["v"], dct)
-
-    def decode_int(self, v, dct):
-        return self.erl.Term.int(v)
-
-    def decode_float(self, v, dct):
-        return self.erl.Term.real(v)
-
-    def decode_list(self, v, dct):
-        erl = self.erl
-        v.reverse()
-        t = erl.List.nil
-        while v != []:
-            hd, v = v[0], v[1:]
-            enc_hd = self.decode(hd, dct)
-            t = erl.List.cons(enc_hd, t)
-        return erl.Term.lst(t)
-
-    def decode_tuple(self, v, dct):
-        erl = self.erl
-        v.reverse()
-        t = erl.List.nil
-        while v != []:
-            hd, v = v[0], v[1:]
-            enc_hd = self.decode(hd, dct)
-            t = erl.List.cons(enc_hd, t)
-        return erl.Term.tpl(t)
-
-    def decode_atom(self, v, dct):
-        erl = self.erl
-        v.reverse()
-        t = erl.Atom.anil
-        while v != []:
-            hd, v = v[0], v[1:]
-            t = erl.Atom.acons(hd, t)
-        return erl.Term.atm(t)
-
-    def decode_bitstring(self, v, dct):
-        erl = self.erl
-        v.reverse()
-        t = erl.BitStr.bnil
-        sz = len(v)
-        while v != []:
-            hd, v = BitVecVal(v[0], 1), v[1:]
-            t = erl.BitStr.bcons(hd, t)
-        return erl.Term.bin(sz, t)
-
-    def decode_pid(self, v, dct):
-        # TODO Propery decode PIDs once they are supported.
-        return self.erl.Term.int(42)
-
-    def decode_ref(self, v, dct):
-        # TODO Propery decode references once they are supported.
-        return self.erl.Term.int(42)
-
-class TermDecoderPB:
-    """
       Decoder from ErlangTerm protobuf objects to Z3 terms.
     """
 
@@ -324,24 +255,22 @@ class TermDecoderPB:
         self.env = env
         self.aliasDb = {}
 
-    def decodeTerm(self, data):
-        t = etrm.ErlangTerm()
-        t.ParseFromString(data)
+    def decodeTerm(self, t):
         return self.decode(t, t.shared)
 
     def decode(self, t, shared):
         opts = {
-            etrm.ErlangTerm.INTEGER: self.decode_int,
-            etrm.ErlangTerm.FLOAT: self.decode_float,
-            etrm.ErlangTerm.LIST: self.decode_list,
-            etrm.ErlangTerm.IMPROPER_LIST: self.decode_improper_list,
-            etrm.ErlangTerm.TUPLE: self.decode_tuple,
-            etrm.ErlangTerm.ATOM: self.decode_atom,
-            etrm.ErlangTerm.BITSTRING: self.decode_bitstring,
-            etrm.ErlangTerm.PID: self.decode_pid,
-            etrm.ErlangTerm.REFERENCE: self.decode_ref,
-            etrm.ErlangTerm.SUBTERM: self.decode_alias,
-            etrm.ErlangTerm.SYMBOLIC_VARIABLE: self.decode_symbolic
+            ErlangTerm.INTEGER: self.decode_int,
+            ErlangTerm.FLOAT: self.decode_float,
+            ErlangTerm.LIST: self.decode_list,
+            ErlangTerm.IMPROPER_LIST: self.decode_improper_list,
+            ErlangTerm.TUPLE: self.decode_tuple,
+            ErlangTerm.ATOM: self.decode_atom,
+            ErlangTerm.BITSTRING: self.decode_bitstring,
+            ErlangTerm.PID: self.decode_pid,
+            ErlangTerm.REFERENCE: self.decode_ref,
+            ErlangTerm.SUBTERM: self.decode_alias,
+            ErlangTerm.SYMBOLIC_VARIABLE: self.decode_symbolic
         }
         return opts[t.type](t, shared)
 
@@ -420,35 +349,35 @@ def test_encoder():
     terms = [
         ( # 4242424242
             T.int(4242424242),
-            {"t":cc.JSON_TYPE_INT,"v":4242424242}
+            cc.mk_int(4242424242)
         ),
         ( # 3.14159
             T.real(3.14159),
-            {"t":cc.JSON_TYPE_FLOAT,"v":3.14159},
+            cc.mk_float(3.14159)
         ),
         ( # foo
             T.atm(A.acons(102,A.acons(111,A.acons(111,A.anil)))),
-            {"t":cc.JSON_TYPE_ATOM,"v":[102,111,111]}
+            cc.mk_atom([102,111,111])
         ),
         ( # [42, 3.14]
             T.lst(L.cons(T.int(42),L.cons(T.real(3.14),L.nil))),
-            {"t":cc.JSON_TYPE_LIST,"v":[{"t":cc.JSON_TYPE_INT,"v":42},{"t":cc.JSON_TYPE_FLOAT,"v":3.14}]}
+            cc.mk_list([cc.mk_int(42), cc.mk_float(3.14)])
         ),
         ( # {foo, 42}
             T.tpl(L.cons(T.atm(A.acons(102,A.acons(111,A.acons(111,A.anil)))),L.cons(T.int(42),L.nil))),
-            {"t":cc.JSON_TYPE_TUPLE,"v":[{"t":cc.JSON_TYPE_ATOM,"v":[102,111,111]},{"t":cc.JSON_TYPE_INT,"v":42}]}
+            cc.mk_tuple([cc.mk_atom([102,111,111]), cc.mk_int(42)])
         ),
         ( # <<5:3>>
             T.bin(3, B.bcons(BitVecVal(1,1),B.bcons(BitVecVal(0,1),B.bcons(BitVecVal(1,1),B.bnil)))),
-            {"t":cc.JSON_TYPE_BITSTRING,"v":[1,0,1]}
+            cc.mk_bitstring([True,False,True])
         ),
         ( # <<5:3>>
             T.bin(3, B.bcons(BitVecVal(1,1),B.bcons(BitVecVal(0,1),B.bcons(BitVecVal(1,1),B.bcons(BitVecVal(1,1),B.bnil))))),
-            {"t":cc.JSON_TYPE_BITSTRING,"v":[1,0,1]}
+            cc.mk_bitstring([True,False,True])
         ),
         ( # <<4:3>>
             T.bin(3, B.bcons(BitVecVal(1,1),B.bcons(BitVecVal(0,1),B.bnil))),
-            {"t":cc.JSON_TYPE_BITSTRING,"v":[1,0,0]}
+            cc.mk_bitstring([True,False,False])
         )
     ]
     for x, y in terms:
@@ -459,33 +388,39 @@ def test_decoder_simple():
     erl = Erlang()
     env = cenv.Env()
     T, L, A, B = erl.Term, erl.List, erl.Atom, erl.BitStr
+    # Create the term with shared subterms.
+    tal = cc.mk_alias("0.0.0.42")
+    x = cc.mk_tuple([tal, tal])
+    xv = x.shared["0.0.0.42"]
+    xv.type = ErlangTerm.LIST
+    xv.subterms.extend([cc.mk_int(1)])
     terms = [
         ( # 42
-            {"t":cc.JSON_TYPE_INT,"v":42},
+            cc.mk_int(42),
             T.int(42)
         ),
         ( # 42.42
-            {"t":cc.JSON_TYPE_FLOAT,"v":42.42},
+            cc.mk_float(42.42),
             T.real(42.42)
         ),
         ( # ok
-            {"t":cc.JSON_TYPE_ATOM,"v":[111,107]},
+            cc.mk_atom([111,107]),
             T.atm(A.acons(111,A.acons(107,A.anil)))
         ),
         ( # [1,2]
-            {"t":cc.JSON_TYPE_LIST,"v":[{"t":cc.JSON_TYPE_INT,"v":1},{"t":cc.JSON_TYPE_INT,"v":2}]},
+            cc.mk_list([cc.mk_int(1), cc.mk_int(2)]),
             T.lst(L.cons(T.int(1),L.cons(T.int(2),L.nil)))
         ),
         ( # {1,2}
-            {"t":cc.JSON_TYPE_TUPLE,"v":[{"t":cc.JSON_TYPE_INT,"v":1},{"t":cc.JSON_TYPE_INT,"v":2}]},
+            cc.mk_tuple([cc.mk_int(1), cc.mk_int(2)]),
             T.tpl(L.cons(T.int(1),L.cons(T.int(2),L.nil)))
         ),
         ( # {[1],[1]}
-            {"d":{"0.0.0.46":{"t":cc.JSON_TYPE_LIST,"v":[{"t":cc.JSON_TYPE_INT,"v":1}]}},"t":cc.JSON_TYPE_LIST,"v":[{"l":"0.0.0.46"},{"l":"0.0.0.46"}]},
-            T.lst(L.cons(T.lst(L.cons(T.int(1),L.nil)),L.cons(T.lst(L.cons(T.int(1),L.nil)),L.nil)))
+            x,
+            T.tpl (L.cons(T.lst(L.cons(T.int(1),L.nil)),L.cons(T.lst(L.cons(T.int(1),L.nil)),L.nil)))
         ),
         ( # <<1:2>>
-            {"t":cc.JSON_TYPE_BITSTRING,"v":[0,1]},
+            cc.mk_bitstring([False, True]),
             T.bin(2, B.bcons(BitVecVal(0,1),B.bcons(BitVecVal(1,1),B.bnil)))
         )
     ]
@@ -498,18 +433,24 @@ def test_decoder_complex():
     env = cenv.Env()
     env.bind(s1, T.int(1))
     env.bind(s2, T.int(2))
+    # Create the term with shared subterms.
+    tal = cc.mk_alias("0.0.0.42")
+    x = cc.mk_tuple([tal, tal])
+    xv = x.shared["0.0.0.42"]
+    xv.type = ErlangTerm.LIST
+    xv.subterms.extend([cc.mk_symb(s1)])
     terms = [
         ( # [1,2]
-            {"t":cc.JSON_TYPE_LIST,"v":[{"s":s1},{"s":s2}]},
+            cc.mk_list([cc.mk_symb(s1), cc.mk_symb(s2)]),
             T.lst(L.cons(T.int(1),L.cons(T.int(2),L.nil)))
         ),
         ( # {1,2}
-            {"t":cc.JSON_TYPE_TUPLE,"v":[{"t":cc.JSON_TYPE_INT,"v":1},{"s":s2}]},
+            cc.mk_tuple([cc.mk_int(1), cc.mk_symb(s2)]),
             T.tpl(L.cons(T.int(1),L.cons(T.int(2),L.nil)))
         ),
         ( # {[1],[1]}
-            {"d":{"0.0.0.46":{"t":cc.JSON_TYPE_LIST,"v":[{"s":s1}]}},"t":cc.JSON_TYPE_LIST,"v":[{"l":"0.0.0.46"},{"l":"0.0.0.46"}]},
-            T.lst(L.cons(T.lst(L.cons(T.int(1),L.nil)),L.cons(T.lst(L.cons(T.int(1),L.nil)),L.nil)))
+            x,
+            T.tpl(L.cons(T.lst(L.cons(T.int(1),L.nil)),L.cons(T.lst(L.cons(T.int(1),L.nil)),L.nil)))
         ),
     ]
     decode_and_check(erl, env, terms)
@@ -521,160 +462,13 @@ def decode_and_check(erl, env, terms):
         s.add(z == y)
         assert s.check() == sat, "Decoded {} is not {} but {}".format(x, y, z)
 
-def mk_int_pb(i):
-    t = etrm.ErlangTerm()
-    t.type = etrm.ErlangTerm.INTEGER
-    t.value = str(i)
-    return t
-
-def mk_float_pb(f):
-    t = etrm.ErlangTerm()
-    t.type = etrm.ErlangTerm.FLOAT
-    t.value = str(f)
-    return t
-
-def mk_atom_pb(chars):
-    t = etrm.ErlangTerm()
-    t.type = etrm.ErlangTerm.ATOM
-    t.atom_chars.extend(chars)
-    return t
-
-def mk_list_pb(subterms):
-    t = etrm.ErlangTerm()
-    t.type = etrm.ErlangTerm.LIST
-    t.subterms.extend(subterms)
-    return t
-
-def mk_tuple_pb(subterms):
-    t = etrm.ErlangTerm()
-    t.type = etrm.ErlangTerm.TUPLE
-    t.subterms.extend(subterms)
-    return t
-
-def mk_bitstring_pb(bits):
-    t = etrm.ErlangTerm()
-    t.type = etrm.ErlangTerm.BITSTRING
-    t.bits.extend(bits)
-    return t
-
-def mk_alias_pb(s):
-    t = etrm.ErlangTerm()
-    t.type = etrm.ErlangTerm.SUBTERM
-    t.value = s
-    return t
-
-def mk_symb_pb(s):
-    t = etrm.ErlangTerm()
-    t.type = etrm.ErlangTerm.SYMBOLIC_VARIABLE
-    t.value = s
-    return t
-
-def test_decoder_simple_pb():
-    erl = Erlang()
-    env = cenv.Env()
-    T, L, A, B = erl.Term, erl.List, erl.Atom, erl.BitStr
-    # Create the term with shared subterms.
-    tal = mk_alias_pb("0.0.0.42")
-    x = mk_tuple_pb([tal, tal])
-    xv = x.shared["0.0.0.42"]
-    xv.type = etrm.ErlangTerm.LIST
-    xv.subterms.extend([mk_int_pb(1)])
-    terms = [
-        ( # 42
-            mk_int_pb(42).SerializeToString(),
-            T.int(42)
-        ),
-        ( # 42.42
-            mk_float_pb(42.42).SerializeToString(),
-            T.real(42.42)
-        ),
-        ( # ok
-            mk_atom_pb([111,107]).SerializeToString(),
-            T.atm(A.acons(111,A.acons(107,A.anil)))
-        ),
-        ( # [1,2]
-            mk_list_pb([mk_int_pb(1), mk_int_pb(2)]).SerializeToString(),
-            T.lst(L.cons(T.int(1),L.cons(T.int(2),L.nil)))
-        ),
-        ( # {1,2}
-            mk_tuple_pb([mk_int_pb(1), mk_int_pb(2)]).SerializeToString(),
-            T.tpl(L.cons(T.int(1),L.cons(T.int(2),L.nil)))
-        ),
-        ( # {[1],[1]}
-            x.SerializeToString(),
-            T.tpl (L.cons(T.lst(L.cons(T.int(1),L.nil)),L.cons(T.lst(L.cons(T.int(1),L.nil)),L.nil)))
-        ),
-        ( # <<1:2>>
-            mk_bitstring_pb([False, True]).SerializeToString(),
-            T.bin(2, B.bcons(BitVecVal(0,1),B.bcons(BitVecVal(1,1),B.bnil)))
-        )
-    ]
-    decode_and_check_pb(erl, env, terms)
-
-def test_decoder_complex_pb():
-    erl = Erlang()
-    T, L = erl.Term, erl.List
-    s1, s2 = "0.0.0.39316", "0.0.0.39317"
-    env = cenv.Env()
-    env.bind(s1, T.int(1))
-    env.bind(s2, T.int(2))
-    # Create the term with shared subterms.
-    tal = mk_alias_pb("0.0.0.42")
-    x = mk_tuple_pb([tal, tal])
-    xv = x.shared["0.0.0.42"]
-    xv.type = etrm.ErlangTerm.LIST
-    xv.subterms.extend([mk_symb_pb(s1)])
-    terms = [
-        ( # [1,2]
-            mk_list_pb([mk_symb_pb(s1), mk_symb_pb(s2)]).SerializeToString(),
-            T.lst(L.cons(T.int(1),L.cons(T.int(2),L.nil)))
-        ),
-        ( # {1,2}
-            mk_tuple_pb([mk_int_pb(1), mk_symb_pb(s2)]).SerializeToString(),
-            T.tpl(L.cons(T.int(1),L.cons(T.int(2),L.nil)))
-        ),
-        ( # {[1],[1]}
-            x.SerializeToString(),
-            T.tpl(L.cons(T.lst(L.cons(T.int(1),L.nil)),L.cons(T.lst(L.cons(T.int(1),L.nil)),L.nil)))
-        ),
-    ]
-    decode_and_check_pb(erl, env, terms)
-
-def decode_and_check_pb(erl, env, terms):
-    for x, y in terms:
-        z = TermDecoderPB(erl, env).decodeTerm(x)
-        s = Solver()
-        s.add(z == y)
-        assert s.check() == sat, "Decoded {} is not {} but {}".format(x, y, z)
-
-def mk_int(i):
-    return {"t": cc.JSON_TYPE_INT, "v": i}
-
-def mk_list(xs):
-    return {"t": cc.JSON_TYPE_LIST, "v": xs}
-
-def mk_tuple(xs):
-    return {"t": cc.JSON_TYPE_TUPLE, "v": xs}
-
-def mk_fun(xs, ar):
-    # Ignore the arity.
-    # return {"t": cc.JSON_TYPE_FUN, "v": xs, "x": ar}
-    return {"t": cc.JSON_TYPE_FUN, "v": xs}
-
 def compare_solutions(solExpected, solFound):
     deep_compare(solExpected, solFound)
     deep_compare(solFound, solExpected)
 
 def deep_compare(d1, d2):
     assert type(d1) == type(d2)
-    if type(d1) == list:
-        [deep_compare(e1, e2) for e1, e2 in zip(sorted(d1), sorted(d2))]
-    elif type(d1) == dict:
-        for k in d1.keys():
-            assert d2.has_key(k)
-            deep_compare(d1[k], d2[k])
-    else:
-        assert d1 == d2
+    assert d1 == d2
 
 def fun_scenario1():
     """
@@ -714,10 +508,10 @@ def fun_scenario1():
     encoder = TermEncoder(erl, m, fmap, arity)
     f_sol = encoder.encode(m[f])
     # Create the result
-    f_exp = mk_fun([
-        mk_tuple([ mk_list([mk_int(3)]),  mk_int(42) ]),
-        mk_tuple([ mk_list([mk_int(10)]), mk_int(17) ])
-    ], 1)
+    f_exp = cc.mk_fun(1, [
+        cc.mk_fun_entry([cc.mk_int(3)],  cc.mk_int(42)),
+        cc.mk_fun_entry([cc.mk_int(10)], cc.mk_int(17)),
+    ], cc.mk_int(42))
     compare_solutions(f_exp, f_sol)
 
 def fun_scenario2():
@@ -762,10 +556,10 @@ def fun_scenario2():
     encoder = TermEncoder(erl, m, fmap, arity)
     x_sol, y_sol, f_sol = [encoder.encode(m[v]) for v in [x, y, f]]
     # Create the result
-    f_exp = mk_fun([
-        mk_tuple([ mk_list([x_sol]), mk_int(42) ]),
-        mk_tuple([ mk_list([y_sol]), mk_int(10) ])
-    ], 1)
+    f_exp = cc.mk_fun(1, [
+        cc.mk_fun_entry([x_sol], cc.mk_int(42)),
+        cc.mk_fun_entry([y_sol], cc.mk_int(10))
+    ], cc.mk_int(42))
     compare_solutions(f_exp, f_sol)
 
 def fun_scenario3():
@@ -814,12 +608,12 @@ def fun_scenario3():
     encoder = TermEncoder(erl, m, fmap, arity)
     x_sol, y_sol, f_sol = [encoder.encode(m[v]) for v in [x, y, f]]
     # Create the result
-    f_exp = mk_fun([
-        mk_tuple([ mk_list([x_sol]),     mk_int(4)  ]),
-        mk_tuple([ mk_list([mk_int(4)]), mk_int(42) ]),
-        mk_tuple([ mk_list([y_sol]),     mk_int(5)  ]),
-        mk_tuple([ mk_list([mk_int(5)]), mk_int(17) ])
-    ], 1)
+    f_exp = cc.mk_fun(1, [
+        cc.mk_fun_entry([x_sol],        cc.mk_int(4)),
+        cc.mk_fun_entry([cc.mk_int(5)], cc.mk_int(17)),
+        cc.mk_fun_entry([cc.mk_int(4)], cc.mk_int(42)),
+        cc.mk_fun_entry([y_sol],        cc.mk_int(5))
+    ], cc.mk_int(4))
     compare_solutions(f_exp, f_sol)
 
 def fun_scenario4():
@@ -863,12 +657,12 @@ def fun_scenario4():
     encoder = TermEncoder(erl, m, fmap, arity)
     x_sol, y_sol, f_sol = [encoder.encode(m[v]) for v in [x, y, f]]
     # Create the result
-    t1_exp = mk_fun([
-        mk_tuple([ mk_list([y_sol]), mk_int(42) ])
-    ], 1)
-    f_exp = mk_fun([
-        mk_tuple([ mk_list([x_sol]), t1_exp  ])
-    ], 1)
+    t1_exp = cc.mk_fun(1, [
+        cc.mk_fun_entry([y_sol], cc.mk_int(42))
+    ], cc.mk_int(42))
+    f_exp = cc.mk_fun(1, [
+        cc.mk_fun_entry([x_sol], t1_exp)
+    ], t1_exp)
     compare_solutions(f_exp, f_sol)
 
 def fun_scenario5():
@@ -915,10 +709,10 @@ def fun_scenario5():
     encoder = TermEncoder(erl, m, fmap, arity)
     x_sol, y_sol, z_sol, f_sol = [encoder.encode(m[v]) for v in [x, y, z, f]]
     # Create the result
-    f_exp = mk_fun([
-        mk_tuple([ mk_list([x_sol, y_sol, z_sol]), mk_int(42) ]),
-        mk_tuple([ mk_list([z_sol, y_sol, x_sol]), mk_int(17) ])
-    ], 3)
+    f_exp = cc.mk_fun(3, [
+        cc.mk_fun_entry([z_sol, y_sol, x_sol], cc.mk_int(17)),
+        cc.mk_fun_entry([x_sol, y_sol, z_sol], cc.mk_int(42))
+    ], cc.mk_int(17))
     compare_solutions(f_exp, f_sol)
 
 def fun_scenario6():
@@ -961,15 +755,15 @@ def fun_scenario6():
     encoder = TermEncoder(erl, m, fmap, arity)
     f_sol = encoder.encode(m[f])
     # Create the result
-    t2_exp = mk_fun([
-        mk_tuple([ mk_list([mk_int(42)]), mk_int(42) ])
-    ], 1)
-    t1_exp = mk_fun([
-        mk_tuple([ mk_list([mk_int(42)]), t2_exp ])
-    ], 1)
-    f_exp = mk_fun([
-        mk_tuple([ mk_list([mk_int(42)]), t1_exp ])
-    ], 1)
+    t2_exp = cc.mk_fun(1, [
+        cc.mk_fun_entry([cc.mk_int(42)], cc.mk_int(42))
+    ], cc.mk_int(42))
+    t1_exp = cc.mk_fun(1, [
+        cc.mk_fun_entry([cc.mk_int(42)], t2_exp)
+    ], t2_exp)
+    f_exp = cc.mk_fun(1, [
+        cc.mk_fun_entry([cc.mk_int(42)], t1_exp)
+    ], t1_exp)
     compare_solutions(f_exp, f_sol)
 
 def fun_scenario7():
@@ -1023,10 +817,10 @@ def fun_scenario7():
     encoder = TermEncoder(erl, m, fmap, arity)
     l_sol, f_sol = [encoder.encode(m[v]) for v in [l, f]]
     # Create the result
-    f_exp = mk_fun([
-        mk_tuple([ mk_list([l_sol["v"][0], mk_int(0)]), mk_int(4)  ]),
-        mk_tuple([ mk_list([l_sol["v"][1], mk_int(4)]), mk_int(42) ])
-    ], 2)
+    f_exp = cc.mk_fun(2, [
+        cc.mk_fun_entry([l_sol.subterms[0], cc.mk_int(0)], cc.mk_int(4)),
+        cc.mk_fun_entry([l_sol.subterms[1], cc.mk_int(4)], cc.mk_int(42))
+    ], cc.mk_int(4))
     compare_solutions(f_exp, f_sol)
 
 def fun_scenario8():
@@ -1077,10 +871,10 @@ def fun_scenario8():
     encoder = TermEncoder(erl, m, fmap, arity)
     l_sol, f_sol = [encoder.encode(m[v]) for v in [l, f]]
     # Create the result
-    f_exp = mk_fun([
-        mk_tuple([ mk_list([l_sol["v"][0]]), encoder.encode(atmFalse) ]),
-        mk_tuple([ mk_list([l_sol["v"][1]]), encoder.encode(atmFalse) ])
-    ], 1)
+    f_exp = cc.mk_fun(1, [
+        cc.mk_fun_entry([l_sol.subterms[1]], encoder.encode(atmFalse)),
+        cc.mk_fun_entry([l_sol.subterms[0]], encoder.encode(atmFalse))
+    ], encoder.encode(atmFalse))
     compare_solutions(f_exp, f_sol)
 
 
@@ -1129,7 +923,5 @@ if __name__ == '__main__':
     cglb.init()
     test_encoder()
     test_decoder_simple()
-    test_decoder_simple_pb()
     test_decoder_complex()
-    test_decoder_complex_pb()
     fun_scenarios()

@@ -89,10 +89,6 @@
 %% OpCodes for constraint types
 %%====================================================================
 
--define(CONSTRAINT_TRUE, 1).
--define(CONSTRAINT_FALSE, 2).
--define(NOT_CONSTRAINT, 3).
-
 -define(CONSTRAINT_TRUE_REPR, 84).   %% $T
 -define(CONSTRAINT_FALSE_REPR, 70).  %% $F
 

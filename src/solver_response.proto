@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+import "erlang_term.proto";
+
+message SolverResponse {
+
+    enum Type {
+        MODEL_STATUS = 0;
+        MODEL_DATA = 1;
+    }
+
+    enum Status {
+        SAT = 0;
+        UNSAT = 1;
+        UNKNOWN = 2;
+        TIMEOUT = 3;
+    }
+
+    message ModelEntry {
+        ErlangTerm var = 1;
+        ErlangTerm value = 2;
+    }
+
+    message Model {
+        repeated ModelEntry entries = 1;
+    }
+
+    Type type = 1;
+    oneof data {
+        Status status = 2;
+        Model model = 3;
+    }
+}

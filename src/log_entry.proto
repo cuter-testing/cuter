@@ -1,6 +1,7 @@
 syntax = "proto3";
 
 import "erlang_term.proto";
+import "spec.proto";
 
 message LogEntry {
 
@@ -80,4 +81,9 @@ message LogEntry {
 
     Type type = 1;
     repeated ErlangTerm arguments = 2;
+
+    bool is_constraint = 3;
+    uint64 tag = 4;
+
+    Spec spec = 5;
 }

@@ -10,9 +10,9 @@
          elements_types_of_t_union/1, bounds_of_t_range/1, segment_size_of_bitstring/1, is_generic_function/1]).
 
 -export([t_atom/0, t_atom_lit/1, t_any/0, t_binary/0, t_bitstring/0, t_bitstring/2, t_char/0, t_float/0,
-         t_function/0, t_function/2, t_function/3, t_integer/0, t_list/0, t_list/1,
+         t_function/0, t_function/2, t_function/3, t_integer/0, t_integer_lit/1, t_list/0, t_list/1,
          t_nonempty_list/1, t_nil/0, t_number/0, t_remote/3, t_string/0, t_tuple/0, t_tuple/1,
-         t_union/1]).
+         t_union/1, t_range/2, t_pos_inf/0, t_neg_inf/0]).
 
 -export_type([erl_type/0, erl_spec_clause/0, erl_spec/0, stored_specs/0, stored_types/0, stored_spec_value/0, t_range_limit/0]).
 
@@ -249,6 +249,7 @@ t_from_form({type, _, tuple, any}) ->
   t_tuple();
 %% { TList } when TList :: T1, T2, ... , Tn
 t_from_form({type, _, tuple, Types}) ->
+  %% FIXME Distinguish between tuple() and {}.
   Ts = [t_from_form(T) || T <- Types],
   t_tuple(Ts);
 %% list()

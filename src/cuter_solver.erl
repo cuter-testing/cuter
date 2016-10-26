@@ -32,10 +32,6 @@
   , solved/3
   , generating_model/2
   , generating_model/3
-  , expecting_var/2
-  , expecting_var/3
-  , expecting_value/2
-  , expecting_value/3
   , model_received/2
   , model_received/3
   , finished/2
@@ -44,18 +40,11 @@
   , failed/3
 ]).
 
--export_type([model/0, state/0, solver_input/0, solver_result/0]).
+-export_type([model/0, state/0, solver_input/0, solver_result/0, solver_status/0]).
 
 -define(SLEEP, 100).
 
--define(SOLVER_STATUS_SAT, <<"sat">>).
--define(SOLVER_STATUS_UNSAT, <<"unsat">>).
--define(SOLVER_STATUS_TIMEOUT, <<"timeout">>).
--define(SOLVER_STATUS_UNKNOWN, <<"unknown">>).
--define(RSP_MODEL_DELIMITER_START, <<"model_start">>).
--define(RSP_MODEL_DELIMITER_END, <<"model_end">>).
-
--type solver_status() :: binary().
+-type solver_status() :: 'SAT' | 'UNSAT' | 'UNKNOWN' | 'TIMEOUT'.
 
 -type state()     :: idle
                    | python_started
@@ -65,8 +54,6 @@
                    | failed
                    | solved
                    | generating_model
-                   | expecting_var
-                   | expecting_value
                    | model_received
                    | finished.
 -type from()      :: {pid(), reference()}.
@@ -161,9 +148,9 @@ query_solver(FSM, Mappings, CurrSetting) ->
   ok = add_axioms(FSM),
   load_setting(CurrSetting, Mappings, FSM),
   case check_model(FSM) of
-    ?SOLVER_STATUS_SAT ->
+    'SAT' ->
       get_solution(FSM, Mappings);
-    ?SOLVER_STATUS_UNSAT ->
+    'UNSAT' ->
       stop_fsm(FSM, error);  %% RETURN ERROR
     _ ->
       NextSetting = generate_next_setting(CurrSetting, length(Mappings)),
@@ -360,51 +347,43 @@ handle_sync_event(Event, _From, _StateName, Data) ->
 %% solving --> solved
 %% The solver did not manage to satisfy the model
 %% solving --> failed
-handle_info({Port, {data, Status}}, solving, Data=#fsm_state{from = From, port = Port}) when Status =:= ?SOLVER_STATUS_SAT;
-                                                                                             Status =:= ?SOLVER_STATUS_UNSAT;
-                                                                                             Status =:= ?SOLVER_STATUS_TIMEOUT;
-                                                                                             Status =:= ?SOLVER_STATUS_UNKNOWN->
-  pp_solver_status(Status),
-  gen_fsm:reply(From, Status),
-  case Status of
-    ?SOLVER_STATUS_SAT ->
-      {next_state, solved, Data#fsm_state{from = null}};
-    _ ->
-      {next_state, failed, Data#fsm_state{from = null}}
+handle_info({Port, {data, Resp}}, State=solving, Data=#fsm_state{from = From, port = Port}) ->
+  try cuter_serial:from_solver_response(Resp) of
+    {'status', Status} ->
+      pp_solver_status(Status),
+      gen_fsm:reply(From, Status),
+      case Status of
+        'SAT' ->
+          {next_state, solved, Data#fsm_state{from = null}};
+        _ ->
+          {next_state, failed, Data#fsm_state{from = null}}
+      end;
+    {'model', Model} ->
+      {stop, {expecting_status_got_model, Model}, Data}
+  catch
+    _:_ ->
+      cuter_pp:undecoded_msg(Resp, State),
+      {next_state, State, Data}
   end;
 %% Delimit the start of the solution
-%% generating_model --> expecting_var
-handle_info({Port, {data, ?RSP_MODEL_DELIMITER_START}}, generating_model, Data=#fsm_state{port = Port}) ->
-  cuter_pp:model_start(),
-  {next_state, expecting_var, Data};
-%% Delimit the end of the solution
-%% expecting_var --> model_received
-handle_info({Port, {data, ?RSP_MODEL_DELIMITER_END}}, expecting_var, Data=#fsm_state{from = From, port = Port, sol = S}) ->
-  cuter_pp:model_end(),
-  gen_fsm:reply(From, S),
-  {next_state, model_received, Data#fsm_state{from = null, sol = #{}}};
-%% A symbolic variable of the solution
-%% expecting_var --> expecting_value
-handle_info({Port, {data, Bin}}, expecting_var, Data=#fsm_state{port = Port}) ->
-  try cuter_json:json_to_term(Bin) of
-    Var ->
-      cuter_pp:received_var(Var),
-      {next_state, expecting_value, Data#fsm_state{var = Var}}
-  catch _:_ ->
-    cuter_pp:undecoded_msg(Bin, expecting_var),
-    {next_state, expecting_var, Data}
-  end;
-%% The value of a symbolic variable of the solution
-%% expecting_value --> expecting_var
-handle_info({Port, {data, Bin}}, expecting_value, Data=#fsm_state{port = Port, var = Var, sol = S}) ->
-  try cuter_json:json_to_term(Bin) of
-    Val ->
-      cuter_pp:received_val(Val),
-      Sol_n = maps:put(Var, Val, S),
-      {next_state, expecting_var, Data#fsm_state{var = null, sol = Sol_n}}
-  catch _:_ ->
-    cuter_pp:undecoded_msg(Bin, expecting_value),
-    {next_state, expecting_value, Data}
+%% generating_model --> model_received
+handle_info({Port, {data, Resp}}, State=generating_model, Data=#fsm_state{from = From, port = Port}) ->
+  try cuter_serial:from_solver_response(Resp) of
+    {'model', Model} ->
+      Fn = fun(Var, Val, _) ->
+          cuter_pp:received_var(Var),
+          cuter_pp:received_val(Val),
+          ok
+        end,
+      maps:fold(Fn, ok, Model),
+      gen_fsm:reply(From, Model),
+      {next_state, model_received, Data#fsm_state{from = null, sol = #{}}};
+    {'status', Status} ->
+      {stop, {expecting_model_got_status, Status}, Data}
+  catch
+    _:_ ->
+      cuter_pp:undecoded_msg(Resp, State),
+      {next_state, State, Data}
   end;
 %% The port has closed normally
 %% Stop the FSM
@@ -556,30 +535,6 @@ generating_model(Event, _From, Data) ->
   {stop, {unexpected_event, Event}, ok, Data}.
 
 %%
-%% expecting_var
-%%
-
--spec expecting_var(any(), fsm_state()) -> err_async().
-expecting_var(Event, Data) ->
-  {stop, {unexpected_event, Event}, Data}.
-
--spec expecting_var(any(), from(), fsm_state()) -> err_sync().
-expecting_var(Event, _From, Data) ->
-  {stop, {unexpected_event, Event}, ok, Data}.
-
-%%
-%% expecting_value
-%%
-
--spec expecting_value(any(), fsm_state()) -> err_async().
-expecting_value(Event, Data) ->
-  {stop, {unexpected_event, Event}, Data}.
-
--spec expecting_value(any(), from(), fsm_state()) -> err_sync().
-expecting_value(Event, _From, Data) ->
-  {stop, {unexpected_event, Event}, ok, Data}.
-
-%%
 %% model_received
 %%
 
@@ -611,7 +566,7 @@ finished(Event, _From, Data) ->
 
 
 %% Dispatcher for pretty printing the status of the solver.
-pp_solver_status(?SOLVER_STATUS_SAT) -> ok;
-pp_solver_status(?SOLVER_STATUS_UNSAT) -> cuter_pp:solving_failed_unsat();
-pp_solver_status(?SOLVER_STATUS_TIMEOUT) -> cuter_pp:solving_failed_timeout();
-pp_solver_status(?SOLVER_STATUS_UNKNOWN) -> cuter_pp:solving_failed_unknown().
+pp_solver_status('SAT') -> ok;
+pp_solver_status('UNSAT') -> cuter_pp:solving_failed_unsat();
+pp_solver_status('TIMEOUT') -> cuter_pp:solving_failed_timeout();
+pp_solver_status('UNKNOWN') -> cuter_pp:solving_failed_unknown().

@@ -2,6 +2,8 @@
 
 import cuter_common as cc
 import cuter_logger as clg
+from erlang_term_pb2 import ErlangTerm
+from log_entry_pb2 import LogEntry
 
 class AbstractErlangSolver:
     """
@@ -45,112 +47,112 @@ class AbstractErlangSolver:
         """
         raise NotImplementedError("Method 'encode_model' is not implemented!")
 
-    def command_toSolver(self, tp, json_data, rev):
+    def command_toSolver(self, log_entry, rev):
         """
         Loads the recorded trace to memory.
         """
         opts_normal = {
             # Internal commands.
-            cc.OP_PARAMS: self.mfa_params,
-            cc.OP_SPEC: self.mfa_spec,
-            cc.OP_UNFOLD_TUPLE: self.unfold_tuple,
-            cc.OP_UNFOLD_LIST: self.unfold_list,
-            cc.OP_MAKE_BITSTR: self.make_bitstr,
-            cc.OP_CONCAT_SEGS: self.concat_segs,
-            cc.OP_FRESH_LAMBDA_WITH_ARITY: self.fresh_closure,
-            cc.OP_EVALUATED_CLOSURE: self.evaluated_closure,
+            LogEntry.OP_PARAMS: self.mfa_params,
+            LogEntry.OP_SPEC: self.mfa_spec,
+            LogEntry.OP_UNFOLD_TUPLE: self.unfold_tuple,
+            LogEntry.OP_UNFOLD_LIST: self.unfold_list,
+            LogEntry.OP_MAKE_BITSTR: self.make_bitstr,
+            LogEntry.OP_CONCAT_SEGS: self.concat_segs,
+            LogEntry.OP_FRESH_LAMBDA_WITH_ARITY: self.fresh_closure,
+            LogEntry.OP_EVALUATED_CLOSURE: self.evaluated_closure,
             # Constraints.
-            cc.OP_GUARD_TRUE: self.guard_true,
-            cc.OP_GUARD_FALSE: self.guard_false,
-            cc.OP_MATCH_EQUAL_TRUE: self.match_equal,
-            cc.OP_MATCH_EQUAL_FALSE: self.match_not_equal,
-            cc.OP_TUPLE_SZ: self.tuple_sz,
-            cc.OP_TUPLE_NOT_SZ: self.tuple_not_sz,
-            cc.OP_TUPLE_NOT_TPL: self.tuple_not_tpl,
-            cc.OP_LIST_NON_EMPTY: self.list_nonempty,
-            cc.OP_LIST_EMPTY: self.list_empty,
-            cc.OP_LIST_NOT_LST: self.list_not_lst,
-            cc.OP_EMPTY_BITSTR: self.empty_bitstr,
-            cc.OP_NONEMPTY_BITSTR: self.nonempty_bitstr,
-            cc.OP_BITMATCH_CONST_TRUE: self.bitmatch_const_true,
-            cc.OP_BITMATCH_CONST_FALSE: self.bitmatch_const_false,
-            cc.OP_BITMATCH_VAR_TRUE: self.bitmatch_var_true,
-            cc.OP_BITMATCH_VAR_FALSE: self.bitmatch_var_false,
-            cc.OP_LAMBDA: self.erl_lambda,
+            LogEntry.OP_GUARD_TRUE: self.guard_true,
+            LogEntry.OP_GUARD_FALSE: self.guard_false,
+            LogEntry.OP_MATCH_EQUAL_TRUE: self.match_equal,
+            LogEntry.OP_MATCH_EQUAL_FALSE: self.match_not_equal,
+            LogEntry.OP_TUPLE_SZ: self.tuple_sz,
+            LogEntry.OP_TUPLE_NOT_SZ: self.tuple_not_sz,
+            LogEntry.OP_TUPLE_NOT_TPL: self.tuple_not_tpl,
+            LogEntry.OP_LIST_NON_EMPTY: self.list_nonempty,
+            LogEntry.OP_LIST_EMPTY: self.list_empty,
+            LogEntry.OP_LIST_NOT_LST: self.list_not_lst,
+            LogEntry.OP_EMPTY_BITSTR: self.empty_bitstr,
+            LogEntry.OP_NONEMPTY_BITSTR: self.nonempty_bitstr,
+            LogEntry.OP_BITMATCH_CONST_TRUE: self.bitmatch_const_true,
+            LogEntry.OP_BITMATCH_CONST_FALSE: self.bitmatch_const_false,
+            LogEntry.OP_BITMATCH_VAR_TRUE: self.bitmatch_var_true,
+            LogEntry.OP_BITMATCH_VAR_FALSE: self.bitmatch_var_false,
+            LogEntry.OP_LAMBDA: self.erl_lambda,
             # Erlang BIFs or MFAs treated as BIFs.
-            cc.OP_HD: self.head,
-            cc.OP_TL: self.tail,
-            cc.OP_IS_INTEGER: self.is_integer,
-            cc.OP_IS_ATOM: self.is_atom,
-            cc.OP_IS_FLOAT: self.is_float,
-            cc.OP_IS_LIST: self.is_list,
-            cc.OP_IS_TUPLE: self.is_tuple,
-            cc.OP_IS_BOOLEAN: self.is_boolean,
-            cc.OP_IS_NUMBER: self.is_number,
-            cc.OP_PLUS: self.plus,
-            cc.OP_MINUS: self.minus,
-            cc.OP_TIMES: self.times,
-            cc.OP_RDIV: self.rdiv,
-            cc.OP_IDIV_NAT: self.idiv_nat,
-            cc.OP_REM_NAT: self.rem_nat,
-            cc.OP_UNARY: self.unary,
-            cc.OP_EQUAL: self.equal,
-            cc.OP_UNEQUAL: self.unequal,
-            cc.OP_FLOAT: self.to_float,
-            cc.OP_BOGUS: self.bogus,
-            cc.OP_ATOM_NIL: self.atom_nil,
-            cc.OP_ATOM_HEAD: self.atom_head,
-            cc.OP_ATOM_TAIL: self.atom_tail,
-            cc.OP_LIST_TO_TUPLE: self.list_to_tuple,
-            cc.OP_TUPLE_TO_LIST: self.tuple_to_list,
-            cc.OP_LT_INT: self.lt_integers,
-            cc.OP_LT_FLOAT: self.lt_floats,
-            cc.OP_CONS: self.cons,
-            cc.OP_TCONS: self.tcons,
-            cc.OP_POW: self.pow,
-            cc.OP_IS_BITSTRING: self.is_bitstring,
-            cc.OP_IS_FUN: self.is_fun,
-            cc.OP_IS_FUN_WITH_ARITY: self.is_fun_with_arity,
-            cc.OP_TRUNC: self.trunc,
-            cc.OP_BAND: self.band,
-            cc.OP_BXOR: self.bxor,
-            cc.OP_BOR: self.bor
+            LogEntry.OP_HD: self.head,
+            LogEntry.OP_TL: self.tail,
+            LogEntry.OP_IS_INTEGER: self.is_integer,
+            LogEntry.OP_IS_ATOM: self.is_atom,
+            LogEntry.OP_IS_FLOAT: self.is_float,
+            LogEntry.OP_IS_LIST: self.is_list,
+            LogEntry.OP_IS_TUPLE: self.is_tuple,
+            LogEntry.OP_IS_BOOLEAN: self.is_boolean,
+            LogEntry.OP_IS_NUMBER: self.is_number,
+            LogEntry.OP_PLUS: self.plus,
+            LogEntry.OP_MINUS: self.minus,
+            LogEntry.OP_TIMES: self.times,
+            LogEntry.OP_RDIV: self.rdiv,
+            LogEntry.OP_IDIV_NAT: self.idiv_nat,
+            LogEntry.OP_REM_NAT: self.rem_nat,
+            LogEntry.OP_UNARY: self.unary,
+            LogEntry.OP_EQUAL: self.equal,
+            LogEntry.OP_UNEQUAL: self.unequal,
+            LogEntry.OP_FLOAT: self.to_float,
+            LogEntry.OP_BOGUS: self.bogus,
+            LogEntry.OP_ATOM_NIL: self.atom_nil,
+            LogEntry.OP_ATOM_HEAD: self.atom_head,
+            LogEntry.OP_ATOM_TAIL: self.atom_tail,
+            LogEntry.OP_LIST_TO_TUPLE: self.list_to_tuple,
+            LogEntry.OP_TUPLE_TO_LIST: self.tuple_to_list,
+            LogEntry.OP_LT_INT: self.lt_integers,
+            LogEntry.OP_LT_FLOAT: self.lt_floats,
+            LogEntry.OP_CONS: self.cons,
+            LogEntry.OP_TCONS: self.tcons,
+            LogEntry.OP_POW: self.pow,
+            LogEntry.OP_IS_BITSTRING: self.is_bitstring,
+            LogEntry.OP_IS_FUN: self.is_fun,
+            LogEntry.OP_IS_FUN_WITH_ARITY: self.is_fun_with_arity,
+            LogEntry.OP_TRUNC: self.trunc,
+            LogEntry.OP_BAND: self.band,
+            LogEntry.OP_BXOR: self.bxor,
+            LogEntry.OP_BOR: self.bor
         }
 
         opts_rev = {
             # Constraints.
-            cc.OP_GUARD_TRUE: self.guard_true_reversed,
-            cc.OP_GUARD_FALSE: self.guard_false_reversed,
-            cc.OP_MATCH_EQUAL_TRUE: self.match_equal_reversed,
-            cc.OP_MATCH_EQUAL_FALSE: self.match_not_equal_reversed,
-            cc.OP_TUPLE_SZ: self.tuple_sz_reversed,
-            cc.OP_TUPLE_NOT_SZ: self.tuple_not_sz_reversed,
-            cc.OP_TUPLE_NOT_TPL: self.tuple_not_tpl_reversed,
-            cc.OP_LIST_NON_EMPTY: self.list_nonempty_reversed,
-            cc.OP_LIST_EMPTY: self.list_empty_reversed,
-            cc.OP_LIST_NOT_LST: self.list_not_lst_reversed,
-            cc.OP_EMPTY_BITSTR: self.empty_bitstr_reversed,
-            cc.OP_NONEMPTY_BITSTR: self.nonempty_bitstr_reversed,
-            cc.OP_BITMATCH_CONST_TRUE: self.bitmatch_const_true_reversed,
-            cc.OP_BITMATCH_CONST_FALSE: self.bitmatch_const_false_reversed,
-            cc.OP_BITMATCH_VAR_TRUE: self.bitmatch_var_true_reversed,
-            cc.OP_BITMATCH_VAR_FALSE: self.bitmatch_var_false_reversed,
-            cc.OP_NOT_LAMBDA_WITH_ARITY: self.not_lambda_with_arity_reversed,
-            cc.OP_LAMBDA: self.erl_lambda_reversed,
+            LogEntry.OP_GUARD_TRUE: self.guard_true_reversed,
+            LogEntry.OP_GUARD_FALSE: self.guard_false_reversed,
+            LogEntry.OP_MATCH_EQUAL_TRUE: self.match_equal_reversed,
+            LogEntry.OP_MATCH_EQUAL_FALSE: self.match_not_equal_reversed,
+            LogEntry.OP_TUPLE_SZ: self.tuple_sz_reversed,
+            LogEntry.OP_TUPLE_NOT_SZ: self.tuple_not_sz_reversed,
+            LogEntry.OP_TUPLE_NOT_TPL: self.tuple_not_tpl_reversed,
+            LogEntry.OP_LIST_NON_EMPTY: self.list_nonempty_reversed,
+            LogEntry.OP_LIST_EMPTY: self.list_empty_reversed,
+            LogEntry.OP_LIST_NOT_LST: self.list_not_lst_reversed,
+            LogEntry.OP_EMPTY_BITSTR: self.empty_bitstr_reversed,
+            LogEntry.OP_NONEMPTY_BITSTR: self.nonempty_bitstr_reversed,
+            LogEntry.OP_BITMATCH_CONST_TRUE: self.bitmatch_const_true_reversed,
+            LogEntry.OP_BITMATCH_CONST_FALSE: self.bitmatch_const_false_reversed,
+            LogEntry.OP_BITMATCH_VAR_TRUE: self.bitmatch_var_true_reversed,
+            LogEntry.OP_BITMATCH_VAR_FALSE: self.bitmatch_var_false_reversed,
+            LogEntry.OP_NOT_LAMBDA_WITH_ARITY: self.not_lambda_with_arity_reversed,
+            LogEntry.OP_LAMBDA: self.erl_lambda_reversed,
             # Erlang BIFs or MFAs treated as BIFs.
-            cc.OP_HD: self.head_reversed,
-            cc.OP_TL: self.tail_reversed
+            LogEntry.OP_HD: self.head_reversed,
+            LogEntry.OP_TL: self.tail_reversed
         }
 
         # Call the appropriate function with the given payload.
         opts = opts_rev if rev else opts_normal
-        if tp not in opts:
+        if log_entry.type not in opts:
             fmt = ("Unknown JSON Command with\n"
-                   "  ID: {}\n"
                    "  Data: {}\n"
                    "  Rev: {}")
-            clg.debug_info(fmt.format(tp, json_data, rev))
-        opts[tp](*json_data["a"])
+            clg.debug_info(fmt.format(str(log_entry), rev))
+        args = [log_entry.spec] if log_entry.type == LogEntry.OP_SPEC else log_entry.arguments
+        opts[log_entry.type](*args)
 
     # =========================================================================
     # Private Methods.

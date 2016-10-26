@@ -66,7 +66,7 @@ encdec_test_() ->
   ],
   Setup = fun(T) -> fun() -> T end end,
   Inst = fun encode_decode/1,
-  [{"JSON Encoding / Decoding: " ++ C, {setup, Setup(T), Inst}} || {C, T} <- Ts].
+  [{"Encoding / Decoding: " ++ C, {setup, Setup(T), Inst}} || {C, T} <- Ts].
 
 encode_decode(Terms) ->
   Enc = fun cuter_serial:from_term/1,
@@ -84,7 +84,7 @@ enc_fail_test_() ->
   Ts = [
     {"Fun", fun() -> ok end}
   ],
-  {"JSON Encoding Fail", [{Dsr, ?_assertThrow({unsupported_term, _}, Enc(T))} || {Dsr, T} <- Ts]}.
+  {"Encoding Fail", [{Dsr, ?_assertThrow({unsupported_term, _}, Enc(T))} || {Dsr, T} <- Ts]}.
 
 %% ----------------------------------------------------------------------------
 %% Serializing / De-Serializing log entries.
@@ -93,19 +93,20 @@ enc_fail_test_() ->
 -spec encdec_cmd_test_() -> term().
 encdec_cmd_test_() ->
   Cs = [
-    {"I", {'OP_PARAMS', [self(), erlang:make_ref()]}},
-    {"II", {'OP_PARAMS', [cuter_symbolic:fresh_symbolic_var(), 42]}},
-    {"III", {'OP_CONS', [cuter_symbolic:fresh_symbolic_var(), cuter_symbolic:fresh_symbolic_var(), [<<"false">>]]}}
+    {"I", {'OP_PARAMS', [cuter_symbolic:fresh_symbolic_var(), cuter_symbolic:fresh_symbolic_var()]}},
+    {"II", {'OP_MATCH_EQUAL_FALSE', [cuter_symbolic:fresh_symbolic_var(), erlang:make_ref()]}},
+    {"III", {'OP_PARAMS', [cuter_symbolic:fresh_symbolic_var(), 42]}},
+    {"IV", {'OP_CONS', [cuter_symbolic:fresh_symbolic_var(), cuter_symbolic:fresh_symbolic_var(), [<<"false">>]]}}
   ],
   Setup = fun(T) -> fun() -> T end end,
   Inst = fun encode_decode_cmd/1,
-  [{"JSON Encoding / Decoding Command: " ++ C, {setup, Setup(T), Inst}} || {C, T} <- Cs].
+  [{"Encoding / Decoding Command: " ++ C, {setup, Setup(T), Inst}} || {C, T} <- Cs].
 
 encode_decode_cmd({OpCode, Args}) ->
   MaybeArgs = [maybe(A) || A <- Args],
-  Enc = cuter_serial:to_log_entry(OpCode, Args),
+  Enc = cuter_serial:to_log_entry(OpCode, Args, false, 0),
   Dec = cuter_serial:from_log_entry(Enc),
-  [?_assertEqual( {OpCode, MaybeArgs}, Dec )].
+  [?_assertEqual( {OpCode, MaybeArgs, false, 0}, Dec )].
 
 %% ----------------------------------------------------------------------------
 %% Serializing / De-Serializing funs.
@@ -119,7 +120,7 @@ dec_fun_test_() ->
   ],
   Setup = fun(T) -> fun() -> T end end,
   Inst = fun decode_fun/1,
-  [{"JSON Decoding Fun: " ++ C, {setup, Setup(T), Inst}} || {C, T} <- Ts].
+  [{"Decoding Fun: " ++ C, {setup, Setup(T), Inst}} || {C, T} <- Ts].
 
 decode_fun({Bin, KVs, Def}) ->
   Dec = cuter_serial:to_term(Bin),
@@ -159,3 +160,46 @@ fun2() ->
   Arity = 2,
   Lambda = cuter_lib:mk_lambda(KVs, Default, Arity),
   {cuter_serial:from_term(Lambda), KVs, Default}.
+
+%% ----------------------------------------------------------------------------
+%% Serializing specs.
+%% ----------------------------------------------------------------------------
+
+-spec encode_spec_test_() -> term().
+encode_spec_test_() ->
+  Ts = [
+    {"Simple", [
+      cuter_types:t_function([cuter_types:t_atom()], cuter_types:t_atom_lit(ok))
+    ]},
+    {"Multiple", [
+      cuter_types:t_function([cuter_types:t_float(), cuter_types:t_atom()], cuter_types:t_any()),
+      cuter_types:t_function([cuter_types:t_any(), cuter_types:t_integer()], cuter_types:t_integer_lit(42))
+    ]},
+    {"Lists", [
+      cuter_types:t_function([cuter_types:t_list(cuter_types:t_integer())], cuter_types:t_any()),
+      cuter_types:t_function([cuter_types:t_nonempty_list(cuter_types:t_list(cuter_types:t_atom()))], cuter_types:t_nil())
+    ]},
+    {"Bitstring", [
+      cuter_types:t_function([cuter_types:t_bitstring()], cuter_types:t_bitstring(6,8))
+    ]},
+    {"Tuple", [
+      cuter_types:t_function([cuter_types:t_tuple([cuter_types:t_any(), cuter_types:t_any()])], cuter_types:t_tuple())
+    ]},
+    {"Union", [
+      cuter_types:t_function([cuter_types:t_union([cuter_types:t_integer(), cuter_types:t_bitstring()])], cuter_types:t_any())
+    ]},
+    {"Ranges", [
+      cuter_types:t_function([cuter_types:t_range(cuter_types:t_integer_lit(42), cuter_types:t_pos_inf())], cuter_types:t_any()),
+      cuter_types:t_function([cuter_types:t_range(cuter_types:t_neg_inf(), cuter_types:t_integer_lit(-1))], cuter_types:t_any())
+    ]},
+    {"Funs", [
+      cuter_types:t_function([cuter_types:t_function([cuter_types:t_atom()], cuter_types:t_integer())], cuter_types:t_function())
+    ]}
+  ],
+  Setup = fun(T) -> fun() -> T end end,
+  Inst = fun encode_spec/1,
+  [{"Serialize specs: " ++ C, {setup, Setup(T), Inst}} || {C, T} <- Ts].
+
+encode_spec(Spec) ->
+  cuter_serial:to_log_entry('OP_SPEC', [Spec], false, 0),
+  [].

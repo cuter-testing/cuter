@@ -5,13 +5,13 @@ import gzip, json, struct, sys
 import cuter_global as cglb
 import cuter_logger as clg
 import cuter_common as cc
+from log_entry_pb2 import LogEntry
 
 class BinaryEOF(Exception):
     def __init__(self):
         pass
     def __str__(self):
         return 'EOF encountered'
-
 
 class JsonReader:
     def __init__(self, filename, end):
@@ -25,29 +25,11 @@ class JsonReader:
 
     # Decode 4 bytes that represent the size of the entry
     def size(self):
-        x = [struct.unpack('B', self.read(1))[0] for z in range(4)]
-        return (x[0] << 24) | (x[1] << 16) | (x[2] << 8) | x[3]
-
-    # Decode 4 bytes that represent the tag of the entry
-    def tag(self):
-        x = [struct.unpack('B', self.read(1))[0] for z in range(4)]
-        return (x[0] << 24) | (x[1] << 16) | (x[2] << 8) | x[3]
-
-    # Decode 1 byte that represents the kind of the entry
-    def kind(self):
-        x = self.read(1)
-        if (x == ""):
+        bs = [self.read(1) for _ in range(4)]
+        if any(map(lambda b: b == "", bs)):
             raise BinaryEOF
-        else:
-            return struct.unpack('B', x)[0]
-
-    # Decode 1 byte that represents the type of the entry
-    def entry_type(self):
-        x = self.read(1)
-        if (x == ""):
-            raise BinaryEOF
-        else:
-            return struct.unpack('B', x)[0]
+        x = [struct.unpack('B', b)[0] for b in bs]
+        return (x[0] << 24) | (x[1] << 16) | (x[2] << 8) | x[3]
 
     def __iter__(self):
         return self
@@ -56,19 +38,17 @@ class JsonReader:
         if self.cnt == self.end:
             raise StopIteration
         try:
-            k = self.kind()
-            tp = self.entry_type()
-            tag = self.tag()
             sz = self.size()
             data = self.read(sz)
+            entry = LogEntry()
+            entry.ParseFromString(data)
             rev = False
-            if (cc.is_reversible(k, tp)):
+            if cc.is_reversible(entry):
                 self.cnt += 1
                 if self.cnt == self.end:
                     rev = True
-            json_data = json.loads(data)
-            clg.json_loaded(self.cnt, k, tp, tag, json_data, rev)
-            return tp, tag, json_data, rev
+            clg.json_loaded(self.cnt, entry, rev)
+            return entry, rev
         except BinaryEOF:
             raise StopIteration
 
@@ -80,39 +60,49 @@ class JsonReader:
 ###############################################################################
 
 def sample_entries():
-    return [
-        {
-            "kind": cc.NOT_CONSTRAINT,
-            "opcode": cc.OP_PARAMS,
-            "tag": 0,
-            "data": {u'a': [{u's': u'0.0.0.44'}, {u's': u'0.0.0.45'}, {u's': u'0.0.0.46'}], u'c': 1}
-        },
-        {
-            "kind": cc.CONSTRAINT_FALSE,
-            "opcode": cc.OP_MATCH_EQUAL_FALSE,
-            "tag": 50,
-            "data": {u'a': [{u't': 3, u'v': [110, 101, 116]}, {u's': u'0.0.0.44'}], u'c': 6}
-        },
-        {
-            "kind": cc.CONSTRAINT_TRUE,
-            "opcode": cc.OP_MATCH_EQUAL_TRUE,
-            "tag": 105,
-            "data": {u'a': [{u't': 3, u'v': [101, 114, 108, 97, 110, 103]}, {u's': u'0.0.0.44'}], u'c': 5}
-        },
-        {
-            "kind": cc.CONSTRAINT_FALSE,
-            "opcode": cc.OP_MATCH_EQUAL_FALSE,
-            "tag": 3344,
-            "data": {u'a': [{u't': 3, u'v': [116, 114, 117, 101]}, {u's': u'0.0.0.39316'}], u'c': 6}
-        }
+    es = [dict() for _ in range(4)]
+    # 1st log entry.
+    es[0]["type"] = LogEntry.OP_PARAMS
+    es[0]["args"] = [
+          cc.mk_symb("0.0.0.44")
+        , cc.mk_symb("0.0.0.45")
+        , cc.mk_symb("0.0.0.46")
     ]
+    es[0]["is_constraint"] = False
+    es[0]["tag"] = 0
+    es[0]["message"] = cc.mk_log_entry(es[0]["type"], es[0]["args"])
+    # 2nd log entry.
+    es[1]["type"] = LogEntry.OP_MATCH_EQUAL_FALSE
+    es[1]["args"] = [
+          cc.mk_atom([110, 101, 116])
+        , cc.mk_symb("0.0.0.46")
+    ]
+    es[1]["tag"] = 50
+    es[1]["is_constraint"] = True
+    es[1]["message"] = cc.mk_log_entry(es[1]["type"], es[1]["args"], es[1]["tag"], es[1]["is_constraint"])
+    # 3rd log entry.
+    es[2]["type"] = LogEntry.OP_MATCH_EQUAL_TRUE
+    es[2]["tag"] = 105
+    es[2]["is_constraint"] = True
+    es[2]["args"] = [
+          cc.mk_atom([101, 114, 108, 97, 110, 103])
+        , cc.mk_symb("0.0.0.44")
+    ]
+    es[2]["message"] = cc.mk_log_entry(es[2]["type"], es[2]["args"], es[2]["tag"], es[2]["is_constraint"])
+    # 4th log entry.
+    es[3]["type"] = LogEntry.OP_MATCH_EQUAL_FALSE
+    es[3]["tag"] = 105
+    es[3]["is_constraint"] = True
+    es[3]["args"] = [
+          cc.mk_atom([116, 114, 117, 101])
+        , cc.mk_symb("0.0.0.39316")
+    ]
+    es[3]["message"] = cc.mk_log_entry(es[3]["type"], es[3]["args"], es[3]["tag"], es[3]["is_constraint"])
+    return es
 
 def write_bytes(fd, bs):
     for b in bs:
-        write_byte(fd, b)
-
-def write_byte(fd, b):
-    fd.write(struct.pack('B', b))
+        fd.write(struct.pack('B', b))
 
 def integer_to_i32(num):
     return [num >> i & 0xff for i in (24, 16, 8, 0)]
@@ -124,21 +114,16 @@ def test_reader():
         # Prepare the sample file.
         fd = gzip.open(fname, "wb")
         for e in es:
-            write_byte(fd, e["kind"])
-            write_byte(fd, e["opcode"])
-            write_bytes(fd, integer_to_i32(e["tag"]))
-            data = json.dumps(e["data"])
-            write_bytes(fd, integer_to_i32(len(data)))
-            fd.write(data)
+            msg = e["message"].SerializeToString()
+            write_bytes(fd, integer_to_i32(len(msg)))
+            fd.write(msg)
         fd.close()
 
         # Test the JsonReader.
         i = 0
-        for tp, tag, data, _ in JsonReader(fname, 10000):
+        for entry, _ in JsonReader(fname, 10000):
             e = es[i]
-            assert tp == e["opcode"], "Opcode of entry {} is {} instead of {}".format(i, tp, e["opcode"])
-            assert tag == e["tag"], "Tag of entry {} is {} instead of {}".format(i, tag, e["tag"])
-            assert data == e["data"], "Data of entry {} is {} instead of {}".format(i, data, e["data"])
+            assert entry  == e["message"], "Entry {} is {} instead of {}".format(i, str(entry), str(e["message"]))
             i += 1
     finally:
         os.remove(fname)

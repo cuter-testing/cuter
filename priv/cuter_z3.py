@@ -62,12 +62,12 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         self.check = self.slv.check()
         if self.check == sat:
             self.model = self.slv.model()
-            return cc.SOLVER_STATUS_SAT
+            return cc.mk_sat()
         elif self.check == unsat:
-            return cc.SOLVER_STATUS_UNSAT
+            return cc.mk_unsat()
         elif self.check == unknown:
             clg.model_unknown(And(*self.axs))
-            return cc.SOLVER_STATUS_UNKNOWN
+            return cc.mk_unknown()
 
     def fix_parameter(self, p, v):
         """
@@ -79,31 +79,32 @@ class ErlangZ3(cgs.AbstractErlangSolver):
 
     def encode_model(self):
         """
-        Encodes the resulting model to JSON.
+        Encodes the resulting model to a SolverResponse message.
         """
-        return [self.encode_parameter(p) for p in self.env.params]
+        m = cc.mk_model([self.encode_parameter(p) for p in self.env.params])
+        return cc.mk_model_data(m)
 
     # =========================================================================
     # Private Methods.
     # =========================================================================
 
     # -------------------------------------------------------------------------
-    # Encode / Decode Z3 Terms to JSON and vice versa.
+    # Encode / Decode Z3 Terms to Messages and vice versa.
     # -------------------------------------------------------------------------
 
     def encode_parameter(self, p):
         """
-        Encodes a parameter and its value to JSON.
+        Encodes a parameter and its value to a SolverResponse.ModelEntry message.
         """
         erl, model = self.erl, self.model
         x = self.env.lookup(p)
         v = model[x]
-        encodedValue = {"t": cc.JSON_TYPE_ANY} if v is None else erl.encode(v, model)
-        return erl.encodeSymbolic(p), encodedValue
+        encodedValue = cc.mk_any() if v is None else erl.encode(v, model)
+        return cc.mk_model_entry(erl.encodeSymbolic(p), encodedValue)
 
     def decode_term(self, jdata):
         """
-        Decodes a JSON term to its Z3 representation.
+        Decodes an ErlangTerm message to its Z3 representation.
         """
         td = crp.TermDecoder(self.erl, self.env)
         return td.decodeTerm(jdata)
@@ -119,18 +120,19 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         e = self.env
         pms = []
         for x in args:
-            s = x["s"]
+            s = x.value
             p = e.freshVar(s, self.erl.Term)
             pms.append(p)
             e.addParam(s)
         return pms
 
-    def mfa_spec(self, *spec):
+    def mfa_spec(self, spec):
         """
         Stores the spec of the entry point MFA.
         """
         # FIXME Assume that there is only one clause.
-        self.parseSpecClause(spec[0])
+        clauses = cc.get_spec_clauses(spec)
+        self.parseSpecClause(clauses[0])
 
     def unfold_tuple(self, *terms):
         """
@@ -140,18 +142,18 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         self.axs.append(self.erl.Term.is_tpl(t))
         t = self.erl.Term.tval(t)
         for x in ts:
-            s = x["s"]
+            s = cc.get_symb(x)
             self.axs.append(self.erl.List.is_cons(t))
             self.env.bind(s, self.erl.List.hd(t))
             t = self.erl.List.tl(t)
         self.axs.append(t == self.erl.List.nil)
         # Elaborate the type
-        typ = self.env.lookupType(terms[0]["s"])
+        typ = self.env.lookupType(cc.get_symb(terms[0]))
         typ.matchNTuple(len(terms[1:]))
         children = typ.getChildren()
         if children != None and len(children) == len(terms[1:]):
             for i in range(1, len(terms)):
-                self.env.bindType(terms[i]["s"], children[i-1])
+                self.env.bindType(cc.get_symb(terms[i]), children[i-1])
 
     def unfold_list(self, *terms):
         """
@@ -161,17 +163,17 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         self.axs.append(self.erl.Term.is_lst(t))
         t = self.erl.Term.lval(t)
         for x in ts:
-            s = x["s"]
+            s = cc.get_symb(x)
             self.axs.append(self.erl.List.is_cons(t))
             self.env.bind(s, self.erl.List.hd(t))
             t = self.erl.List.tl(t)
         self.axs.append(t == self.erl.List.nil)
         # Elaborate the type
-        typ = self.env.lookupType(terms[0]["s"])
+        typ = self.env.lookupType(cc.get_symb(terms[0]))
         children = typ.matchNList(len(terms[1:]))
         if children != None and len(children) == len(terms[1:]):
             for i in range(1, len(terms)):
-                self.env.bindType(terms[i]["s"], children[i-1])
+                self.env.bindType(cc.get_symb(terms[i]), children[i-1])
 
     def make_bitstr(self, symb, encodedValue, size):
         """
@@ -179,7 +181,7 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         """
         # TODO For now, expects size to be a concrete integer and encodedValue to be an integer.
         T, B = self.erl.Term, self.erl.BitStr
-        s = symb["s"]
+        s = cc.get_symb(symb)
         enc = self.decode_term(encodedValue)
         szTerm = self.decode_term(size)
         sz = int(str(simplify(T.ival(szTerm)))) # Expect size to represent an Integer
@@ -203,13 +205,13 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         """
         T, B = self.erl.Term, self.erl.BitStr
         term1, term2, ts = terms[0], terms[1], terms[2:]
-        s = term1["s"]
+        s = cc.get_symb(term1)
         t = self.decode_term(term2)
         sz = T.bsz(t)
         self.axs.append(T.is_bin(t))
         t = T.bval(t)
         for x in reversed(ts):
-            if "s" in x:
+            if cc.is_symb(x):
                 t = B.bcons(self.decode_term(x), t)
             else:
                 nTerm = self.decode_term(x)
@@ -223,7 +225,7 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         """
         erl = self.erl
         T, arity, = erl.Term, erl.arity
-        sFun = self.env.freshVar(tFun["s"], T)
+        sFun = self.env.freshVar(cc.get_symb(tFun), T)
         sArity = self.decode_term(tArity)
         self.axs.extend([
             T.is_fun(sFun),
@@ -250,16 +252,16 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         ])
         # Elaborate the types.
         # FIXME What happens if they are concrete values?
-        tpFun = env.lookupType(tFun["s"])
+        tpFun = env.lookupType(cc.get_symb(tFun))
         tpFun.lambdaUsed()
         tpArgs, tpResult = tpFun.applyLambda(len(tArgs))
         for i, t in enumerate(tArgs):
-            if "s" in t:
-                currTp = env.lookupType(t["s"])
+            if cc.is_symb(t):
+                currTp = env.lookupType(cc.get_symb(t))
                 if not currTp.unify(tpArgs[i]):
                     self.axs.append(True == False)
-        if "s" in tResult:
-            currTp = env.lookupType(tResult["s"])
+        if cc.is_symb(tResult):
+            currTp = env.lookupType(cc.get_symb(tResult))
             if not currTp.unify(tpResult):
                 self.axs.append(True == False)
 
@@ -274,7 +276,7 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         erl, env = self.erl, self.env
         T, L, arity, fmap = erl.Term, erl.List, erl.arity, erl.fmap
         tResult, tFun, tArgs = args[0], args[1], args[2:]
-        sResult = self.env.freshVar(tResult["s"], T)
+        sResult = self.env.freshVar(cc.get_symb(tResult), T)
         sFun = self.decode_term(tFun)
         sArgs = L.nil
         for t in reversed(tArgs):
@@ -286,15 +288,15 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         ])
         # Elaborate the types.
         # FIXME What happens if they are concrete values?
-        tpFun = env.lookupType(tFun["s"])
-        env.addRoot(tResult["s"])
+        tpFun = env.lookupType(cc.get_symb(tFun))
+        env.addRoot(cc.get_symb(tResult))
         tpArgs, tpResult = tpFun.applyLambda(len(tArgs))
         for i, t in enumerate(tArgs):
-            if "s" in t:
-                currTp = env.lookupType(t["s"])
+            if cc.is_symb(t):
+                currTp = env.lookupType(cc.get_symb(t))
                 if not currTp.unify(tpArgs[i]):
                     self.axs.append(True == False)
-        env.bindType(tResult["s"], tpResult)
+        env.bindType(cc.get_symb(tResult), tpResult)
 
     def guard_true(self, term):
         """
@@ -320,7 +322,7 @@ class ErlangZ3(cgs.AbstractErlangSolver):
             self.erl.List.is_cons(self.erl.Term.lval(t))
         ])
         # Elaborate the type
-        typ = self.env.lookupType(term["s"])
+        typ = self.env.lookupType(cc.get_symb(term))
         typ.matchCons()
   
     def list_empty(self, term):
@@ -333,7 +335,7 @@ class ErlangZ3(cgs.AbstractErlangSolver):
             self.erl.List.is_nil(self.erl.Term.lval(t))
         ])
         # Elaborate the type
-        typ = self.env.lookupType(term["s"])
+        typ = self.env.lookupType(cc.get_symb(term))
         typ.matchNil()
 
     def list_not_lst(self, term):
@@ -343,7 +345,7 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         t = self.decode_term(term)
         self.axs.append(self.erl.Term.is_lst(t) == False)
         # Elaborate the type
-        typ = self.env.lookupType(term["s"])
+        typ = self.env.lookupType(cc.get_symb(term))
         typ.matchNotList()
 
     def match_equal(self, term1, term2):
@@ -354,11 +356,11 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         t2 = self.decode_term(term2)
         self.axs.append(t1 == t2)
         # Elaborate the type
-        if "s" not in term1 and term1 == {"t": cc.JSON_TYPE_LIST, "v": []}:
-            tp = self.env.lookupType(term2["s"])
+        if not cc.is_symb(term1) and term1 == cc.mk_list([]):
+            tp = self.env.lookupType(cc.get_symb(term2))
             tp.matchNil()
-        elif "s" not in term2 and term2 == {"t": cc.JSON_TYPE_LIST, "v": []}:
-            tp = self.env.lookupType(term1["s"])
+        elif not cc.is_symb(term2) and term2 == cc.mk_list([]):
+            tp = self.env.lookupType(cc.get_symb(term1))
             tp.matchNil()
 
     def match_not_equal(self, term1, term2):
@@ -369,11 +371,11 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         t2 = self.decode_term(term2)
         self.axs.append(t1 != t2)
         # Elaborate the type
-        if "s" not in term1 and term1 == {"t": cc.JSON_TYPE_LIST, "v": []}:
-            tp = self.env.lookupType(term2["s"])
+        if not cc.is_symb(term1) and term1 == cc.mk_list([]):
+            tp = self.env.lookupType(cc.get_symb(term2))
             tp.matchNotNil()
-        elif "s" not in term2 and term2 == {"t": cc.JSON_TYPE_LIST, "v": []}:
-            tp = self.env.lookupType(term1["s"])
+        elif not cc.is_symb(term2) and term2 == cc.mk_list([]):
+            tp = self.env.lookupType(cc.get_symb(term1))
             tp.matchNotNil()
 
     def tuple_sz(self, term, num):
@@ -390,7 +392,7 @@ class ErlangZ3(cgs.AbstractErlangSolver):
             t = self.erl.List.tl(t)
         self.axs.append(t == self.erl.List.nil)
         # Elaborate the type
-        typ = self.env.lookupType(term["s"])
+        typ = self.env.lookupType(cc.get_symb(term))
         typ.matchNTuple(n)
 
     def tuple_not_sz(self, term, num):
@@ -409,7 +411,7 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         xs.append(t == self.erl.List.nil)
         self.axs.append(Not(And(*xs)))
         # Elaborate the type
-        typ = self.env.lookupType(term["s"])
+        typ = self.env.lookupType(cc.get_symb(term))
         typ.notMatchNTuple(n)
 
     def tuple_not_tpl(self, term, num):
@@ -419,7 +421,7 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         t = self.decode_term(term)
         self.axs.append(self.erl.Term.is_tpl(t) == False)
         # Elaborate the type
-        typ = self.env.lookupType(term["s"])
+        typ = self.env.lookupType(cc.get_symb(term))
         typ.notMatchTuple()
 
     def empty_bitstr(self, term):
@@ -439,8 +441,8 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         Asserts that: term is a nonempty bitstring.
         """
         T, B = self.erl.Term, self.erl.BitStr
-        s1 = term1["s"]
-        s2 = term2["s"]
+        s1 = cc.get_symb(term1)
+        s2 = cc.get_symb(term2)
         t = self.decode_term(term)
         self.axs.extend([
             T.is_bin(t),
@@ -455,7 +457,7 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         Asserts that: termBitstr == <<cnstValue/size, termRest>>.
         """
         # TODO For now, expects size to be a concrete integer and encodedValue to be an integer.
-        s = termRest["s"]
+        s = cc.get_symb(termRest)
         t = self.bitmatch_const_false_reversed(cnstValue, size, termBitstr)
         self.env.bind(s, t)
 
@@ -488,8 +490,8 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         """
         # TODO For now, expects size to be a concrete integer and term1 to represent an integer.
         T, B = self.erl.Term, self.erl.BitStr
-        s1 = term1["s"]
-        s2 = term2["s"]
+        s1 = cc.get_symb(term1)
+        s2 = cc.get_symb(term2)
         szTerm = self.decode_term(size)
         # Expect size to represent an Integer.
         sz = int(str(simplify(T.ival(szTerm))))
@@ -577,7 +579,7 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         ]
         self.axs.append(Not(And(*xs)))
         # Elaborate the type
-        typ = self.env.lookupType(term["s"])
+        typ = self.env.lookupType(cc.get_symb(term))
         typ.revMatchCons()
 
     def list_empty_reversed(self, term):
@@ -591,7 +593,7 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         ]
         self.axs.append(And(*xs))
         # Elaborate the type
-        typ = self.env.lookupType(term["s"])
+        typ = self.env.lookupType(cc.get_symb(term))
         typ.matchCons()
 
     def list_not_lst_reversed(self, term):
@@ -605,7 +607,7 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         ]
         self.axs.append(And(*xs))
         # Elaborate the type
-        typ = self.env.lookupType(term["s"])
+        typ = self.env.lookupType(cc.get_symb(term))
         typ.matchCons()
 
     def tuple_sz_reversed(self, term, num):
@@ -775,7 +777,7 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         """
         Asserts that: term1 == hd(term2).
         """
-        s = term1["s"]
+        s = cc.get_symb(term1)
         t2 = self.decode_term(term2)
         self.axs.extend([
             self.erl.Term.is_lst(t2),
@@ -783,11 +785,11 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         ])
         self.env.bind(s, self.erl.List.hd(self.erl.Term.lval(t2)))
         # Elaborate the type
-        tp = self.env.lookupType(term2["s"])
+        tp = self.env.lookupType(cc.get_symb(term2))
         tp.matchCons()
         children = tp.getChildren()
         if children != None and len(children) == 2:
-            self.env.bindType(term1["s"], children[0])
+            self.env.bindType(cc.get_symb(term1), children[0])
 
     def head_reversed(self, term1, term2):
         """
@@ -804,7 +806,7 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         """
         Asserts that: term1 == tl(term2).
         """
-        s = term1["s"]
+        s = cc.get_symb(term1)
         t2 = self.decode_term(term2)
         self.axs.extend([
             self.erl.Term.is_lst(t2),
@@ -812,11 +814,11 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         ])
         self.env.bind(s, self.erl.Term.lst(self.erl.List.tl(self.erl.Term.lval(t2))))
         # Elaborate the type
-        tp = self.env.lookupType(term2["s"])
+        tp = self.env.lookupType(cc.get_symb(term2))
         tp.matchCons()
         children = tp.getChildren()
         if children != None and len(children) == 2:
-            self.env.bindType(term1["s"], children[1])
+            self.env.bindType(cc.get_symb(term1), children[1])
 
     def tail_reversed(self, term1, term2):
         """
@@ -835,16 +837,16 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         """
         T = self.erl.Term
         L = self.erl.List
-        s = term["s"]
+        s = cc.get_symb(term)
         t1 = self.decode_term(term1)
         t2 = self.decode_term(term2)
         self.axs.append(T.is_lst(t2))
         self.env.bind(s, T.lst(L.cons(t1, T.lval(t2))))
         # Elaborate the type
-        tpH = self.env.lookupType(term1["s"]) if "s" in term1 else ctp.Type.generateAny()
-        tpT = self.env.lookupType(term2["s"]) if "s" in term2 else ctp.Type.generateAny()
+        tpH = self.env.lookupType(cc.get_symb(term1)) if cc.is_symb(term1) else ctp.Type.generateAny()
+        tpT = self.env.lookupType(cc.get_symb(term2)) if cc.is_symb(term2) else ctp.Type.generateAny()
         tp = ctp.Type.makeCons(tpH, tpT)
-        self.env.bindType(term["s"], tp)
+        self.env.bindType(cc.get_symb(term), tp)
 
     ### Operations on atoms.
 
@@ -852,7 +854,7 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         """
         Asserts that: term = (term1 == '').
         """
-        s = term["s"]
+        s = cc.get_symb(term)
         t1 = self.decode_term(term1)
         self.env.bind(s, If(
             t1 == self.erl.Term.atm(self.erl.Atom.anil),
@@ -866,7 +868,7 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         """
         T = self.erl.Term
         A = self.erl.Atom
-        s = term["s"]
+        s = cc.get_symb(term)
         t1 = self.decode_term(term1)
         self.axs.extend([
             T.is_atm(t1),
@@ -882,7 +884,7 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         """
         T = self.erl.Term
         A = self.erl.Atom
-        s = term["s"]
+        s = cc.get_symb(term)
         t1 = self.decode_term(term1)
         self.axs.extend([
             T.is_atm(t1),
@@ -899,15 +901,15 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         Asserts that: a term is tuple of many terms.
         """
         T, L = self.erl.Term, self.erl.List
-        s, ts = terms[0]["s"], map(self.decode_term, terms[1:])
+        s, ts = cc.get_symb(terms[0]), map(self.decode_term, terms[1:])
         t = L.nil
         for x in reversed(ts):
             t = L.cons(x, t)
         self.env.bind(s, T.tpl(t))
         # Elaborate the type
-        tps = [self.env.lookupType(x["s"]) if "s" in x else ctp.Type.generateAny() for x in terms[1:]]
+        tps = [self.env.lookupType(cc.get_symb(x)) if cc.is_symb(x) else ctp.Type.generateAny() for x in terms[1:]]
         tp = ctp.Type.makeNTuple(len(terms[1:]), tps)
-        self.env.bindType(terms[0]["s"], tp)
+        self.env.bindType(cc.get_symb(terms[0]), tp)
 
     ### Query types.
 
@@ -915,7 +917,7 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         """
         Asserts that: term1 == is_integer(term2).
         """
-        s = term1["s"]
+        s = cc.get_symb(term1)
         t2 = self.decode_term(term2)
         self.env.bind(s, If(
             self.erl.Term.is_int(t2),
@@ -927,7 +929,7 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         """
         Asserts that: term1 == is_atom(term2).
         """
-        s = term1["s"]
+        s = cc.get_symb(term1)
         t2 = self.decode_term(term2)
         self.env.bind(s, If(
             self.erl.Term.is_atm(t2),
@@ -939,7 +941,7 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         """
         Asserts that: term1 == is_float(term2).
         """
-        s = term1["s"]
+        s = cc.get_symb(term1)
         t2 = self.decode_term(term2)
         self.env.bind(s, If(
             self.erl.Term.is_real(t2),
@@ -951,7 +953,7 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         """
         Asserts that: term1 == is_list(term2).
         """
-        s = term1["s"]
+        s = cc.get_symb(term1)
         t2 = self.decode_term(term2)
         self.env.bind(s, If(
             self.erl.Term.is_lst(t2),
@@ -963,7 +965,7 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         """
         Asserts that: term1 == is_tuple(term2).
         """
-        s = term1["s"]
+        s = cc.get_symb(term1)
         t2 = self.decode_term(term2)
         self.env.bind(s, If(
             self.erl.Term.is_tpl(t2),
@@ -975,7 +977,7 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         """
         Asserts that: term1 == is_boolean(term2).
         """
-        s = term1["s"]
+        s = cc.get_symb(term1)
         t2 = self.decode_term(term2)
         self.env.bind(s, If(
             Or(t2 == self.erl.atmTrue, t2 == self.erl.atmFalse),
@@ -987,7 +989,7 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         """
         Asserts that: term1 == is_number(term2).
         """
-        s = term1["s"]
+        s = cc.get_symb(term1)
         t2 = self.decode_term(term2)
         self.env.bind(s, If(
             Or(self.erl.Term.is_real(t2), self.erl.Term.is_int(t2)),
@@ -999,7 +1001,7 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         """
         Asserts that: term1 == is_bitstring(term2).
         """
-        s = term1["s"]
+        s = cc.get_symb(term1)
         t2 = self.decode_term(term2)
         self.env.bind(s, If(
             self.erl.Term.is_bin(t2),
@@ -1012,7 +1014,7 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         Asserts that: tResult == is_function(tFun).
         """
         T, atmTrue, atmFalse = self.erl.Term, self.erl.atmTrue, self.erl.atmFalse
-        sResult = tResult["s"]
+        sResult = cc.get_symb(tResult)
         sFun = self.decode_term(tFun)
         self.env.bind(sResult, If(
             T.is_fun(sFun),
@@ -1025,7 +1027,7 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         Asserts that: tResult == is_function(tFun, tArity).
         """
         T, atmTrue, atmFalse, arity = self.erl.Term, self.erl.atmTrue, self.erl.atmFalse, self.erl.arity
-        sResult = tResult["s"]
+        sResult = cc.get_symb(tResult)
         sFun = self.decode_term(tFun)
         sArity = self.decode_term(tArity)
         self.env.bind(sResult, If(
@@ -1045,7 +1047,7 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         Asserts that: term = term1 + term2.
         """
         T = self.erl.Term
-        s = term["s"]
+        s = cc.get_symb(term)
         t1 = self.decode_term(term1)
         t2 = self.decode_term(term2)
         self.axs.extend([
@@ -1071,7 +1073,7 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         Asserts that: term = term1 - term2.
         """
         T = self.erl.Term
-        s = term["s"]
+        s = cc.get_symb(term)
         t1 = self.decode_term(term1)
         t2 = self.decode_term(term2)
         self.axs.extend([
@@ -1097,7 +1099,7 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         Asserts that: term = term1 * term2.
         """
         T = self.erl.Term
-        s = term["s"]
+        s = cc.get_symb(term)
         t1 = self.decode_term(term1)
         t2 = self.decode_term(term2)
         self.axs.extend([
@@ -1123,7 +1125,7 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         Asserts that: term = term1 / term2.
         """
         T = self.erl.Term
-        s = term["s"]
+        s = cc.get_symb(term)
         t1 = self.decode_term(term1)
         t2 = self.decode_term(term2)
         self.axs.extend([
@@ -1152,7 +1154,7 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         Asserts that: term = term1 // term2.
         """
         T = self.erl.Term
-        s = term["s"]
+        s = cc.get_symb(term)
         t1 = self.decode_term(term1)
         t2 = self.decode_term(term2)
         self.axs.extend([
@@ -1168,7 +1170,7 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         Asserts that: term = term1 % term2.
         """
         T = self.erl.Term
-        s = term["s"]
+        s = cc.get_symb(term)
         t1 = self.decode_term(term1)
         t2 = self.decode_term(term2)
         self.axs.extend([
@@ -1184,7 +1186,7 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         Asserts that: term = - term1.
         """
         T = self.erl.Term
-        s = term["s"]
+        s = cc.get_symb(term)
         t1 = self.decode_term(term1)
         self.axs.append(Or(
             T.is_int(t1), T.is_real(t1)
@@ -1201,7 +1203,7 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         """
         ## FIXME Z3 only support nonlinear polynomial equations. Should look at http://www.cl.cam.ac.uk/~lp15/papers/Arith/.
         T = self.erl.Term
-        s = term["s"]
+        s = cc.get_symb(term)
         t1 = self.decode_term(term1)
         t2 = self.decode_term(term2)
         self.axs.extend([
@@ -1227,7 +1229,7 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         Asserts that: term is term1 truncated.
         """
         T = self.erl.Term
-        s = term["s"]
+        s = cc.get_symb(term)
         t1 = self.decode_term(term1)
         self.axs.append(
             Or(T.is_int(t1), T.is_real(t1))
@@ -1249,7 +1251,7 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         """
         Asserts that: term = (term1 == term2).
         """
-        s = term["s"]
+        s = cc.get_symb(term)
         t1 = self.decode_term(term1)
         t2 = self.decode_term(term2)
         self.env.bind(s, If(
@@ -1262,7 +1264,7 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         """
         Asserts that: term = (term1 =/= term2).
         """
-        s = term["s"]
+        s = cc.get_symb(term)
         t1 = self.decode_term(term1)
         t2 = self.decode_term(term2)
         self.env.bind(s, If(
@@ -1276,7 +1278,7 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         Asserts that: term = (term1 < term2).
         """
         T = self.erl.Term
-        s = term["s"]
+        s = cc.get_symb(term)
         t1 = self.decode_term(term1)
         t2 = self.decode_term(term2)
         self.axs.extend([
@@ -1293,7 +1295,7 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         Asserts that: term = (term1 < term2).
         """
         T = self.erl.Term
-        s = term["s"]
+        s = cc.get_symb(term)
         t1 = self.decode_term(term1)
         t2 = self.decode_term(term2)
         self.axs.extend([
@@ -1312,7 +1314,7 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         Asserts that: term = float(term1).
         """
         T = self.erl.Term
-        s = term["s"]
+        s = cc.get_symb(term)
         t1 = self.decode_term(term1)
         self.axs.append(Or(
             T.is_int(t1),
@@ -1329,24 +1331,24 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         Asserts that: term = list_to_tuple(term1).
         """
         T = self.erl.Term
-        s = term["s"]
+        s = cc.get_symb(term)
         t1 = self.decode_term(term1)
         self.axs.append(T.is_lst(t1))
         self.env.bind(s, T.tpl(T.lval(t1)))
-        typ = self.env.lookupType(term1["s"])
-        self.env.bindType(term["s"], ctp.Type.listToTuple(typ))
+        typ = self.env.lookupType(cc.get_symb(term1))
+        self.env.bindType(cc.get_symb(term), ctp.Type.listToTuple(typ))
 
     def tuple_to_list(self, term, term1):
         """
         Asserts that: term = tuple_to_list(term1).
         """
         T = self.erl.Term
-        s = term["s"]
+        s = cc.get_symb(term)
         t1 = self.decode_term(term1)
         self.axs.append(T.is_tpl(t1))
         self.env.bind(s, T.lst(T.tval(t1)))
-        typ = self.env.lookupType(term1["s"])
-        self.env.bindType(term["s"], ctp.Type.tupleToList(typ))
+        typ = self.env.lookupType(cc.get_symb(term1))
+        self.env.bindType(cc.get_symb(term), ctp.Type.tupleToList(typ))
 
     ### Bogus operations (used for their side-effects in Erlang).
 
@@ -1354,7 +1356,7 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         """
         Asserts that: term == term1 (Identity function).
         """
-        s = term["s"]
+        s = cc.get_symb(term)
         t1 = self.decode_term(term1)
         self.env.bind(s, t1)
 
@@ -1365,7 +1367,7 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         Asserts that: term = term1 & term2.
         """
         T = self.erl.Term
-        s = term["s"]
+        s = cc.get_symb(term)
         t1 = self.decode_term(term1)
         t2 = self.decode_term(term2)
         tmp = self.env.generate_bitvec(self.int2bvSize)
@@ -1409,7 +1411,7 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         Asserts that: term = term1 ^ term2.
         """
         T = self.erl.Term
-        s = term["s"]
+        s = cc.get_symb(term)
         t1 = self.decode_term(term1)
         t2 = self.decode_term(term2)
         tmp = self.env.generate_bitvec(self.int2bvSize)
@@ -1453,7 +1455,7 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         Asserts that: term = term1 | term2.
         """
         T = self.erl.Term
-        s = term["s"]
+        s = cc.get_symb(term)
         t1 = self.decode_term(term1)
         t2 = self.decode_term(term2)
         tmp = self.env.generate_bitvec(self.int2bvSize)
@@ -1496,9 +1498,10 @@ class ErlangZ3(cgs.AbstractErlangSolver):
     # Define Type Specs
     # ----------------------------------------------------------------------
 
-    def parseSpecClause(self, cl):
+    def parseSpecClause(self, clause):
         pms = self.env.params
-        for pm, tp in zip(pms, cl["p"]):
+        paramTypes = cc.get_param_types_of_clause(clause)
+        for pm, tp in zip(pms, paramTypes):
             s = self.env.lookup(pm)
             self.env.bindType(pm, ctp.Type(tp))
 
@@ -1523,39 +1526,38 @@ class ErlangZ3(cgs.AbstractErlangSolver):
     def typeToAxioms(self, s, tp):
         T, L = self.erl.Term, self.erl.List
         actType = tp.getType()
-        arg = actType["a"] if "a" in actType else None
         if tp.isAny():
-            return self.anyToAxioms(s, arg)
+            return self.anyToAxioms(s)
         elif tp.isAtom():
-            return self.atomToAxioms(s, arg)
+            return self.atomToAxioms(s)
         elif tp.isAtomLit():
-            return self.atomLitToAxioms(s, arg)
+            return self.atomLitToAxioms(s, cc.get_literal_from_atomlit(actType))
         elif tp.isFloat():
-            return self.floatToAxioms(s, arg)
+            return self.floatToAxioms(s)
         elif tp.isInteger():
-            return self.integerToAxioms(s, arg)
+            return self.integerToAxioms(s)
         elif tp.isIntegerLit():
-            return self.integerLitToAxioms(s, arg)
+            return self.integerLitToAxioms(s, actType.literal)
         elif tp.isList():
-            return self.nilToAxioms(s, arg)  # Use the base case.
+            return self.nilToAxioms(s)  # Use the base case.
         elif tp.isNil():
-            return self.nilToAxioms(s, arg)
+            return self.nilToAxioms(s)
         elif tp.isTuple():
-            return self.tupleToAxioms(s, arg)
+            return self.tupleToAxioms(s)
         elif tp.isTupleDet():
-            return self.tupleDetToAxioms(s, arg)
+            return self.tupleDetToAxioms(s, cc.get_inner_types_from_tupledet(actType))
         elif tp.isUnion():
-            return self.unionToAxioms(s, arg)
+            return self.unionToAxioms(s, cc.get_inner_types_from_union(actType))
         elif tp.isRange():
-            return self.rangeToAxioms(s, arg)
+            return self.rangeToAxioms(s, cc.get_range_bounds_from_range(actType))
         elif tp.isNonemptyList():
-            return self.nonEmptyListToAxioms(s, arg)
+            return self.nonEmptyListToAxioms(s, cc.get_inner_type_from_nonempty_list(actType))
         elif tp.isBitstring():
-            return self.bitstringToAxioms(s, arg)
+            return self.bitstringToAxioms(s, cc.get_segment_size_from_bitstring(actType))
         elif tp.isGenericFun():
-            return self.genericFunToAxioms(s, arg, tp.unconstrainedFun())
+            return self.genericFunToAxioms(s, cc.get_funsig_from_fun(actType), tp.unconstrainedFun())
         elif tp.isFun():
-            return self.funToAxioms(s, arg, tp.unconstrainedFun())
+            return self.funToAxioms(s, cc.get_funsig_from_fun(actType), tp.unconstrainedFun())
         elif tp.isCons():
             axs = [T.is_lst(s), L.is_cons(T.lval(s))]
             children = tp.getChildren()
@@ -1579,34 +1581,34 @@ class ErlangZ3(cgs.AbstractErlangSolver):
             axs.append(L.is_nil(t))
             return And(*axs)
 
-    def anyToAxioms(self, s, tp):
+    def anyToAxioms(self, s):
         return None
 
-    def atomToAxioms(self, s, arg):
+    def atomToAxioms(self, s):
         return self.erl.Term.is_atm(s)
 
     def atomLitToAxioms(self, s, arg):
         atm = self.decode_term(arg)
         return (s == atm)
 
-    def floatToAxioms(self, s, arg):
+    def floatToAxioms(self, s):
         return self.erl.Term.is_real(s)
 
-    def integerToAxioms(self, s, arg):
+    def integerToAxioms(self, s):
         return self.erl.Term.is_int(s)
 
     def integerLitToAxioms(self, s, arg):
         i = self.decode_term(arg)
         return (s == i)
 
-    def nilToAxioms(self, s, arg):
+    def nilToAxioms(self, s):
         T, L = self.erl.Term, self.erl.List
         return And(
             T.is_lst(s),
             L.is_nil(T.lval(s))
         )
 
-    def tupleToAxioms(self, s, arg):
+    def tupleToAxioms(self, s):
         return self.erl.Term.is_tpl(s)
 
     def tupleDetToAxioms(self, s, types):
@@ -1633,12 +1635,10 @@ class ErlangZ3(cgs.AbstractErlangSolver):
     def rangeToAxioms(self, s, limits):
         T = self.erl.Term
         axs = [T.is_int(s)]
-        if not ("tp" in limits[0] and limits[0]["tp"] == cc.JSON_ERLTYPE_INTEGER):
-            l1 = self.decode_term(limits[0])
-            axs.append(T.ival(s) >= T.ival(l1))
-        if not ("tp" in limits[1] and limits[1]["tp"] == cc.JSON_ERLTYPE_INTEGER):
-            l2 = self.decode_term(limits[1])
-            axs.append(T.ival(s) <= T.ival(l2))
+        if cc.has_lower_bound(limits):
+            axs.append(T.ival(s) >= cc.get_lower_bound(limits))
+        if cc.has_upper_bound(limits):
+            axs.append(T.ival(s) <= cc.get_upper_bound(limits))
         return And(*axs)
 
     def nonEmptyListToAxioms(self, s, typ):
@@ -1646,10 +1646,10 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         ax = self.typeDeclToAxioms(s, typ)
         return And(ax, L.is_cons(T.lval(s)), L.is_nil(L.tl(T.lval(s))))  # Use base case.
 
-    def bitstringToAxioms(self, s, args):
+    def bitstringToAxioms(self, s, segsize):
         T = self.erl.Term
-        m = args[0]['v']  # Assume it's an integer
-        n = args[1]['v']  # Assume it's an integer
+        m = int(segsize.m)
+        n = int(segsize.n)
         if m == 0 and n == 1:
             return T.is_bin(s)
         elif m == 0:
@@ -1660,56 +1660,67 @@ class ErlangZ3(cgs.AbstractErlangSolver):
             sz = simplify(T.bsz(s))
             return And(T.is_bin(s), sz >= m, (sz - m) % n == 0)
 
-    def genericFunToAxioms(self, s, args, unconstrained = True):
+    def genericFunToAxioms(self, s, funsig, unconstrained = True):
         axs = [self.erl.Term.is_fun(s)]
         if unconstrained:
-            axs.extend(self.unconstraintedFunToAxioms(s, args))
+            axs.extend(self.unconstraintedFunToAxioms(s, funsig))
         return And(*axs) if len(axs) > 1 else axs[0]
 
-    def funToAxioms(self, s, args, unconstrained = True):
+    def funToAxioms(self, s, funsig, unconstrained = True):
         T, arity, = self.erl.Term, self.erl.arity
         axs = [
             T.is_fun(s),
-            arity(T.fval(s)) == len(args) - 1
+            arity(T.fval(s)) == cc.get_complete_funsig_arity(funsig)
         ]
         if unconstrained:
-            axs.extend(self.unconstraintedFunToAxioms(s, args))
+            axs.extend(self.unconstraintedFunToAxioms(s, funsig))
         return And(*axs)
 
     def typeDeclToAxioms(self, s, tp):
-        opts = {
-            cc.JSON_ERLTYPE_ANY: self.anyToAxioms,
-            cc.JSON_ERLTYPE_ATOM: self.atomToAxioms,
-            cc.JSON_ERLTYPE_ATOMLIT: self.atomLitToAxioms,
-            cc.JSON_ERLTYPE_FLOAT: self.floatToAxioms,
-            cc.JSON_ERLTYPE_INTEGER: self.integerToAxioms,
-            cc.JSON_ERLTYPE_INTEGERLIT: self.integerLitToAxioms,
-            cc.JSON_ERLTYPE_LIST: self.nilToAxioms,
-            cc.JSON_ERLTYPE_NIL: self.nilToAxioms,
-            cc.JSON_ERLTYPE_TUPLE: self.tupleToAxioms,
-            cc.JSON_ERLTYPE_TUPLEDET: self.tupleDetToAxioms,
-            cc.JSON_ERLTYPE_UNION: self.unionToAxioms,
-            cc.JSON_ERLTYPE_RANGE: self.rangeToAxioms,
-            cc.JSON_ERLTYPE_NONEMPTY_LIST: self.nonEmptyListToAxioms,
-            cc.JSON_ERLTYPE_BITSTRING: self.bitstringToAxioms,
-            cc.JSON_ERLTYPE_GENERIC_FUN: self.genericFunToAxioms,
-            cc.JSON_ERLTYPE_FUN: self.funToAxioms
-        }
-        tpcode = tp["tp"]
-        arg = tp["a"] if "a" in tp else None
-        return opts[tpcode](s, arg)
+        if cc.is_type_any(tp):
+            return self.anyToAxioms(s)
+        elif cc.is_type_atom(tp):
+            return self.atomToAxioms(s)
+        elif cc.is_type_atomlit(tp):
+            return self.atomLitToAxioms(s, cc.get_literal_from_atomlit(tp))
+        elif cc.is_type_float(tp):
+            return self.floatToAxioms(s)
+        elif cc.is_type_integer(tp):
+            return self.integerToAxioms(s)
+        elif cc.is_type_integerlit(tp):
+            return self.integerLitToAxioms(s, cc.get_literal_from_integerlit(tp))
+        elif cc.is_type_list(tp):
+            return self.nilToAxioms(s)  # Use the base case.
+        elif cc.is_type_nil(tp):
+            return self.nilToAxioms(s)
+        elif cc.is_type_tuple(tp):
+            return self.tupleToAxioms(s)
+        elif cc.is_type_tupledet(tp):
+            return self.tupleDetToAxioms(s, cc.get_inner_types_from_tupledet(tp))
+        elif cc.is_type_union(tp):
+            return self.unionToAxioms(s, cc.get_inner_types_from_union(tp))
+        elif cc.is_type_range(tp):
+            return self.rangeToAxioms(s, cc.get_range_bounds_from_range(tp))
+        elif cc.is_type_nonempty_list(tp):
+            return self.nonEmptyListToAxioms(s, cc.get_inner_type_from_nonempty_list(tp))
+        elif cc.is_type_bitstring(tp):
+            return self.bitstringToAxioms(s, cc.get_segment_size_from_bitstring(tp))
+        elif cc.is_type_generic_fun(tp):
+            return self.genericFunToAxioms(s, cc.get_funsig_from_fun(tp))
+        elif cc.is_type_complete_fun(tp):
+            return self.funToAxioms(s, cc.get_funsig_from_fun(tp))
 
-    def unconstraintedFunToAxioms(self, sFun, args):
+    def unconstraintedFunToAxioms(self, sFun, funsig):
         T, L, env, fmap = self.erl.Term, self.erl.List, self.env, self.erl.fmap
-        tRet = args[-1]
+        tRet = cc.get_rettype_from_funsig(funsig)
         sRet = env.justFreshVar(T)
         axs = []
         axRet = self.typeDeclToAxioms(sRet, tRet)
         if axRet != None:
             axs.append(axRet)
         # Funs
-        if len(args) > 1:
-            tArgs = args[:-1]
+        if cc.is_complete_funsig(funsig):
+            tArgs = cc.get_parameters_from_complete_funsig(funsig)
             sArgs = L.nil
             for tArg in reversed(tArgs):
                 sArg = env.justFreshVar(T)
@@ -1733,127 +1744,133 @@ def test_model():
     T, L, A, B = erlz3.erl.Term, erlz3.erl.List, erlz3.erl.Atom, erlz3.erl.BitStr
     s1, s2, s3, s4 = "0.0.0.39316", "0.0.0.39317", "0.0.0.39318", "0.0.0.39319"
     expected = {
-        s1: {"t":cc.JSON_TYPE_INT,"v":42},
-        s2: {"t":cc.JSON_TYPE_ATOM,"v":[111,107]},
-        s3: {"t":cc.JSON_TYPE_LIST,"v":[{"t":cc.JSON_TYPE_BITSTRING,"v":[]},{"t":cc.JSON_TYPE_INT,"v":2}]},
-        s4: {"t":cc.JSON_TYPE_ANY}
+        s1: cc.mk_int(42),
+        s2: cc.mk_atom([111,107]),
+        s3: cc.mk_list([cc.mk_bitstring([]), cc.mk_int(2)]),
+        s4: cc.mk_any()
     }
-    [p1, p2, p3, p4] = erlz3.mfa_params({"s":s1}, {"s":s2}, {"s":s3}, {"s":s4})
+    [p1, p2, p3, p4] = erlz3.mfa_params(cc.mk_symb(s1), cc.mk_symb(s2), cc.mk_symb(s3), cc.mk_symb(s4))
     erlz3.axs.extend([
         p1 == T.int(42),
         p2 == T.atm(A.acons(111,A.acons(107,A.anil))),
         p3 == T.lst(L.cons(T.bin(0, B.bnil),L.cons(T.int(2),L.nil)))
     ])
     erlz3.add_axioms()
-    assert erlz3.solve() == cc.SOLVER_STATUS_SAT, "Model in unsatisfiable"
+    assert cc.is_sat(erlz3.solve()), "Model in unsatisfiable"
     model = erlz3.encode_model()
-    assert model != [], "The model is empty"
-    for smb, v in model:
-        s = smb["s"]
+    for entry in cc.get_model_entries(model):
+        symb = entry.var
+        assert cc.is_symb(symb)
+        s = cc.get_symb(symb)
+        v = entry.value
         assert expected[s] == v, "{} is {} instead of {}".format(s, expected[s], v)
 
 def test_commands():
-    ss = [{"s":"0.0.0.{0:05d}".format(i)} for i in range(50)]
-    anyTerm = {"t":cc.JSON_TYPE_ANY}
-    trueTerm = {"t":cc.JSON_TYPE_ATOM,"v":[116,114,117,101]}
-    falseTerm = {"t":cc.JSON_TYPE_ATOM,"v":[102,97,108,115,101]}
+    from log_entry_pb2 import LogEntry
+    ss = [cc.mk_symb("0.0.0.{0:05d}".format(i)) for i in range(50)]
+    anyTerm = cc.mk_any()
+    trueTerm = cc.mk_atom([116,114,117,101])
+    falseTerm = cc.mk_atom([102,97,108,115,101])
     cmds = [
         ## Defining ss[0]
-        ({"c":cc.OP_IS_INTEGER, "a":[ss[2], ss[0]]}, False),
-        ({"c":cc.OP_MATCH_EQUAL_TRUE,"a":[deepcopy(trueTerm), ss[2]]}, False),
-        ({"c":cc.OP_PLUS, "a":[ss[3], ss[0], {"t":cc.JSON_TYPE_INT,"v":1}]}, False),
-        ({"c":cc.OP_EQUAL, "a":[ss[4], ss[3], {"t":cc.JSON_TYPE_INT,"v":3}]}, False),
-        ({"c":cc.OP_GUARD_TRUE, "a":[ss[4]]}, False),
-        ({"c":cc.OP_GUARD_TRUE, "a":[deepcopy(falseTerm)]}, True),
+        (cc.mk_log_entry(LogEntry.OP_IS_INTEGER, [ss[2], ss[0]]), False),
+        (cc.mk_log_entry(LogEntry.OP_MATCH_EQUAL_TRUE, [deepcopy(trueTerm), ss[2]]), False),
+        (cc.mk_log_entry(LogEntry.OP_PLUS, [ss[3], ss[0], cc.mk_int(1)]), False),
+        (cc.mk_log_entry(LogEntry.OP_EQUAL, [ss[4], ss[3], cc.mk_int(3)]), False),
+        (cc.mk_log_entry(LogEntry.OP_GUARD_TRUE, [ss[4]]), False),
+        (cc.mk_log_entry(LogEntry.OP_GUARD_TRUE, [deepcopy(falseTerm)]), True),
         ## Defining ss[1]
-        ({"c":cc.OP_TUPLE_NOT_TPL, "a":[ss[1], {"t":cc.JSON_TYPE_INT,"v":1}]}, False),
-        ({"c":cc.OP_TUPLE_SZ, "a":[ss[1], {"t":cc.JSON_TYPE_INT,"v":1}]}, True),
-        ({"c":cc.OP_IS_FLOAT, "a":[ss[5], ss[1]]}, False),
-        ({"c":cc.OP_GUARD_FALSE, "a":[ss[5]]}, True),
-        ({"c":cc.OP_RDIV, "a":[ss[6], ss[1], {"t":cc.JSON_TYPE_INT,"v":2}]}, False),
-        ({"c":cc.OP_UNARY, "a":[ss[7], ss[6]]}, False),
-        ({"c":cc.OP_MATCH_EQUAL_TRUE, "a":[ss[7], {"t":cc.JSON_TYPE_FLOAT,"v":-10.25}]}, False),
+        (cc.mk_log_entry(LogEntry.OP_TUPLE_NOT_TPL, [ss[1], cc.mk_int(1)]), False),
+        (cc.mk_log_entry(LogEntry.OP_TUPLE_SZ, [ss[1], cc.mk_int(1)]), True),
+        (cc.mk_log_entry(LogEntry.OP_IS_FLOAT, [ss[5], ss[1]]), False),
+        (cc.mk_log_entry(LogEntry.OP_GUARD_FALSE, [ss[5]]), True),
+        (cc.mk_log_entry(LogEntry.OP_RDIV, [ss[6], ss[1], cc.mk_int(2)]), False),
+        (cc.mk_log_entry(LogEntry.OP_UNARY, [ss[7], ss[6]]), False),
+        (cc.mk_log_entry(LogEntry.OP_MATCH_EQUAL_TRUE, [ss[7], cc.mk_float(-10.25)]), False),
         ## Defining ss[8]
-        ({"c":cc.OP_IS_ATOM, "a":[ss[9], ss[8]]}, False),
-        ({"c":cc.OP_ATOM_NIL, "a":[ss[10], ss[8]]}, False),
-        ({"c":cc.OP_GUARD_FALSE, "a":[ss[10]]}, False),
-        ({"c":cc.OP_ATOM_HEAD, "a":[ss[11], ss[8]]}, False),
-        ({"c":cc.OP_ATOM_TAIL, "a":[ss[12], ss[8]]}, False),
-        ({"c":cc.OP_MINUS, "a":[ss[13], ss[11], {"t":cc.JSON_TYPE_INT,"v":10}]}, False),
-        ({"c":cc.OP_UNEQUAL, "a":[ss[14], ss[13], {"t":cc.JSON_TYPE_INT,"v":101}]}, False),
-        ({"c":cc.OP_MATCH_EQUAL_TRUE, "a":[ss[14], deepcopy(trueTerm)]}, True),
-        ({"c":cc.OP_MATCH_EQUAL_FALSE, "a":[ss[12], {"t":cc.JSON_TYPE_ATOM,"v":[107]}]}, True),
+        (cc.mk_log_entry(LogEntry.OP_IS_ATOM, [ss[9], ss[8]]), False),
+        (cc.mk_log_entry(LogEntry.OP_ATOM_NIL, [ss[10], ss[8]]), False),
+        (cc.mk_log_entry(LogEntry.OP_GUARD_FALSE, [ss[10]]), False),
+        (cc.mk_log_entry(LogEntry.OP_ATOM_HEAD, [ss[11], ss[8]]), False),
+        (cc.mk_log_entry(LogEntry.OP_ATOM_TAIL, [ss[12], ss[8]]), False),
+        (cc.mk_log_entry(LogEntry.OP_MINUS, [ss[13], ss[11], cc.mk_int(10)]), False),
+        (cc.mk_log_entry(LogEntry.OP_UNEQUAL, [ss[14], ss[13], cc.mk_int(101)]), False),
+        (cc.mk_log_entry(LogEntry.OP_MATCH_EQUAL_TRUE, [ss[14], deepcopy(trueTerm)]), True),
+        (cc.mk_log_entry(LogEntry.OP_MATCH_EQUAL_FALSE, [ss[12], cc.mk_atom([107])]), True),
         ## Defining ss[15]
-        ({"c":cc.OP_IS_LIST, "a":[ss[16], ss[15]]}, False),
-        ({"c":cc.OP_GUARD_TRUE, "a":[ss[16]]}, False),
-        ({"c":cc.OP_LIST_NON_EMPTY, "a":[ss[15]]}, False),
-        ({"c":cc.OP_LIST_EMPTY, "a":[ss[15]]}, True),
-        ({"c":cc.OP_LIST_NOT_LST, "a":[ss[15]]}, True),
-        ({"c":cc.OP_HD, "a":[ss[17], ss[15]]}, False),
-        ({"c":cc.OP_TL, "a":[ss[18], ss[15]]}, False),
-        ({"c":cc.OP_LIST_EMPTY, "a":[ss[18]]}, False),
-        ({"c":cc.OP_LIST_NON_EMPTY, "a":[ss[18]]}, True),
-        ({"c":cc.OP_IS_BOOLEAN, "a":[ss[19], ss[17]]}, False),
-        ({"c":cc.OP_MATCH_EQUAL_FALSE, "a":[ss[19], deepcopy(falseTerm)]}, False),
-        ({"c":cc.OP_GUARD_TRUE, "a":[ss[17]]}, False),
-        ({"c":cc.OP_LIST_NOT_LST, "a":[ss[17]]}, False),
-        ({"c":cc.OP_TUPLE_SZ, "a":[ss[17], {"t":cc.JSON_TYPE_INT,"v":2}]}, True),
+        (cc.mk_log_entry(LogEntry.OP_IS_LIST, [ss[16], ss[15]]), False),
+        (cc.mk_log_entry(LogEntry.OP_GUARD_TRUE, [ss[16]]), False),
+        (cc.mk_log_entry(LogEntry.OP_LIST_NON_EMPTY, [ss[15]]), False),
+        (cc.mk_log_entry(LogEntry.OP_LIST_EMPTY, [ss[15]]), True),
+        (cc.mk_log_entry(LogEntry.OP_LIST_NOT_LST, [ss[15]]), True),
+        (cc.mk_log_entry(LogEntry.OP_HD, [ss[17], ss[15]]), False),
+        (cc.mk_log_entry(LogEntry.OP_TL, [ss[18], ss[15]]), False),
+        (cc.mk_log_entry(LogEntry.OP_LIST_EMPTY, [ss[18]]), False),
+        (cc.mk_log_entry(LogEntry.OP_LIST_NON_EMPTY, [ss[18]]), True),
+        (cc.mk_log_entry(LogEntry.OP_IS_BOOLEAN, [ss[19], ss[17]]), False),
+        (cc.mk_log_entry(LogEntry.OP_MATCH_EQUAL_FALSE, [ss[19], deepcopy(falseTerm)]), False),
+        (cc.mk_log_entry(LogEntry.OP_GUARD_TRUE, [ss[17]]), False),
+        (cc.mk_log_entry(LogEntry.OP_LIST_NOT_LST, [ss[17]]), False),
+        (cc.mk_log_entry(LogEntry.OP_TUPLE_SZ, [ss[17], cc.mk_int(2)]), True),
         ## Defining ss[20]
-        ({"c":cc.OP_IS_TUPLE, "a":[ss[21], ss[20]]}, False),
-        ({"c":cc.OP_GUARD_TRUE, "a":[ss[21]]}, False),
-        ({"c":cc.OP_TUPLE_SZ, "a":[ss[20], {"t":cc.JSON_TYPE_INT,"v":2}]}, False),
-        ({"c":cc.OP_TUPLE_NOT_SZ, "a":[ss[20], {"t":cc.JSON_TYPE_INT,"v":2}]}, True),
-        ({"c":cc.OP_UNFOLD_TUPLE, "a":[ss[20], ss[22], ss[23]]}, False),
-        ({"c":cc.OP_MATCH_EQUAL_TRUE, "a":[ss[22], {"t":cc.JSON_TYPE_INT,"v":42}]}, False),
-        ({"c":cc.OP_TIMES, "a":[ss[24], ss[23], {"t":cc.JSON_TYPE_INT,"v":2}]}, False),
-        ({"c":cc.OP_MATCH_EQUAL_TRUE, "a":[ss[24], {"t":cc.JSON_TYPE_INT,"v":10}]}, False),
-        ({"c":cc.OP_IS_NUMBER, "a":[ss[25], ss[24]]}, False),
-        ({"c":cc.OP_GUARD_TRUE, "a":[ss[25]]}, False),
-        ({"c":cc.OP_TUPLE_NOT_TPL, "a":[ss[20], {"t":cc.JSON_TYPE_INT,"v":2}]}, True),
-        ({"c":cc.OP_FLOAT, "a":[ss[26], ss[22]]}, False),
-        ({"c":cc.OP_MATCH_EQUAL_TRUE, "a":[ss[26], {"t":cc.JSON_TYPE_FLOAT,"v":42.0}]}, False),
-        ({"c":cc.OP_BOGUS, "a":[ss[26], ss[26]]}, False),
+        (cc.mk_log_entry(LogEntry.OP_IS_TUPLE, [ss[21], ss[20]]), False),
+        (cc.mk_log_entry(LogEntry.OP_GUARD_TRUE, [ss[21]]), False),
+        (cc.mk_log_entry(LogEntry.OP_TUPLE_SZ, [ss[20], cc.mk_int(2)]), False),
+        (cc.mk_log_entry(LogEntry.OP_TUPLE_NOT_SZ, [ss[20], cc.mk_int(2)]), True),
+        (cc.mk_log_entry(LogEntry.OP_UNFOLD_TUPLE, [ss[20], ss[22], ss[23]]), False),
+        (cc.mk_log_entry(LogEntry.OP_MATCH_EQUAL_TRUE, [ss[22], cc.mk_int(42)]), False),
+        (cc.mk_log_entry(LogEntry.OP_TIMES, [ss[24], ss[23], cc.mk_int(2)]), False),
+        (cc.mk_log_entry(LogEntry.OP_MATCH_EQUAL_TRUE, [ss[24], cc.mk_int(10)]), False),
+        (cc.mk_log_entry(LogEntry.OP_IS_NUMBER, [ss[25], ss[24]]), False),
+        (cc.mk_log_entry(LogEntry.OP_GUARD_TRUE, [ss[25]]), False),
+        (cc.mk_log_entry(LogEntry.OP_TUPLE_NOT_TPL, [ss[20], cc.mk_int(2)]), True),
+        (cc.mk_log_entry(LogEntry.OP_FLOAT, [ss[26], ss[22]]), False),
+        (cc.mk_log_entry(LogEntry.OP_MATCH_EQUAL_TRUE, [ss[26], cc.mk_float(42.0)]), False),
+        (cc.mk_log_entry(LogEntry.OP_BOGUS, [ss[26], ss[26]]), False),
         ## Defining ss[27]
-        ({"c":cc.OP_IDIV_NAT, "a":[ss[28], {"t":cc.JSON_TYPE_INT,"v":5}, {"t":cc.JSON_TYPE_INT,"v":2}]}, False),
-        ({"c":cc.OP_REM_NAT, "a":[ss[29], {"t":cc.JSON_TYPE_INT,"v":5}, {"t":cc.JSON_TYPE_INT,"v":2}]}, False),
-        ({"c":cc.OP_PLUS, "a":[ss[30], ss[28], ss[29]]}, False),
-        ({"c":cc.OP_MATCH_EQUAL_TRUE, "a":[ss[30], {"t":cc.JSON_TYPE_INT,"v":3}]}, False),
-        ({"c":cc.OP_MATCH_EQUAL_TRUE, "a":[ss[27], ss[30]]}, False),
-        ({"c":cc.OP_LT_INT, "a":[ss[31], {"t":cc.JSON_TYPE_INT,"v":2}, ss[27]]}, False),
-        ({"c":cc.OP_GUARD_TRUE, "a":[ss[31]]}, False),
-        ({"c":cc.OP_LT_FLOAT, "a":[ss[32], {"t":cc.JSON_TYPE_FLOAT,"v":3.14}, {"t":cc.JSON_TYPE_FLOAT,"v":1.42}]}, False),
-        ({"c":cc.OP_GUARD_FALSE, "a":[ss[32]]}, False),
+        (cc.mk_log_entry(LogEntry.OP_IDIV_NAT, [ss[28], cc.mk_int(5), cc.mk_int(2)]), False),
+        (cc.mk_log_entry(LogEntry.OP_REM_NAT, [ss[29], cc.mk_int(5), cc.mk_int(2)]), False),
+        (cc.mk_log_entry(LogEntry.OP_PLUS, [ss[30], ss[28], ss[29]]), False),
+        (cc.mk_log_entry(LogEntry.OP_MATCH_EQUAL_TRUE, [ss[30], cc.mk_int(3)]), False),
+        (cc.mk_log_entry(LogEntry.OP_MATCH_EQUAL_TRUE, [ss[27], ss[30]]), False),
+        (cc.mk_log_entry(LogEntry.OP_LT_INT, [ss[31], cc.mk_int(2), ss[27]]), False),
+        (cc.mk_log_entry(LogEntry.OP_GUARD_TRUE, [ss[31]]), False),
+        (cc.mk_log_entry(LogEntry.OP_LT_FLOAT, [ss[32], cc.mk_float(3.14), cc.mk_float(1.42)]), False),
+        (cc.mk_log_entry(LogEntry.OP_GUARD_FALSE, [ss[32]]), False),
         ## Defining ss[33]
-        ({"c":cc.OP_UNFOLD_LIST, "a":[ss[33], ss[34], ss[35]]}, False),
-        ({"c":cc.OP_TCONS, "a":[ss[36], ss[34], ss[35]]}, False),
-        ({"c":cc.OP_LIST_TO_TUPLE, "a":[ss[36], ss[33]]}, False),
-        ({"c":cc.OP_CONS, "a":[ss[37], ss[34], ss[35]]}, False),
-        ({"c":cc.OP_MATCH_EQUAL_TRUE, "a":[ss[35], {"t":cc.JSON_TYPE_LIST,"v":[]}]}, False),
-        ({"c":cc.OP_MATCH_EQUAL_TRUE, "a":[ss[34], {"t":cc.JSON_TYPE_INT,"v":2}]}, False),
+        (cc.mk_log_entry(LogEntry.OP_UNFOLD_LIST, [ss[33], ss[34], ss[35]]), False),
+        (cc.mk_log_entry(LogEntry.OP_TCONS, [ss[36], ss[34], ss[35]]), False),
+        (cc.mk_log_entry(LogEntry.OP_LIST_TO_TUPLE, [ss[36], ss[33]]), False),
+        (cc.mk_log_entry(LogEntry.OP_CONS, [ss[37], ss[34], ss[35]]), False),
+        (cc.mk_log_entry(LogEntry.OP_MATCH_EQUAL_TRUE, [ss[35], cc.mk_list([])]), False),
+        (cc.mk_log_entry(LogEntry.OP_MATCH_EQUAL_TRUE, [ss[34], cc.mk_int(2)]), False),
         ## Defining ss[38]
-        ({"c":cc.OP_MAKE_BITSTR, "a":[ss[39], ss[38], {"t":cc.JSON_TYPE_INT,"v":3}]}, False),
-        ({"c":cc.OP_MATCH_EQUAL_TRUE, "a":[ss[39], {"t":cc.JSON_TYPE_BITSTRING,"v":[1,0,1]}]}, False),
+        (cc.mk_log_entry(LogEntry.OP_MAKE_BITSTR, [ss[39], ss[38], cc.mk_int(3)]), False),
+        (cc.mk_log_entry(LogEntry.OP_MATCH_EQUAL_TRUE, [ss[39], cc.mk_bitstring([True,False,True])]), False)
     ]
     expected = {
-        ss[0]["s"]: {"t":cc.JSON_TYPE_INT,"v":2},
-        ss[1]["s"]: {"t":cc.JSON_TYPE_FLOAT,"v":20.5},
-        ss[8]["s"]: {"t":cc.JSON_TYPE_ATOM,"v":[111,107]},
-        ss[15]["s"]: {"t":cc.JSON_TYPE_LIST,"v":[deepcopy(trueTerm)]},
-        ss[20]["s"]: {"t":cc.JSON_TYPE_TUPLE,"v":[{"t":cc.JSON_TYPE_INT,"v":42}, {"t":cc.JSON_TYPE_INT,"v":5}]},
-        ss[27]["s"]: {"t":cc.JSON_TYPE_INT,"v":3},
-        ss[33]["s"]: {"t":cc.JSON_TYPE_LIST,"v":[{"t":cc.JSON_TYPE_INT,"v":2}, {"t":cc.JSON_TYPE_LIST,"v":[]}]},
-        ss[38]["s"]: {"t":cc.JSON_TYPE_INT,"v":5},
+        cc.get_symb(ss[0]): cc.mk_int(2),
+        cc.get_symb(ss[1]): cc.mk_float(20.5),
+        cc.get_symb(ss[8]): cc.mk_atom([111,107]),
+        cc.get_symb(ss[15]): cc.mk_list([deepcopy(trueTerm)]),
+        cc.get_symb(ss[20]): cc.mk_tuple([cc.mk_int(42), cc.mk_int(5)]),
+        cc.get_symb(ss[27]): cc.mk_int(3),
+        cc.get_symb(ss[33]): cc.mk_list([cc.mk_int(2), cc.mk_list([])]),
+        cc.get_symb(ss[38]): cc.mk_int(5)
     }
     erlz3 = ErlangZ3()
     erlz3.mfa_params(ss[0], ss[1], ss[8], ss[15], ss[20], ss[27], ss[33], ss[38])
     for cmd, rvs in cmds:
-        erlz3.command_toSolver(cmd["c"], cmd, rvs)
+        erlz3.command_toSolver(cmd, rvs)
     erlz3.add_axioms()
-    assert erlz3.solve() == cc.SOLVER_STATUS_SAT, "Model in unsatisfiable"
+    assert cc.is_sat(erlz3.solve()), "Model in unsatisfiable"
     model = erlz3.encode_model()
-    assert model != [], "The model is empty"
-    for smb, v in model:
-        assert v == expected[smb["s"]], "{} is {} instead of {}".format(smb["s"], v, expected[smb["s"]])
+    for entry in cc.get_model_entries(model):
+        smb = entry.var
+        assert cc.is_symb(smb), "Expected symbolic var but found value"
+        s = cc.get_symb(smb)
+        v = entry.value
+        assert v == expected[s], "{} is {} instead of {}".format(s, v, expected[s])
 
 if __name__ == '__main__':
     import json

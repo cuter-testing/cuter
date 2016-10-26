@@ -21,6 +21,7 @@ message ErlangTerm {
         FUN = 10;
         SYMBOLIC_VARIABLE = 11;
         SUBTERM = 12;
+        ANY = 13;
     }
 
     /**

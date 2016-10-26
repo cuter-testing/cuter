@@ -3,14 +3,16 @@
 -module(cuter_serial).
 
 -export([from_term/1, to_term/1]).
--export([solver_command/1, solver_command/2]).
--export([to_log_entry/2, from_log_entry/1]).
+-export([solver_command/1, solver_command/2, from_solver_response/1]).
+-export([to_log_entry/4, from_log_entry/1]).
 
 -include("include/cuter_macros.hrl").
 -include("include/cuter_types.hrl").
 -include("include/erlang_term.hrl").
 -include("include/solver_command.hrl").
+-include("include/solver_response.hrl").
 -include("include/log_entry.hrl").
+-include("include/spec.hrl").
 
 -type erlang_term() :: #'ErlangTerm'{}.
 -type supported_term() :: atom() | bitstring() | pid() | reference() | list()
@@ -29,7 +31,7 @@ from_term(Term) ->
   erlang_term:encode_msg(Msg).
 
 %% De-serialize an Erlang term from binary data.
--spec to_term(binary()) -> supported_term() | function().
+-spec to_term(binary()) -> supported_term().
 to_term(Msg) ->
   ErlangTerm = erlang_term:decode_msg(Msg, 'ErlangTerm'),
   from_erlang_term(ErlangTerm).
@@ -44,17 +46,38 @@ solver_command(Command, Options) ->
   Msg = to_solver_command(Command, Options),
   solver_command:encode_msg(Msg).
 
--spec to_log_entry(cuter_log:opcode(), [any()]) -> binary().
-to_log_entry(OpCode, Arguments) ->
+-spec to_log_entry(cuter_log:opcode(), [any()], boolean(), cuter_cerl:tagID()) -> binary().
+to_log_entry(OpCode='OP_SPEC', [Spec], IsConstraint, _TagID) ->
+  Msg = #'LogEntry'{ type = OpCode
+                   , spec = to_spec(Spec)
+                   , is_constraint = IsConstraint },
+  log_entry:encode_msg(Msg);
+to_log_entry(OpCode, Arguments, IsConstraint, TagID) ->
   Parts = [to_erlang_term(A) || A <- Arguments],
-  Msg = #'LogEntry'{type=OpCode, arguments=Parts},
+  Msg = #'LogEntry'{ type = OpCode
+                   , arguments = Parts
+                   , is_constraint = IsConstraint
+                   , tag = TagID },
   log_entry:encode_msg(Msg).
 
--spec from_log_entry(binary()) -> {cuter_log:opcode(), [any()]}.
+-spec from_log_entry(binary()) -> {cuter_log:opcode(), [any()], boolean(), cuter_cerl:tagID()}.
 from_log_entry(Msg) ->
   LogEntry = log_entry:decode_msg(Msg, 'LogEntry'),
   Arguments = [from_erlang_term(A) || A <- LogEntry#'LogEntry'.arguments],
-  {LogEntry#'LogEntry'.type, Arguments}.
+  {LogEntry#'LogEntry'.type, Arguments, LogEntry#'LogEntry'.is_constraint, LogEntry#'LogEntry'.tag}.
+
+-spec from_solver_response(binary()) -> {'status', cuter_solver:solver_status()}
+                                      | {'model', cuter_solver:model()}.
+from_solver_response(Msg) ->
+  SolverResponse = solver_response:decode_msg(Msg, 'SolverResponse'),
+  case SolverResponse#'SolverResponse'.type of
+    'MODEL_STATUS' ->
+      {'status', Status} = SolverResponse#'SolverResponse'.data,
+      {'status', Status};
+    'MODEL_DATA' ->
+      {'model', Model} = SolverResponse#'SolverResponse'.data,
+      {'model', from_model(Model)}
+  end.
 
 %% ============================================================================
 %% Encode Terms to ErlangTerm messages.
@@ -296,6 +319,9 @@ from_erlang_term(T=#'ErlangTerm'{type=Type}, Shared) when Type =:= 'MAP' ->
   MapEntries = T#'ErlangTerm'.map_entries,
   KVs = [from_map_entry(E, Shared) || E <- MapEntries],
   maps:from_list(KVs);
+%% any
+from_erlang_term(#'ErlangTerm'{type=Type}, _Shared) when Type =:= 'ANY' ->
+  ?UNBOUND_VAR_PREFIX;
 %% fun
 from_erlang_term(T=#'ErlangTerm'{type=Type}, Shared) when Type =:= 'FUN' ->
   Arity = T#'ErlangTerm'.arity,
@@ -334,3 +360,90 @@ to_solver_command(reset_solver, none) ->
   #'SolverCommand'{type='RESET_SOLVER'};
 to_solver_command(stop, none) ->
   #'SolverCommand'{type='STOP'}.
+
+%% ============================================================================
+%% Encode mfa specs to Spec messages.
+%% ============================================================================
+
+to_spec(Spec) ->
+  #'Spec'{clauses = [to_typesig(C) || C <- Spec]}.
+
+to_typesig(Fun) ->
+  Ret = to_type(cuter_types:ret_of_t_function(Fun)),
+  case cuter_types:is_generic_function(Fun) of
+    true ->
+      #'Spec.FunSig'{signature = {'just_return', Ret}};
+    false ->
+      Params = [to_type(P) || P <- cuter_types:params_of_t_function_det(Fun)],
+      FunDet = #'Spec.FunDet'{parameters = Params, return_value = Ret},
+      #'Spec.FunSig'{signature = {'complete', FunDet}}
+  end.
+
+to_type(Type) ->
+  case cuter_types:get_kind(Type) of
+    ?any_tag ->
+      #'Spec.Type'{type = 'ANY'};
+    ?atom_tag ->
+      #'Spec.Type'{type = 'ATOM'};
+    ?atom_lit_tag ->
+      Atom = to_erlang_term(cuter_types:atom_of_t_atom_lit(Type)),
+      #'Spec.Type'{type = 'ATOM_LITERAL', arg = {'literal', Atom}};
+    ?float_tag ->
+      #'Spec.Type'{type = 'FLOAT'};
+    ?integer_tag ->
+      #'Spec.Type'{type = 'INTEGER'};
+    ?integer_lit_tag ->
+      Integer = to_erlang_term(cuter_types:integer_of_t_integer_lit(Type)),
+      #'Spec.Type'{type = 'INTEGER_LITERAL', arg = {'literal', Integer}};
+    ?list_tag ->
+      InnerType = to_type(cuter_types:elements_type_of_t_list(Type)),
+      #'Spec.Type'{type = 'LIST', arg = {'inner_type', InnerType}};
+    ?nonempty_list_tag ->
+      InnerType = to_type(cuter_types:elements_type_of_t_nonempty_list(Type)),
+      #'Spec.Type'{type = 'NONEMPTY_LIST', arg = {'inner_type', InnerType}};
+    ?nil_tag ->
+      #'Spec.Type'{type = 'NIL'};
+    ?bitstring_tag ->
+      {M, N} = cuter_types:segment_size_of_bitstring(Type),
+      SegSz = #'Spec.SegmentSize'{m = integer_to_list(M), n = integer_to_list(N)},
+      #'Spec.Type'{type = 'BITSTRING', arg = {'segment_size', SegSz}};
+    ?tuple_tag ->
+      %% TODO Distinguish between tuple() and {}.
+      case cuter_types:elements_types_of_t_tuple(Type) of
+        [] ->
+          #'Spec.Type'{type = 'TUPLE'};
+        Ts ->
+          InnerTypes = #'Spec.TypeList'{types = [to_type(T) || T <- Ts]},
+          #'Spec.Type'{type = 'TUPLEDET', arg = {'inner_types', InnerTypes}}
+      end;
+    ?union_tag ->
+      Ts = [to_type(T) || T <- cuter_types:elements_types_of_t_union(Type)],
+      InnerTypes = #'Spec.TypeList'{types = Ts},
+      #'Spec.Type'{type = 'UNION', arg = {'inner_types', InnerTypes}};
+    ?range_tag ->
+      {Lower, Upper} = cuter_types:bounds_of_t_range(Type),
+      Bounds = #'Spec.RangeBounds'{ lower_bound = to_range_bound(Lower)
+                                  , upper_bound = to_range_bound(Upper)},
+      #'Spec.Type'{type = 'RANGE', arg = {'range_bounds', Bounds}};
+    ?function_tag ->
+      #'Spec.Type'{type = 'FUN', arg = {'fun', to_typesig(Type)}}
+  end.
+
+to_range_bound(Limit) ->
+  case cuter_types:get_kind(Limit) of
+    ?integer_lit_tag ->
+      Integer = cuter_types:integer_of_t_integer_lit(Limit),
+      integer_to_list(Integer);
+    Kind when Kind =:= ?pos_inf orelse Kind =:= ?neg_inf ->
+      'undefined'
+  end.
+
+%% ============================================================================
+%% Decode SolverResponse.Model messages.
+%% ============================================================================
+
+from_model(Model) ->
+  Entries = Model#'SolverResponse.Model'.entries,
+  Fn = fun(E) -> { from_erlang_term(E#'SolverResponse.ModelEntry'.var)
+                 , from_erlang_term(E#'SolverResponse.ModelEntry'.value) } end,
+  maps:from_list([Fn(E) || E <- Entries]).

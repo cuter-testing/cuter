@@ -45,16 +45,14 @@ In order to use CutEr, you need the following programs:
 
   Download and install the latest [Python 2.x distribution](http://www.python.org).
 
-  Also, you need to install the *protobuf* package.
-  You can either run
+  Also, you need to install the *protobuf* package (*version 3.1.0*).
+  You can install it for your user with
 
-        pip install protobuf==3.1.0
+        pip install --user protobuf==3.1.0
 
-  or use *virtualenv*:
+  or globally with
 
-        virtualenv venv
-        source venv/bin/activate
-        pip install protobuf==3.1.0
+        sudo pip install protobuf==3.1.0
 
 3. **Z3 Theorem Prover**
 
@@ -99,11 +97,6 @@ Installation
         ./configure
         make depend
         make
-
-   **[If required]** If you have installed the *protobuf* library with *virtualenv*, then you need to specify the path of
-   the python binary in the virtual environment to the configure script. For example:
-
-        ./configure --with-python=$PWD/venv/bin/python
 
    **[If required]** If you have installed *protoc* using `fetch_protoc.sh`, then you need to specify the path of *protoc* to the
    configure script. For example

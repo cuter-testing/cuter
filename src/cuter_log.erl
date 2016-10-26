@@ -23,11 +23,11 @@
   , log_symb_params/2
   , log_tuple/5
   , log_unfold_symbolic/4
-  , next_entry/2
+  , next_entry/1
   , open_file/2
   , path_vertex/1
   , reduce_constraint_counter/0
-  , write_data/5
+  , write_data/2
   , log_empty_bitstring/2
   , log_nonempty_bitstring/4
   , log_concat_segments/4
@@ -41,15 +41,11 @@
   , log_fresh_lambda/3
   , log_evaluated_closure/4
 ]).
--export([supported_mfas/0, opcode_to_int/1]).
+-export([supported_mfas/0]).
 
--export_type([opcode/0, iopcode/0]).
+-export_type([opcode/0]).
 
 -type mode()   :: read | write.
--type entry_type() :: ?CONSTRAINT_TRUE | ?CONSTRAINT_FALSE | ?NOT_CONSTRAINT.
-
-%% FIXME Temporary type.
--type iopcode() :: integer().
 
 -type opcode() :: 'OP_PARAMS' | 'OP_SPEC'
                 %% Lambda application.
@@ -94,77 +90,6 @@
                 %% Bitwise operations.
                 | 'OP_BAND' | 'OP_BXOR' | 'OP_BOR'
                 .
-
-%% FIXME Temporary function.
--spec opcode_to_int(opcode()) -> iopcode().
-opcode_to_int('OP_PARAMS') -> 1;
-opcode_to_int('OP_SPEC') -> 2;
-opcode_to_int('OP_LAMBDA') -> 3;
-opcode_to_int('OP_GUARD_TRUE') -> 4;
-opcode_to_int('OP_GUARD_FALSE') -> 5;
-opcode_to_int('OP_MATCH_EQUAL_TRUE') -> 6;
-opcode_to_int('OP_MATCH_EQUAL_FALSE') -> 7;
-opcode_to_int('OP_TUPLE_SZ') -> 8;
-opcode_to_int('OP_TUPLE_NOT_SZ') -> 9;
-opcode_to_int('OP_TUPLE_NOT_TPL') -> 10;
-opcode_to_int('OP_LIST_NON_EMPTY') -> 11;
-opcode_to_int('OP_LIST_EMPTY') -> 12;
-opcode_to_int('OP_LIST_NOT_LST') -> 13;
-opcode_to_int('OP_SPAWN') -> 14;
-opcode_to_int('OP_SPAWNED') -> 15;
-opcode_to_int('OP_MSG_SEND') -> 16;
-opcode_to_int('OP_MSG_RECEIVE') -> 17;
-opcode_to_int('OP_MSG_CONSUME') -> 18;
-opcode_to_int('OP_UNFOLD_TUPLE') -> 19;
-opcode_to_int('OP_UNFOLD_LIST') -> 20;
-opcode_to_int('OP_HD') -> 21;
-opcode_to_int('OP_TL') -> 22;
-opcode_to_int('OP_IS_INTEGER') -> 23;
-opcode_to_int('OP_IS_ATOM') -> 24;
-opcode_to_int('OP_IS_FLOAT') -> 25;
-opcode_to_int('OP_IS_LIST') -> 26;
-opcode_to_int('OP_IS_TUPLE') -> 27;
-opcode_to_int('OP_IS_BOOLEAN') -> 28;
-opcode_to_int('OP_IS_NUMBER') -> 29;
-opcode_to_int('OP_PLUS') -> 30;
-opcode_to_int('OP_MINUS') -> 31;
-opcode_to_int('OP_TIMES') -> 32;
-opcode_to_int('OP_RDIV') -> 33;
-opcode_to_int('OP_IDIV_NAT') -> 34;
-opcode_to_int('OP_REM_NAT') -> 35;
-opcode_to_int('OP_UNARY') -> 36;
-opcode_to_int('OP_EQUAL') -> 37;
-opcode_to_int('OP_UNEQUAL') -> 38;
-opcode_to_int('OP_FLOAT') -> 39;
-opcode_to_int('OP_BOGUS') -> 40;
-opcode_to_int('OP_ATOM_NIL') -> 41;
-opcode_to_int('OP_ATOM_HEAD') -> 42;
-opcode_to_int('OP_ATOM_TAIL') -> 43;
-opcode_to_int('OP_LIST_TO_TUPLE') -> 44;
-opcode_to_int('OP_TUPLE_TO_LIST') -> 45;
-opcode_to_int('OP_LT_INT') -> 46;
-opcode_to_int('OP_LT_FLOAT') -> 47;
-opcode_to_int('OP_CONS') -> 48;
-opcode_to_int('OP_TCONS') -> 49;
-opcode_to_int('OP_POW') -> 50;
-opcode_to_int('OP_MAKE_BITSTR') -> 51;
-opcode_to_int('OP_EMPTY_BITSTR') -> 52;
-opcode_to_int('OP_NONEMPTY_BITSTR') -> 53;
-opcode_to_int('OP_CONCAT_SEGS') -> 54;
-opcode_to_int('OP_BITMATCH_CONST_TRUE') -> 55;
-opcode_to_int('OP_BITMATCH_CONST_FALSE') -> 56;
-opcode_to_int('OP_BITMATCH_VAR_TRUE') -> 57;
-opcode_to_int('OP_BITMATCH_VAR_FALSE') -> 58;
-opcode_to_int('OP_IS_BITSTRING') -> 59;
-opcode_to_int('OP_IS_FUN') -> 60;
-opcode_to_int('OP_IS_FUN_WITH_ARITY') -> 61;
-opcode_to_int('OP_NOT_LAMBDA_WITH_ARITY') -> 62;
-opcode_to_int('OP_FRESH_LAMBDA_WITH_ARITY') -> 63;
-opcode_to_int('OP_EVALUATED_CLOSURE') -> 64;
-opcode_to_int('OP_TRUNC') -> 65;
-opcode_to_int('OP_BAND') -> 66;
-opcode_to_int('OP_BXOR') -> 67;
-opcode_to_int('OP_BOR') -> 68.
 
 %% ============================================================================
 %% Public API.
@@ -404,10 +329,10 @@ log(Fd, OpCode, TagID, Data) ->
     undefined -> throw(depth_undefined_in_pdict);
     0 -> ok;
     N when is_integer(N), N > 0 ->
-      Type = entry_type(OpCode),
-      try cuter_json:command_to_json(opcode_to_int(OpCode), Data) of
+      IsConstraint = is_constraint(OpCode),
+      try cuter_serial:to_log_entry(OpCode, Data, IsConstraint, TagID) of
         Jdata ->
-          write_data(Fd, Type, opcode_to_int(OpCode), TagID, Jdata)
+          write_data(Fd, Jdata)
       catch
         throw:{unsupported_term, _} -> ok
       end
@@ -461,18 +386,11 @@ opcode_mappings() ->
                  , { {erlang, 'bxor',        2}, 'OP_BXOR'              }
                  ]).
 
-%% Maps commands to their type
-%% (True constraint | False constraint | Everything else)
--spec entry_type(opcode()) -> entry_type().
-entry_type(OpCode) ->
-  case gb_sets:is_element(OpCode, constraint_true_opcodes()) of
-    true -> ?CONSTRAINT_TRUE;
-    false ->
-      case gb_sets:is_element(OpCode, constraint_false_opcodes()) of
-        true  -> ?CONSTRAINT_FALSE;
-        false -> ?NOT_CONSTRAINT
-      end
-  end.
+%% Checks if a log entry is a constraint.
+-spec is_constraint(opcode()) -> boolean().
+is_constraint(OpCode) ->
+  gb_sets:is_element(OpCode, constraint_true_opcodes())
+    orelse gb_sets:is_element(OpCode, constraint_false_opcodes()).
 
 constraint_true_opcodes() ->
   gb_sets:from_list(['OP_LAMBDA'
@@ -511,10 +429,10 @@ reduce_constraint_counter() ->
 %% Read / Write Data
 %% ------------------------------------------------------------------
 
--spec write_data(file:io_device(), entry_type(), iopcode(), cuter_cerl:tagID(), binary()) -> ok.
-write_data(Fd, Tp, Op, Tag, Data) when is_integer(Tp), is_integer(Op), is_integer(Tag), is_binary(Data) ->
+-spec write_data(file:io_device(), binary()) -> ok.
+write_data(Fd, Data) when is_binary(Data) ->
   Sz = erlang:byte_size(Data),
-  ok = file:write(Fd, [Tp, Op, i32_to_list(Tag), i32_to_list(Sz), Data]).
+  ok = file:write(Fd, [i32_to_list(Sz), Data]).
 
 %% Encode a 32-bit integer to its corresponding sequence of four bytes
 -spec i32_to_list(non_neg_integer()) -> [byte(), ...].
@@ -538,14 +456,23 @@ path_vertex(File) ->
 
 -spec generate_vertex(file:io_device(), cuter_analyzer:path_vertex()) -> cuter_analyzer:path_vertex().
 generate_vertex(Fd, Acc) ->
-  case next_entry(Fd, false) of
+  case next_entry(Fd) of
     eof -> lists:reverse(Acc);
-    {?CONSTRAINT_TRUE, _Op, _TagID}  -> generate_vertex(Fd, [?CONSTRAINT_TRUE_REPR|Acc]);
-    {?CONSTRAINT_FALSE, _Op, _TagID} -> generate_vertex(Fd, [?CONSTRAINT_FALSE_REPR|Acc]);
-    {?NOT_CONSTRAINT, _Op, _TagID}   -> generate_vertex(Fd, Acc)
+    Data ->
+      {OpCode, _Args, IsConstraint, _TagId} = cuter_serial:from_log_entry(Data),
+      case IsConstraint of
+        false -> generate_vertex(Fd, Acc);
+        true -> generate_vertex(Fd, [map_constraint_to_repr(OpCode)|Acc])
+      end
   end.
 
-%% Locatse the reversible commands with their tag IDs in a trace file.
+map_constraint_to_repr(OpCode) ->
+  case gb_sets:is_element(OpCode, constraint_true_opcodes()) of
+    true  -> ?CONSTRAINT_TRUE_REPR;
+    false -> ?CONSTRAINT_FALSE_REPR
+  end.
+
+%% Locate the reversible commands with their tag IDs in a trace file.
 -spec locate_reversible(file:name()) -> cuter_analyzer:reversible_with_tags().
 locate_reversible(File) ->
   {ok, Fd} = open_file(File, read),
@@ -554,35 +481,26 @@ locate_reversible(File) ->
 -spec locate_reversible(file:io_device(), non_neg_integer(), cuter_analyzer:reversible_with_tags()) -> cuter_analyzer:reversible_with_tags().
 locate_reversible(Fd, N, Acc) ->
   N1 = N + 1,
-  case next_entry(Fd, false) of
+  case next_entry(Fd) of
     eof -> lists:reverse(Acc);
-    {?CONSTRAINT_TRUE, _Op, TagID}  -> locate_reversible(Fd, N1, [{N1, TagID}|Acc]);
-    {?CONSTRAINT_FALSE, _Op, TagID} -> locate_reversible(Fd, N1, [{N1, TagID}|Acc]);
-    {?NOT_CONSTRAINT, _Op, _TagID}    -> locate_reversible(Fd, N, Acc)
+    Data ->
+      {_OpCode, _Args, IsConstraint, TagId} = cuter_serial:from_log_entry(Data),
+      case IsConstraint of
+        false -> locate_reversible(Fd, N, Acc);
+        true  -> locate_reversible(Fd, N1, [{N1, TagId}|Acc])
+      end
   end.
 
--spec next_entry(file:io_device(), true) -> {entry_type(), iopcode(), cuter_cerl:tagID(), binary()} | eof
-              ; (file:io_device(), false) -> {entry_type(), iopcode(), cuter_cerl:tagID()} | eof.
-next_entry(Fd, WithData) ->
-  case safe_read(Fd, 1, true) of
+-spec next_entry(file:io_device()) -> eof | binary().
+next_entry(Fd) ->
+  case safe_read(Fd, 4, true) of
     eof ->
       close_file(Fd),
       eof;
-    <<Tp>> ->
-      <<OpCode>> = safe_read(Fd, 1, false),
-      TagID = bin_to_i32(safe_read(Fd, 4, false)),
-      Sz = bin_to_i32(safe_read(Fd, 4, false)),
-      next_entry_data(Fd, WithData, Tp, OpCode, TagID, Sz)
+    SzBin ->
+      Sz = bin_to_i32(SzBin),
+      safe_read(Fd, Sz, false)
   end.
-
--spec next_entry_data(file:io_device(), true, entry_type(), iopcode(), cuter_cerl:tagID(), iopcode()) -> {entry_type(), iopcode(), cuter_cerl:tagID(), binary()}
-                   ; (file:io_device(), false, entry_type(), iopcode(), cuter_cerl:tagID(), iopcode()) -> {entry_type(), iopcode(), cuter_cerl:tagID()}.
-next_entry_data(Fd, true, Type, OpCode, TagID, Sz) ->
-  Data = safe_read(Fd, Sz, false),
-  {Type, OpCode, TagID, Data};
-next_entry_data(Fd, false, Type, OpCode, TagID, Sz) ->
-  {ok, _} = file:position(Fd, {cur, Sz}),
-  {Type, OpCode, TagID}.
 
 -spec safe_read(file:io_device(), integer(), boolean()) -> binary() | eof.
 safe_read(Fd, Sz, AllowEOF) ->
@@ -592,4 +510,3 @@ safe_read(Fd, Sz, AllowEOF) ->
     eof -> throw(unexpected_eof);
     {error, Reason} -> throw({file_read_failed, Reason})
   end.
-

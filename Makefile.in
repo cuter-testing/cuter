@@ -63,7 +63,6 @@ SRC_MODULES = \
 	cuter_mock \
 	cuter_env \
 	cuter_erlang \
-	cuter_json \
 	cuter_pp \
 	cuter_scheduler_maxcover \
 	cuter_analyzer \
@@ -85,7 +84,6 @@ UTEST_MODULES = \
 	cuter_monitor_tests \
 	cuter_iserver_tests \
 	cuter_eval_tests \
-	cuter_json_tests \
 	cuter_solver_tests \
 	cuter_erlang_tests \
 	cuter_types_tests \
@@ -113,7 +111,9 @@ PRIV_MODULES = \
 PROTOBUFS = \
 	erlang_term \
 	solver_command \
-	log_entry
+	solver_response \
+	log_entry \
+	spec
 
 ###----------------------------------------------------------------------
 ### Targets
@@ -158,7 +158,7 @@ $(PROTOBUFS:%=$(INCLUDE)/%.hrl): $(PROTOBUFS:%=$(SRC)/%.erl)
 
 $(SRC)/%.erl: %.proto
 	@echo "PROTOC-ERL $(notdir  $<)"
-	@$(PROTOC-ERL) -I $(SRC) -o-erl $(SRC) -o-hrl $(INCLUDE) $(notdir  $<)
+	@$(PROTOC-ERL) -defaults-for-omitted-optionals -I $(SRC) -o-erl $(SRC) -o-hrl $(INCLUDE) $(notdir  $<)
 
 $(PRIV)/%_pb2.py: %.proto
 	@echo "PROTOC $(notdir  $<)"
