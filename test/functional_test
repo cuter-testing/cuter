@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import json, multiprocessing, os, re, sys
+import json, multiprocessing, os, re, sys, z3
 from subprocess import Popen, PIPE
 from pprint import pprint
 
@@ -16,87 +16,136 @@ defaultOpts = "-p {} -s {}".format(nCores, nCores * 2)
 separator = "=== Inputs That Lead to Runtime Errors ==="
 bifSeparator = "=== BIFs Currently without Symbolic Interpretation ==="
 
+def solver_version():
+    # Get Z3's version
+    (vA, vB, vC, _) = z3.get_version()
+    z3_version = "z3-{}.{}.{}".format(vA, vB, vC)
+    return z3_version
+
 def getExpectedFile(test):
-  return os.path.join(testDir, "ftest", "expected", test["expected"] + ".expected")
+    return os.path.join(testDir, "ftest", "expected", test["expected"] + ".expected")
 
 def printOutputAndExit(out):
-  print "OUTPUT MISMATCH"
-  print "================================================================="
-  print out.strip()
-  print "================================================================="
-  sys.exit(1)
+    print "OUTPUT MISMATCH"
+    print "================================================================="
+    print out.strip()
+    print "================================================================="
+    sys.exit(1)
 
-with open(testsJson) as fd:
-  tests = json.load(fd)["tests"]
-
-  for i, test in enumerate(tests):
-    # Set the default values for optional parameters.
-    for param in ["withUtestBin", "validate", "withProper"]:
-      if not param in test:
-        test[param] = False
-    # Get the runtime options.
-    opts = test["opts"] if "opts" in test else defaultOpts
-    # Get the whitelist.
+def extra_opts(test, testDir, ftestEbin, utestEbin, properEbin):
+    extraOpts = ""
     if "whitelist" in test:
-      whitelist = os.path.join(testDir, "ftest", "whitelist", test["whitelist"] + ".txt")
-      opts += " -w {}".format(whitelist)
-    # Add the extra paths.
+        whitelist = os.path.join(testDir, "ftest", "whitelist", test["whitelist"] + ".txt")
+        extraOpts += " -w {}".format(whitelist)
     extraPaths = [ftestEbin]
     if test["withUtestBin"]:
-      extraPaths.append(utestEbin)
+        extraPaths.append(utestEbin)
     if test["withProper"]:
-      extraPaths.append(properEbin)
-    opts += " -pa {}".format(" ".join(extraPaths))
-    # Run the test.
-    cmd = "{} {} {} '{}' -d {} {} --sorted-errors".format(
-      cuterScript, test["module"], test["function"], test["args"], test["depth"], opts
-    )
-    print "\n[Test #{}]\n{}".format(i + 1, cmd)
-    if "skip" in test and test["skip"]:
-      print "Skipping ..."
-      continue
-    p = Popen(cmd, stdin=PIPE, stdout=PIPE, shell=True)
-    output, err = p.communicate()
-    # Validate the presence of errors or not.
+        extraPaths.append(properEbin)
+    extraOpts += " -pa {}".format(" ".join(extraPaths))
+    return extraOpts
+
+def check_errors_presence_and_get_interesting(test, output, separator):
+    """
+    Checks if there should be errors found.
+    Returns the interesting part of the inputs
+    """
     parts = output.strip().split(separator)
     if test["errors"]:
-      if len(parts) != 2:
-        printOutputAndExit(output)
+        if len(parts) != 2:
+            printOutputAndExit(output)
+        return parts[1]
     else:
-      if len(parts) != 1:
+        if len(parts) != 1:
+            printOutputAndExit(output)
+
+def check_unsupported_bifs(test, interesting):
+    """
+    Gets the unsupported BIFs section from the interesting output
+    and checks it against the expected unsupported BIFs.
+    Then returns the rest of the interesting output.
+    """
+    if not "bifs" in test:
+        return interesting
+    bifs = test["bifs"]
+    bifParts = interesting.split(bifSeparator)
+    bifFound = bifParts[1].strip().split("\n")
+    if len(bifFound) != len(bifs):
         printOutputAndExit(output)
-      else:
-        continue
-    interesting = parts[1]
-    # Validate the BIFs.
-    if "bifs" in test:
-      bifs = test["bifs"]
-      bifParts = interesting.split(bifSeparator)
-      interesting = bifParts[0].strip()
-      bifParts = bifParts[1].strip().split("\n")
-      if len(bifParts) != len(bifs):
+    if set([bif.strip() for bif in bifFound]) != set(bifs):
         printOutputAndExit(output)
-      if set([bif.strip() for bif in bifParts]) != set(bifs):
+    return bifParts[0].strip()
+
+def get_found_errors(test, interesting):
+    """
+    Extracts the found errors from the interesting part of the output.
+    """
+    errors = interesting.strip().split("\n")
+    found = set(["[" + re.search(r"\((.*)\)", sol).group(1) + "]" for sol in errors])
+    # The number of errors should be the same in all versions.
+    if len(found) != len(test["solutions"]["any"]):
         printOutputAndExit(output)
-    # Validate the number of errors found.
-    solutions = interesting.strip().split("\n")
-    found = set(["[" + re.search(r"\((.*)\)", sol).group(1) + "]" for sol in solutions])
-    if len(found) != len(test["solutions"]):
-      printOutputAndExit(output)
-    expected = set(test["solutions"])
-    # Validate the errors found.
-    if not test["validate"]:
-      # Simply check if found the expected errors.
-      if found != expected:
-        printOutputAndExit(output)
-    else:
-      # Validate that every error is actually an error.
-      for sol in found:
+    return found
+
+def get_expected_errors(test):
+    """
+    Gets the expected errors.
+    Is aware of the version of the underlying solver(s).
+    """
+    version = solver_version()
+    sols = test["solutions"]
+    return set(sols[version]) if version in sols else set(sols["any"])
+
+def validate_errors(test, found, ftestEbin, output):
+    """
+    Checks that every error is actually an error.
+    """
+    for sol in found:
         mfaCall = "{}:{}({})".format(test["module"], test["function"], sol[1:-1])
         cmd = "erl -noshell -pa {} -eval \"{}\" -s init stop".format(ftestEbin, mfaCall)
         p = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=PIPE, shell=True)
         out, err = p.communicate()
         if p.returncode != 1:
-          printOutputAndExit(output)
+            printOutputAndExit(output)
 
-  sys.exit(0)
+
+with open(testsJson) as fd:
+    tests = json.load(fd)["tests"]
+
+    for i, test in enumerate(tests):
+        # Set the default values for optional parameters.
+        for param in ["withUtestBin", "validate", "withProper"]:
+            if not param in test:
+                test[param] = False
+        # Get the runtime options.
+        opts = test["opts"] if "opts" in test else defaultOpts
+        opts += extra_opts(test, testDir, ftestEbin, utestEbin, properEbin)
+        # Run the test.
+        cmd = "{} {} {} '{}' -d {} {} --sorted-errors".format(
+          cuterScript, test["module"], test["function"], test["args"], test["depth"], opts
+        )
+        print "\n[Test #{}]\n{}".format(i + 1, cmd)
+        if "skip" in test and test["skip"]:
+            print "Skipping ..."
+            continue
+        p = Popen(cmd, stdin=PIPE, stdout=PIPE, shell=True)
+        output, err = p.communicate()
+        # Validate the presence of errors or not.
+        interesting = check_errors_presence_and_get_interesting(test, output, separator)
+        if not test["errors"]:
+            continue
+        # Validate the unsupported BIFs.
+        interesting = check_unsupported_bifs(test, interesting)
+        # Validate the number of errors found.
+        found = get_found_errors(test, interesting)
+        expected = get_expected_errors(test)
+        # Validate the errors found.
+        if not test["validate"]:
+            # Simply check if found the expected errors.
+            if found != expected:
+                printOutputAndExit(output)
+        else:
+            # Validate that every error is actually an error.
+            validate_errors(test, found, ftestEbin, output)
+
+    sys.exit(0)
