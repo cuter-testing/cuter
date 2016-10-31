@@ -22,9 +22,9 @@ datatypes = [
 ]
 
 
-#clog = open("output.log", "a")
-#def log(msg = ""):
-#	clog.write(msg + "\n")
+clog = open("output.log", "a")
+def log(msg = ""):
+	clog.write(msg + "\n")
 
 
 class ErlangSMT(cgs.AbstractErlangSolver):
@@ -62,8 +62,19 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		Solves a constraint set and returns the result.
 		"""
+		log("***")
+		log(smt.encode(["declare-datatypes", [], datatypes]))
+		for constant in self.constants:
+			log(smt.encode(["declare-const", "|{}|".format(constant), "Term"]))
+		for assertion in self.assertions:
+			log(smt.encode(["assert", assertion]))
+		log(smt.encode(["check-sat"]))
 		tpl = self.solver.solve(datatypes, self.constants, self.assertions)
 		self.model = tpl[1]
+		log(tpl[0])
+		if self.model is not None:
+			log(smt.encode(["get-value", ["|{}|".format(constant) for constant in self.constants]]))
+			log(smt.encode(self.model))
 		return tpl[0]
 
 	def encode_model(self):
@@ -84,9 +95,14 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			if data["s"] not in self.constants:
 				self.constants.append(data["s"])
 			return "|{}|".format(data["s"])
-		if data["t"] == cc.JSON_TYPE_INT:
+		elif data["t"] == cc.JSON_TYPE_ANY:
+			return ["bool", str(data["v"]).lower()] # TODO boolean
+		elif data["t"] == cc.JSON_TYPE_INT:
 			return ["int", str(data["v"])]
+		elif data["t"] == cc.JSON_TYPE_LIST:
+			return ["list", "nil"] # TODO list
 		else:
+			log(str(data))
 			return None # TODO decode term
 
 	def encode(self, data):
@@ -96,7 +112,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			return {"t": cc.JSON_TYPE_INT, "v": int(data[1])}
 		elif data[0] == "list":
 			return {"t": cc.JSON_TYPE_LIST, "v": []} # TODO list
-		return None # TODO decode term
+		return None # TODO encode term
 
 	# -------------------------------------------------------------------------
 	# Parse internal commands.

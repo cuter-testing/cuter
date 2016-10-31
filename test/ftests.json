@@ -253,7 +253,7 @@
             "solutions": [
                 "[42]", "[[0]]", "[\"*\"]"
             ],
-            "skip": false
+            "skip": true
         },
         {
             "module": "collection",
@@ -278,7 +278,7 @@
             "bifs": [
                 "erlang:get/1"
             ],
-            "skip": true
+            "skip": false
         },
         {
             "module": "collection",
