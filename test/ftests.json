@@ -196,7 +196,7 @@
             "solutions": [
                 "[424242]"
             ],
-            "skip": true
+            "skip": false
         },
         {
             "module": "whitelist",
@@ -208,7 +208,7 @@
             "solutions": [
                 "[4242]"
             ],
-            "skip": true
+            "skip": false
         },
         {
             "module": "whitelist",
@@ -220,7 +220,7 @@
             "solutions": [
                 "[42]"
             ],
-            "skip": true
+            "skip": false
         },
         {
             "module": "complex_spec",

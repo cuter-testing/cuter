@@ -22,7 +22,7 @@ datatypes = [
 ]
 
 
-clog = open("output.log", "a")
+clog = open("solver.txt", "a")
 def log(msg = ""):
 	clog.write(msg + "\n")
 
