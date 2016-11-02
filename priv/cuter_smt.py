@@ -22,15 +22,11 @@ datatypes = [
 ]
 
 
-clog = open("solver.txt", "a")
-def log(msg = ""):
-	clog.write(msg + "\n")
-
-
 class ErlangSMT(cgs.AbstractErlangSolver):
 
 	def __init__(self):
-		self.constants = []
+		self.vars = []
+		self.aux_vars = []
 		self.assertions = []
 		self.solver = None
 		self.model = None
@@ -62,19 +58,9 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		Solves a constraint set and returns the result.
 		"""
-		log("***")
-		log(smt.encode(["declare-datatypes", [], datatypes]))
-		for constant in self.constants:
-			log(smt.encode(["declare-const", "|{}|".format(constant), "Term"]))
-		for assertion in self.assertions:
-			log(smt.encode(["assert", assertion]))
-		log(smt.encode(["check-sat"]))
-		tpl = self.solver.solve(datatypes, self.constants, self.assertions)
+		smt.log("***")
+		tpl = self.solver.solve(datatypes, self.vars, self.aux_vars, self.assertions)
 		self.model = tpl[1]
-		log(tpl[0])
-		if self.model is not None:
-			log(smt.encode(["get-value", ["|{}|".format(constant) for constant in self.constants]]))
-			log(smt.encode(self.model))
 		return tpl[0]
 
 	def encode_model(self):
@@ -92,8 +78,8 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		Decodes a JSON term to its SMT representation
 		"""
 		if "s" in data:
-			if data["s"] not in self.constants:
-				self.constants.append(data["s"])
+			if data["s"] not in self.vars and data["s"] not in self.aux_vars:
+				self.aux_vars.append(data["s"])
 			return "|{}|".format(data["s"])
 		elif data["t"] == cc.JSON_TYPE_ANY:
 			return ["bool", str(data["v"]).lower()] # TODO boolean
@@ -102,7 +88,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		elif data["t"] == cc.JSON_TYPE_LIST:
 			return ["list", "nil"] # TODO list
 		else:
-			log(str(data))
+			smt.log("decode " + str(data))
 			return None # TODO decode term
 
 	def encode(self, data):
@@ -111,7 +97,12 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		elif data[0] == "int":
 			return {"t": cc.JSON_TYPE_INT, "v": int(data[1])}
 		elif data[0] == "list":
-			return {"t": cc.JSON_TYPE_LIST, "v": []} # TODO list
+			node = data[1]
+			value = []
+			while node != "nil":
+				value.append(self.encode(node[1]))
+				node = node[2]
+			return {"t": cc.JSON_TYPE_LIST, "v": value}
 		return None # TODO encode term
 
 	# -------------------------------------------------------------------------
@@ -122,7 +113,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		Stores the entry point MFA's symbolic parameters.
 		"""
-		self.constants = [x["s"] for x in args]
+		self.vars = [x["s"] for x in args]
 
 	def mfa_spec(self, *spec):
 		"""
@@ -163,6 +154,14 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t1 = self.decode(term1);
 		t2 = self.decode(term2);
 		self.assertions.append(["not", ["=", t1, t2]])
+
+	def list_nonempty(self, term):
+		"""
+		Asserts that: term is a nonempty list.
+		"""
+		t = self.decode(term)
+		self.assertions.append(["is-list", t])
+		self.assertions.append(["is-cons", ["lval", t]])
 
 	def list_empty(self, term):
 		"""
@@ -217,10 +216,55 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 	# Erlang BIFs or MFAs treated as BIFs.
 	# -------------------------------------------------------------------------
 
-	def is_integer(self, term1, term2):
+	def head(self, term0, term1):
 		"""
-		Asserts that: term1 == is_integer(term2).
+		Asserts that: term0 == hd(term1).
 		"""
+		self.list_nonempty(term0)
+		t0 = self.decode(term0)
+		t1 = self.decode(term1)
+		self.assertions.append(["=", t0, ["hd", ["lval", t1]]])
+
+	def tail(self, term0, term1):
+		"""
+		Asserts that: term0 == tl(term1).
+		"""
+		self.list_nonempty(term0)
+		t0 = self.decode(term0)
+		t1 = self.decode(term1)
+		self.assertions.append(["=", t0, ["list", ["tl", ["lval", t1]]]])
+
+	def is_integer(self, term0, term1):
+		"""
+		Asserts that: term0 == is_integer(term1).
+		"""
+		t0 = self.decode(term0)
+		t1 = self.decode(term1)
+		self.assertions.append(["=", t0, ["bool", ["is-int", t1]]])
+
+	def is_number(self, term0, term1):
+		"""
+		Asserts that: term0 == is_number(term1).
+		"""
+		t0 = self.decode(term0)
+		t1 = self.decode(term1)
+		self.assertions.append(["=", t0, ["bool", ["or", ["is-int", t1], ["is-real", t1]]]])
+
+	def trunc(self, term0, term1):
+		"""
+		Asserts that: term0 is term1 truncated.
+		"""
+		t0 = self.decode(term0)
+		t1 = self.decode(term1)
+		self.assertions.append(["=", t0, ["int", ["to_int", ["rval", t1]]]]) # TODO support trunc(int)
+
+	def lt_integers(self, term0, term1, term2):
+		"""
+		Asserts that: term0 = (term1 < term2).
+		"""
+		t0 = self.decode(term0)
 		t1 = self.decode(term1)
 		t2 = self.decode(term2)
-		self.assertions.append(["=", t1, ["bool", ["is-int", t2]]])
+		self.assertions.append(["is-int", t1])
+		self.assertions.append(["is-int", t2])
+		self.assertions.append(["=", t0, ["bool", ["<", ["ival", t1], ["ival", t2]]]])

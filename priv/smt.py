@@ -1,6 +1,11 @@
 import subprocess
 
 
+clog = open("solver.txt", "a")
+def log(msg = ""):
+	clog.write(msg + "\n")
+
+
 def encode(lst):
 	"""
 	Encodes a structured list to an SMT string
@@ -48,7 +53,7 @@ class Solver:
 	def __init__(self, args):
 		self.args = args
 
-	def solve(self, datatypes, constants, assertions):
+	def solve(self, datatypes, vars, aux_vars, assertions):
 		process = subprocess.Popen(
 			self.args,
 			stdin=subprocess.PIPE,
@@ -57,17 +62,27 @@ class Solver:
 			universal_newlines=True
 		)
 		process.stdin.write(encode(["declare-datatypes", [], datatypes]) + "\n")
-		for constant in constants:
-			process.stdin.write(encode(["declare-const", "|{}|".format(constant), "Term"]) + "\n")
+		#log(encode(["declare-datatypes", [], datatypes]))
+		for var in vars:
+			process.stdin.write(encode(["declare-const", "|{}|".format(var), "Term"]) + "\n")
+			#log(encode(["declare-const", "|{}|".format(var), "Term"]))
+		for var in aux_vars:
+			process.stdin.write(encode(["declare-const", "|{}|".format(var), "Term"]) + "\n")
+			#log(encode(["declare-const", "|{}|".format(var), "Term"]))
 		for assertion in assertions:
 			process.stdin.write(encode(["assert", assertion]) + "\n")
+			log(encode(["assert", assertion]))
 		process.stdin.write(encode(["check-sat"]) + "\n")
+		#log(encode(["check-sat"]))
 		status = process.stdout.readline()[:-1]
+		log(status)
 		if status == "sat":
-			process.stdin.write(encode(["get-value", ["|{}|".format(constant) for constant in constants]]) + "\n")
+			process.stdin.write(encode(["get-value", ["|{}|".format(var) for var in vars]]) + "\n")
+			#log(encode(["get-value", ["|{}|".format(var) for var in vars]]))
 			process.stdin.write(encode(["exit"]) + "\n")
 			process.stdin.close()
 			smt = process.stdout.read()
+			log(smt)
 			lst = self.fix_names(decode(smt))
 		else:
 			process.stdin.write(encode(["exit"]) + "\n")

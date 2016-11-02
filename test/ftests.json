@@ -563,7 +563,7 @@
             "args": "[ok]",
             "depth": "25",
             "errors": false,
-            "skip": true
+            "skip": false
         },
         {
             "module": "bitstr",
