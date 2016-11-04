@@ -13,13 +13,24 @@ datatypes = [
 		["int", ["ival", "Int"]],
 		["real", ["rval", "Real"]],
 		["list", ["lval", "TList"]],
+		["tuple", ["tval", "TList"]],
+		["atom", ["aval", "IList"]],
 	],
 	[
 		"TList",
 		["nil"],
 		["cons", ["hd", "Term"], ["tl", "TList"]],
 	],
+	[
+		"IList",
+		["inil"],
+		["icons", ["ihd", "Int"], ["itl", "IList"]],
+	],
 ]
+
+
+false = [102, 97, 108, 115, 101]
+true = [116, 114, 117, 101]
 
 
 class ErlangSMT(cgs.AbstractErlangSolver):
@@ -81,19 +92,38 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			if data["s"] not in self.vars and data["s"] not in self.aux_vars:
 				self.aux_vars.append(data["s"])
 			return "|{}|".format(data["s"])
-		elif data["t"] == cc.JSON_TYPE_ANY:
-			return ["bool", str(data["v"]).lower()] # TODO boolean
 		elif data["t"] == cc.JSON_TYPE_INT:
 			return ["int", str(data["v"])]
+		elif data["t"] == cc.JSON_TYPE_ATOM:
+			if data["v"] == true:
+				return ["bool", "true"]
+			elif data["v"] == false:
+				return ["bool", "false"]
+			else:
+				return ["atom", value2ilist(data["v"])]
 		elif data["t"] == cc.JSON_TYPE_LIST:
-			return ["list", "nil"] # TODO list
+			return ["list", value2tlist(data["v"])]
+		elif data["t"] == cc.JSON_TYPE_TUPLE:
+			return ["tuple", value2tlist(data["v"])]
 		else:
 			smt.log("decode " + str(data))
 			return None # TODO decode term
 
+	def value2tlist(self, value):
+		if not value:
+			return "nil"
+		else:
+			return ["cons", self.decode(value[0]), value2tlist(value[1:])]
+
+	def value2ilist(self, value):
+		if not value:
+			return "inil"
+		else:
+			return ["icons", str(value[0]), value2ilist(value[1:])]
+
 	def encode(self, data):
 		if data[0] == "bool":
-			return {"t": cc.JSON_TYPE_ANY, "v": data[1] == "true"}
+			return {"t": cc.JSON_TYPE_ATOM, "v": true if data[1] == "true" else false}
 		elif data[0] == "int":
 			return {"t": cc.JSON_TYPE_INT, "v": int(data[1])}
 		elif data[0] == "list":
