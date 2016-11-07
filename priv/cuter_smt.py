@@ -38,10 +38,12 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 	def __init__(self):
 		self.vars = []
 		self.aux_vars = []
-		self.assertions = []
+		self.cmds = []
+		self.cmds.append(["declare-datatypes", [], datatypes])
 		self.solver = None
 		self.model = None
-		self.reset_solver()
+		self.solver = smt.SolverZ3()
+		smt.log("***")
 
 	# =========================================================================
 	# Public API.
@@ -57,7 +59,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		Resets the solver.
 		"""
-		self.solver = smt.SolverZ3()
+		pass
 
 	def add_axioms(self):
 		"""
@@ -69,8 +71,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		Solves a constraint set and returns the result.
 		"""
-		smt.log("***")
-		tpl = self.solver.solve(datatypes, self.vars, self.aux_vars, self.assertions)
+		tpl = self.solver.solve(self.cmds, self.vars)
 		self.model = tpl[1]
 		return tpl[0]
 
@@ -84,55 +85,87 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 	# Private Methods.
 	# =========================================================================
 
+	def assertion(self, assertion):
+		self.cmds.append(["assert", assertion])
+
 	def decode(self, data):
 		"""
 		Decodes a JSON term to its SMT representation
 		"""
 		if "s" in data:
 			if data["s"] not in self.vars and data["s"] not in self.aux_vars:
-				self.aux_vars.append(data["s"])
+				var = data["s"]
+				self.aux_vars.append(var)
+				self.cmds.append(["declare-const", "|{}|".format(var), "Term"])
 			return "|{}|".format(data["s"])
 		elif data["t"] == cc.JSON_TYPE_INT:
 			return ["int", str(data["v"])]
+		elif data["t"] == cc.JSON_TYPE_FLOAT:
+			return ["real", str(data["v"])]
 		elif data["t"] == cc.JSON_TYPE_ATOM:
 			if data["v"] == true:
 				return ["bool", "true"]
 			elif data["v"] == false:
 				return ["bool", "false"]
 			else:
-				return ["atom", value2ilist(data["v"])]
+				return ["atom", self.value2ilist(data["v"])]
 		elif data["t"] == cc.JSON_TYPE_LIST:
-			return ["list", value2tlist(data["v"])]
+			return ["list", self.value2tlist(data["v"])]
 		elif data["t"] == cc.JSON_TYPE_TUPLE:
-			return ["tuple", value2tlist(data["v"])]
+			return ["tuple", self.value2tlist(data["v"])]
 		else:
-			smt.log("decode " + str(data))
+			smt.log("decoding failed: " + str(data))
 			return None # TODO decode term
 
 	def value2tlist(self, value):
 		if not value:
 			return "nil"
 		else:
-			return ["cons", self.decode(value[0]), value2tlist(value[1:])]
+			return ["cons", self.decode(value[0]), self.value2tlist(value[1:])]
 
 	def value2ilist(self, value):
 		if not value:
 			return "inil"
 		else:
-			return ["icons", str(value[0]), value2ilist(value[1:])]
+			return ["icons", str(value[0]), self.value2ilist(value[1:])]
 
-	def encode(self, data):
+	def encode(self, data, table = {}):
 		if data[0] == "bool":
-			return {"t": cc.JSON_TYPE_ATOM, "v": true if data[1] == "true" else false}
+			if data[1] == "true":
+				return {"t": cc.JSON_TYPE_ATOM, "v": true}
+			else:
+				return {"t": cc.JSON_TYPE_ATOM, "v": false}
 		elif data[0] == "int":
 			return {"t": cc.JSON_TYPE_INT, "v": int(data[1])}
+		elif data[0] == "real":
+			return {"t": cc.JSON_TYPE_FLOAT, "v": float(data[1])}
+		elif data[0] == "atom":
+			node = data[1]
+			v = []
+			while True:
+				if node == "inil":
+					break
+				v.append(int(node[1]))
+				node = node[2]
+			return {"t": cc.JSON_TYPE_ATOM, "v": v}
 		elif data[0] == "list":
 			node = data[1]
-			value = []
-			while node != "nil":
-				value.append(self.encode(node[1]))
+			v = []
+			while True:
+				if isinstance(node, str) and node in table:
+					node = table[node]
+				if node == "nil":
+					break
+				v.append(self.encode(node[1], table))
 				node = node[2]
-			return {"t": cc.JSON_TYPE_LIST, "v": value}
+			return {"t": cc.JSON_TYPE_LIST, "v": v}
+		elif data[0] == "let":
+			inner_table = table.copy()
+			for var in data[1]:
+				inner_table[var[0]] = var[1]
+			ret = self.encode(data[2], inner_table)
+			return ret
+		smt.log("encoding failed: " + str(data))
 		return None # TODO encode term
 
 	# -------------------------------------------------------------------------
@@ -143,13 +176,55 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		Stores the entry point MFA's symbolic parameters.
 		"""
-		self.vars = [x["s"] for x in args]
+		self.vars = []
+		for arg in args:
+			var = arg["s"]
+			self.vars.append(var)
+			self.cmds.append(["declare-const", "|{}|".format(var), "Term"])
 
 	def mfa_spec(self, *spec):
 		"""
 		Stores the spec of the entry point MFA.
 		"""
-		pass
+		#smt.log("spec: " + str(spec))
+		p = spec[0]["p"]
+		for item in zip(self.vars, p):
+			var = "|{}|".format(item[0])
+			tp = item[1]["tp"]
+			if tp == cc.JSON_ERLTYPE_ANY:
+				pass
+			elif tp == cc.JSON_ERLTYPE_INTEGER:
+				self.assertion(["is-int", var])
+			elif tp == cc.JSON_ERLTYPE_LIST:
+				smt.log("list item: " + str(item)) # TODO list spec
+				#self.cmds.append([
+				#	"define-fun-rec", "list_int", [["t", "Term"]], "Bool",
+				#	[
+				#		"or",
+				#		["is-nil", ["lval", "t"]],
+				#		[
+				#			"and",
+				#			["is-cons", ["lval", "t"]],
+				#			["is-int", ["hd", ["lval", "t"]]],
+				#			["list_int", ["list", ["tl", ["lval", "t"]]]],
+				#		],
+				#	]
+				#])
+				#self.assertion(["list_int", var])
+				# OR
+				# (assert (forall ((t Term)) (= (list_int t) (or (is-nil (lval t)) (and (is-cons (lval t)) (is-int (hd (lval t))) (list_int (list (tl (lval t)))))))))
+			elif tp == cc.JSON_ERLTYPE_UNION:
+				a = item[1]["a"]
+				# {u'a': [{u'tp': 4}, {u'tp': 3}], u'tp': 10}
+				self.assertion(["or", ["is-int", var], ["is-real", var]])
+			elif tp == cc.JSON_ERLTYPE_RANGE:
+				self.assertion(["is-int", var])
+				smt.log("range item: " + str(item)) # TODO range spec
+				a = item[1]["a"]
+				# {u'a': [{u't': 1, u'v': 1}, {u'tp': 4}], u'tp': 11}
+				self.assertion([">=", ["ival", var], "1"])
+			else:
+				smt.log("item: " + str(item)) # TODO spec
 
 	# -------------------------------------------------------------------------
 	# Constraints.
@@ -160,56 +235,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		Asserts the predicate: term == true
 		"""
 		t = self.decode(term)
-		self.assertions.append(["=", t, ["bool", "true"]])
-
-	def guard_false(self, term):
-		"""
-		Asserts the predicate: term == false
-		"""
-		t = self.decode(term)
-		self.assertions.append(["=", t, ["bool", "false"]])
-
-	def match_equal(self, term1, term2):
-		"""
-		Asserts the predicate: term1 == term2
-		"""
-		t1 = self.decode(term1)
-		t2 = self.decode(term2)
-		self.assertions.append(["=", t1, t2])
-
-	def match_not_equal(self, term1, term2):
-		"""
-		Asserts the predicate: term1 != term2
-		"""
-		t1 = self.decode(term1);
-		t2 = self.decode(term2);
-		self.assertions.append(["not", ["=", t1, t2]])
-
-	def list_nonempty(self, term):
-		"""
-		Asserts that: term is a nonempty list.
-		"""
-		t = self.decode(term)
-		self.assertions.append(["is-list", t])
-		self.assertions.append(["is-cons", ["lval", t]])
-
-	def list_empty(self, term):
-		"""
-		Asserts that: term is an empty list.
-		"""
-		t = self.decode(term)
-		self.assertions.append(["=", t, ["list", "nil"]])
-
-	def list_not_lst(self, term):
-		"""
-		Asserts that: term is not list.
-		"""
-		t = self.decode(term)
-		self.assertions.append(["not", ["is-list", t]])
-
-	# -------------------------------------------------------------------------
-	# Reversed constraints.
-	# -------------------------------------------------------------------------
+		self.assertion(["=", t, ["bool", "true"]])
 
 	def guard_true_reversed(self, term):
 		"""
@@ -217,11 +243,26 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		self.guard_false(term)
 
+	def guard_false(self, term):
+		"""
+		Asserts the predicate: term == false
+		"""
+		t = self.decode(term)
+		self.assertion(["=", t, ["bool", "false"]])
+
 	def guard_false_reversed(self, term):
 		"""
 		Asserts the predicate: Not (term == false)
 		"""
 		self.guard_true(term)
+
+	def match_equal(self, term1, term2):
+		"""
+		Asserts the predicate: term1 == term2
+		"""
+		t1 = self.decode(term1)
+		t2 = self.decode(term2)
+		self.assertion(["=", t1, t2])
 
 	def match_equal_reversed(self, term1, term2):
 		"""
@@ -229,18 +270,62 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		self.match_not_equal(term1, term2)
 
+	def match_not_equal(self, term1, term2):
+		"""
+		Asserts the predicate: term1 != term2
+		"""
+		t1 = self.decode(term1);
+		t2 = self.decode(term2);
+		self.assertion(["not", ["=", t1, t2]])
+
 	def match_not_equal_reversed(self, term1, term2):
 		"""
 		Asserts the predicate: Not (term1 != term2)
 		"""
 		self.match_equal(term1, term2)
 
+	def list_nonempty(self, term):
+		"""
+		Asserts that: term is a nonempty list.
+		"""
+		t = self.decode(term)
+		self.assertion(["is-list", t])
+		self.assertion(["is-cons", ["lval", t]])
+
+	def list_nonempty_reversed(self, term):
+		"""
+		Asserts that: Not(term is a nonempty list).
+		"""
+		t = self.decode(term)
+		self.assertion(["not", ["and", ["is-list", t], ["is-cons", ["lval", t]]]])
+
+	def list_empty(self, term):
+		"""
+		Asserts that: term is an empty list.
+		"""
+		t = self.decode(term)
+		self.assertion(["=", t, ["list", "nil"]])
+
+	def list_empty_reversed(self, term):
+		"""
+		Asserts that: Not(term is an empty list).
+		"""
+		t = self.decode(term)
+		self.assertion(["not", ["=", t, ["list", "nil"]]])
+
+	def list_not_lst(self, term):
+		"""
+		Asserts that: term is not list.
+		"""
+		t = self.decode(term)
+		self.assertion(["not", ["is-list", t]])
+
 	def list_not_lst_reversed(self, term):
 		"""
 		Asserts that: Not (term is not list).
 		"""
 		t = self.decode(term)
-		self.assertions.append(["is-list", t])
+		self.assertion(["is-list", t])
 
 	# -------------------------------------------------------------------------
 	# Erlang BIFs or MFAs treated as BIFs.
@@ -250,19 +335,31 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		Asserts that: term0 == hd(term1).
 		"""
-		self.list_nonempty(term0)
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		self.assertions.append(["=", t0, ["hd", ["lval", t1]]])
+		self.assertion(["is-list", t1])
+		self.assertion(["is-cons", ["lval", t1]])
+		self.assertion(["=", t0, ["hd", ["lval", t1]]])
 
 	def tail(self, term0, term1):
 		"""
 		Asserts that: term0 == tl(term1).
 		"""
-		self.list_nonempty(term0)
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		self.assertions.append(["=", t0, ["list", ["tl", ["lval", t1]]]])
+		self.assertion(["is-list", t1])
+		self.assertion(["is-cons", ["lval", t1]])
+		self.assertion(["=", t0, ["list", ["tl", ["lval", t1]]]])
+
+	def cons(self, term0, term1, term2):
+		"""
+		Asserts that: term0 = [term1 | term2].
+		"""
+		t0 = self.decode(term0)
+		t1 = self.decode(term1)
+		t2 = self.decode(term2)
+		self.assertion(["is-list", t2])
+		self.assertion(["=", t0, ["list", ["cons", t1, ["lval", t2]]]])
 
 	def is_integer(self, term0, term1):
 		"""
@@ -270,7 +367,15 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		self.assertions.append(["=", t0, ["bool", ["is-int", t1]]])
+		self.assertion(["=", t0, ["bool", ["is-int", t1]]])
+
+	def is_float(self, term0, term1):
+		"""
+		Asserts that: term1 == is_float(term2).
+		"""
+		t0 = self.decode(term0)
+		t1 = self.decode(term1)
+		self.assertion(["=", t0, ["bool", ["is-real", t1]]])
 
 	def is_number(self, term0, term1):
 		"""
@@ -278,7 +383,34 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		self.assertions.append(["=", t0, ["bool", ["or", ["is-int", t1], ["is-real", t1]]]])
+		self.assertion(["=", t0, ["bool", ["or", ["is-int", t1], ["is-real", t1]]]])
+
+	def minus(self, term0, term1, term2):
+		"""
+		Asserts that: term = term1 - term2.
+		"""
+		t0 = self.decode(term0)
+		t1 = self.decode(term1)
+		t2 = self.decode(term2)
+		self.assertion(["or", ["is-int", t1], ["is-real", t1]])
+		self.assertion(["or", ["is-int", t2], ["is-real", t2]])
+		self.assertion([
+			"ite",
+			["and", ["is-int", t1], ["is-int", t2]],
+			["=", t0, ["int", ["-", ["ival", t1], ["ival", t2]]]],
+			[
+				"=",
+				t0,
+				[
+					"real",
+					[
+						"-",
+						["ite", ["is-int", t1], ["ival", t1], ["rval", t1]],
+						["ite", ["is-int", t2], ["ival", t2], ["rval", t2]]
+					]
+				]
+			]
+		])
 
 	def trunc(self, term0, term1):
 		"""
@@ -286,7 +418,27 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		self.assertions.append(["=", t0, ["int", ["to_int", ["rval", t1]]]]) # TODO support trunc(int)
+		self.assertion(["or", ["is-int", t1], ["is-real", t1]])
+		self.assertion([
+			"=",
+			t0,
+			[
+				"int",
+				[
+					"ite",
+					["is-int", t1],
+					["ival", t1],
+					[
+						"ite",
+						["<", ["rval", t1], "0"],
+						["+", ["to_int", ["rval", t1]], "1"],
+						["to_int", ["rval", t1]]
+					]
+				]
+			]
+		])
+		self.assertion(["=", t0, ["int", ["to_int", ["ite", ["is-int", t1], ["ival", t1], ["rval", t1]]]]])
+		# TODO erlang trunc is not equivalent to smt to_int
 
 	def lt_integers(self, term0, term1, term2):
 		"""
@@ -295,6 +447,26 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
 		t2 = self.decode(term2)
-		self.assertions.append(["is-int", t1])
-		self.assertions.append(["is-int", t2])
-		self.assertions.append(["=", t0, ["bool", ["<", ["ival", t1], ["ival", t2]]]])
+		self.assertion(["is-int", t1])
+		self.assertion(["is-int", t2])
+		self.assertion(["=", t0, ["bool", ["<", ["ival", t1], ["ival", t2]]]])
+
+	def lt_floats(self, term0, term1, term2):
+		"""
+		Asserts that: term0 = (term1 < term2).
+		"""
+		t0 = self.decode(term0)
+		t1 = self.decode(term1)
+		t2 = self.decode(term2)
+		self.assertion(["is-real", t1])
+		self.assertion(["is-real", t2])
+		self.assertion(["=", t0, ["bool", ["<", ["rval", t1], ["rval", t2]]]])
+
+	def to_float(self, term0, term1):
+		"""
+		Asserts that: term0 = float(term1).
+		"""
+		t0 = self.decode(term0)
+		t1 = self.decode(term1)
+		self.assertion(["or", ["is-int", t1], ["is-real", t1]])
+		self.assertion(["=", t0, ["real", ["ite", ["is-int", t1], ["ival", t1], ["rval", t1]]]])

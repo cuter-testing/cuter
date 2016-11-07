@@ -1,7 +1,11 @@
 import subprocess
+import os.path
 
-
-clog = open("solver.txt", "a")
+filename = "solver.txt"
+if os.path.isfile(filename):
+	clog = open(filename, "a")
+else:
+	clog = open(filename, "w")
 def log(msg = ""):
 	clog.write(msg + "\n")
 
@@ -53,7 +57,7 @@ class Solver:
 	def __init__(self, args):
 		self.args = args
 
-	def solve(self, datatypes, vars, aux_vars, assertions):
+	def solve(self, cmds, vars):
 		process = subprocess.Popen(
 			self.args,
 			stdin=subprocess.PIPE,
@@ -61,29 +65,21 @@ class Solver:
 			stderr=subprocess.PIPE,
 			universal_newlines=True
 		)
-		process.stdin.write(encode(["declare-datatypes", [], datatypes]) + "\n")
-		#log(encode(["declare-datatypes", [], datatypes]))
-		for var in vars:
-			process.stdin.write(encode(["declare-const", "|{}|".format(var), "Term"]) + "\n")
-			#log(encode(["declare-const", "|{}|".format(var), "Term"]))
-		for var in aux_vars:
-			process.stdin.write(encode(["declare-const", "|{}|".format(var), "Term"]) + "\n")
-			#log(encode(["declare-const", "|{}|".format(var), "Term"]))
-		for assertion in assertions:
-			process.stdin.write(encode(["assert", assertion]) + "\n")
-			log(encode(["assert", assertion]))
+		for cmd in cmds:
+			process.stdin.write(encode(cmd) + "\n")
+			log(encode(cmd))
 		process.stdin.write(encode(["check-sat"]) + "\n")
-		#log(encode(["check-sat"]))
+		log(encode(["check-sat"]))
 		status = process.stdout.readline()[:-1]
 		log(status)
 		if status == "sat":
 			process.stdin.write(encode(["get-value", ["|{}|".format(var) for var in vars]]) + "\n")
-			#log(encode(["get-value", ["|{}|".format(var) for var in vars]]))
+			log(encode(["get-value", ["|{}|".format(var) for var in vars]]))
 			process.stdin.write(encode(["exit"]) + "\n")
 			process.stdin.close()
 			smt = process.stdout.read()
-			log(smt)
 			lst = self.fix_names(decode(smt))
+			log(smt)
 		else:
 			process.stdin.write(encode(["exit"]) + "\n")
 			process.stdin.close()
