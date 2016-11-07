@@ -3,8 +3,10 @@
 
 import sys, struct, json
 import cuter_global as cglb
+import cuter_logger as clg
 import cuter_common as cc
 import cuter_io as cIO
+import solver_command_pb2 as scmd
 
 class ErlangPort:
     def __init__(self):
@@ -39,47 +41,43 @@ class ErlangPort:
               err.close()
 
 def decode_command(erlport, erlSolver, data):
-    cmd = json.loads(data)
-    tp = cmd["t"]
+    cmd = scmd.SolverCommand()
+    cmd.ParseFromString(data)
     opts = {
-        cc.CMD_LOAD_TRACE_FILE: decode_load_trace_file,
-        cc.CMD_SOLVE: decode_solve,
-        cc.CMD_GET_MODEL: decode_get_model,
-        cc.CMD_ADD_AXIOMS: decode_add_axioms,
-        cc.CMD_FIX_VARIABLE: decode_fix_variable,
-        cc.CMD_RESET_SOLVER: decode_reset_solver,
-        cc.CMD_STOP: decode_stop,
+        scmd.SolverCommand.LOAD_TRACE_FILE: decode_load_trace_file,
+        scmd.SolverCommand.SOLVE: decode_solve,
+        scmd.SolverCommand.GET_MODEL: decode_get_model,
+        scmd.SolverCommand.ADD_AXIOMS: decode_add_axioms,
+        scmd.SolverCommand.FIX_VARIABLE: decode_fix_variable,
+        scmd.SolverCommand.RESET_SOLVER: decode_reset_solver,
+        scmd.SolverCommand.STOP: decode_stop,
     }
-    opts[tp](erlport, erlSolver, cmd)
+    opts[cmd.type](erlport, erlSolver, cmd)
 
 def decode_load_trace_file(erlport, erlSolver, cmd):
     """
     Loads a trace file.
     """
-    r = cIO.JsonReader(cmd["f"], cmd["e"])
-    for tp, tag, x, rev in r:
-        if cc.is_interpretable(tp):
-            erlSolver.command_toSolver(tp, x, rev)
+    r = cIO.JsonReader(cmd.filename, cmd.to_constraint)
+    for entry, rev in r:
+        if cc.is_interpretable(entry):
+            erlSolver.command_toSolver(entry, rev)
 
 def decode_solve(erlport, erlSolver, cmd):
     """
     Solves the model.
     """
     slv = erlSolver.solve()
-    erlport.send(str(slv))
+    erlport.send(slv.SerializeToString())
 
 def decode_get_model(erlport, erlSolver, cmd):
     """
     Gets the model.
     """
     enc = erlSolver.encode_model()
-    erlport.send(cc.RSP_MODEL_DELIMITER_START)
 #    md = erlSolver.model
 #    erlport.send(str(md))
-    for s, v in enc:
-        erlport.send(str(json.dumps(s, sort_keys=True)))
-        erlport.send(str(json.dumps(v, sort_keys=True)))
-    erlport.send(cc.RSP_MODEL_DELIMITER_END)
+    erlport.send(enc.SerializeToString())
 
 def decode_add_axioms(erlport, erlSolver, cmd):
     """
@@ -91,7 +89,7 @@ def decode_fix_variable(erlport, erlSolver, cmd):
     """
     Fixes a variable to a specific value.
     """
-    var, val = cmd["s"], cmd["v"]
+    var, val = cmd.symbvar, cmd.symbvar_value
     erlSolver.fix_parameter(var, val)
 
 def decode_reset_solver(erlport, erlSolver, cmd):

@@ -22,11 +22,17 @@
 }).
 -type state()  :: #st{}.
 
--type entry_type() :: ?CONSTRAINT_TRUE | ?CONSTRAINT_FALSE | ?NOT_CONSTRAINT.
--type data()       :: binary().
--type entry() :: {entry_type(), cuter_log:opcode(), cuter_cerl:tagID(), data()}.
--type validation() :: 'ok' | {'error', entry()}.
+-type validation() :: 'ok' | {'error', binary()}.
 -type known_set()  :: gb_sets:set(cuter_symbolic:symbolic()).
+
+-define(OP_SPAWN, 'OP_SPAWN').
+-define(OP_SPAWNED, 'OP_SPAWNED').
+-define(OP_MSG_SEND, 'OP_MSG_SEND').
+-define(OP_MSG_RECEIVE, 'OP_MSG_RECEIVE').
+-define(OP_MSG_CONSUME, 'OP_MSG_CONSUME').
+-define(OP_PARAMS, 'OP_PARAMS').
+-define(OP_UNFOLD_TUPLE, 'OP_UNFOLD_TUPLE').
+-define(OP_UNFOLD_LIST, 'OP_UNFOLD_LIST').
 
 %% Merge the traces of an execution into one file.
 -spec merge_traces(cuter_analyzer:raw_info(), file:name()) -> ok.
@@ -72,7 +78,9 @@ all_logfiles([{_Node, Path}|Rest], Acc) ->
 
 -spec merge(state()) -> ok.
 merge(State=#st{currFd = Fd, logFd = LogFd, openFds = Open, seenRefs = Seen}) ->
-  case cuter_log:next_entry(Fd, true) of
+  Fn = fun(eof) -> eof; (Data) -> cuter_serial:from_log_entry(Data) end,
+  Entry = cuter_log:next_entry(Fd),
+  case Fn(Entry) of
     %% Reached the end of the file
     eof ->
       [{Fd, File}] = ets:lookup(Open, Fd),
@@ -81,38 +89,38 @@ merge(State=#st{currFd = Fd, logFd = LogFd, openFds = Open, seenRefs = Seen}) ->
       ets:delete(Open, File),
       merge_next_file(State#st{currFd = undefined});
     %% SPAWN
-    {?NOT_CONSTRAINT, ?OP_SPAWN, _Tag, Data} ->
-      {?OP_SPAWN, [_ChildNode, _ChildPid, Rf]} = cuter_json:json_to_command(Data),
+    {?OP_SPAWN, Args, false, _TagID} ->
+      [_ChildNode, _ChildPid, Rf] = Args,
       Reached = {?OP_SPAWN, Rf},
       ets:insert(Seen, {Rf, ?OP_SPAWN}),
       check_for_goal(Reached, State);
     %% SPAWNED
-    {?NOT_CONSTRAINT, ?OP_SPAWNED, _Tag, Data} ->
-      {?OP_SPAWNED, [ParentNode, ParentPid, Rf]} = cuter_json:json_to_command(Data),
+    {?OP_SPAWNED, Args, false, _TagID} ->
+      [ParentNode, ParentPid, Rf] = Args,
       Goal = {?OP_SPAWN, Rf},
       cuter_pp:set_goal(Goal, "SPAWNED"),
       achieve_goal(Goal, ParentNode, ParentPid, State);
     %% MSG SEND
-    {?NOT_CONSTRAINT, ?OP_MSG_SEND, _Tag, Data} ->
-      {?OP_MSG_SEND, [_DestNode, _DestPid, Rf]} = cuter_json:json_to_command(Data),
+    {?OP_MSG_SEND, Args, false, _TagID} ->
+      [_DestNode, _DestPid, Rf] = Args,
       Reached = {?OP_MSG_SEND, Rf},
       ets:insert(Seen, {Rf, ?OP_MSG_SEND}),
       check_for_goal(Reached, State);
     %% MSG RECEIVE
-    {?NOT_CONSTRAINT, ?OP_MSG_RECEIVE, _Tag, Data} ->
-      {?OP_MSG_RECEIVE, [FromNode, FromPid, Rf]} = cuter_json:json_to_command(Data),
+    {?OP_MSG_RECEIVE, Args, false, _TagID} ->
+      [FromNode, FromPid, Rf] = Args,
       Goal = {?OP_MSG_SEND, Rf},
       cuter_pp:set_goal(Goal, "MSG RCV"),
       achieve_goal(Goal, FromNode, FromPid, State);
     %% MSG CONSUME
-    {?NOT_CONSTRAINT, ?OP_MSG_CONSUME, _Tag, Data} ->
-      {?OP_MSG_CONSUME, [_FromNode, _FromPid, Rf]} = cuter_json:json_to_command(Data),
+    {?OP_MSG_CONSUME, Args, false, _TagID} ->
+      [_FromNode, _FromPid, Rf] = Args,
       cuter_pp:consume_msg(Rf),
       ets:delete(Seen, Rf),
       merge(State);
     %% Any Command
-    {Kind, Type, Tag, Data} ->
-      cuter_log:write_data(LogFd, Kind, Type, Tag, Data),
+    _ ->
+      cuter_log:write_data(LogFd, Entry),
       merge(State)
   end.
 
@@ -227,32 +235,32 @@ validate_file(F) ->
 
 -spec validate_entries(file:io_device(), known_set()) -> validation().
 validate_entries(Fd, Known) ->
-  case cuter_log:next_entry(Fd, true) of
+  case cuter_log:next_entry(Fd) of
     eof -> ok;
-    {Kind, Tp, _Tag, Data}=Entry ->
-      {Tp, Args} = cuter_json:json_to_command(Data),
-      case validate_entry(Kind, Tp, Args, Known) of
+    Entry ->
+      {OpCode, Args, IsConstraint, _TagId} = cuter_serial:from_log_entry(Entry),
+      case validate_entry(OpCode, Args, IsConstraint, Known) of
         error -> {error, Entry};
         {ok, MoreKnown} -> validate_entries(Fd, MoreKnown)
       end
   end.
 
--spec validate_entry(entry_type(), cuter_log:opcode(), [any()], known_set()) -> {ok, known_set()} | error.
-validate_entry(?NOT_CONSTRAINT, ?OP_PARAMS, Args, Known) ->
+-spec validate_entry(cuter_log:opcode(), [any()], boolean(), known_set()) -> {ok, known_set()} | error.
+validate_entry(?OP_PARAMS, Args, _IsConstraint, Known) ->
   add_symbolic_vars(Args, Known);
-validate_entry(Kind, _Tp, Args, Known) when Kind =:= ?CONSTRAINT_TRUE; Kind =:= ?CONSTRAINT_FALSE ->
+validate_entry(_OpCode, Args, true, Known) ->
   lookup_symbolic_vars(Args, Known);
-validate_entry(?NOT_CONSTRAINT, Tp, _Args, _Known)
-  when Tp =:= ?OP_SPAWN; Tp =:= ?OP_SPAWNED;
-       Tp =:= ?OP_MSG_SEND; Tp =:= ?OP_MSG_RECEIVE; Tp =:= ?OP_MSG_CONSUME ->
+validate_entry(OpCode, _Args, _IsConstraint, _Known)
+  when OpCode =:= ?OP_SPAWN; OpCode =:= ?OP_SPAWNED;
+       OpCode =:= ?OP_MSG_SEND; OpCode =:= ?OP_MSG_RECEIVE; OpCode =:= ?OP_MSG_CONSUME ->
   error;
-validate_entry(?NOT_CONSTRAINT, Tp, [A|Args], Known) when Tp =:= ?OP_UNFOLD_TUPLE; Tp =:= ?OP_UNFOLD_LIST ->
+validate_entry(OpCode, [A|Args], _IsConstraint, Known) when OpCode =:= ?OP_UNFOLD_TUPLE; OpCode =:= ?OP_UNFOLD_LIST ->
   case lookup_symbolic_vars([A], Known) of
     error -> error;
     {ok, Known} -> add_symbolic_vars(Args, Known)
   end;
 %% BIF operations
-validate_entry(?NOT_CONSTRAINT, _Tp, [T|Ts], Known) ->
+validate_entry(_OpCode, [T|Ts], _IsConstraint, Known) ->
   case lookup_symbolic_vars(Ts, Known) of
     error -> error;
     {ok, Known} -> add_symbolic_vars([T], Known)

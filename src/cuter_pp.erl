@@ -723,18 +723,18 @@ pp_arguments(Args) ->
   string:join([pp_argument(A) || A <- Args], ", ").
 
 pp_argument(X) ->
-  case cuter_json:is_lambda(X) of
+  case cuter_lib:is_lambda(X) of
     true  -> pp_lambda(X);
     false -> io_lib:format("~p", [X])
   end.
 
 -spec pp_lambda(any()) -> string().
 pp_lambda(L) ->
-  case cuter_json:is_lambda(L) of
+  case cuter_lib:is_lambda(L) of
     true ->
-      KVs = cuter_json:lambda_kvs(L),
-      Default = cuter_json:lambda_default(L),
-      Arity = cuter_json:lambda_arity(L),
+      KVs = cuter_lib:lambda_kvs(L),
+      Default = cuter_lib:lambda_default(L),
+      Arity = cuter_lib:lambda_arity(L),
       ClauseList = pp_lambda_kvs(KVs) ++ [pp_lambda_default(Default, Arity)],
       lists:flatten(["fun", string:join(ClauseList, "; "), " end"]);
     false when is_list(L) ->

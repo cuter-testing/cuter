@@ -1,0 +1,89 @@
+syntax = "proto3";
+
+import "erlang_term.proto";
+import "spec.proto";
+
+message LogEntry {
+
+    /**
+     * The supported log entry types.
+     */
+    enum Type {
+        OP_PARAMS = 0;
+        OP_SPEC = 1;
+        OP_LAMBDA = 2;
+        OP_EVALUATED_CLOSURE = 3;
+        OP_FRESH_LAMBDA_WITH_ARITY = 4;
+        OP_NOT_LAMBDA_WITH_ARITY = 5;
+        OP_GUARD_TRUE = 6;
+        OP_GUARD_FALSE = 7;
+        OP_MATCH_EQUAL_TRUE = 8;
+        OP_MATCH_EQUAL_FALSE = 9;
+        OP_TUPLE_SZ = 10;
+        OP_TUPLE_NOT_SZ = 11;
+        OP_TUPLE_NOT_TPL = 12;
+        OP_LIST_NON_EMPTY = 13;
+        OP_LIST_EMPTY = 14;
+        OP_LIST_NOT_LST = 15;
+        OP_SPAWN = 16;
+        OP_SPAWNED = 17;
+        OP_MSG_SEND = 18;
+        OP_MSG_RECEIVE = 19;
+        OP_MSG_CONSUME = 20;
+        OP_UNFOLD_TUPLE = 21;
+        OP_UNFOLD_LIST = 22;
+        OP_BOGUS = 23;
+        OP_FLOAT = 24;
+        OP_LIST_TO_TUPLE = 25;
+        OP_TUPLE_TO_LIST = 26;
+        OP_IS_INTEGER = 27;
+        OP_IS_ATOM = 28;
+        OP_IS_FLOAT = 29;
+        OP_IS_LIST = 30;
+        OP_IS_TUPLE = 31;
+        OP_IS_BOOLEAN = 32;
+        OP_IS_NUMBER = 33;
+        OP_IS_BITSTRING = 34;
+        OP_IS_FUN = 35;
+        OP_IS_FUN_WITH_ARITY = 36;
+        OP_PLUS = 37;
+        OP_MINUS = 38;
+        OP_TIMES = 39;
+        OP_RDIV = 40;
+        OP_IDIV_NAT = 41;
+        OP_REM_NAT = 42;
+        OP_UNARY = 43;
+        OP_POW = 44;
+        OP_TRUNC = 45;
+        OP_ATOM_NIL = 46;
+        OP_ATOM_HEAD = 47;
+        OP_ATOM_TAIL = 48;
+        OP_HD = 49;
+        OP_TL = 50;
+        OP_CONS = 51;
+        OP_TCONS = 52;
+        OP_EQUAL = 53;
+        OP_UNEQUAL = 54;
+        OP_LT_INT = 55;
+        OP_LT_FLOAT = 56;
+        OP_MAKE_BITSTR = 57;
+        OP_EMPTY_BITSTR = 58;
+        OP_NONEMPTY_BITSTR = 59;
+        OP_CONCAT_SEGS = 60;
+        OP_BITMATCH_CONST_TRUE = 61;
+        OP_BITMATCH_CONST_FALSE = 62;
+        OP_BITMATCH_VAR_TRUE = 63;
+        OP_BITMATCH_VAR_FALSE = 64;
+        OP_BAND = 65;
+        OP_BXOR = 66;
+        OP_BOR = 67;
+    }
+
+    Type type = 1;
+    repeated ErlangTerm arguments = 2;
+
+    bool is_constraint = 3;
+    uint64 tag = 4;
+
+    Spec spec = 5;
+}

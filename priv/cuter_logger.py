@@ -24,14 +24,14 @@ def data_received(data):
     fd.flush()
     fd.close()
 
-def json_loaded(i, k, opcode, tag, json_data, rev):
+def json_loaded(i, entry, rev):
   if cglb.__LOG_JSON_LOADED__:
     fd = open(JSON_LOADED_LOG, "a")
     fd.write("{}.\n".format(i))
-    fd.write("  OPCODE {}\n".format(opcode))
-    fd.write("  KIND {}\n".format(k))
-    fd.write("  TAG {}\n".format(tag))
-    fd.write("  JSON {}\n".format(json_data))
+    fd.write("  OPCODE {}\n".format(entry.type))
+    fd.write("  IS_CONSTRAINT {}\n".format(entry.is_constraint))
+    fd.write("  TAG {}\n".format(entry.tag))
+    fd.write("  ARGS {}\n".format(str(entry.arguments)))
     fd.write("  REVERSIBLE {}\n".format(rev))
     fd.flush()
     fd.close()

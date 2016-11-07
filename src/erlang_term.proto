@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+message ErlangTerm {
+
+    /**
+     * The supported Erlang types.
+     *
+     * The types SYMBOLIC_VARIABLE and SUBTERM are used internally.
+     */
+    enum Type {
+        INTEGER = 0;
+        FLOAT = 1;
+        ATOM = 2;
+        TUPLE = 3;
+        LIST = 4;
+        IMPROPER_LIST = 5;
+        PID = 6;
+        REFERENCE = 7;
+        BITSTRING = 8;
+        MAP = 9;
+        FUN = 10;
+        SYMBOLIC_VARIABLE = 11;
+        SUBTERM = 12;
+        ANY = 13;
+    }
+
+    /**
+     * The type of a single map binding (used for map() terms).
+     */
+    message MapEntry {
+        ErlangTerm key = 1;
+        ErlangTerm value = 2;
+    }
+
+    /**
+     * The type of a function's single point.
+     */
+    message FunEntry {
+        repeated ErlangTerm arguments = 1;
+        ErlangTerm value = 2;
+    }
+
+    /**
+     * The represenation of Erlang Terms.
+     */
+    Type type = 1;
+    string value = 2;
+    repeated ErlangTerm subterms = 3;
+    map<string, ErlangTerm> shared = 4;
+
+    // Only used for improper lists.
+    ErlangTerm improper_list_nil = 5;
+
+    // Only used for atoms.
+    repeated int32 atom_chars = 6;
+
+    // Only used for bitstrings.
+    repeated bool bits = 7;
+
+    // Only used for maps.
+    repeated MapEntry map_entries = 8;
+
+    // Only uses for funs.
+    repeated FunEntry points = 9;
+    ErlangTerm otherwise = 10;
+    int32 arity = 11;
+}

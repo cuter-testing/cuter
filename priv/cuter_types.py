@@ -8,151 +8,121 @@ import cuter_common as cc
 
 class ErlType:
     """
-    Representation of Types in JSON form (as retrieved in the logs).
+    Representation of Types in Spec.Type form (as retrieved in the logs).
     """
 
     @classmethod
-    def getType(cls, typ):
-        return typ["tp"]
-
-    @classmethod
-    def setType(cls, typ, tp):
-        typ["tp"] = tp
-
-    @classmethod
-    def getArgs(cls, typ):
-        return typ["a"]
-
-    @classmethod
-    def setArgs(cls, typ, args):
-        typ["a"] = args
-
-    @classmethod
     def generateAnyType(cls):
-        tp = {}
-        cls.setType(tp, cc.JSON_ERLTYPE_ANY)
-        return tp
+        return cc.mk_type_any()
 
     @classmethod
     def generateTupleType(cls):
-        tp = {}
-        cls.setType(tp, cc.JSON_ERLTYPE_TUPLE)
-        return tp
+        return cc.mk_type_tuple()
 
     @classmethod
     def generateListAnyType(cls):
-        tp = {}
-        cls.setType(tp, cc.JSON_ERLTYPE_LIST)
-        cls.setArgs(tp, cls.generateAnyType())
-        return tp
+        return cc.mk_type_list(cls.generateAnyType())
 
     @classmethod
     def generateNTupleType(cls, sz):
-        tp = {}
-        cls.setNTupleType(tp, sz)
-        return tp
+        return cc.mk_type_ntuple(sz)
 
     @classmethod
     def generateConsType(cls):
-        tp = {}
-        cls.setConsType(tp)
-        return tp
+        return cc.mk_type_cons()
 
     @classmethod
     def isAny(cls, typ):
-        return cls.getType(typ) == cc.JSON_ERLTYPE_ANY
+        return cc.is_type_any(typ)
 
     @classmethod
     def isAtom(cls, typ):
-        return cls.getType(typ) == cc.JSON_ERLTYPE_ATOM
+        return cc.is_type_atom(typ)
 
     @classmethod
     def isAtomLit(cls, typ):
-        return cls.getType(typ) == cc.JSON_ERLTYPE_ATOMLIT
+        return cc.is_type_atomlit(typ)
 
     @classmethod
     def isFloat(cls, typ):
-        return cls.getType(typ) == cc.JSON_ERLTYPE_FLOAT
+        return cc.is_type_float(typ)
 
     @classmethod
     def isInteger(cls, typ):
-        return cls.getType(typ) == cc.JSON_ERLTYPE_INTEGER
+        return cc.is_type_integer(typ)
 
     @classmethod
     def isIntegerLit(cls, typ):
-        return cls.getType(typ) == cc.JSON_ERLTYPE_INTEGERLIT
+        return cc.is_type_integerlit(typ)
 
     @classmethod
     def isList(cls, typ):
-        return cls.getType(typ) == cc.JSON_ERLTYPE_LIST
+        return cc.is_type_list(typ)
 
     @classmethod
     def isNil(cls, typ):
-        return cls.getType(typ) == cc.JSON_ERLTYPE_NIL
+        return cc.is_type_nil(typ)
 
     @classmethod
     def isTuple(cls, typ):
-        return cls.getType(typ) == cc.JSON_ERLTYPE_TUPLE
+        return cc.is_type_tuple(typ)
 
     @classmethod
     def isTupleDet(cls, typ):
-        return cls.getType(typ) == cc.JSON_ERLTYPE_TUPLEDET
+        return cc.is_type_tupledet(typ)
 
     @classmethod
     def isUnion(cls, typ):
-        return cls.getType(typ) == cc.JSON_ERLTYPE_UNION
+        return cc.is_type_union(typ)
 
     @classmethod
     def isRange(cls, typ):
-        return cls.getType(typ) == cc.JSON_ERLTYPE_RANGE
+        return cc.is_type_range(typ)
 
     @classmethod
     def isNonemptyList(cls, typ):
-        return cls.getType(typ) == cc.JSON_ERLTYPE_NONEMPTY_LIST
+        return cc.is_type_nonempty_list(typ)
 
     @classmethod
     def isBitstring(cls, typ):
-      return cls.getType(typ) == cc.JSON_ERLTYPE_BITSTRING
+      return cc.is_type_bitstring(typ)
 
     @classmethod
     def isGenericFun(cls, typ):
-        return cls.getType(typ) == cc.JSON_ERLTYPE_GENERIC_FUN
+        return cc.is_type_generic_fun(typ)
 
     @classmethod
     def isFun(cls, typ):
-        return cls.getType(typ) == cc.JSON_ERLTYPE_FUN
+        return cc.is_type_complete_fun(typ)
 
     @classmethod
     def isCons(cls, typ):
-        return cls.getType(typ) == cc.JSON_ERLTYPE_CONS
+        return cc.is_type_cons(typ)
 
     @classmethod
     def isNTuple(cls, typ):
-        return cls.getType(typ) == cc.JSON_ERLTYPE_NTUPLE
+        return cc.is_type_ntuple(typ)
 
     @classmethod
     def setNonEmptyListType(cls, typ):
-        cls.setType(typ, cc.JSON_ERLTYPE_NONEMPTY_LIST)
+        cc.set_type_nonempty_list(typ)
 
     @classmethod
     def setConsType(cls, typ):
-        cls.setType(typ, cc.JSON_ERLTYPE_CONS)
-        cls.setArgs(typ, None)
+        cc.set_type_cons(typ)
 
     @classmethod
     def setNilType(cls, typ):
-        cls.setType(typ, cc.JSON_ERLTYPE_NIL)
-        cls.setArgs(typ, None)
+        cc.set_type_nil(typ)
 
     @classmethod
     def setNTupleType(cls, typ, n):
-        cls.setType(typ, cc.JSON_ERLTYPE_NTUPLE)
-        cls.setArgs(typ, n)
+        cc.set_type_ntuple(typ, n)
 
     @classmethod
     def getListTypeFromNonemptyList(cls, typ):
         tp = deepcopy(typ)
-        cls.setType(tp, cc.JSON_ERLTYPE_LIST)
+        cc.set_type_list(tp)
         return tp
 
 class Type:
@@ -165,7 +135,8 @@ class Type:
         self.hasFunBeenUsed = False  # Only applies to function types.
         self.children = None
         if ErlType.isNonemptyList(typ):
-            h = Type(deepcopy(ErlType.getArgs(self.typ)))
+            inner_type = cc.get_inner_type_from_nonempty_list(self.typ)
+            h = Type(deepcopy(inner_type))
             t = Type(ErlType.getListTypeFromNonemptyList(self.typ))
             ErlType.setConsType(self.typ)
             self.isFinal = True
@@ -202,12 +173,14 @@ class Type:
         else:
             # preprocess unions
             if ErlType.isUnion(tp.typ):
+                inner_types = cc.get_inner_types_from_union(tp.typ)
                 isCnd = lambda x: ErlType.isTuple(x) or ErlType.isTupleDet(x)
-                candidates = [t for t in ErlType.getArgs(tp.typ) if isCnd(t)]
+                candidates = [t for t in inner_types if isCnd(t)]
                 if len(candidates) > 0:
                     tp.typ = candidates[0]
                     if ErlType.isTupleDet(tp.typ):
-                        sz = len(ErlType.getArgs(tp.typ))
+                        ts = cc.get_inner_types_from_tupledet(tp.typ)
+                        sz = len(ts)
                         tp.matchNTuple(sz)
                 else:
                     # TODO Log inconsistency
@@ -228,13 +201,13 @@ class Type:
     def applyLambda(self, arity):
         if ErlType.isGenericFun(self.typ):
             self.hasFunBeenUsed = True
-            [retType] = ErlType.getArgs(self.typ)
+            retType = cc.get_rettype_from_fun(self.typ)
             tpArgs = [Type(ErlType.generateAnyType()) for _ in range(arity)]
             return tpArgs, Type(deepcopy(retType))
         elif ErlType.isFun(self.typ):
             self.hasFunBeenUsed = True
-            types = ErlType.getArgs(self.typ)
-            argsTypes, retType = types[:-1], types[-1]
+            argsTypes = cc.get_parameters_from_complete_fun(self.typ)
+            retType = cc.get_rettype_from_fun(self.typ)
             tpArgs = [Type(deepcopy(tp)) for tp in argsTypes]
             return tpArgs, Type(deepcopy(retType))
         else:
@@ -250,7 +223,8 @@ class Type:
             # preprocess unions
             if ErlType.isUnion(self.typ):
                 isL = lambda x: ErlType.isList(x) or ErlType.isNonemptyList(x)
-                candidates = [tp for tp in ErlType.getArgs(self.typ) if isL(tp)]
+                inner_types = cc.get_inner_types_from_union(self.typ)
+                candidates = [tp for tp in inner_types if isL(tp)]
                 if len(candidates) > 0:
                     self.typ = candidates[0]
                 else:
@@ -258,13 +232,15 @@ class Type:
                     pass
             # actual type elaborations
             if ErlType.isList(self.typ):
-                h = Type(deepcopy(ErlType.getArgs(self.typ)))
+                it = cc.get_inner_type_from_list(self.typ)
+                h = Type(deepcopy(it))
                 t = Type(deepcopy(self.typ))
                 ErlType.setConsType(self.typ)
                 self.isFinal = True
                 self.children = [h, t]
             elif ErlType.isNonemptyList(self.typ):
-                h = Type(deepcopy(ErlType.getArgs(self.typ)))
+                it = cc.get_inner_type_from_nonempty_list(self.typ)
+                h = Type(deepcopy(it))
                 t = Type(ErlType.getListTypeFromNonemptyList(self.typ))
                 ErlType.setConsType(self.typ)
                 self.isFinal = True
@@ -279,10 +255,12 @@ class Type:
         if not self.isFinal:
             # preprocess unions
             if ErlType.isUnion(self.typ):
-                candidates = [tp for tp in ErlType.getArgs(self.typ) if not ErlType.isNonemptyList(tp)]
+                inner_types = cc.get_inner_types_from_union(self.typ)
+                candidates = [tp for tp in inner_types if not ErlType.isNonemptyList(tp)]
                 if len(candidates) > 0:
-                    ErlType.setArgs(self.typ, candidates)
-                    for tp in ErlType.getArgs(self.typ):
+                    cc.set_inner_types_to_union(self.typ, candidates)
+                    new_inner_types = cc.get_inner_types_from_union(self.typ)
+                    for tp in new_inner_types:
                         if ErlType.isList(tp):
                             ErlType.setNilType(tp)
             # actual type elaborations
@@ -294,8 +272,9 @@ class Type:
         if not self.isFinal:
             # preprocess unions
             if ErlType.isUnion(self.typ):
+                inner_types = cc.get_inner_types_from_union(self.typ)
                 isCnd = lambda x: ErlType.isList(x) or ErlType.isNil(x)
-                candidates = [tp for tp in ErlType.getArgs(self.typ) if isCnd(tp)]
+                candidates = [tp for tp in inner_types if isCnd(tp)]
                 if len(candidates) > 0:
                     self.typ = candidates[0]
                 else:
@@ -317,12 +296,13 @@ class Type:
         if not self.isFinal:
             # preprocess unions
             if ErlType.isUnion(self.typ):
-                candidates = [tp for tp in ErlType.getArgs(self.typ) if not ErlType.isNil(tp)]
+                inner_types = cc.get_inner_types_from_union(self.typ)
+                candidates = [tp for tp in inner_types if not ErlType.isNil(tp)]
                 for cnd in candidates:
                     if ErlType.isList(cnd):
                         ErlType.setNonEmptyListType(cnd)
                 if len(candidates) > 0:
-                    ErlType.setArgs(self.typ, candidates)
+                    cc.set_inner_types_to_union(self.typ, candidates)
                 else:
                     # TODO Log inconsistency
                     pass
@@ -333,10 +313,11 @@ class Type:
         if not self.isFinal:
             # preprocess unions
             if ErlType.isUnion(self.typ):
+                inner_types = cc.get_inner_types_from_union(self.typ)
                 isCnd = lambda x: not ErlType.isList(x) and not ErlType.isNil(x) and not ErlType.isNonemptyList(x)
-                candidates = [tp for tp in ErlType.getArgs(self.typ) if isCnd(tp)]
+                candidates = [tp for tp in inner_types if isCnd(tp)]
                 if len(candidates) > 0:
-                    ErlType.setArgs(self.typ, candidates)
+                    cc.set_inner_types_to_union(self.typ, candidates)
                 else:
                     # TODO Log inconsistency
                     pass
@@ -348,8 +329,9 @@ class Type:
         if not self.isFinal:
             # preprocess unions
             if ErlType.isUnion(self.typ):
-                isCnd = lambda x: ErlType.isTuple(x) or (ErlType.isTupleDet(x) and len(ErlType.getArgs(x)) == sz)
-                candidates = [tp for tp in ErlType.getArgs(self.typ) if isCnd(tp)]
+                inner_types = cc.get_inner_types_from_union(self.typ)
+                isCnd = lambda x: ErlType.isTuple(x) or (ErlType.isTupleDet(x) and len(cc.get_inner_types_from_tupledet(x)) == sz)
+                candidates = [tp for tp in inner_types if isCnd(tp)]
                 if len(candidates) > 0:
                     self.typ = candidates[0]
                 else:
@@ -358,9 +340,9 @@ class Type:
             # actual type elaborations
             if ErlType.isTuple(self.typ):
                 pass
-            elif ErlType.isTupleDet(self.typ) and len(ErlType.getArgs(self.typ)) == sz:
+            elif ErlType.isTupleDet(self.typ) and len(cc.get_inner_types_from_tupledet(self.typ)) == sz:
                 self.isFinal = True
-                self.children = [Type(deepcopy(tp)) for tp in ErlType.getArgs(self.typ)]
+                self.children = [Type(deepcopy(tp)) for tp in cc.get_inner_types_from_tupledet(self.typ)]
                 ErlType.setNTupleType(self.typ, sz)
             elif ErlType.isAny(self.typ):
                 pass
@@ -372,15 +354,16 @@ class Type:
         if not self.isFinal:
             # preprocess unions
             if ErlType.isUnion(self.typ):
-                isCnd = lambda x: not (ErlType.isTupleDet(x) and len(ErlType.getArgs(x)) == sz)
-                candidates = [tp for tp in ErlType.getArgs(self.typ) if isCnd(tp)]
+                inner_types = cc.get_inner_types_from_union(self.typ)
+                isCnd = lambda x: not (ErlType.isTupleDet(x) and len(cc.get_inner_types_from_tupledet(x)) == sz)
+                candidates = [tp for tp in inner_types if isCnd(tp)]
                 if len(candidates) > 0:
-                    ErlType.setArgs(self.typ, candidates)
+                    cc.set_inner_types_to_union(self.typ, candidates)
                 else:
                     # TODO Log inconsistency
                     pass
             # actual type elaborations
-            if ErlType.isTupleDet(self.typ) and len(ErlType.getArgs(self.typ)) == sz:
+            if ErlType.isTupleDet(self.typ) and len(cc.get_inner_types_from_tupledet(self.typ)) == sz:
                 # TODO Log inconsistency
                 pass
 
@@ -388,10 +371,11 @@ class Type:
         if not self.isFinal:
             # preprocess unions
             if ErlType.isUnion(self.typ):
+                inner_types = cc.get_inner_types_from_union(self.typ)
                 isCnd = lambda x: not ErlType.isTupleDet(x) and not ErlType.isTuple(x)
-                candidates = [tp for tp in ErlType.getArgs(self.typ) if isCnd(tp)]
+                candidates = [tp for tp in inner_types if isCnd(tp)]
                 if len(candidates) > 0:
-                    ErlType.setArgs(self.typ, candidates)
+                    cc.set_inner_types_to_union(self.typ, candidates)
                 else:
                     # TODO Log inconsistency
                     pass
@@ -448,9 +432,9 @@ class Type:
         elif ErlType.isTuple(typ):
             return True
         elif ErlType.isTupleDet(typ):
-            return all(self.isFinalType(t) for t in ErlType.getArgs(typ))
+            return all(self.isFinalType(t) for t in cc.get_inner_types_from_tupledet(typ))
         elif ErlType.isUnion(typ):
-            return all(self.isFinalType(t) for t in ErlType.getArgs(typ))
+            return all(self.isFinalType(t) for t in cc.get_inner_types_from_union(typ))
         elif ErlType.isRange(typ):
             return True
         elif ErlType.isNonemptyList(typ):
@@ -507,13 +491,14 @@ class Type:
             return True
         if tp.isUnion():
             isCnd = lambda x: ErlType.isAtom(x)
-            candidates = [t for t in ErlType.getArgs(tp.typ) if isCnd(t)]
+            inner_types = cc.get_inner_types_from_union(tp.typ)
+            candidates = [t for t in inner_types if isCnd(t)]
             if len(candidates) > 0:
                 return True
             isCnd = lambda x: ErlType.isAtomLit(x)
-            candidates = [t for t in ErlType.getArgs(tp.typ) if isCnd(t)]
+            candidates = [t for t in inner_types if isCnd(t)]
             if len(candidates) > 0:
-                ErlType.setArgs(candidates)
+                cc.set_inner_types_to_union(tp, candidates)
                 self.takenOverByType(tp)
                 return True
         return False
@@ -522,14 +507,15 @@ class Type:
         if tp.isAtom():
             return True
         if tp.isAtomLit():
-            return ErlType.getArgs(self.typ) == ErlType.getArgs(tp.typ)
+            return cc.get_literal_from_atomlit(self.typ) == cc.get_literal_from_atomlit(tp.typ)
         if tp.isUnion():
             isCnd = lambda x: ErlType.isAtom(x)
-            candidates = [t for t in ErlType.getArgs(tp.typ) if isCnd(t)]
+            inner_types = cc.get_inner_types_from_union(tp.typ)
+            candidates = [t for t in inner_types if isCnd(t)]
             if len(candidates) > 0:
                 return True
-            isCnd = lambda x: ErlType.isAtomLit(x) and ErlType.getArgs(self.typ) == ErlType.getArgs(x)
-            candidates = [t for t in ErlType.getArgs(tp.typ) if isCnd(t)]
+            isCnd = lambda x: ErlType.isAtomLit(x) and cc.get_literal_from_atomlit(self.typ) == cc.get_literal_from_atomlit(x)
+            candidates = [t for t in inner_types if isCnd(t)]
             if len(candidates) > 0:
                 return True
         return False
@@ -544,13 +530,14 @@ class Type:
             self.takenOverByType(tp)
         if tp.isUnion():
             isCnd = lambda x: ErlType.isInteger(x)
-            candidates = [t for t in ErlType.getArgs(tp.typ) if isCnd(t)]
+            inner_types = cc.get_inner_types_from_union(tp.typ)
+            candidates = [t for t in inner_types if isCnd(t)]
             if len(candidates) > 0:
                 return True
             isCnd = lambda x: ErlType.isIntegerLit(x) or ErlType.isRange(x)
-            candidates = [t for t in ErlType.getArgs(tp.typ) if isCnd(t)]
+            candidates = [t for t in inner_types if isCnd(t)]
             if len(candidates) > 0:
-                ErlType.setArgs(candidates)
+                cc.set_inner_types_to_union(tp, candidates)
                 self.takenOverByType(tp)
                 return True
         return False
@@ -559,19 +546,20 @@ class Type:
         if tp.isInteger():
             return True
         if tp.isIntegerLit():
-            return ErlType.getArgs(self.typ) == ErlType.getArgs(tp.typ)
+            return cc.get_literal_from_integerlit(self.typ) == cc.get_literal_from_integerlit(tp.typ)
         if tp.isUnion():
             isCnd = lambda x: ErlType.isInteger(x)
-            candidates = [t for t in ErlType.getArgs(tp.typ) if isCnd(t)]
+            inner_types = cc.get_inner_types_from_union(tp.typ)
+            candidates = [t for t in inner_types if isCnd(t)]
             if len(candidates) > 0:
                 return True
-            isCnd = lambda x: ErlType.isIntegerLit(x) and ErlType.getArgs(self.typ) == ErlType.getArgs(x)
-            candidates = [t for t in ErlType.getArgs(tp.typ) if isCnd(t)]
+            isCnd = lambda x: ErlType.isIntegerLit(x) and cc.get_literal_from_integerlit(self.typ) == cc.get_literal_from_integerlit(x)
+            candidates = [t for t in inner_types if isCnd(t)]
             if len(candidates) > 0:
                 return True
             # FIXME Check for range properly
             isCnd = lambda x: ErlType.isRange(x)
-            candidates = [t for t in ErlType.getArgs(tp.typ) if isCnd(t)]
+            candidates = [t for t in inner_types if isCnd(t)]
             if len(candidates) > 0:
                 return True
         return False
@@ -581,7 +569,8 @@ class Type:
             return True
         if tp.isUnion():
             isCnd = lambda x: ErlType.isFloat(x)
-            candidates = [t for t in ErlType.getArgs(tp.typ) if isCnd(t)]
+            inner_types = cc.get_inner_types_from_union(tp.typ)
+            candidates = [t for t in inner_types if isCnd(t)]
             if len(candidates) > 0:
                 return True
         return False
@@ -592,7 +581,8 @@ class Type:
             return True
         if tp.isUnion():
             isCnd = lambda x: ErlType.isBitstring(x)
-            candidates = [t for t in ErlType.getArgs(tp.typ) if isCnd(t)]
+            inner_types = cc.get_inner_types_from_union(tp.typ)
+            candidates = [t for t in inner_types if isCnd(t)]
             if len(candidates) > 0:
                 return True
         return False
@@ -605,16 +595,17 @@ class Type:
             return True
         if tp.isUnion():
             isCnd = lambda x: ErlType.isTuple(x)
-            candidates = [t for t in ErlType.getArgs(tp.typ) if isCnd(t)]
+            inner_types = cc.get_inner_types_from_union(tp.typ)
+            candidates = [t for t in inner_types if isCnd(t)]
             if len(candidates) > 0:
                 return True
             isCnd = lambda x: ErlType.isTupleDet(x)
-            candidates = [t for t in ErlType.getArgs(tp.typ) if isCnd(t)]
+            candidates = [t for t in inner_types if isCnd(t)]
             if len(candidates) > 0:
                 # FIXME Have to check specify the type with tupledet
                 return True
             isCnd = lambda x: ErlType.isNTuple(x)
-            candidates = [t for t in ErlType.getArgs(tp.typ) if isCnd(t)]
+            candidates = [t for t in inner_types if isCnd(t)]
             if len(candidates) > 0:
                 # FIXME Have to check specify the type with ntuple
                 return True
@@ -624,8 +615,8 @@ class Type:
         if tp.isTuple():
             return True
         if tp.isTupleDet():
-            args = ErlType.getArgs(self.typ)
-            tpArgs =  ErlType.getArgs(tp.typ)
+            args = cc.get_inner_types_from_tupledet(self.typ)
+            tpArgs = cc.get_inner_types_from_tupledet(tp.typ)
             if len(args) != len(tpArgs):
                 return False
             else:
@@ -643,8 +634,8 @@ class Type:
         if tp.isTuple():
             return True
         if tp.isTupleDet():
-            n = ErlType.getArgs(self.typ)
-            tpArgs =  ErlType.getArgs(tp.typ)
+            n = cc.get_inner_types_from_tupledet(self.typ)
+            tpArgs = cc.get_inner_types_from_tupledet(tp.typ)
             if n != len(tpArgs):
                 return False
             else:

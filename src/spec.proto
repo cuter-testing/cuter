@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+import "erlang_term.proto";
+
+message Spec {
+
+    enum ErlType {
+        ANY = 0;
+        ATOM = 1;
+        ATOM_LITERAL = 2;
+        FLOAT = 3;
+        INTEGER = 4;
+        INTEGER_LITERAL = 5;
+        LIST = 6;
+        NONEMPTY_LIST = 7;
+        NIL = 8;
+        BITSTRING = 9;
+        TUPLE = 10;
+        TUPLEDET = 11;
+        UNION = 12;
+        RANGE = 13;
+        FUN = 14;
+        CONS = 15;
+        NTUPLE = 16;
+    }
+
+    message RangeBounds {
+        string lower_bound = 1;
+        string upper_bound = 2;
+    }
+
+    message SegmentSize {
+        string m = 1;
+        string n = 2;
+    }
+
+    message FunSig {
+        oneof signature {
+            FunDet complete = 1;
+            Type just_return = 2;
+        }
+    }
+
+    message FunDet {
+        repeated Type parameters = 1;
+        Type return_value = 2;
+    }
+
+    message Type {
+        ErlType type = 1;
+        oneof arg {
+            ErlangTerm literal = 2;
+            RangeBounds range_bounds = 3;
+            SegmentSize segment_size = 4;
+            Type inner_type = 5;
+            TypeList inner_types = 6;
+            FunSig fun = 7;
+            uint32 ntuple_size = 8;
+        }
+    }
+
+    message TypeList {
+        repeated Type types = 1;
+    }
+
+    repeated FunSig clauses = 1;
+}

@@ -2,132 +2,746 @@
 # -*- coding: utf-8 -*-
 
 from cuter_global import *
+from erlang_term_pb2 import ErlangTerm
+from log_entry_pb2 import LogEntry
+from solver_response_pb2 import SolverResponse
+from spec_pb2 import Spec
 
-JSON_TYPE_ANY = 0
-JSON_TYPE_INT = 1
-JSON_TYPE_FLOAT = 2
-JSON_TYPE_ATOM = 3
-JSON_TYPE_LIST = 4
-JSON_TYPE_TUPLE = 5
-JSON_TYPE_PID = 6
-JSON_TYPE_REF = 7
-JSON_TYPE_BITSTRING = 8
-JSON_TYPE_FUN = 9
+def is_interpretable(entry):
+  xs = set([LogEntry.OP_SPAWN, LogEntry.OP_SPAWNED,
+            LogEntry.OP_MSG_SEND, LogEntry.OP_MSG_RECEIVE, LogEntry.OP_MSG_CONSUME])
+  return entry.type not in xs
 
-JSON_ERLTYPE_NTUPLE = -2
-JSON_ERLTYPE_CONS = -1
-JSON_ERLTYPE_ANY = 0
-JSON_ERLTYPE_ATOM = 1
-JSON_ERLTYPE_ATOMLIT = 2
-JSON_ERLTYPE_FLOAT = 3
-JSON_ERLTYPE_INTEGER = 4
-JSON_ERLTYPE_INTEGERLIT = 5
-JSON_ERLTYPE_LIST = 6
-JSON_ERLTYPE_NIL = 7
-JSON_ERLTYPE_TUPLE = 8
-JSON_ERLTYPE_TUPLEDET = 9
-JSON_ERLTYPE_UNION = 10
-JSON_ERLTYPE_RANGE = 11
-JSON_ERLTYPE_NONEMPTY_LIST = 12
-JSON_ERLTYPE_BITSTRING = 13
-JSON_ERLTYPE_GENERIC_FUN = 14
-JSON_ERLTYPE_FUN = 15
+def is_reversible(entry):
+  return entry.is_constraint
 
-CMD_LOAD_TRACE_FILE = 1
-CMD_SOLVE = 2
-CMD_GET_MODEL = 3
-CMD_ADD_AXIOMS = 4
-CMD_FIX_VARIABLE = 5
-CMD_RESET_SOLVER = 6
-CMD_STOP = 42
+# =============================================================================
+# Create LogEntry objects.
+# =============================================================================
 
-RSP_MODEL_DELIMITER_START = "model_start"
-RSP_MODEL_DELIMITER_END = "model_end"
+def mk_log_entry(typ, args, tag=None, is_constraint=None):
+    """
+    Parameters
+        typ : LogEntry.Type
+        args : list of ErlangTerm
+        tag : integer
+        is_constraint : boolean
+    """
+    e = LogEntry()
+    e.type = typ
+    e.arguments.extend(args)
+    if not tag is None:
+        e.tag = tag
+    if not is_constraint is None:
+        e.is_constraint = is_constraint
+    return e
 
-CONSTRAINT_TRUE = 1
-CONSTRAINT_FALSE = 2
-NOT_CONSTRAINT = 3
+def get_tag(entry):
+    """
+    Parameters
+        entry : LogEntry
+    """
+    return entry.tag
 
-OP_PARAMS = 1
-OP_SPEC = 2
-OP_LAMBDA = 68
-OP_GUARD_TRUE = 3
-OP_GUARD_FALSE = 4
-OP_MATCH_EQUAL_TRUE = 5
-OP_MATCH_EQUAL_FALSE = 6
-OP_TUPLE_SZ = 7
-OP_TUPLE_NOT_SZ = 8
-OP_TUPLE_NOT_TPL = 9
-OP_LIST_NON_EMPTY = 10
-OP_LIST_EMPTY = 11
-OP_LIST_NOT_LST = 12
-OP_SPAWN = 13
-OP_SPAWNED = 14
-OP_MSG_SEND = 15
-OP_MSG_RECEIVE = 16
-OP_MSG_CONSUME = 17
-OP_UNFOLD_TUPLE = 18
-OP_UNFOLD_LIST = 19
-OP_HD = 25
-OP_TL = 26
-OP_IS_INTEGER = 27
-OP_IS_ATOM = 28
-OP_IS_FLOAT = 29
-OP_IS_LIST = 30
-OP_IS_TUPLE = 31
-OP_IS_BOOLEAN = 32
-OP_IS_NUMBER = 33
-OP_PLUS = 34
-OP_MINUS = 35
-OP_TIMES = 36
-OP_RDIV = 37
-OP_IDIV_NAT = 38
-OP_REM_NAT = 39
-OP_UNARY = 40
-OP_EQUAL = 41
-OP_UNEQUAL = 42
-OP_FLOAT = 47
-OP_BOGUS = 48
-OP_ATOM_NIL = 49
-OP_ATOM_HEAD = 50
-OP_ATOM_TAIL = 51
-OP_LIST_TO_TUPLE = 52
-OP_TUPLE_TO_LIST = 53
-OP_LT_INT = 54
-OP_LT_FLOAT = 55
-OP_CONS = 56
-OP_TCONS = 57
-OP_POW = 58
-OP_MAKE_BITSTR = 59
-OP_EMPTY_BITSTR = 60
-OP_NONEMPTY_BITSTR = 61
-OP_CONCAT_SEGS = 62
-OP_BITMATCH_CONST_TRUE = 63
-OP_BITMATCH_CONST_FALSE = 64
-OP_BITMATCH_VAR_TRUE = 65
-OP_BITMATCH_VAR_FALSE = 66
-OP_IS_BITSTRING = 67
-OP_IS_FUN = 69
-OP_IS_FUN_WITH_ARITY = 70
-OP_NOT_LAMBDA_WITH_ARITY = 71
-OP_FRESH_LAMBDA_WITH_ARITY = 72
-OP_EVALUATED_CLOSURE = 73
-OP_TRUNC = 74
-OP_BAND = 75
-OP_BXOR = 76
-OP_BOR = 77
+def get_spec(entry):
+    """
+    Parameters
+        entry : an OP_SPEC LogEntry
+    """
+    assert entry.type == LogEntry.OP_SPEC
+    return entry.spec
 
-SOLVER_STATUS_SAT = "sat"
-SOLVER_STATUS_UNSAT = "unsat"
-SOLVER_STATUS_UNKNOWN = "unknown"
-SOLVER_STATUS_TIMEOUT = "timeout"
+# =============================================================================
+# Create / Manipulate ErlangTerm objects.
+# =============================================================================
 
-def is_constraint_kind(tp):
-  return tp == CONSTRAINT_TRUE or tp == CONSTRAINT_FALSE
+def mk_symb(s):
+    """
+    Parameters
+        s : string
+    """
+    t = ErlangTerm()
+    t.type = ErlangTerm.SYMBOLIC_VARIABLE
+    t.value = s
+    return t
 
-def is_interpretable(tp):
-  xs = set([OP_SPAWN, OP_SPAWNED, OP_MSG_SEND, OP_MSG_RECEIVE, OP_MSG_CONSUME])
-  return tp not in xs
+def get_symb(t):
+    """
+    Parameters
+        s : ErlangTerm
+    """
+    assert t.type == ErlangTerm.SYMBOLIC_VARIABLE
+    return t.value
 
-def is_reversible(tp, opcode):
-  return is_constraint_kind(tp)
+def is_symb(t):
+    """
+    Parameters
+        s : ErlangTerm
+    """
+    return t.type == ErlangTerm.SYMBOLIC_VARIABLE
+
+def mk_any():
+    t = ErlangTerm()
+    t.type = ErlangTerm.ANY
+    return t
+
+def mk_int(i):
+    """
+    Parameters
+        i : int
+    """
+    t = ErlangTerm()
+    t.type = ErlangTerm.INTEGER
+    t.value = str(i)
+    return t
+
+def is_int(t):
+    """
+    Parameters
+        t : ErlangTerm
+    """
+    return t.type == ErlangTerm.INTEGER
+
+def get_int(t):
+    """
+    Parameters
+        t : ErlangTerm
+    """
+    assert is_int(t)
+    return int(t.value)
+
+def mk_float(f):
+    """
+    Parameters
+        f : float
+    """
+    t = ErlangTerm()
+    t.type = ErlangTerm.FLOAT
+    t.value = str(f)
+    return t
+
+def is_float(t):
+    """
+    Parameters
+        t : ErlangTerm
+    """
+    return t.type == ErlangTerm.FLOAT
+
+def get_float(t):
+    """
+    Parameters
+        t : ErlangTerm
+    """
+    assert is_float(t)
+    return float(t.value)
+
+def mk_atom(chars):
+    """
+    Parameters
+        chars : list of ints
+    """
+    t = ErlangTerm()
+    t.type = ErlangTerm.ATOM
+    t.atom_chars.extend(chars)
+    return t
+
+def is_atom(t):
+    """
+    Parameters
+        t : ErlangTerm
+    """
+    return t.type == ErlangTerm.ATOM
+
+def get_atom_chars(t):
+    """
+    Parameters
+        t : ErlangTerm
+    """
+    assert is_atom(t)
+    return t.atom_chars
+
+def mk_tuple(subterms):
+    """
+    Parameters
+        subterms : list of ErlangTerm
+    """
+    t = ErlangTerm()
+    t.type = ErlangTerm.TUPLE
+    t.subterms.extend(subterms)
+    return t
+
+def mk_list(subterms):
+    """
+    Parameters
+        subterms : list of ErlangTerm
+    """
+    t = ErlangTerm()
+    t.type = ErlangTerm.LIST
+    t.subterms.extend(subterms)
+    return t
+
+def is_list(t):
+    """
+    Parameters
+        t : ErlangTerm
+    """
+    return t.type == ErlangTerm.LIST
+
+def get_list_subterms(t):
+    """
+    Parameters
+        t : ErlangTerm
+    """
+    assert is_list(t)
+    return t.subterms
+
+def mk_bitstring(bits):
+    """
+    Parameters
+        bits : list of bool
+    """
+    t = ErlangTerm()
+    t.type = ErlangTerm.BITSTRING
+    t.bits.extend(bits)
+    return t
+
+def is_bitstring(t):
+    """
+    Parameters
+        t : ErlangTerm
+    """
+    return t.type == ErlangTerm.BITSTRING
+
+def get_bits(t):
+    """
+    Parameters
+        t : ErlangTerm
+    """
+    assert is_bitstring(t)
+    return t.bits
+
+def mk_alias(s):
+    """
+    Parameters
+        s : string
+    """
+    t = ErlangTerm()
+    t.type = ErlangTerm.SUBTERM
+    t.value = s
+    return t
+
+def mk_fun(arity, points, otherwise):
+    """
+    Parameters
+        arity : integer
+        points : list of FunEntry
+        otherwise : ErlangTerm
+    """
+    t = ErlangTerm()
+    t.type = ErlangTerm.FUN
+    t.arity = arity
+    t.otherwise.CopyFrom(otherwise)
+    if len(points):
+        t.points.extend(points)
+    return t
+
+def mk_const_fun(arity, otherwise):
+    """
+    Parameters
+        arity : integer
+        otherwise : ErlangTerm
+    """
+    return mk_fun(arity, [], otherwise)
+
+def mk_fun_entry(args, value):
+    """
+    Parameters
+        args : list of ErlangTerm
+        value : ErlangTerm
+    """
+    e = ErlangTerm.FunEntry()
+    e.arguments.extend(args)
+    e.value.CopyFrom(value)
+    return e
+
+def get_value_from_fun_entry(entry):
+    """
+    Parameters
+        entry : ErlangTerm.FunEntry
+    """
+    return entry.value
+
+# =============================================================================
+# Create / Manipulate SolverResponse objects.
+# =============================================================================
+
+def mk_sat():
+    r = SolverResponse()
+    r.type = SolverResponse.MODEL_STATUS
+    r.status = SolverResponse.SAT
+    return r
+
+def is_sat(r):
+    """
+    Parameters
+        r : SolverResponse
+    """
+    assert r.type == SolverResponse.MODEL_STATUS
+    return r.status == SolverResponse.SAT
+
+def mk_unsat():
+    r = SolverResponse()
+    r.type = SolverResponse.MODEL_STATUS
+    r.status = SolverResponse.UNSAT
+    return r
+
+def mk_unknown():
+    r = SolverResponse()
+    r.type = SolverResponse.MODEL_STATUS
+    r.status = SolverResponse.UNKNOWN
+    return r
+
+def mk_timeout():
+    r = SolverResponse()
+    r.type = SolverResponse.MODEL_STATUS
+    r.status = SolverResponse.TIMEOUT
+    return r
+
+def mk_model_entry(var, value):
+    """
+    Parameters
+        var : ErlangTerm
+        value : ErlangTerm
+    """
+    e = SolverResponse.ModelEntry()
+    e.var.CopyFrom(var)
+    e.value.CopyFrom(value)
+    return e
+
+def mk_model(entries):
+    """
+    Parameters
+        entries : list of SolverResponse.ModelEntry
+    """
+    m = SolverResponse.Model()
+    m.entries.extend(entries)
+    return m
+
+def mk_model_data(model):
+    """
+    Parameters
+        model : SolverResponse.Model
+    """
+    r = SolverResponse()
+    r.type = SolverResponse.MODEL_DATA
+    r.model.CopyFrom(model)
+    return r
+
+def get_model_entries(model_data):
+    """
+    Parameters
+        model_data : SolverResponse that has a 'model' field
+    """
+    return model_data.model.entries
+
+# =============================================================================
+# Manipulate Spec objects.
+# =============================================================================
+
+def get_spec_clauses(spec):
+    """
+    Parameters
+        spec : Spec
+    """
+    return spec.clauses
+
+def get_param_types_of_clause(funsig):
+    """
+    Parameters
+        funsig : Spec.FunSig
+    """
+    return funsig.complete.parameters
+
+def mk_typelist(types):
+    """
+    Parameters
+        types : list of Spec.Type
+    """
+    t = Spec.TypeList()
+    t.types.extend(types)
+    return t
+
+def is_type_message(msg):
+    """
+    Parameters
+        msg : any protobuf message
+    """
+    return msg.DESCRIPTOR.full_name == "Spec.Type"
+
+def mk_type_any():
+    t = Spec.Type()
+    t.type = Spec.ANY
+    return t
+
+def is_type_any(t):
+    """
+    Parameters
+        t : Spec.Type
+    """
+    return t.type == Spec.ANY
+
+def is_type_atom(t):
+    """
+    Parameters
+        t : Spec.Type
+    """
+    return t.type == Spec.ATOM
+
+def get_literal_from_atomlit(t):
+    """
+    Parameters
+        t : Spec.Type
+    """
+    assert t.type == Spec.ATOM_LITERAL
+    return t.literal
+
+def is_type_atomlit(t):
+    """
+    Parameters
+        t : Spec.Type
+    """
+    return t.type == Spec.ATOM_LITERAL
+
+def is_type_float(t):
+    """
+    Parameters
+        t : Spec.Type
+    """
+    return t.type == Spec.FLOAT
+
+def is_type_integer(t):
+    """
+    Parameters
+        t : Spec.Type
+    """
+    return t.type == Spec.INTEGER
+
+def get_literal_from_integerlit(t):
+    """
+    Parameters
+        t : Spec.Type
+    """
+    assert t.type == Spec.INTEGER_LITERAL
+    return t.literal
+
+def is_type_integerlit(t):
+    """
+    Parameters
+        t : Spec.Type
+    """
+    return t.type == Spec.INTEGER_LITERAL
+
+def mk_type_list(tp):
+    """
+    Parameters
+        t : Spec.Type
+    """
+    t = Spec.Type()
+    t.type = Spec.LIST
+    t.inner_type.CopyFrom(tp)
+    return t
+
+def set_type_list(t):
+    """
+    Parameters
+        t : Spec.Type
+    """
+    t.type = Spec.LIST
+
+def get_inner_type_from_list(t):
+    """
+    Parameters
+        t : Spec.Type
+    """
+    assert t.type == Spec.LIST
+    return t.inner_type
+
+def is_type_list(t):
+    """
+    Parameters
+        t : Spec.Type
+    """
+    return t.type == Spec.LIST
+
+def get_inner_type_from_nonempty_list(t):
+    """
+    Parameters
+        t : Spec.Type
+    """
+    assert t.type == Spec.NONEMPTY_LIST
+    return t.inner_type
+
+def set_type_nonempty_list(t):
+    """
+    Parameters
+        t : Spec.Type
+    """
+    t.type = Spec.NONEMPTY_LIST
+
+def is_type_nonempty_list(t):
+    """
+    Parameters
+        t : Spec.Type
+    """
+    return t.type == Spec.NONEMPTY_LIST
+
+def set_type_nil(t):
+    """
+    Parameters
+        t : Spec.Type
+    """
+    t.type = Spec.NIL
+    t.ClearField("arg")
+
+def is_type_nil(t):
+    """
+    Parameters
+        t : Spec.Type
+    """
+    return t.type == Spec.NIL
+
+def mk_type_tuple():
+    t = Spec.Type()
+    t.type = Spec.TUPLE
+    return t
+
+def is_type_tuple(t):
+    """
+    Parameters
+        t : Spec.Type
+    """
+    return t.type == Spec.TUPLE
+
+def get_inner_types_from_tupledet(t):
+    """
+    Parameters
+        t : Spec.Type
+    """
+    assert t.type == Spec.TUPLEDET
+    return t.inner_types.types
+
+def is_type_tupledet(t):
+    """
+    Parameters
+        t : Spec.Type
+    """
+    return t.type == Spec.TUPLEDET
+
+def get_inner_types_from_union(t):
+    """
+    Parameters
+        t : Spec.Type
+    """
+    assert t.type == Spec.UNION
+    return t.inner_types.types
+
+def set_inner_types_to_union(t, inner_types):
+    """
+    Parameters
+        t : Spec.Type
+        inner_types : list of Spec.Type
+    """
+    assert t.type == Spec.UNION
+    t.ClearField("inner_types")
+    ts = mk_typelist(inner_types)
+    t.inner_types.CopyFrom(ts)
+
+def is_type_union(t):
+    """
+    Parameters
+        t : Spec.Type
+    """
+    return t.type == Spec.UNION
+
+def has_lower_bound(bounds):
+    """
+    Parameters
+        bounds : Spec.RangeBounds
+    """
+    return len(bounds.lower_bound) > 0
+
+def get_lower_bound(bounds):
+    """
+    Parameters
+        bounds : Spec.RangeBounds
+    """
+    return int(bounds.lower_bound) if has_lower_bound(bounds) else ""
+
+def has_upper_bound(bounds):
+    """
+    Parameters
+        bounds : Spec.RangeBounds
+    """
+    return len(bounds.upper_bound) > 0
+
+def get_upper_bound(bounds):
+    """
+    Parameters
+        bounds : Spec.RangeBounds
+    """
+    return int(bounds.upper_bound) if has_upper_bound(bounds) else ""
+
+def get_range_bounds_from_range(t):
+    """
+    Parameters
+        t : Spec.Type
+    """
+    assert t.type == Spec.RANGE
+    return t.range_bounds
+
+def is_type_range(t):
+    """
+    Parameters
+        t : Spec.Type
+    """
+    return t.type == Spec.RANGE
+
+def get_segment_size_from_bitstring(t):
+    """
+    Parameters
+        t : Spec.Type
+    """
+    assert t.type == Spec.BITSTRING
+    return t.segment_size
+
+def is_type_bitstring(t):
+    """
+    Parameters
+        t : Spec.Type
+    """
+    return t.type == Spec.BITSTRING
+
+def is_complete_funsig(t):
+    """
+    Parameters
+        t : Spec.FunSig
+    """
+    return t.HasField("complete")
+
+def get_complete_funsig_arity(t):
+    """
+    Parameters
+        t : Spec.FunSig
+    """
+    assert is_complete_funsig(t)
+    return len(t.complete.parameters)
+
+def get_parameters_from_complete_funsig(t):
+    """
+    Parameters
+        t : Spec.FunSig
+    """
+    assert is_complete_funsig(t)
+    return t.complete.parameters
+
+def get_rettype_from_funsig(t):
+    """
+    Parameters
+        t : Spec.FunSig
+    """
+    if is_complete_funsig(t):
+        return t.complete.return_value
+    else:
+        return t.just_return
+
+def get_rettype_from_fun(t):
+    """
+    Parameters
+        t : Spec.Type
+    """
+    assert t.type == Spec.FUN
+    return get_rettype_from_funsig(t.fun)
+
+def get_parameters_from_complete_fun(t):
+    """
+    Parameters
+        t : Spec.Type
+    """
+    assert t.type == Spec.FUN
+    return get_parameters_from_complete_funsig(t.fun)
+
+def get_funsig_from_fun(t):
+    """
+    Parameters
+        t : Spec.Type
+    """
+    assert t.type == Spec.FUN
+    return t.fun
+
+def is_type_generic_fun(t):
+    """
+    Parameters
+        t : Spec.Type
+    """
+    return t.type == Spec.FUN and t.fun.HasField("just_return")
+
+def is_type_complete_fun(t):
+    """
+    Parameters
+        t : Spec.Type
+    """
+    return t.type == Spec.FUN and t.fun.HasField("complete")
+
+def mk_type_cons():
+    t = Spec.Type()
+    t.type = Spec.CONS
+    return t
+
+def set_type_cons(t):
+    """
+    Parameters
+        t : Spec.Type
+    """
+    t.type = Spec.CONS
+    t.ClearField("arg")
+
+def is_type_cons(t):
+    """
+    Parameters
+        t : Spec.Type
+    """
+    return t.type == Spec.CONS
+
+def mk_type_ntuple(sz):
+    """
+    Parameters
+        sz : integer
+    """
+    t = Spec.Type()
+    t.type = Spec.NTUPLE
+    t.ntuple_size = sz
+    return t
+
+def get_size_of_ntuple(t):
+    """
+    Parameters
+        t : Spec.Type
+    """
+    assert t.type == Spec.NTUPLE
+    return t.ntuple_size
+
+def set_type_ntuple(t, sz):
+    """
+    Parameters
+        t : Spec.Type
+        sz : integer
+    """
+    t.type = Spec.NTUPLE
+    t.ntuple_size = sz
+
+def is_type_ntuple(t):
+    """
+    Parameters
+        t : Spec.Type
+    """
+    return t.type == Spec.NTUPLE

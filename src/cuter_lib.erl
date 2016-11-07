@@ -10,6 +10,25 @@
          clear_and_delete_dir/1, clear_and_delete_dir/2, list_dir/1,
          unique_string/0, ensure_port_or_pid/1, is_improper_list/1,
          get_parts_of_list/1, create_improper_list/2, unzip_with/2]).
+-export([mk_lambda/3, is_lambda/1, lambda_arity/1, lambda_kvs/1, lambda_default/1, compile_lambda/1, compile_lambdas_in_args/1]).
+
+-export_type([lambda/0, lambda_kvs/0, lambda_default/0, lambda_arity/0]).
+
+%% ----------------------------------------------------------------------------
+%% Representation of lambda terms.
+%% ----------------------------------------------------------------------------
+
+-type lambda_kvs()     :: [{list(), any()}].
+-type lambda_default() :: any().
+-type lambda_arity()   :: arity().
+
+-define(lambda, '__lambda').
+-record(?lambda, {
+  arity   :: lambda_arity(),
+  kvs     :: lambda_kvs(),
+  default :: lambda_default()
+}).
+-type lambda() :: #?lambda{}.
 
 
 %% Generate a unique string
@@ -116,8 +135,11 @@ get_parts_of_list(T, Acc) ->
   {lists:reverse(Acc), T}.
 
 -spec create_improper_list(list(), any()) -> list().
-create_improper_list([], Acc) -> Acc;
-create_improper_list([H|T], Acc) -> create_improper_list(T, [H|Acc]).
+create_improper_list(Terms, Acc) ->
+  create_improper_list_h(lists:reverse(Terms), Acc).
+
+create_improper_list_h([], Acc) -> Acc;
+create_improper_list_h([H|T], Acc) -> create_improper_list_h(T, [H|Acc]).
 
 %% Unzips a list by
 %% 1) applying a function to each element of the list that
@@ -132,3 +154,106 @@ unzip_with(_Fn, [], L1, L2) ->
 unzip_with(Fn, [H|T], L1, L2) ->
   {H1, H2} = Fn(H),
   unzip_with(Fn, T, [H1|L1], [H2|L2]).
+
+%% ----------------------------------------------------------------------------
+%% Representation of lambda terms.
+%% We need to keep them in a form that allows pretty printing and compilation
+%% to actual lambdas when needed.
+%% ----------------------------------------------------------------------------
+
+-spec mk_lambda(lambda_kvs(), lambda_default(), lambda_arity()) -> lambda().
+mk_lambda(KVs, Default, Arity) ->
+  #?lambda{arity = Arity, kvs = KVs, default = Default}.
+
+-spec is_lambda(any()) -> boolean().
+is_lambda(#?lambda{arity = Arity, kvs = KVs}) when is_integer(Arity), is_list(KVs) ->
+  lists:all(fun({K, _}) when length(K) =:= Arity -> true; (_) -> false end, KVs);
+is_lambda(_) -> false.
+
+-spec lambda_arity(lambda()) -> lambda_arity().
+lambda_arity(T) ->
+  true = is_lambda(T),
+  T#?lambda.arity.
+
+-spec lambda_kvs(lambda()) -> lambda_kvs().
+lambda_kvs(T) ->
+  true = is_lambda(T),
+  T#?lambda.kvs.
+
+-spec lambda_default(lambda()) -> lambda_default().
+lambda_default(T) ->
+  true = is_lambda(T),
+  T#?lambda.default.
+
+-spec compile_lambdas_in_args([any()]) -> [any()].
+compile_lambdas_in_args(Args) ->
+  [ensure_compiled_value(A) || A <- Args].
+
+ensure_compiled_value(V) ->
+  case is_lambda(V) of
+    true  -> compile_lambda(V);
+    false -> V
+  end.
+
+-spec compile_lambda(lambda()) -> function().
+compile_lambda(T) ->
+  true = is_lambda(T),
+  compile_lambda_h(T).
+
+compile_lambda_h(#?lambda{arity = Arity, kvs = KVs, default = Default}) ->
+  %% TODO Check if the parameters is a lambda, in case of recursion.
+  %% TODO Also compile lambdas in maps.
+  CompiledKVs = [{K, compile_lambda_h(V)} || {K, V} <- KVs],
+  CompiledDefault = compile_lambda_h(Default),
+  Dict = dict:from_list(CompiledKVs),
+  Lookup = fun(As) -> lookup_args(As, Dict, CompiledDefault) end,
+  case Arity of
+    0 -> fun() -> Default end;
+    1 -> fun(A1) -> Lookup([A1]) end;
+    2 -> fun(A1, A2) -> Lookup([A1, A2]) end;
+    3 -> fun(A1, A2, A3) -> Lookup([A1, A2, A3]) end;
+    4 -> fun(A1, A2, A3, A4) -> Lookup([A1, A2, A3, A4]) end;
+    5 -> fun(A1, A2, A3, A4, A5) -> Lookup([A1, A2, A3, A4, A5]) end;
+    6 -> fun(A1, A2, A3, A4, A5, A6) -> Lookup([A1, A2, A3, A4, A5, A6]) end;
+    7 -> fun(A1, A2, A3, A4, A5, A6, A7) -> Lookup([A1, A2, A3, A4, A5, A6, A7]) end;
+    8 -> fun(A1, A2, A3, A4, A5, A6, A7, A8) ->
+      Lookup([A1, A2, A3, A4, A5, A6, A7, A8]) end;
+    9 -> fun(A1, A2, A3, A4, A5, A6, A7, A8, A9) ->
+      Lookup([A1, A2, A3, A4, A5, A6, A7, A8, A9]) end;
+    10 -> fun(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) ->
+      Lookup([A1, A2, A3, A4, A5, A6, A7, A8, A9, A10]) end;
+    11 -> fun(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) ->
+      Lookup([A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11]) end;
+    12 -> fun(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) ->
+      Lookup([A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12]) end;
+    13 -> fun(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) ->
+      Lookup([A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13]) end;
+    14 -> fun(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) ->
+      Lookup([A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14]) end;
+    15 -> fun(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) ->
+      Lookup([A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15]) end;
+    16 -> fun(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) ->
+      Lookup([A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16]) end;
+    17 -> fun(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) ->
+      Lookup([A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17]) end;
+    18 -> fun(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) ->
+      Lookup([A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18]) end;
+    19 -> fun(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) ->
+      Lookup([A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19]) end;
+    20 -> fun(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) ->
+      Lookup([A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20]) end;
+    _ -> throw({over_lambda_fun_argument_limit, Arity})
+  end;
+compile_lambda_h(L) when is_list(L) ->
+  [compile_lambda_h(X) || X <- L];
+compile_lambda_h(T) when is_tuple(T) ->
+  L = tuple_to_list(T),
+  L1 = [compile_lambda_h(X) || X <- L],
+  list_to_tuple(L1);
+compile_lambda_h(T) -> T.
+
+lookup_args(As, Dict, Default) ->
+  case dict:find(As, Dict) of
+    error -> Default;
+    {ok, Value} -> Value
+  end.

@@ -20,21 +20,22 @@ def solve(fname, n, printConstraints, withSmt, withPrint):
     erlSolver = cz3.ErlangZ3() if not withSmt else cSMT.ErlangSMT()
     # Load the trace.
     r = cIO.JsonReader(fname, n)
-    for tp, tag, x, rev in r:
+    for entry, rev in r:
         if printConstraints:
-            cpt.print_cmd(tp, tag, x, rev)
-        if cc.is_interpretable(tp):
-            erlSolver.command_toSolver(tp, x, rev)
+            cpt.print_cmd(entry, rev)
+        if cc.is_interpretable(entry):
+            erlSolver.command_toSolver(entry, rev)
     # Load the axioms to the solver.
     erlSolver.add_axioms()
     # Solve the model.
     if withPrint: print "Solving the model ...",
     slv = erlSolver.solve()
     if withPrint: print slv
-    if slv == "sat":
+    if cc.is_sat(slv):
         m = erlSolver.model
         if withPrint: print m
         return (slv, str(m))
+    return slv
 
 def usage():
     print "Usage: cuter_solve_offline.py TraceFile NoOfConstraint [ options ]"
@@ -53,7 +54,10 @@ def run_tests(ebin, utestEbin):
     cmd = " ".join(["erl", "-noshell", "-pa", ebin, "-pa", utestEbin, "-eval",
         "\"cuter_tests_lib:sample_trace_file(\\\"{}\\\")\"".format(fname), "-s", "init", "stop"])
     subp.call(cmd, shell=True)
-    assert ("sat", "[x2 = int(44), x1 = int(1)]") == solve(fname, 3, False, False, False), "Solver error"
+    result = solve(fname, 3, False, False, False)
+    assert len(result), "Solver error"
+    assert cc.is_sat(result[0]), "Not SAT status"
+    assert "[x2 = int(44), x1 = int(1)]" == result[1], "Wrong model"
     try:
         os.remove(fname)
     except OSError:
@@ -62,25 +66,21 @@ def run_tests(ebin, utestEbin):
 if __name__ == "__main__":
     shortOpts = "u:e:"
     longOpts = ["print-constraints", "help", "smt"]
-    try:
-        optlist, remainder = getopt.gnu_getopt(sys.argv[1:], shortOpts, longOpts)
-        printConstraints, withSmt = False, False
-        ebin, utestEbin = None, None
-        for opt, arg in optlist:
-            if opt == "--help":
-                usage()
-                sys.exit(0)
-            elif opt == "--print-constraints":
-                printConstraints = True
-            elif opt == "--smt":
-                withSmt = True
-            elif opt == "-u":
-                utestEbin = arg
-            elif opt == "-e":
-                ebin = arg
-        if ebin != None or utestEbin != None:
-            sys.exit(run_tests(ebin, utestEbin))
-        solve(remainder[0], int(remainder[1]), printConstraints, withSmt, True)
-    except Exception as e:
-        print "Fatal Error:", e
-        sys.exit(1)
+    optlist, remainder = getopt.gnu_getopt(sys.argv[1:], shortOpts, longOpts)
+    printConstraints, withSmt = False, False
+    ebin, utestEbin = None, None
+    for opt, arg in optlist:
+        if opt == "--help":
+            usage()
+            sys.exit(0)
+        elif opt == "--print-constraints":
+            printConstraints = True
+        elif opt == "--smt":
+            withSmt = True
+        elif opt == "-u":
+            utestEbin = arg
+        elif opt == "-e":
+            ebin = arg
+    if ebin != None or utestEbin != None:
+        sys.exit(run_tests(ebin, utestEbin))
+    solve(remainder[0], int(remainder[1]), printConstraints, withSmt, True)
