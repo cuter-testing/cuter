@@ -668,7 +668,7 @@
             "solutions": [
                 "[2.75]"
             ],
-            "skip": true
+            "skip": false
         },
         {
             "module": "collection",
@@ -679,7 +679,7 @@
             "solutions": [
                 "[-42.75]"
             ],
-            "skip": true
+            "skip": false
         },
         {
             "module": "bitstr",

@@ -33,6 +33,32 @@ false = [102, 97, 108, 115, 101]
 true = [116, 114, 117, 101]
 
 
+def calculate_int(obj):
+	if isinstance(obj, list):
+		if obj[0] == "-" and len(obj) == 2:
+			i0 = calculate_int(obj[1])
+			return -i0
+	else:
+		return int(obj)
+	smt.log("calculate_int: unknown operation " + str(obj))
+	return None
+
+
+def calculate_real(obj):
+	if isinstance(obj, list):
+		if obj[0] == "-" and len(obj) == 2:
+			r0 = calculate_real(obj[1])
+			return -r0
+		if obj[0] == "/" and len(obj) == 3:
+			r1 = calculate_real(obj[1])
+			r2 = calculate_real(obj[2])
+			return r1 / r2
+	else:
+		return float(obj)
+	smt.log("calculate_real: unknown operation " + str(obj))
+	return None
+
+
 class ErlangSMT(cgs.AbstractErlangSolver):
 
 	def __init__(self):
@@ -86,6 +112,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 	# =========================================================================
 
 	def assertion(self, assertion):
+		#smt.log("assertion " + str(assertion))
 		self.cmds.append(["assert", assertion])
 
 	def decode(self, data):
@@ -136,9 +163,9 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			else:
 				return {"t": cc.JSON_TYPE_ATOM, "v": false}
 		elif data[0] == "int":
-			return {"t": cc.JSON_TYPE_INT, "v": int(data[1])}
+			return {"t": cc.JSON_TYPE_INT, "v": calculate_int(data[1])}
 		elif data[0] == "real":
-			return {"t": cc.JSON_TYPE_FLOAT, "v": float(data[1])}
+			return {"t": cc.JSON_TYPE_FLOAT, "v": calculate_real(data[1])}
 		elif data[0] == "atom":
 			node = data[1]
 			v = []
@@ -236,12 +263,15 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t = self.decode(term)
 		self.assertion(["=", t, ["bool", "true"]])
+		#smt.log("call guard_true: " + str(t))
 
 	def guard_true_reversed(self, term):
 		"""
 		Asserts the predicate: Not (term == true)
 		"""
-		self.guard_false(term)
+		t = self.decode(term)
+		self.assertion(["not", ["=", t, ["bool", "true"]]])
+		#smt.log("call guard_true_reversed: " + str(t))
 
 	def guard_false(self, term):
 		"""
@@ -249,12 +279,15 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t = self.decode(term)
 		self.assertion(["=", t, ["bool", "false"]])
+		#smt.log("call guard_false: " + str(t))
 
 	def guard_false_reversed(self, term):
 		"""
 		Asserts the predicate: Not (term == false)
 		"""
-		self.guard_true(term)
+		t = self.decode(term)
+		self.assertion(["not", ["=", t, ["bool", "false"]]])
+		#smt.log("call guard_false_reversed: " + str(t))
 
 	def match_equal(self, term1, term2):
 		"""
@@ -263,6 +296,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t1 = self.decode(term1)
 		t2 = self.decode(term2)
 		self.assertion(["=", t1, t2])
+		#smt.log("call match_equal: " + str(t1) + " " + str(t2))
 
 	def match_equal_reversed(self, term1, term2):
 		"""
@@ -277,6 +311,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t1 = self.decode(term1);
 		t2 = self.decode(term2);
 		self.assertion(["not", ["=", t1, t2]])
+		#smt.log("call match_not_equal: " + str(t1) + " " + str(t2))
 
 	def match_not_equal_reversed(self, term1, term2):
 		"""
@@ -289,8 +324,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		Asserts that: term is a nonempty list.
 		"""
 		t = self.decode(term)
-		self.assertion(["is-list", t])
-		self.assertion(["is-cons", ["lval", t]])
+		self.assertion(["and", ["is-list", t], ["is-cons", ["lval", t]]])
 
 	def list_nonempty_reversed(self, term):
 		"""
@@ -367,6 +401,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
+		smt.log("call is_integer: " + str(["=", t0, ["bool", ["is-int", t1]]]))
 		self.assertion(["=", t0, ["bool", ["is-int", t1]]])
 
 	def is_float(self, term0, term1):
@@ -375,6 +410,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
+		smt.log("call is_float: " + str(["=", t0, ["bool", ["is-real", t1]]]))
 		self.assertion(["=", t0, ["bool", ["is-real", t1]]])
 
 	def is_number(self, term0, term1):
@@ -385,10 +421,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t1 = self.decode(term1)
 		self.assertion(["=", t0, ["bool", ["or", ["is-int", t1], ["is-real", t1]]]])
 
-	def minus(self, term0, term1, term2):
-		"""
-		Asserts that: term = term1 - term2.
-		"""
+	def _binary_operation(self, operator, term0, term1, term2):
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
 		t2 = self.decode(term2)
@@ -397,20 +430,32 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		self.assertion([
 			"ite",
 			["and", ["is-int", t1], ["is-int", t2]],
-			["=", t0, ["int", ["-", ["ival", t1], ["ival", t2]]]],
+			["=", t0, ["int", [operator, ["ival", t1], ["ival", t2]]]],
 			[
 				"=",
 				t0,
 				[
 					"real",
 					[
-						"-",
-						["ite", ["is-int", t1], ["ival", t1], ["rval", t1]],
-						["ite", ["is-int", t2], ["ival", t2], ["rval", t2]]
+						operator,
+						["ite", ["is-int", t1], ["to_real", ["ival", t1]], ["rval", t1]],
+						["ite", ["is-int", t2], ["to_real", ["ival", t2]], ["rval", t2]]
 					]
 				]
 			]
 		])
+
+	def plus(self, term0, term1, term2):
+		"""
+		Asserts that: term0 = term1 + term2.
+		"""
+		self._binary_operation("+", term0, term1, term2)
+
+	def minus(self, term0, term1, term2):
+		"""
+		Asserts that: term0 = term1 - term2.
+		"""
+		self._binary_operation("-", term0, term1, term2)
 
 	def trunc(self, term0, term1):
 		"""
@@ -423,22 +468,20 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			"=",
 			t0,
 			[
-				"int",
+				"ite",
+				["is-int", t1],
+				t1,
 				[
-					"ite",
-					["is-int", t1],
-					["ival", t1],
+					"int",
 					[
 						"ite",
-						["<", ["rval", t1], "0"],
-						["+", ["to_int", ["rval", t1]], "1"],
-						["to_int", ["rval", t1]]
+						[">=", ["rval", t1], "0.0"],
+						["to_int", ["rval", t1]],
+						["-", ["to_int", ["-", ["rval", t1]]]]
 					]
 				]
 			]
 		])
-		self.assertion(["=", t0, ["int", ["to_int", ["ite", ["is-int", t1], ["ival", t1], ["rval", t1]]]]])
-		# TODO erlang trunc is not equivalent to smt to_int
 
 	def lt_integers(self, term0, term1, term2):
 		"""
@@ -469,4 +512,4 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
 		self.assertion(["or", ["is-int", t1], ["is-real", t1]])
-		self.assertion(["=", t0, ["real", ["ite", ["is-int", t1], ["ival", t1], ["rval", t1]]]])
+		self.assertion(["=", t0, ["real", ["ite", ["is-int", t1], ["to_real", ["ival", t1]], ["rval", t1]]]])

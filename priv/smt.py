@@ -57,7 +57,7 @@ class Solver:
 	def __init__(self, args):
 		self.args = args
 
-	def solve(self, cmds, vars):
+	def solve(self, stmts, vars):
 		process = subprocess.Popen(
 			self.args,
 			stdin=subprocess.PIPE,
@@ -65,9 +65,9 @@ class Solver:
 			stderr=subprocess.PIPE,
 			universal_newlines=True
 		)
-		for cmd in cmds:
-			process.stdin.write(encode(cmd) + "\n")
-			log(encode(cmd))
+		for stmt in stmts:
+			process.stdin.write(encode(stmt) + "\n")
+			log(encode(stmt))
 		process.stdin.write(encode(["check-sat"]) + "\n")
 		log(encode(["check-sat"]))
 		status = process.stdout.readline()[:-1]
