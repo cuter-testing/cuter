@@ -140,7 +140,7 @@ fi
 
 ###############################################
 #
-# Testing proper
+# Testing PropEr
 #
 ###############################################
 AC_ARG_WITH(proper,
@@ -177,9 +177,47 @@ rm -f test_proper.erl test_proper.beam
 
 if test "$HAS_PROPER" = "0"; then
    PROPER=
-   AC_MSG_NOTICE([PropEr is missing. You will not be able to run the tests. Download it at https://github.com/manopapad/proper and follow the instructions.])
+   AC_MSG_ERROR([PropEr is missing. You will not be able to run the tests. Download it at https://github.com/manopapad/proper and follow the instructions.])
 fi
 
+###############################################
+#
+# Testing gpb
+#
+###############################################
+AC_ARG_WITH(gpb,
+[AS_HELP_STRING([--with-gpb=GPB],
+		[specify the location of gbp.])])
+
+GPB="lib/gpb"
+if test "x$with_gpb" != x; then
+  GPB="$with_gpb"
+fi
+
+AC_SUBST(GPB)
+
+cat > message.proto <<EOF
+message Person {
+  required string name = 1;
+  required int32 id = 2;
+  optional string email = 3;
+}
+EOF
+
+PROTOCERL="$GPB/bin/protoc-erl"
+if $PROTOCERL -I. message.proto &> /dev/null; then
+  HAS_GPB="1"
+  HAS_GPB_MSG="yes"
+else
+  HAS_GPB="0"
+  HAS_GPB_MSG="unknown"
+fi
+rm -f message.proto message.erl message.hrl
+
+if test "$HAS_GPB" = "0"; then
+   GPB=
+   AC_MSG_NOTICE([GPB is missing. Run git submodule update --init && git submodule foreach make and re-run the configure script.])
+fi
 
 ###############################################
 #
@@ -201,6 +239,7 @@ Python:             $PYTHON_PATH
 Z3Py:               $HAS_Z3_MSG
 Meck:               $HAS_MECK_MSG
 PropEr:             $HAS_PROPER_MSG
+GPB:                $HAS_GPB_MSG
 
 To build CutEr, execute:
   make depend

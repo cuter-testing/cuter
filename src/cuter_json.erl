@@ -580,7 +580,7 @@ decode_list(JSON, Dec=#decoder{state = termination}) ->
     <<?Q, $x, ?Q, Rest/binary>> ->
       R = trim_whitespace(trim_separator(Rest, $:, Dec)),  %% Ensure we pass a trimmed JSON string
       {Obj, Rem} = decode_object(R, Dec#decoder{state = start}),
-      {cuter_lib:create_improper_list(Dec#decoder.acc, Obj), Rem};
+      {cuter_lib:create_improper_list(lists:reverse(Dec#decoder.acc), Obj), Rem};
     _ ->
       parse_error(parse_error, Dec)
   end.

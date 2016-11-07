@@ -116,8 +116,11 @@ get_parts_of_list(T, Acc) ->
   {lists:reverse(Acc), T}.
 
 -spec create_improper_list(list(), any()) -> list().
-create_improper_list([], Acc) -> Acc;
-create_improper_list([H|T], Acc) -> create_improper_list(T, [H|Acc]).
+create_improper_list(Terms, Acc) ->
+  create_improper_list_h(lists:reverse(Terms), Acc).
+
+create_improper_list_h([], Acc) -> Acc;
+create_improper_list_h([H|T], Acc) -> create_improper_list_h(T, [H|Acc]).
 
 %% Unzips a list by
 %% 1) applying a function to each element of the list that
