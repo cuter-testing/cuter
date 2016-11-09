@@ -5,7 +5,7 @@ import sys, json, struct
 import cuter_global as cglb
 import cuter_common as cc
 import cuter_io as cio
-from log_entry_pb2 import LogEntry
+from cuter_proto_log_entry_pb2 import LogEntry
 
 with_tags = True if "tags" in sys.argv else False
 

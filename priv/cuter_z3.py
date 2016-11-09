@@ -1766,7 +1766,7 @@ def test_model():
         assert expected[s] == v, "{} is {} instead of {}".format(s, expected[s], v)
 
 def test_commands():
-    from log_entry_pb2 import LogEntry
+    from cuter_proto_log_entry_pb2 import LogEntry
     ss = [cc.mk_symb("0.0.0.{0:05d}".format(i)) for i in range(50)]
     anyTerm = cc.mk_any()
     trueTerm = cc.mk_atom([116,114,117,101])

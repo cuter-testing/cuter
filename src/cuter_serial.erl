@@ -8,11 +8,11 @@
 
 -include("include/cuter_macros.hrl").
 -include("include/cuter_types.hrl").
--include("include/erlang_term.hrl").
--include("include/solver_command.hrl").
--include("include/solver_response.hrl").
--include("include/log_entry.hrl").
--include("include/spec.hrl").
+-include("include/cuter_proto_erlang_term.hrl").
+-include("include/cuter_proto_solver_command.hrl").
+-include("include/cuter_proto_solver_response.hrl").
+-include("include/cuter_proto_log_entry.hrl").
+-include("include/cuter_proto_spec.hrl").
 
 -type erlang_term() :: #'ErlangTerm'{}.
 -type supported_term() :: atom() | bitstring() | pid() | reference() | list()
@@ -28,12 +28,12 @@
 -spec from_term(supported_term()) -> binary().
 from_term(Term) ->
   Msg = to_erlang_term(Term),
-  erlang_term:encode_msg(Msg).
+  cuter_proto_erlang_term:encode_msg(Msg).
 
 %% De-serialize an Erlang term from binary data.
 -spec to_term(binary()) -> supported_term().
 to_term(Msg) ->
-  ErlangTerm = erlang_term:decode_msg(Msg, 'ErlangTerm'),
+  ErlangTerm = cuter_proto_erlang_term:decode_msg(Msg, 'ErlangTerm'),
   from_erlang_term(ErlangTerm).
 
 -spec solver_command(commands_no_opts()) -> binary().
@@ -44,32 +44,32 @@ solver_command(Command) -> solver_command(Command, none).
                   ; (commands_no_opts(), none) -> binary().
 solver_command(Command, Options) ->
   Msg = to_solver_command(Command, Options),
-  solver_command:encode_msg(Msg).
+  cuter_proto_solver_command:encode_msg(Msg).
 
 -spec to_log_entry(cuter_log:opcode(), [any()], boolean(), cuter_cerl:tagID()) -> binary().
 to_log_entry(OpCode='OP_SPEC', [Spec], IsConstraint, _TagID) ->
   Msg = #'LogEntry'{ type = OpCode
                    , spec = to_spec(Spec)
                    , is_constraint = IsConstraint },
-  log_entry:encode_msg(Msg);
+  cuter_proto_log_entry:encode_msg(Msg);
 to_log_entry(OpCode, Arguments, IsConstraint, TagID) ->
   Parts = [to_erlang_term(A) || A <- Arguments],
   Msg = #'LogEntry'{ type = OpCode
                    , arguments = Parts
                    , is_constraint = IsConstraint
                    , tag = TagID },
-  log_entry:encode_msg(Msg).
+  cuter_proto_log_entry:encode_msg(Msg).
 
 -spec from_log_entry(binary()) -> {cuter_log:opcode(), [any()], boolean(), cuter_cerl:tagID()}.
 from_log_entry(Msg) ->
-  LogEntry = log_entry:decode_msg(Msg, 'LogEntry'),
+  LogEntry = cuter_proto_log_entry:decode_msg(Msg, 'LogEntry'),
   Arguments = [from_erlang_term(A) || A <- LogEntry#'LogEntry'.arguments],
   {LogEntry#'LogEntry'.type, Arguments, LogEntry#'LogEntry'.is_constraint, LogEntry#'LogEntry'.tag}.
 
 -spec from_solver_response(binary()) -> {'status', cuter_solver:solver_status()}
                                       | {'model', cuter_solver:model()}.
 from_solver_response(Msg) ->
-  SolverResponse = solver_response:decode_msg(Msg, 'SolverResponse'),
+  SolverResponse = cuter_proto_solver_response:decode_msg(Msg, 'SolverResponse'),
   case SolverResponse#'SolverResponse'.type of
     'MODEL_STATUS' ->
       {'status', Status} = SolverResponse#'SolverResponse'.data,

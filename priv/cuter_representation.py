@@ -8,7 +8,7 @@ import cuter_env as cenv
 import cuter_common as cc
 import cuter_global as cglb
 import cuter_logger as clg
-from erlang_term_pb2 import ErlangTerm
+from cuter_proto_erlang_term_pb2 import ErlangTerm
 
 class Erlang:
     """

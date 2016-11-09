@@ -109,11 +109,11 @@ PRIV_MODULES = \
 	cuter_representation
 
 PROTOBUFS = \
-	erlang_term \
-	solver_command \
-	solver_response \
-	log_entry \
-	spec
+	cuter_proto_erlang_term \
+	cuter_proto_solver_command \
+	cuter_proto_solver_response \
+	cuter_proto_log_entry \
+	cuter_proto_spec
 
 ###----------------------------------------------------------------------
 ### Targets
@@ -222,6 +222,6 @@ cleangen: cleandep cleanprotobufs
 	$(RM) .plt/.cuter_plt
 
 cleanprotobufs:
-	$(RM) $(PROTOBUFS:%=$(SRC)/%.erl) $(PROTOBUFS:%=$(INCLUDE)/%.hrl)
+	$(RM) $(PROTOBUFS:%=$(SRC)/%.erl) $(PROTOBUFS:%=$(INCLUDE)/%.hrl) $(PROTOBUFS:%=$(PRIV)/%_pb2.py)
 
 distclean: clean clean_tests cleangen cleanprotobufs

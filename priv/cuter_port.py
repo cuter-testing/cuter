@@ -6,7 +6,7 @@ import cuter_global as cglb
 import cuter_logger as clg
 import cuter_common as cc
 import cuter_io as cIO
-import solver_command_pb2 as scmd
+import cuter_proto_solver_command_pb2 as scmd
 
 class ErlangPort:
     def __init__(self):

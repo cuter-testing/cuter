@@ -2,10 +2,10 @@
 # -*- coding: utf-8 -*-
 
 from cuter_global import *
-from erlang_term_pb2 import ErlangTerm
-from log_entry_pb2 import LogEntry
-from solver_response_pb2 import SolverResponse
-from spec_pb2 import Spec
+from cuter_proto_erlang_term_pb2 import ErlangTerm
+from cuter_proto_log_entry_pb2 import LogEntry
+from cuter_proto_solver_response_pb2 import SolverResponse
+from cuter_proto_spec_pb2 import Spec
 
 def is_interpretable(entry):
   xs = set([LogEntry.OP_SPAWN, LogEntry.OP_SPAWNED,
