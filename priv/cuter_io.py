@@ -5,7 +5,7 @@ import gzip, json, struct, sys
 import cuter_global as cglb
 import cuter_logger as clg
 import cuter_common as cc
-from log_entry_pb2 import LogEntry
+from cuter_proto_log_entry_pb2 import LogEntry
 
 class BinaryEOF(Exception):
     def __init__(self):

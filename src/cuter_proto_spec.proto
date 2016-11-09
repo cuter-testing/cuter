@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-import "erlang_term.proto";
+import "cuter_proto_erlang_term.proto";
 
 message Spec {
 
