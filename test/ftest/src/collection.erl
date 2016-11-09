@@ -1,5 +1,5 @@
 -module(collection).
--export([f/1, g2/1, g/1, g1/1, h/1, f1/1, eval_nif/1, trunc1/1, trunc2/1, l2i/1, l2in/1,
+-export([f/1, g/1, g1/1, h/1, f1/1, eval_nif/1, trunc1/1, trunc2/1, l2i/1, l2in/1,
          to_upper/1]).
 
 -type t() :: [complex_spec:int()].
@@ -19,14 +19,7 @@ f([H|T], Acc) ->
     _ -> f(T, [H|Acc])
   end.
 
--spec g2(integer() | list()) -> any().
-g2(42) -> error(bug);
-g2(I) when is_integer(I) -> ok;
-g2([_,_]) -> ok;
-g2(L) -> g2(tl(L)).
-
 -spec g(integer() | [integer()]) -> iolist().
-g([]) -> <<>>;
 g(42) -> error(bug);
 g([42]) -> error(bug);
 g(I) when is_integer(I) -> <<>>;

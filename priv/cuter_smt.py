@@ -2,7 +2,7 @@
 
 import cuter_generic_solver as cgs
 import cuter_common as cc
-#import cuter_logger as clg
+import cuter_logger as clg
 import smt
 
 
@@ -40,7 +40,7 @@ def calculate_int(obj):
 			return -i0
 	else:
 		return int(obj)
-	smt.log("calculate_int: unknown operation " + str(obj))
+	clg.debug_info("calculate_int: unknown operation " + str(obj))
 	return None
 
 
@@ -55,36 +55,31 @@ def calculate_real(obj):
 			return r1 / r2
 	else:
 		return float(obj)
-	smt.log("calculate_real: unknown operation " + str(obj))
+	clg.debug_info("calculate_real: unknown operation " + str(obj))
 	return None
 
 
-def build_spec(spec, var):
-	#smt.log("spec: " + str(spec))
-	if cc.is_type_any(spec):
-		return "true"
-	elif cc.is_type_float(spec):
-		return ["is-real", var]
-	elif cc.is_type_integer(spec):
-		return ["is-int", var]
-	elif cc.is_type_list(spec):
-		# sample spec {u'a': {u'tp': 4}, u'tp': 6}
-		# TODO type of list elements
-		return ["is-list", var]
-	elif cc.is_type_union(spec):
-		ret = ["or"]
-		for item in cc.get_inner_types_from_union(spec):
-			ret.append(build_spec(item, var))
-		return ret
-	elif cc.is_type_range(spec):
-		ret = ["and", ["is-int", var]]
-		limits = cc.get_range_bounds_from_range(spec)
-		if cc.has_lower_bound(limits):
-			ret.append([">=", ["ival", var], str(cc.get_lower_bound(limits))])
-		if cc.has_upper_bound(limits):
-			ret.append(["<=", ["ival", var], str(cc.get_upper_bound(limits))])
-		return ret
-	smt.log("unknown spec: " + str(spec))
+def define_fun_rec(name, var, spec):
+	return [
+		"define-fun-rec",
+		name,
+		[[var, "Term"]],
+		"Bool",
+		[
+			"and",
+			["is-list", var],
+			[
+				"or",
+				["is-nil", ["lval", var]],
+				[
+					"and",
+					["is-cons", ["lval", var]],
+					spec,
+					[name, ["list", ["tl", ["lval", var]]]],
+				],
+			],
+		]
+	]
 
 
 class ErlangSMT(cgs.AbstractErlangSolver):
@@ -96,6 +91,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		self.cmds.append(["declare-datatypes", [], datatypes])
 		self.solver = None
 		self.model = None
+		self.fn_cnt = 0
 		self.solver = smt.SolverZ3()
 		smt.log("***")
 
@@ -137,7 +133,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 
 	def encode_model(self):
 		"""
-		Encodes the resulting model to JSON.
+		Encodes the resulting model.
 		"""
 		fn = lambda item: cc.mk_model_entry(cc.mk_symb(item[0][1:-1]), self.encode(item[1]))
 		return cc.mk_model_data(cc.mk_model(map(fn, self.model)))
@@ -147,12 +143,11 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 	# =========================================================================
 
 	def assertion(self, assertion):
-		#smt.log("assertion " + str(assertion))
 		self.cmds.append(["assert", assertion])
 
 	def decode(self, data):
 		"""
-		Decodes a JSON term to its SMT representation
+		Decodes a term to its SMT representation
 		"""
 		if cc.is_symb(data):
 			var = cc.get_symb(data)
@@ -177,7 +172,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		elif cc.is_tuple(data):
 			return ["tuple", self.value2tlist(cc.get_tuple_subterms(data))]
 		else:
-			smt.log("decoding failed: " + str(data))
+			clg.debug_info("decoding failed: " + str(data))
 			return None # TODO decode term
 
 	def value2tlist(self, value):
@@ -228,7 +223,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 				inner_table[var[0]] = var[1]
 			ret = self.encode(data[2], inner_table)
 			return ret
-		smt.log("encoding failed: " + str(data))
+		clg.debug_info("encoding failed: " + str(data))
 		return None # TODO encode term
 
 	# -------------------------------------------------------------------------
@@ -252,31 +247,42 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		p = cc.get_spec_clauses(spec)[0]
 		pms = cc.get_parameters_from_complete_funsig(p)
 		for item in zip(self.vars, pms):
-			self.assertion(build_spec(item[1], "|{}|".format(item[0])))
-		return # TODO clear code
-		for item in zip(self.vars, p):
-			var = "|{}|".format(item[0])
-			tp = item[1]["tp"]
-			if tp == cc.JSON_ERLTYPE_LIST:
-				smt.log("list item: " + str(item)) # TODO list spec
-				#self.cmds.append([
-				#	"define-fun-rec", "list_int", [["t", "Term"]], "Bool",
-				#	[
-				#		"or",
-				#		["is-nil", ["lval", "t"]],
-				#		[
-				#			"and",
-				#			["is-cons", ["lval", "t"]],
-				#			["is-int", ["hd", ["lval", "t"]]],
-				#			["list_int", ["list", ["tl", ["lval", "t"]]]],
-				#		],
-				#	]
-				#])
-				#self.assertion(["list_int", var])
-				# OR
-				# (assert (forall ((t Term)) (= (list_int t) (or (is-nil (lval t)) (and (is-cons (lval t)) (is-int (hd (lval t))) (list_int (list (tl (lval t)))))))))
-			else:
-				smt.log("item: " + str(item)) # TODO spec
+			self.assertion(self.build_spec(item[1], "|{}|".format(item[0])))
+
+	def build_spec(self, spec, var):
+		if cc.is_type_any(spec):
+			return "true"
+		elif cc.is_type_float(spec):
+			return ["is-real", var]
+		elif cc.is_type_integer(spec):
+			return ["is-int", var]
+		elif cc.is_type_list(spec):
+			inner_spec = self.build_spec(cc.get_inner_type_from_list(spec), ["hd", ["lval", "t"]])
+			name = "fn{}".format(self.fn_cnt)
+			self.fn_cnt += 1
+			self.cmds.append(define_fun_rec(name, "t", inner_spec))
+			return [name, var]
+		elif cc.is_type_union(spec):
+			ret = ["or"]
+			for item in cc.get_inner_types_from_union(spec):
+				ret.append(self.build_spec(item, var))
+			return ret
+		elif cc.is_type_range(spec):
+			ret = ["and", ["is-int", var]]
+			limits = cc.get_range_bounds_from_range(spec)
+			if cc.has_lower_bound(limits):
+				ret.append([">=", ["ival", var], str(cc.get_lower_bound(limits))])
+			if cc.has_upper_bound(limits):
+				ret.append(["<=", ["ival", var], str(cc.get_upper_bound(limits))])
+			return ret
+		elif cc.is_type_nonempty_list(spec):
+			inner_spec = self.build_spec(cc.get_inner_type_from_nonempty_list(spec), ["hd", ["lval", "t"]])
+			name = "fn{}".format(self.fn_cnt)
+			self.fn_cnt += 1
+			self.cmds.append(define_fun_rec(name, "t", inner_spec))
+			return ["and", ["is-list", var], ["is-cons", ["lval", var]], [name, var]]
+			return [name, var]
+		clg.debug_info("unknown spec: " + str(spec))
 
 	# -------------------------------------------------------------------------
 	# Constraints.
@@ -430,6 +436,22 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t1 = self.decode(term1)
 		self.assertion(["=", t0, ["bool", ["is-real", t1]]])
 
+	def is_list(self, term0, term1):
+		"""
+		Asserts that: term0 == is_list(term1).
+		"""
+		t0 = self.decode(term0)
+		t1 = self.decode(term1)
+		self.assertion(["=", t0, ["bool", ["is-list", t1]]])
+
+	def is_tuple(self, term0, term1):
+		"""
+		Asserts that: term0 == is_tuple(term1).
+		"""
+		t0 = self.decode(term0)
+		t1 = self.decode(term1)
+		self.assertion(["=", t0, ["bool", ["is-tuple", t1]]])
+
 	def is_number(self, term0, term1):
 		"""
 		Asserts that: term0 == is_number(term1).
@@ -474,6 +496,12 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		self._binary_operation("-", term0, term1, term2)
 
+	def times(self, term0, term1, term2):
+		"""
+		Asserts that: term0 = term1 * term2.
+		"""
+		self._binary_operation("*", term0, term1, term2)
+
 	def trunc(self, term0, term1):
 		"""
 		Asserts that: term0 is term1 truncated.
@@ -499,6 +527,15 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 				]
 			]
 		])
+
+	def equal(self, term0, term1, term2):
+		"""
+		Asserts that: term0 = (term1 == term2).
+		"""
+		t0 = self.decode(term0)
+		t1 = self.decode(term1)
+		t2 = self.decode(term2)
+		self.assertion(["=", t0, ["bool", ["=", t1, t2]]])
 
 	def lt_integers(self, term0, term1, term2):
 		"""

@@ -246,17 +246,6 @@
         },
         {
             "module": "collection",
-            "function": "g2",
-            "args": "[1]",
-            "depth": "3",
-            "errors": true,
-            "solutions": [
-                "[42]", "[[]]", "[[false]]"
-            ],
-            "skip": false
-        },
-        {
-            "module": "collection",
             "function": "g",
             "args": "[1]",
             "depth": "2",
@@ -301,7 +290,7 @@
             "solutions": [
                 "[38.86]"
             ],
-            "skip": true
+            "skip": false
         },
         {
             "module": "funs",
@@ -893,7 +882,7 @@
             "solutions": [
                 "[\"42\"]"
             ],
-            "skip": true
+            "skip": false
         },
         {
             "module": "collection",
