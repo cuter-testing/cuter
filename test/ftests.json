@@ -246,6 +246,17 @@
         },
         {
             "module": "collection",
+            "function": "g2",
+            "args": "[1]",
+            "depth": "3",
+            "errors": true,
+            "solutions": [
+                "[42]", "[[]]", "[[false]]"
+            ],
+            "skip": false
+        },
+        {
+            "module": "collection",
             "function": "g",
             "args": "[1]",
             "depth": "2",

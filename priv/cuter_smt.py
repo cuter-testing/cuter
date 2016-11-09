@@ -59,6 +59,35 @@ def calculate_real(obj):
 	return None
 
 
+def build_spec(spec, var):
+	#smt.log("spec: " + str(spec))
+	tp = spec["tp"]
+	if tp == cc.JSON_ERLTYPE_ANY:
+		return "true"
+	elif tp == cc.JSON_ERLTYPE_FLOAT:
+		return ["is-real", var]
+	elif tp == cc.JSON_ERLTYPE_INTEGER:
+		return ["is-int", var]
+	elif tp == cc.JSON_ERLTYPE_LIST:
+		# sample spec {u'a': {u'tp': 4}, u'tp': 6}
+		# TODO type of list elements
+		return ["is-list", var]
+	elif tp == cc.JSON_ERLTYPE_UNION:
+		ret = ["or"]
+		for item in spec["a"]:
+			ret.append(build_spec(item, var))
+		return ret
+	elif tp == cc.JSON_ERLTYPE_RANGE:
+		ret = ["and", ["is-int", var]]
+		limits = spec["a"]
+		if not("tp" in limits[0] and limits[0]["tp"] == cc.JSON_ERLTYPE_INTEGER) and limits[0]["t"] == cc.JSON_TYPE_INT:
+			ret.append([">=", ["ival", var], str(limits[0]["v"])])
+		if not("tp" in limits[1] and limits[1]["tp"] == cc.JSON_ERLTYPE_INTEGER) and limits[1]["t"] == cc.JSON_TYPE_INT:
+			ret.append(["<=", ["ival", var], str(limits[1]["v"])])
+		return ret
+	smt.log("unknown spec: " + str(spec))
+
+
 class ErlangSMT(cgs.AbstractErlangSolver):
 
 	def __init__(self):
@@ -213,16 +242,14 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		Stores the spec of the entry point MFA.
 		"""
-		#smt.log("spec: " + str(spec))
 		p = spec[0]["p"]
+		for item in zip(self.vars, p):
+			self.assertion(build_spec(item[1], "|{}|".format(item[0])))
+		return # TODO clear code
 		for item in zip(self.vars, p):
 			var = "|{}|".format(item[0])
 			tp = item[1]["tp"]
-			if tp == cc.JSON_ERLTYPE_ANY:
-				pass
-			elif tp == cc.JSON_ERLTYPE_INTEGER:
-				self.assertion(["is-int", var])
-			elif tp == cc.JSON_ERLTYPE_LIST:
+			if tp == cc.JSON_ERLTYPE_LIST:
 				smt.log("list item: " + str(item)) # TODO list spec
 				#self.cmds.append([
 				#	"define-fun-rec", "list_int", [["t", "Term"]], "Bool",
@@ -240,16 +267,6 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 				#self.assertion(["list_int", var])
 				# OR
 				# (assert (forall ((t Term)) (= (list_int t) (or (is-nil (lval t)) (and (is-cons (lval t)) (is-int (hd (lval t))) (list_int (list (tl (lval t)))))))))
-			elif tp == cc.JSON_ERLTYPE_UNION:
-				a = item[1]["a"]
-				# {u'a': [{u'tp': 4}, {u'tp': 3}], u'tp': 10}
-				self.assertion(["or", ["is-int", var], ["is-real", var]])
-			elif tp == cc.JSON_ERLTYPE_RANGE:
-				self.assertion(["is-int", var])
-				smt.log("range item: " + str(item)) # TODO range spec
-				a = item[1]["a"]
-				# {u'a': [{u't': 1, u'v': 1}, {u'tp': 4}], u'tp': 11}
-				self.assertion([">=", ["ival", var], "1"])
 			else:
 				smt.log("item: " + str(item)) # TODO spec
 
@@ -263,7 +280,6 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t = self.decode(term)
 		self.assertion(["=", t, ["bool", "true"]])
-		#smt.log("call guard_true: " + str(t))
 
 	def guard_true_reversed(self, term):
 		"""
@@ -271,7 +287,6 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t = self.decode(term)
 		self.assertion(["not", ["=", t, ["bool", "true"]]])
-		#smt.log("call guard_true_reversed: " + str(t))
 
 	def guard_false(self, term):
 		"""
@@ -279,7 +294,6 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t = self.decode(term)
 		self.assertion(["=", t, ["bool", "false"]])
-		#smt.log("call guard_false: " + str(t))
 
 	def guard_false_reversed(self, term):
 		"""
@@ -287,7 +301,6 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t = self.decode(term)
 		self.assertion(["not", ["=", t, ["bool", "false"]]])
-		#smt.log("call guard_false_reversed: " + str(t))
 
 	def match_equal(self, term1, term2):
 		"""
@@ -296,7 +309,6 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t1 = self.decode(term1)
 		t2 = self.decode(term2)
 		self.assertion(["=", t1, t2])
-		#smt.log("call match_equal: " + str(t1) + " " + str(t2))
 
 	def match_equal_reversed(self, term1, term2):
 		"""
@@ -311,7 +323,6 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t1 = self.decode(term1);
 		t2 = self.decode(term2);
 		self.assertion(["not", ["=", t1, t2]])
-		#smt.log("call match_not_equal: " + str(t1) + " " + str(t2))
 
 	def match_not_equal_reversed(self, term1, term2):
 		"""
@@ -401,7 +412,6 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		smt.log("call is_integer: " + str(["=", t0, ["bool", ["is-int", t1]]]))
 		self.assertion(["=", t0, ["bool", ["is-int", t1]]])
 
 	def is_float(self, term0, term1):
@@ -410,7 +420,6 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		smt.log("call is_float: " + str(["=", t0, ["bool", ["is-real", t1]]]))
 		self.assertion(["=", t0, ["bool", ["is-real", t1]]])
 
 	def is_number(self, term0, term1):
