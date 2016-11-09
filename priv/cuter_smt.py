@@ -61,29 +61,28 @@ def calculate_real(obj):
 
 def build_spec(spec, var):
 	#smt.log("spec: " + str(spec))
-	tp = spec["tp"]
-	if tp == cc.JSON_ERLTYPE_ANY:
+	if cc.is_type_any(spec):
 		return "true"
-	elif tp == cc.JSON_ERLTYPE_FLOAT:
+	elif cc.is_type_float(spec):
 		return ["is-real", var]
-	elif tp == cc.JSON_ERLTYPE_INTEGER:
+	elif cc.is_type_integer(spec):
 		return ["is-int", var]
-	elif tp == cc.JSON_ERLTYPE_LIST:
+	elif cc.is_type_list(spec):
 		# sample spec {u'a': {u'tp': 4}, u'tp': 6}
 		# TODO type of list elements
 		return ["is-list", var]
-	elif tp == cc.JSON_ERLTYPE_UNION:
+	elif cc.is_type_union(spec):
 		ret = ["or"]
-		for item in spec["a"]:
+		for item in cc.get_inner_types_from_union(spec):
 			ret.append(build_spec(item, var))
 		return ret
-	elif tp == cc.JSON_ERLTYPE_RANGE:
+	elif cc.is_type_range(spec):
 		ret = ["and", ["is-int", var]]
-		limits = spec["a"]
-		if not("tp" in limits[0] and limits[0]["tp"] == cc.JSON_ERLTYPE_INTEGER) and limits[0]["t"] == cc.JSON_TYPE_INT:
-			ret.append([">=", ["ival", var], str(limits[0]["v"])])
-		if not("tp" in limits[1] and limits[1]["tp"] == cc.JSON_ERLTYPE_INTEGER) and limits[1]["t"] == cc.JSON_TYPE_INT:
-			ret.append(["<=", ["ival", var], str(limits[1]["v"])])
+		limits = cc.get_range_bounds_from_range(spec)
+		if cc.has_lower_bound(limits):
+			ret.append([">=", ["ival", var], str(cc.get_lower_bound(limits))])
+		if cc.has_upper_bound(limits):
+			ret.append(["<=", ["ival", var], str(cc.get_upper_bound(limits))])
 		return ret
 	smt.log("unknown spec: " + str(spec))
 
@@ -128,13 +127,20 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		tpl = self.solver.solve(self.cmds, self.vars)
 		self.model = tpl[1]
-		return tpl[0]
+		result = tpl[0]
+		if result == "sat":
+			return cc.mk_sat()
+		elif result == "unsat":
+			return cc.mk_unsat()
+		elif result == "unknown":
+			return cc.mk_unknown()
 
 	def encode_model(self):
 		"""
 		Encodes the resulting model to JSON.
 		"""
-		return [({"s": item[0][1:-1]}, self.encode(item[1])) for item in self.model]
+		fn = lambda item: cc.mk_model_entry(cc.mk_symb(item[0][1:-1]), self.encode(item[1]))
+		return cc.mk_model_data(cc.mk_model(map(fn, self.model)))
 
 	# =========================================================================
 	# Private Methods.
@@ -148,27 +154,28 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		Decodes a JSON term to its SMT representation
 		"""
-		if "s" in data:
-			if data["s"] not in self.vars and data["s"] not in self.aux_vars:
-				var = data["s"]
+		if cc.is_symb(data):
+			var = cc.get_symb(data)
+			if var not in self.vars and var not in self.aux_vars:
 				self.aux_vars.append(var)
 				self.cmds.append(["declare-const", "|{}|".format(var), "Term"])
-			return "|{}|".format(data["s"])
-		elif data["t"] == cc.JSON_TYPE_INT:
-			return ["int", str(data["v"])]
-		elif data["t"] == cc.JSON_TYPE_FLOAT:
-			return ["real", str(data["v"])]
-		elif data["t"] == cc.JSON_TYPE_ATOM:
-			if data["v"] == true:
+			return "|{}|".format(var)
+		elif cc.is_int(data):
+			return ["int", str(cc.get_int(data))]
+		elif cc.is_float(data):
+			return ["real", str(cc.get_float(data))]
+		elif cc.is_atom(data):
+			atom = cc.get_atom_chars(data)
+			if atom == true:
 				return ["bool", "true"]
-			elif data["v"] == false:
+			elif atom == false:
 				return ["bool", "false"]
 			else:
-				return ["atom", self.value2ilist(data["v"])]
-		elif data["t"] == cc.JSON_TYPE_LIST:
-			return ["list", self.value2tlist(data["v"])]
-		elif data["t"] == cc.JSON_TYPE_TUPLE:
-			return ["tuple", self.value2tlist(data["v"])]
+				return ["atom", self.value2ilist(atom)]
+		elif cc.is_list(data):
+			return ["list", self.value2tlist(cc.get_list_subterms(data))]
+		elif cc.is_tuple(data):
+			return ["tuple", self.value2tlist(cc.get_tuple_subterms(data))]
 		else:
 			smt.log("decoding failed: " + str(data))
 			return None # TODO decode term
@@ -188,13 +195,13 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 	def encode(self, data, table = {}):
 		if data[0] == "bool":
 			if data[1] == "true":
-				return {"t": cc.JSON_TYPE_ATOM, "v": true}
+				return cc.mk_atom(true)
 			else:
-				return {"t": cc.JSON_TYPE_ATOM, "v": false}
+				return cc.mk_atom(false)
 		elif data[0] == "int":
-			return {"t": cc.JSON_TYPE_INT, "v": calculate_int(data[1])}
+			return cc.mk_int(calculate_int(data[1]))
 		elif data[0] == "real":
-			return {"t": cc.JSON_TYPE_FLOAT, "v": calculate_real(data[1])}
+			return cc.mk_float(calculate_real(data[1]))
 		elif data[0] == "atom":
 			node = data[1]
 			v = []
@@ -203,7 +210,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 					break
 				v.append(int(node[1]))
 				node = node[2]
-			return {"t": cc.JSON_TYPE_ATOM, "v": v}
+			return cc.mk_atom(v)
 		elif data[0] == "list":
 			node = data[1]
 			v = []
@@ -214,7 +221,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 					break
 				v.append(self.encode(node[1], table))
 				node = node[2]
-			return {"t": cc.JSON_TYPE_LIST, "v": v}
+			return cc.mk_list(v)
 		elif data[0] == "let":
 			inner_table = table.copy()
 			for var in data[1]:
@@ -234,16 +241,17 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		self.vars = []
 		for arg in args:
-			var = arg["s"]
+			var = cc.get_symb(arg)
 			self.vars.append(var)
 			self.cmds.append(["declare-const", "|{}|".format(var), "Term"])
 
-	def mfa_spec(self, *spec):
+	def mfa_spec(self, spec):
 		"""
 		Stores the spec of the entry point MFA.
 		"""
-		p = spec[0]["p"]
-		for item in zip(self.vars, p):
+		p = cc.get_spec_clauses(spec)[0]
+		pms = cc.get_parameters_from_complete_funsig(p)
+		for item in zip(self.vars, pms):
 			self.assertion(build_spec(item[1], "|{}|".format(item[0])))
 		return # TODO clear code
 		for item in zip(self.vars, p):
