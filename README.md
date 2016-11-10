@@ -56,10 +56,10 @@ In order to use CutEr, you need the following programs:
 
 3. **Z3 Theorem Prover**
 
-  Download the v4.4.1 [Z3 release](https://github.com/Z3Prover/z3/releases/tag/z3-4.4.1)
-  or clone the `z3-4.4.1` tag of Z3 from its git repository:
+  Download the v4.5.0 [Z3 release](https://github.com/Z3Prover/z3/releases/tag/z3-4.5.0)
+  or clone the `z3-4.5.0` tag of Z3 from its git repository:
 
-        git clone -b z3-4.4.1 --depth 1 https://github.com/Z3Prover/z3.git
+        git clone -b z3-4.5.0 --depth 1 https://github.com/Z3Prover/z3.git
 
   For your convenience, we include here a list of commands to build and install the v4.4.1 Z3 release:
 
@@ -91,15 +91,16 @@ Installation
         git submodule init && git submodule update
         git submodule foreach make
 
-* Configure and compile CutEr. For a default build:
+* Configure and compile CutEr. For a default build use:
 
         autoconf
-        ./configure
+        ./configure	# see Note below
         make depend
         make
 
-   **[If required]** If you have installed *protoc* using `fetch_protoc.sh`, then you need to specify the path of *protoc* to the
-   configure script. For example
+   **[If required]** Note that if you have installed *protoc* using `fetch_protoc.sh`
+   then you need to specify the path of *protoc* to the configure script using a
+   command like the following:
 
         ./configure --with-protoc=$PWD/lib/protoc-3.1.0/bin/protoc
 

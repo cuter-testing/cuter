@@ -596,6 +596,8 @@ def fun_scenario3():
         T.is_int(y),
         T.is_fun(f),
         arity( T.fval(f) ) == 1,
+        T.is_int(t1),
+        T.is_int(t2),
         fmap( T.fval(f) )[ L.cons(x, L.nil) ] == t1,
         fmap( T.fval(f) )[ L.cons(t1, L.nil) ] == T.int(42),
         fmap( T.fval(f) )[ L.cons(y, L.nil) ] == t2,
@@ -799,11 +801,14 @@ def fun_scenario7():
         # 1st element
         L.is_cons( T.lval(l) ),
         h1 == L.hd( T.lval(l) ),
+        T.is_int(h1),
         l1 == T.lst( L.tl( T.lval(l) ) ),
         t1 == fmap( T.fval(f) )[ L.cons(h1, L.cons(T.int(0), L.nil)) ],
+        T.is_int(t1),
         # 2nd element
         L.is_cons( T.lval(l1) ),
         h2 == L.hd( T.lval(l1) ),
+        T.is_int(h2),
         l2 == T.lst( L.tl( T.lval(l1) ) ),
         t2 == fmap( T.fval(f) )[ L.cons(h2, L.cons(t1, L.nil)) ],
         # Result
