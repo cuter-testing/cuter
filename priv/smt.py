@@ -10,14 +10,14 @@ def log(msg = ""):
 	clog.write(msg + "\n")
 
 
-def encode(lst):
+def encode(obj):
 	"""
 	Encodes a structured list to an SMT string
 	"""
-	if type(lst) is str:
-		return lst
+	if isinstance(obj, list):
+		return "(" + " ".join(map(encode, obj)) + ")"
 	else:
-		return "(" + " ".join(map(encode, lst)) + ")"
+		return obj
 
 
 def decode(smt):

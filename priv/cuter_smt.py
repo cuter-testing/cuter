@@ -256,12 +256,18 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			return ["is-real", var]
 		elif cc.is_type_integer(spec):
 			return ["is-int", var]
+		elif cc.is_type_integerlit(spec):
+			literal = cc.get_literal_from_integerlit(spec)
+			return ["and", ["is-int", var], ["=", ["ival", var], literal.value]] # TODO literal.value
 		elif cc.is_type_list(spec):
 			inner_spec = self.build_spec(cc.get_inner_type_from_list(spec), ["hd", ["lval", "t"]])
 			name = "fn{}".format(self.fn_cnt)
 			self.fn_cnt += 1
 			self.cmds.append(define_fun_rec(name, "t", inner_spec))
 			return [name, var]
+		elif cc.is_type_tupledet(spec):
+			inner_types = cc.get_inner_types_from_tupledet(spec)
+			return ["is-tuple", var]
 		elif cc.is_type_union(spec):
 			ret = ["or"]
 			for item in cc.get_inner_types_from_union(spec):
@@ -281,7 +287,6 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			self.fn_cnt += 1
 			self.cmds.append(define_fun_rec(name, "t", inner_spec))
 			return ["and", ["is-list", var], ["is-cons", ["lval", var]], [name, var]]
-			return [name, var]
 		clg.debug_info("unknown spec: " + str(spec))
 
 	# -------------------------------------------------------------------------
