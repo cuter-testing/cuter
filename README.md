@@ -61,7 +61,7 @@ In order to use CutEr, you need the following programs:
 
         git clone -b z3-4.5.0 --depth 1 https://github.com/Z3Prover/z3.git
 
-  For your convenience, we include here a list of commands to build and install the v4.4.1 Z3 release:
+  For your convenience, we include here a list of commands to build from source and install the v4.5.0 Z3 release:
 
         cd z3 ; python scripts/mk_make.py --python
         cd build ; make
