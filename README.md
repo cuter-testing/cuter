@@ -63,7 +63,7 @@ In order to use CutEr, you need the following programs:
 
   For your convenience, we include here a list of commands to build and install the v4.4.1 Z3 release:
 
-        cd z3 ; python scripts/mk_make.py
+        cd z3 ; python scripts/mk_make.py --python
         cd build ; make
         sudo make install
 
