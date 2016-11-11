@@ -200,6 +200,10 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			node = data[1]
 			v = []
 			while node != "inil":
+				if isinstance(node, str) and node in table:
+					node = table[node]
+				if isinstance(node[1], str) and node[1] in table:
+					node[1] = table[node[1]]
 				v.append(int(node[1]))
 				node = node[2]
 			return cc.mk_atom(v)

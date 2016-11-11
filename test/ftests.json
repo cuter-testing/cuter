@@ -217,7 +217,7 @@
             "solutions": [
                 "[ssl, negotiated_next_protocol, 1]"
             ],
-            "skip": true
+            "skip": false
         },
         {
             "module": "whitelist",
