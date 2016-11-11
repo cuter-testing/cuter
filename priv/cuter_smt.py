@@ -268,9 +268,9 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			return ["is-real", var]
 		elif cc.is_type_integer(spec):
 			return ["is-int", var]
-		elif cc.is_type_integerlit(spec):
-			literal = cc.get_literal_from_integerlit(spec)
-			return ["and", ["is-int", var], ["=", ["ival", var], literal.value]] # TODO literal.value
+		#elif cc.is_type_integerlit(spec):
+		#	literal = cc.get_literal_from_integerlit(spec)
+		#	return ["and", ["is-int", var], ["=", ["ival", var], literal.value]] # TODO literal.value
 		elif cc.is_type_list(spec):
 			inner_spec = self.build_spec(cc.get_inner_type_from_list(spec), ["hd", ["lval", "t"]])
 			name = "fn{}".format(self.fn_cnt)
@@ -309,7 +309,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			return ["is-atom", var]
 		clg.debug_info("unknown spec: " + str(spec))
 
-	def unfold_tuple(self, *terms): # TODO why is this needed?
+	def unfold_tuple(self, *terms):
 		"""
 		Unfolds a symbolic tuple.
 		"""

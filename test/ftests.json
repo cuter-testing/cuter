@@ -34,6 +34,61 @@
             "skip": false
         },
         {
+            "module": "collection",
+            "function": "f_float",
+            "args": "[0.0]",
+            "depth": "1",
+            "errors": true,
+            "solutions": [
+                "[3.14]"
+            ],
+            "skip": false
+        },
+        {
+            "module": "collection",
+            "function": "f_union",
+            "args": "[ok]",
+            "depth": "1",
+            "errors": true,
+            "solutions": [
+                "[0]"
+            ],
+            "skip": false
+        },
+        {
+            "module": "collection",
+            "function": "f_tuple",
+            "args": "[42]",
+            "depth": "1",
+            "errors": true,
+            "solutions": [
+                "[{1,{0,0.0}}]"
+            ],
+            "skip": false
+        },
+        {
+            "module": "collection",
+            "function": "f_list",
+            "args": "[[]]",
+            "depth": "1",
+            "errors": true,
+            "solutions": [
+                "[[0.0]]"
+            ],
+            "skip": false
+        },
+        {
+            "module": "collection",
+            "function": "f_nested_lists",
+            "args": "[[]]",
+            "depth": "1",
+            "errors": true,
+            "solutions": [
+                "[[[0],[1],[2,3,4]]]"
+            ],
+            "skip": false
+        },
+        {
             "module": "bitstr",
             "function": "f11",
             "args": "[0]",

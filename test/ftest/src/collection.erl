@@ -1,6 +1,6 @@
 -module(collection).
 -export([
-	f_integer/1, f_range/1, f_atom/1,
+	f_integer/1, f_range/1, f_atom/1, f_float/1, f_union/1, f_tuple/1, f_list/1, f_nested_lists/1,
 	f/1, g/1, g1/1, h/1, f1/1,
 	eval_nif/1, trunc1/1, trunc2/1, l2i/1, l2in/1, to_upper/1
 ]).
@@ -13,6 +13,22 @@ f_range(42) -> ok.
 
 -spec f_atom(atom()) -> ok.
 f_atom(ok) -> ok.
+
+-spec f_float(float()) -> ok.
+f_float(3.14) -> error(bug);
+f_float(_) -> ok.
+
+-spec f_union(byte() | float() | atom()) -> ok.
+f_union(ok) -> ok.
+
+-spec f_tuple({number(), {integer(), float()}}) -> ok.
+f_tuple(42) -> ok.
+
+-spec f_list([float()]) -> ok.
+f_list([]) -> ok.
+
+-spec f_nested_lists([[integer(), ...]]) -> ok.
+f_nested_lists([]) -> ok.
 
 -type t() :: [complex_spec:int()].
 
