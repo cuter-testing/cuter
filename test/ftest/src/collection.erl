@@ -1,6 +1,18 @@
 -module(collection).
--export([f/1, g/1, g1/1, h/1, f1/1, eval_nif/1, trunc1/1, trunc2/1, l2i/1, l2in/1,
-         to_upper/1]).
+-export([
+	f_integer/1, f_range/1, f_atom/1,
+	f/1, g/1, g1/1, h/1, f1/1,
+	eval_nif/1, trunc1/1, trunc2/1, l2i/1, l2in/1, to_upper/1
+]).
+
+-spec f_integer(integer()) -> ok.
+f_integer(42) -> ok.
+
+-spec f_range(byte()) -> ok.
+f_range(42) -> ok.
+
+-spec f_atom(atom()) -> ok.
+f_atom(ok) -> ok.
 
 -type t() :: [complex_spec:int()].
 

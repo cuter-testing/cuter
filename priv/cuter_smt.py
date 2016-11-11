@@ -93,7 +93,6 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		self.model = None
 		self.fn_cnt = 0
 		self.solver = smt.SolverZ3()
-		smt.log("***")
 
 	# =========================================================================
 	# Public API.
@@ -150,11 +149,11 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		Decodes a term to its SMT representation
 		"""
 		if cc.is_symb(data):
-			var = cc.get_symb(data)
-			if var not in self.vars and var not in self.aux_vars:
-				self.aux_vars.append(var)
-				self.cmds.append(["declare-const", "|{}|".format(var), "Term"])
-			return "|{}|".format(var)
+			s = "|{}|".format(cc.get_symb(data))
+			if s not in self.vars and s not in self.aux_vars:
+				self.aux_vars.append(s)
+				self.cmds.append(["declare-const", s, "Term"])
+			return s
 		elif cc.is_int(data):
 			return ["int", str(cc.get_int(data))]
 		elif cc.is_float(data):
@@ -200,23 +199,32 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		elif data[0] == "atom":
 			node = data[1]
 			v = []
-			while True:
-				if node == "inil":
-					break
+			while node != "inil":
 				v.append(int(node[1]))
 				node = node[2]
 			return cc.mk_atom(v)
 		elif data[0] == "list":
 			node = data[1]
 			v = []
-			while True:
+			while node != "nil":
 				if isinstance(node, str) and node in table:
 					node = table[node]
-				if node == "nil":
-					break
+				if isinstance(node[1], str) and node[1] in table:
+					node[1] = table[node[1]]
 				v.append(self.encode(node[1], table))
 				node = node[2]
 			return cc.mk_list(v)
+		elif data[0] == "tuple":
+			node = data[1]
+			v = []
+			while node != "nil":
+				if isinstance(node, str) and node in table:
+					node = table[node]
+				if isinstance(node[1], str) and node[1] in table:
+					node[1] = table[node[1]]
+				v.append(self.encode(node[1], table))
+				node = node[2]
+			return cc.mk_tuple(v)
 		elif data[0] == "let":
 			inner_table = table.copy()
 			for var in data[1]:
@@ -236,9 +244,9 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		self.vars = []
 		for arg in args:
-			var = cc.get_symb(arg)
-			self.vars.append(var)
-			self.cmds.append(["declare-const", "|{}|".format(var), "Term"])
+			s = "|{}|".format(cc.get_symb(arg))
+			self.vars.append(s)
+			self.cmds.append(["declare-const", s, "Term"])
 
 	def mfa_spec(self, spec):
 		"""
@@ -247,7 +255,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		p = cc.get_spec_clauses(spec)[0]
 		pms = cc.get_parameters_from_complete_funsig(p)
 		for item in zip(self.vars, pms):
-			self.assertion(self.build_spec(item[1], "|{}|".format(item[0])))
+			self.assertion(self.build_spec(item[1], item[0]))
 
 	def build_spec(self, spec, var):
 		if cc.is_type_any(spec):
@@ -267,11 +275,17 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			return [name, var]
 		elif cc.is_type_tupledet(spec):
 			inner_types = cc.get_inner_types_from_tupledet(spec)
-			return ["is-tuple", var]
+			ret = ["and", ["is-tuple", var]]
+			tlist = ["tval", var]
+			for inner_type in inner_types:
+				ret.append(["and", ["is-cons", tlist], self.build_spec(inner_type, ["hd", tlist])])
+				tlist = ["tl", tlist]
+			ret.append(["is-nil", tlist])
+			return ret
 		elif cc.is_type_union(spec):
 			ret = ["or"]
-			for item in cc.get_inner_types_from_union(spec):
-				ret.append(self.build_spec(item, var))
+			for inner_type in cc.get_inner_types_from_union(spec):
+				ret.append(self.build_spec(inner_type, var))
 			return ret
 		elif cc.is_type_range(spec):
 			ret = ["and", ["is-int", var]]
@@ -287,7 +301,26 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			self.fn_cnt += 1
 			self.cmds.append(define_fun_rec(name, "t", inner_spec))
 			return ["and", ["is-list", var], ["is-cons", ["lval", var]], [name, var]]
+		elif cc.is_type_atom(spec):
+			return ["is-atom", var]
 		clg.debug_info("unknown spec: " + str(spec))
+
+	def unfold_tuple(self, *terms): # TODO why is this needed?
+		"""
+		Unfolds a symbolic tuple.
+		"""
+		t = self.decode(terms[0])
+		self.assertion(["is-tuple", t])
+		c = ["tval", t]
+		for x in terms[1:]:
+			self.assertion(["is-cons", c])
+			s = "|{}|".format(cc.get_symb(x))
+			if s not in self.vars and s not in self.aux_vars:
+				self.aux_vars.append(s)
+				self.cmds.append(["declare-const", s, "Term"])
+			self.assertion(["=", s, ["hd", c]])
+			c = ["tl", c]
+		self.assertion(["is-nil", c])
 
 	# -------------------------------------------------------------------------
 	# Constraints.
@@ -339,8 +372,8 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		Asserts the predicate: term1 != term2
 		"""
-		t1 = self.decode(term1);
-		t2 = self.decode(term2);
+		t1 = self.decode(term1)
+		t2 = self.decode(term2)
 		self.assertion(["not", ["=", t1, t2]])
 
 	def match_not_equal_reversed(self, term1, term2):
@@ -390,6 +423,48 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t = self.decode(term)
 		self.assertion(["is-list", t])
+
+	def tuple_sz(self, term, num):
+		"""
+		Asserts that: term is a tuple of size num.
+		"""
+		t = self.decode(term)
+		n = cc.get_int(num)
+		l = ["and", ["is-tuple", t]]
+		c = ["tval", t]
+		while n > 0:
+			l.append(["is-cons", c])
+			c = ["tl", c]
+			n -= 1
+		l.append(["is-nil", c])
+		self.assertion(l)
+
+	def tuple_sz_reversed(self, term, num):
+		"""
+		Asserts that: term is not a tuple of size num.
+		"""
+		self.tuple_not_sz(term, num)
+
+	def tuple_not_sz(self, term, num):
+		"""
+		Asserts that: term is not a tuple of size num.
+		"""
+		t = self.decode(term)
+		n = cc.get_int(num)
+		l = ["and", ["is-tuple", t]]
+		c = ["tval", t]
+		while n > 0:
+			l.append(["is-cons", c])
+			c = ["tl", c]
+			n -= 1
+		l.append(["is-nil", c])
+		self.assertion(["not", l])
+
+	def tuple_not_sz_reversed(self, term, num):
+		"""
+		Asserts that: Not (term is not a tuple of size num).
+		"""
+		self.tuple_sz(term, num)
 
 	# -------------------------------------------------------------------------
 	# Erlang BIFs or MFAs treated as BIFs.

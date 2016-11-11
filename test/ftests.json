@@ -1,6 +1,39 @@
 {
     "tests": [
         {
+            "module": "collection",
+            "function": "f_integer",
+            "args": "[42]",
+            "depth": "1",
+            "errors": true,
+            "solutions": [
+                "[0]"
+            ],
+            "skip": false
+        },
+        {
+            "module": "collection",
+            "function": "f_range",
+            "args": "[42]",
+            "depth": "1",
+            "errors": true,
+            "solutions": [
+                "[0]"
+            ],
+            "skip": false
+        },
+        {
+            "module": "collection",
+            "function": "f_atom",
+            "args": "[ok]",
+            "depth": "1",
+            "errors": true,
+            "solutions": [
+                "['']"
+            ],
+            "skip": false
+        },
+        {
             "module": "bitstr",
             "function": "f11",
             "args": "[0]",
@@ -242,7 +275,7 @@
             "solutions": [
                 "[[17,17,42]]"
             ],
-            "skip": true
+            "skip": false
         },
         {
             "module": "collection",

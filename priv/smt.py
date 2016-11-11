@@ -65,6 +65,7 @@ class Solver:
 			stderr=subprocess.PIPE,
 			universal_newlines=True
 		)
+		log(";")
 		for stmt in stmts:
 			process.stdin.write(encode(stmt) + "\n")
 			log(encode(stmt))
@@ -73,23 +74,23 @@ class Solver:
 		status = process.stdout.readline()[:-1]
 		log(status)
 		if status == "sat":
-			process.stdin.write(encode(["get-value", ["|{}|".format(var) for var in vars]]) + "\n")
-			log(encode(["get-value", ["|{}|".format(var) for var in vars]]))
+			process.stdin.write(encode(["get-value", vars]) + "\n")
+			log(encode(["get-value", vars]))
 			process.stdin.write(encode(["exit"]) + "\n")
 			process.stdin.close()
 			smt = process.stdout.read()
-			lst = self.fix_names(decode(smt))
+			obj = self.fix_names(decode(smt))
 			log(smt)
 		else:
 			process.stdin.write(encode(["exit"]) + "\n")
 			process.stdin.close()
 			process.stdout.read()
-			lst = None
-		return (status, lst)
+			obj = None
+		return (status, obj)
 
 	@staticmethod
-	def fix_names(lst):
-		return lst
+	def fix_names(obj):
+		return obj
 
 
 class SolverCVC4(Solver):
@@ -98,8 +99,8 @@ class SolverCVC4(Solver):
 		Solver.__init__(self, ["cvc4", "--lang", "smt", "--produce-models"])
 
 	@staticmethod
-	def fix_names(lst):
-		return [["|" + obj[0] + "|", obj[1]] for obj in lst]
+	def fix_names(obj):
+		return [["|{}|".format(item[0]), item[1]] for item in obj]
 
 
 class SolverZ3(Solver):
