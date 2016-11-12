@@ -6,8 +6,9 @@
             "args": "[0]",
             "depth": "9",
             "errors": true,
+            "arity": 1,
             "solutions": [
-                "[42]"
+                "$1==42"
             ]
         },
         {
@@ -16,8 +17,9 @@
             "args": "[0, 0, 0]",
             "depth": "14",
             "errors": true,
+            "arity": 3,
             "solutions": [
-                "[0, 5, 2]"
+                "$1==0 and $2==5 and $3==2"
             ]
         },
         {
@@ -26,8 +28,11 @@
             "args": "[0, 0, 0]",
             "depth": "24",
             "errors": true,
+            "arity": 3,
             "solutions": [
-                "[3, 2, 3]", "[6, 3, 2]", "[26, 5, 0]"
+                "$1==3 and $2==2 and $3==3",
+                "$1==6 and $2==3 and $3==2",
+                "$1==26 and $2==5 and $3==0"
             ]
         },
         {
@@ -36,8 +41,9 @@
             "args": "[<<>>]",
             "depth": "6",
             "errors": true,
+            "arity": 1,
             "solutions": [
-                "[<<0,42:7>>]"
+                "$1=='0b000000000101010'"
             ]
         },
         {
@@ -46,8 +52,9 @@
             "args": "[<<>>, 42]",
             "depth": "8",
             "errors": true,
+            "arity": 2,
             "solutions": [
-                "[<<42:6>>, 6]"
+                "$1=='0b101010' and $2==6"
             ]
         },
         {
@@ -56,8 +63,9 @@
             "args": "[0, 0]",
             "depth": "7",
             "errors": true,
+            "arity": 2,
             "solutions": [
-                "[9, 5]"
+                "$1==9 and $2==5"
             ]
         },
         {
@@ -66,8 +74,9 @@
             "args": "[<<>>, 0]",
             "depth": "8",
             "errors": true,
+            "arity": 2,
             "solutions": [
-                "[<<42:6>>, 6]"
+                "$1=='0b101010' and $2==6"
             ]
         },
         {
@@ -76,8 +85,9 @@
             "args": "[<<>>, 0]",
             "depth": "8",
             "errors": true,
+            "arity": 2,
             "solutions": [
-                "[<<42:6>>, 6]"
+                "$1=='0b101010' and $2==6"
             ]
         },
         {
@@ -86,8 +96,10 @@
             "args": "[<<>>, 0]",
             "depth": "10",
             "errors": true,
+            "arity": 2,
             "solutions": [
-                "[<<\"*\">>, 8]", "[<<42:6>>, 6]"
+                "$1=='0b00101010' and $2==8",
+                "$1=='0b101010' and $2==6"
             ]
         },
         {
@@ -95,7 +107,8 @@
             "function": "f27",
             "args": "[<<>>, 0]",
             "depth": "20",
-            "errors": false
+            "errors": false,
+            "arity": 2
         },
         {
             "module": "bitstr",
@@ -103,8 +116,9 @@
             "args": "[<<>>, 0]",
             "depth": "6",
             "errors": true,
+            "arity": 2,
             "solutions": [
-                "[<<0:4>>, 0]"
+                "$1=='0b0000' and $2==0"
             ]
         },
         {
@@ -113,8 +127,9 @@
             "args": "[<<>>, 0, 3]",
             "depth": "11",
             "errors": true,
+            "arity": 3,
             "solutions": [
-                "[<<64,3:3>>, 0, 0]"
+                "$1=='0b01000000011' and $2==0 and $3==0"
             ]
         },
         {
@@ -123,8 +138,9 @@
             "args": "[<<>>, 0, 0, <<>>]",
             "depth": "21",
             "errors": true,
+            "arity": 4,
             "solutions": [
-                "[<<0:1>>, 0, 0, <<0:1>>]"
+                "$1=='0b0' and $2==0 and $3==0 and $4=='0b0'"
             ]
         },
         {
@@ -132,21 +148,24 @@
             "function": "f34",
             "args": "[<<>>, 0]",
             "depth": "50",
-            "errors": false
+            "errors": false,
+            "arity": 2
         },
         {
             "module": "bitstr",
             "function": "f35",
             "args": "[<<>>]",
             "depth": "50",
-            "errors": false
+            "errors": false,
+            "arity": 1
         },
         {
             "module": "bitstr",
             "function": "f36",
             "args": "[<<>>]",
             "depth": "50",
-            "errors": false
+            "errors": false,
+            "arity": 1
         },
         {
             "module": "bitstr",
@@ -154,8 +173,9 @@
             "args": "[<<>>]",
             "depth": "50",
             "errors": true,
+            "arity": 1,
             "solutions": [
-                "[<<0,0,0,0,0,0:2>>]"
+                "$1=='0b000000000000000000000000000000000000000000'"
             ]
         },
         {
@@ -164,8 +184,9 @@
             "args": "[erlang, length, 1]",
             "depth": "3",
             "errors": true,
+            "arity": 3,
             "solutions": [
-                "[ssl, negotiated_next_protocol, 1]"
+                "$1=='ssl' and $2=='negotiated_next_protocol' and $3==1"
             ]
         },
         {
@@ -175,8 +196,9 @@
             "depth": "3",
             "whitelist": "whitelist-f-1",
             "errors": true,
+            "arity": 1,
             "solutions": [
-                "[424242]"
+                "$1==424242"
             ]
         },
         {
@@ -186,8 +208,9 @@
             "depth": "3",
             "whitelist": "whitelist-g-1",
             "errors": true,
+            "arity": 1,
             "solutions": [
-                "[4242]"
+                "$1==4242"
             ]
         },
         {
@@ -197,8 +220,9 @@
             "depth": "3",
             "whitelist": "whitelist-k-1",
             "errors": true,
+            "arity": 1,
             "solutions": [
-                "[42]"
+                "$1==42"
             ]
         },
         {
@@ -207,8 +231,9 @@
             "args": "[[]]",
             "depth": "32",
             "errors": true,
+            "arity": 1,
             "solutions": [
-                "[[{[1,2],[{[[1],[2]],[3.14]},2]}]]"
+                "$1==[([1,2],[([[1],[2]],[3.14]),2])]"
             ]
         },
         {
@@ -217,8 +242,9 @@
             "args": "[[]]",
             "depth": "10",
             "errors": true,
+            "arity": 1,
             "solutions": [
-                "[[17,17,42]]"
+                "$1==[17,17,42]"
             ]
         },
         {
@@ -227,8 +253,11 @@
             "args": "[1]",
             "depth": "2",
             "errors": true,
+            "arity": 1,
             "solutions": [
-                "[42]", "[[0]]", "[\"*\"]"
+                "$1==42",
+                "$1==[0]",
+                "$1==[42] or $1=='*'"
             ]
         },
         {
@@ -237,8 +266,11 @@
             "args": "[1]",
             "depth": "2",
             "errors": true,
+            "arity": 1,
             "solutions": [
-                "[42]", "[1]", "[[0]]"
+                "$1==42",
+                "$1==1",
+                "$1==[0]"
             ]
         },
         {
@@ -247,8 +279,9 @@
             "args": "[1]",
             "depth": "2",
             "errors": true,
+            "arity": 1,
             "solutions": [
-                "[17]"
+                "$1==17"
             ],
             "bifs": [
                 "erlang:get/1"
@@ -260,9 +293,10 @@
             "args": "[1]",
             "depth": "4",
             "errors": true,
+            "arity": 1,
             "withUtestBin": true,
             "solutions": [
-                "[38.86]"
+                "$1==38.86"
             ]
         },
         {
@@ -271,8 +305,9 @@
             "args": "[fun(_) -> 1 end]",
             "depth": "2",
             "errors": true,
+            "arity": 1,
             "solutions": [
-                "[fun(3) -> 42; (10) -> 17; (_) -> 42 end]"
+                "$1((3,))==42 and $1((10,))==17"
             ]
         },
         {
@@ -281,8 +316,9 @@
             "args": "[fun(_) -> 1 end, 0, 0]",
             "depth": "2",
             "errors": true,
+            "arity": 3,
             "solutions": [
-                "[fun(2) -> 42; (3) -> 17; (_) -> 42 end, 2, 3]"
+                "$1(($2,))==42 and $1(($3,))==17 and isinstance($2, int) and isinstance($3, int)"
             ]
         },
         {
@@ -291,8 +327,9 @@
             "args": "[fun(_) -> 1 end, 0, 0]",
             "depth": "2",
             "errors": true,
+            "arity": 3,
             "solutions": [
-                "[fun(5) -> 17; (2) -> 4; (4) -> 42; (3) -> 5; (_) -> 17 end, 2, 3]"
+                "$1( ($1(($2,)),) )==42 and $1( ($1(($3,)),) )==17 and isinstance($2, int) and isinstance($3, int)"
             ]
         },
         {
@@ -301,9 +338,10 @@
             "args": "[fun(_) -> fun(_) -> 1 end end, 0, 0]",
             "depth": "2",
             "errors": true,
+            "arity": 3,
             "solutions": [
-                "[fun(_) -> 0.0 end, 2, 3]",
-                "[fun(_) -> fun(_) -> 42 end end, 2, 3]"
+                "not isinstance($1(($2,)), LambdaType) and isinstance($2, int) and isinstance($3, int)",
+                "$1(($2,))(($3,))==42 and isinstance($2, int) and isinstance($3, int)"
             ]
         },
         {
@@ -312,10 +350,10 @@
             "args": "[fun(_) -> fun(_) -> 1 end end, 0, 0]",
             "depth": "2",
             "errors": true,
+            "arity": 3,
             "solutions": [
-                "[fun(_) -> 0.0 end, 2, 3]",
-                "[fun(_) -> {0.0, 1.0} end, 2, 3]",
-                "[fun(_) -> fun(_) -> 42 end end, 2, 3]"
+                "not isinstance($1(($2,)), LambdaType) and isinstance($2, int) and isinstance($3, int)",
+                "$1(($2,))(($3,))==42 and isinstance($2, int) and isinstance($3, int)"
             ]
         },
         {
@@ -324,8 +362,9 @@
             "args": "[fun(_,_,_) -> 1 end, 0, 0, 0]",
             "depth": "2",
             "errors": true,
+            "arity": 4,
             "solutions": [
-                "[fun(4,2,1) -> 17; (1,2,4) -> 42; (_,_,_) -> 17 end, 1, 2, 4]"
+                "$1(($2, $3, $4))==42 and $1(($4, $3, $2))==17 and isinstance($2, int) and isinstance($3, int) and isinstance($4, int)"
             ]
         },
         {
@@ -334,14 +373,15 @@
             "args": "[0]",
             "depth": "15",
             "errors": true,
+            "arity": 1,
             "solutions": [
-                "[42]",
-                "[fun(_) -> 42 end]",
-                "[fun(_) -> fun(_) -> 42 end end]",
-                "[fun(_) -> fun(_) -> fun(_) -> 42 end end end]",
-                "[fun(_) -> fun(_) -> fun(_) -> fun(_) -> 42 end end end end]",
-                "[fun(_) -> fun(_) -> fun(_) -> fun(_) -> fun(_) -> 42 end end end end end]",
-                "[fun(_) -> fun(_) -> fun(_) -> fun(_) -> fun(_) -> fun(_) -> 42 end end end end end end]"
+                "$1==42",
+                "$1((42,))==42",
+                "$1((42,))((42,))==42",
+                "$1((42,))((42,))((42,))==42",
+                "$1((42,))((42,))((42,))((42,))==42",
+                "$1((42,))((42,))((42,))((42,))((42,))==42",
+                "$1((42,))((42,))((42,))((42,))((42,))((42,))==42"
             ]
         },
         {
@@ -350,9 +390,10 @@
             "args": "[fun(_,_) -> 1 end, []]",
             "depth": "6",
             "errors": true,
+            "arity": 2,
             "solutions": [
-                "[fun(_,_) -> 42 end, [3]]",
-                "[fun(3,0) -> 5; (4,5) -> 42; (_,_) -> 5 end, [3,4]]"
+                "$1(($2[0],0))==42 and len($2)==1",
+                "$1(($2[1], $1(($2[0],0))))==42 and len($2)==2"
             ]
         },
         {
@@ -361,9 +402,9 @@
             "args": "[fun(_) -> true end, [1]]",
             "depth": "4",
             "errors": true,
+            "arity": 2,
             "solutions": [
-                "[fun(_) -> false end, [0.0]]",
-                "[fun(_) -> true end, []]"
+                "len([t for t in $2 if $1((t,))]) == 0"
             ]
         },
         {
@@ -373,10 +414,11 @@
             "depth": "4",
             "opts": "-p 1 -s 1",
             "errors": true,
+            "arity": 3,
             "solutions": [
-                "[fun(_) -> 42 end, 0.0, 1]",
-                "[fun(_) -> fun(_) -> 0 end end, 1, 2]",
-                "[fun(_,_) -> 42 end, 0.0, 2]"
+                "$1(($2,))==42 and $3==1",
+                "$1(($2,$2))==42 and $3==2",
+                "isinstance($1, LambdaType) and $3==2"
             ]
         },
         {
@@ -385,10 +427,11 @@
             "args": "[fun(_) -> 1 end, 1]",
             "depth": "4",
             "errors": true,
+            "arity": 2,
             "solutions": [
-                "[fun() -> fun() -> 0 end end, 1]",
-                "[fun(_) -> 42 end, 0.0]",
-                "[fun(_,_) -> 42 end, 0.0]"
+                "isinstance($1, LambdaType)",
+                "$1(($2,))==42",
+                "$1(($2,$2))==42"
             ]
         },
         {
@@ -397,8 +440,9 @@
             "args": "[fun(_) -> 1 end]",
             "depth": "4",
             "errors": true,
+            "arity": 1,
             "solutions": [
-                "[fun(_) -> 42 end]"
+                "$1((0,))==42"
             ]
         },
         {
@@ -407,13 +451,13 @@
             "args": "[fun(_) -> fun(_) -> 1 end end, fun(_) -> fun(_) -> 1 end end, 1]",
             "depth": "4",
             "errors": true,
+            "arity": 3,
             "solutions": [
-                "[fun(_) -> 6 end, fun(_) -> fun(_) -> 0 end end, 1]",
-                "[fun(_) -> fun(_) -> 0.0 end end, fun(_) -> fun(_) -> [] end end, 1.0]",
-                "[fun(_) -> fun(_) -> 8 end end, fun(_) -> 0.0 end, 1.0]",
-                "[fun(_) -> fun(_) -> 7719 end end, fun(_) -> fun(_) -> -7710 end end, 0.0]",
-                "[fun(_) -> fun(_) -> [] end end, fun(_) -> fun(_) -> 9 end end, 0.0]",
-                "[fun(_) -> fun(_) -> [] end end, fun(_) -> fun(_) -> [] end end, 0.0]"
+                "not isinstance($1((0,)), LambdaType)",
+                "not isinstance($2((0,)), LambdaType)",
+                "not isinstance($2((0,))(($3,)), int)",
+                "not isinstance($1((0,))(($3,)), int)",
+                "$1((0,))(($3,)) + $2((0,))(($3,)) == 9"
             ]
         },
         {
@@ -422,9 +466,10 @@
             "args": "[fun(_) -> fun(_) -> 1 end end]",
             "depth": "4",
             "errors": true,
+            "arity": 1,
             "solutions": [
-                "[fun(_) -> 0.0 end]",
-                "[fun(_) -> fun(_) -> 42 end end]"
+                "not isinstance($1((0,)), LambdaType)",
+                "$1((0,))((1,))==42"
             ]
         },
         {
@@ -432,28 +477,32 @@
             "function": "f1ws",
             "args": "[fun(_) -> 1 end]",
             "depth": "10",
-            "errors": false
+            "errors": false,
+            "arity": 1
         },
         {
             "module": "funs",
             "function": "f2ws",
             "args": "[fun(_) -> 1 end, 1, 1]",
             "depth": "10",
-            "errors": false
+            "errors": false,
+            "arity": 3
         },
         {
             "module": "funs",
             "function": "f3ws",
             "args": "[fun(_) -> 1 end, 1, 1]",
             "depth": "10",
-            "errors": false
+            "errors": false,
+            "arity": 3
         },
         {
             "module": "funs",
             "function": "f5ws",
             "args": "[fun(_,_,_) -> 1 end, 0, 0, 0]",
             "depth": "2",
-            "errors": false
+            "errors": false,
+            "arity": 4
         },
         {
             "module": "funs",
@@ -461,8 +510,9 @@
             "args": "[fun(_) -> 1 end]",
             "depth": "2",
             "errors": true,
+            "arity": 1,
             "solutions": [
-                "[fun(3) -> 42; (10) -> 17; (_) -> 42 end]"
+                "$1((3,))==42 and $1((10,))==17"
             ]
         },
         {
@@ -471,8 +521,9 @@
             "args": "[fun(_) -> 1 end, {}]",
             "depth": "5",
             "errors": true,
+            "arity": 2,
             "solutions": [
-                "[fun(_) -> 3 end, {4,2}]"
+                "$2==(4,2) and isinstance($1, LambdaType)"
             ]
         },
         {
@@ -481,9 +532,10 @@
             "args": "[fun(_) -> 1 end, <<>>]",
             "depth": "25",
             "errors": true,
+            "arity": 2,
             "solutions": [
-                "[fun(_) -> 1 end, <<5>>]",
-                "[fun(_) -> 10 end, <<5:6>>]"
+                "$1(($2,))==1 and $2=='0b00000101'",
+                "$2=='0b000101' and isinstance($1, LambdaType)"
             ]
         },
         {
@@ -492,9 +544,13 @@
             "args": "[[]]",
             "depth": "25",
             "withProper": true,
+            "arity": 1,
             "errors": true,
             "solutions": [
-                "[[-5450,8365,1796]]", "[[2437,2274]]", "[[4711]]", "[[4711.0]]"
+                "sum($1)==4711 and len($1)==1",
+                "sum($1)==4711 and len($1)==2",
+                "sum($1)==4711 and len($1)==3",
+                "sum($1)==4711.0 and len($1)==1"
             ]
         },
         {
@@ -503,8 +559,9 @@
             "args": "[fun(_) -> 1 end, []]",
             "depth": "25",
             "errors": true,
+            "arity": 2,
             "solutions": [
-                "[fun(_) -> [1, 2, 3] end, [4]]"
+                "$1(($2,))==[1, 2, 3]"
             ]
         },
         {
@@ -512,7 +569,8 @@
             "function": "eval_nif",
             "args": "[ok]",
             "depth": "25",
-            "errors": false
+            "errors": false,
+            "arity": 1
         },
         {
             "module": "bitstr",
@@ -520,8 +578,9 @@
             "args": "[<<>>]",
             "depth": "15",
             "errors": true,
+            "arity": 1,
             "solutions": [
-                "[<<0:4>>]"
+                "len($1[2:])==4"
             ]
         },
         {
@@ -530,8 +589,9 @@
             "args": "[<<>>]",
             "depth": "42",
             "errors": true,
+            "arity": 1,
             "solutions": [
-                "[<<0,0:1>>]"
+                "len($1[2:])==9"
             ]
         },
         {
@@ -540,8 +600,9 @@
             "args": "[1, 1]",
             "depth": "25",
             "errors": true,
+            "arity": 2,
             "solutions": [
-                "[21, 1]", "[42, 0]", "[84, -1]", "[168, -2]"
+                "($1 << $2 if $2 >= 0 else $1 >> -$2) == 42"
             ]
         },
         {
@@ -550,10 +611,11 @@
             "args": "[1]",
             "depth": "100",
             "errors": true,
+            "arity": 1,
             "solutions": [
-                "[7716049313272]",
-                "[7716049313271604931327160494]",
-                "[77160493132716049313271604931327160493132716049313271604931327160494]"
+                "$1<<4 > 123456789012345 and $1<<4 < 123456789012345678901234567890",
+                "$1<<4 > 123456789012345678901234567890 and $1<<4 < 1234567890123456789012345678901234567890123456789012345678901234567890",
+                "$1<<4 > 1234567890123456789012345678901234567890123456789012345678901234567890"
             ]
         },
         {
@@ -562,8 +624,9 @@
             "args": "[1, 1]",
             "depth": "25",
             "errors": true,
+            "arity": 2,
             "solutions": [
-                "[21, -1]", "[42, 0]", "[84, 1]", "[168, 2]"
+                "($1 >> $2 if $2 >= 0 else $1 << -$2) == 42"
             ]
         },
         {
@@ -572,10 +635,11 @@
             "args": "[1]",
             "depth": "100",
             "errors": true,
+            "arity": 1,
             "solutions": [
-                "[1975308624197536]",
-                "[1975308624197530862419753086256]",
-                "[19753086241975308624197530862419753086241975308624197530862419753086256]"
+                "$1>>4 > 123456789012345 and $1>>4 < 123456789012345678901234567890",
+                "$1>>4 > 123456789012345678901234567890 and $1>>4 < 1234567890123456789012345678901234567890123456789012345678901234567890",
+                "$1>>4 > 1234567890123456789012345678901234567890123456789012345678901234567890"
             ]
         },
         {
@@ -584,8 +648,9 @@
             "args": "[1]",
             "depth": "25",
             "errors": true,
+            "arity": 1,
             "solutions": [
-                "[-43]"
+                "~$1"
             ]
         },
         {
@@ -594,10 +659,11 @@
             "args": "[1]",
             "depth": "50",
             "errors": true,
+            "arity": 1,
             "solutions": [
-                "[-1234567890123456789012345678901234567890123456789012345678901234567892]",
-                "[-123456789012345678901234567892]",
-                "[-123456789012347]"
+                "~$1 > 123456789012345 and ~$1 < 123456789012345678901234567890",
+                "~$1 > 123456789012345 and ~$1 < 1234567890123456789012345678901234567890123456789012345678901234567890",
+                "~$1 > 1234567890123456789012345678901234567890123456789012345678901234567890"
             ]
         },
         {
@@ -606,8 +672,9 @@
             "args": "[1]",
             "depth": "25",
             "errors": true,
+            "arity": 1,
             "solutions": [
-                "[2.75]"
+                "(math.floor($1) if $1 >= 0 else math.ceil($1)) == 2.0 and $1 - 2 > 0.5"
             ]
         },
         {
@@ -616,8 +683,9 @@
             "args": "[1]",
             "depth": "25",
             "errors": true,
+            "arity": 1,
             "solutions": [
-                "[-42.75]"
+                "(math.floor($1) if $1 >= 0 else math.ceil($1)) == -42.0 and $1 + 43 < 0.5"
             ]
         },
         {
@@ -626,9 +694,9 @@
             "args": "[1, 1]",
             "depth": "25",
             "errors": true,
-            "validate": true,
+            "arity": 2,
             "solutions": [
-                "[-115245587226975570856629698659936890834, 115244775925639664041776219450078580218]"
+                "$1 & $2 == 42"
             ]
         },
         {
@@ -637,9 +705,9 @@
             "args": "[1, 1]",
             "depth": "25",
             "errors": true,
-            "validate": true,
+            "arity": 2,
             "solutions": [
-                "[-10, -34]"
+                "$1 & $2 == -42"
             ]
         },
         {
@@ -648,9 +716,9 @@
             "args": "[1, 1]",
             "depth": "25",
             "errors": true,
-            "validate": true,
+            "arity": 2,
             "solutions": [
-                "[1267650600228229401496703205376, 1267650600228229401496703205376]"
+                "$1 & $2 == 1267650600228229401496703205376"
             ]
         },
         {
@@ -659,9 +727,9 @@
             "args": "[1, 1]",
             "depth": "25",
             "errors": true,
-            "validate": true,
+            "arity": 2,
             "solutions": [
-                "[-1298114088876869206436467930326479, -1227781192769208556173848975922]"
+                "$1 & $2 == -1299341865233935136534120785510400"
             ]
         },
         {
@@ -670,9 +738,9 @@
             "args": "[1, 1]",
             "depth": "25",
             "errors": true,
-            "validate": true,
+            "arity": 2,
             "solutions": [
-                "[-10722113295479264474453651513181749953, -25081040589696498295982299549491773275]"
+                "($1 + $2) & ($1 - $2) == 1208425819634629144706176"
             ]
         },
         {
@@ -681,9 +749,9 @@
             "args": "[1, 1]",
             "depth": "25",
             "errors": true,
-            "validate": true,
+            "arity": 2,
             "solutions": [
-                "[8098239615821597375497340003855403778, 8098239615821597375497340003855403816]"
+                "$1 ^ $2 == 42"
             ]
         },
         {
@@ -692,9 +760,9 @@
             "args": "[1, 1]",
             "depth": "25",
             "errors": true,
-            "validate": true,
+            "arity": 2,
             "solutions": [
-                "[10746391985634429997612810101056519776, 10746391985634429997612967280874891538]"
+                "$1 ^ $2 == 546546546546546"
             ]
         },
         {
@@ -703,9 +771,9 @@
             "args": "[1, 1]",
             "depth": "25",
             "errors": true,
-            "validate": true,
+            "arity": 2,
             "solutions": [
-                "[3714386857363838068689887652, 1317963678609701630637856821312]"
+                "$1 ^ $2 == 1321678065467065468706546708964"
             ]
         },
         {
@@ -714,9 +782,9 @@
             "args": "[1, 1]",
             "depth": "25",
             "errors": true,
-            "validate": true,
+            "arity": 2,
             "solutions": [
-                "[154038586524071506316860854678694172406, -154038586524071506316860854678694172384]"
+                "$1 ^ $2 == -42"
             ]
         },
         {
@@ -725,9 +793,9 @@
             "args": "[1, 1]",
             "depth": "25",
             "errors": true,
-            "validate": true,
+            "arity": 2,
             "solutions": [
-                "[132438649102067967026620554223683666340, -132438649102067967026620960032741791446]"
+                "$1 ^ $2 == -546546546546546"
             ]
         },
         {
@@ -736,9 +804,9 @@
             "args": "[1, 1]",
             "depth": "25",
             "errors": true,
-            "validate": true,
+            "arity": 2,
             "solutions": [
-                "[-148528931426514002676418943389977804784, 148528930104835937209353474683431095820]"
+                "$1 ^ $2 == -1321678065467065468706546708964"
             ]
         },
         {
@@ -747,9 +815,9 @@
             "args": "[1, 1]",
             "depth": "25",
             "errors": true,
-            "validate": true,
+            "arity": 2,
             "solutions": [
-                "[34, 8]"
+                "$1 | $2 == 42"
             ]
         },
         {
@@ -758,9 +826,9 @@
             "args": "[1, 1]",
             "depth": "25",
             "errors": true,
-            "validate": true,
+            "arity": 2,
             "solutions": [
-                "[576531571286646856, 78123050067394816]"
+                "$1 | $2 == 654654621354008904"
             ]
         },
         {
@@ -769,9 +837,9 @@
             "args": "[1, 1]",
             "depth": "25",
             "errors": true,
-            "validate": true,
+            "arity": 2,
             "solutions": [
-                "[46598350958186933355168341451912384804, 85569455391686265217897127254634324160]"
+                "$1 | $2 == 132167806349873198573065468706546708964"
             ]
         },
         {
@@ -780,9 +848,9 @@
             "args": "[1, 1]",
             "depth": "25",
             "errors": true,
-            "validate": true,
+            "arity": 2,
             "solutions": [
-                "[-122858486675391948889053936672818495856, 122858486675391948889053938871841751405]"
+                "$1 | $2 == -3"
             ]
         },
         {
@@ -791,9 +859,9 @@
             "args": "[1, 1]",
             "depth": "25",
             "errors": true,
-            "validate": true,
+            "arity": 2,
             "solutions": [
-                "[-127665441727703630643001662293994373054, 127665439146605058293920069946395660416]"
+                "$1 | $2 == -2581098572349081592347598712638"
             ]
         },
         {
@@ -802,8 +870,9 @@
             "args": "[[49]]",
             "depth": "70",
             "errors": true,
+            "arity": 1,
             "solutions": [
-                "[\"42\"]"
+                "$1=='42' or $1==[52,50]"
             ]
         },
         {
@@ -812,9 +881,10 @@
             "args": "[[49]]",
             "depth": "80",
             "errors": true,
+            "arity": 1,
             "whitelist": "collection-l2in-1",
             "solutions": [
-                "[\"42\"]"
+                "$1=='42' or $1==[52,50]"
             ]
         },
         {
@@ -822,7 +892,8 @@
             "function": "to_upper",
             "args": "[[]]",
             "depth": "7",
-            "errors": false
+            "errors": false,
+            "arity": 1
         }
     ]
 }

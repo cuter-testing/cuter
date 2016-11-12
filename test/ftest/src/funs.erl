@@ -94,7 +94,7 @@ f41(F, X, Y) ->
 
 -spec f42(fun((integer()) -> any()), integer(), integer()) -> ok.
 f42(F, X, Y) ->
-  case (catch F(X)) of
+  case (catch F(X)) of  % Catch currently doesn't stop exception propagation.
     {'EXIT', _} -> ok;
     Z ->
       case Z(Y) of
