@@ -470,6 +470,20 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		self.tuple_sz(term, num)
 
+	def tuple_not_tpl(self, term, num): # TODO why is num over here?
+		"""
+		Asserts that: term is not a tuple.
+		"""
+		t = self.decode(term)
+		self.assertion(["not", ["is-tuple", t]])
+
+	def tuple_not_tpl_reversed(self, term, num): # TODO why is num over here?
+		"""
+		Asserts that: Not (term is not a tuple).
+		"""
+		t = self.decode(term)
+		self.assertion(["is-tuple", t])
+
 	# -------------------------------------------------------------------------
 	# Erlang BIFs or MFAs treated as BIFs.
 	# -------------------------------------------------------------------------

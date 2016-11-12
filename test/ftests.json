@@ -322,6 +322,28 @@
             "skip": true
         },
         {
+            "module": "complex_spec",
+            "function": "g",
+            "args": "[{[],0}]",
+            "depth": "2",
+            "errors": true,
+            "solutions": [
+                "[{[[{[[1,2,4],[3]],[]}]],0}]"
+            ],
+            "skip": false
+        },
+        {
+            "module": "complex_spec",
+            "function": "k",
+            "args": "[[]]",
+            "depth": "1",
+            "errors": true,
+            "solutions": [
+                "[[{[0],[1,2,{2.0},3]}]]"
+            ],
+            "skip": false
+        },
+        {
             "module": "collection",
             "function": "f",
             "args": "[[]]",
