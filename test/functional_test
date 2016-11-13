@@ -53,7 +53,8 @@ def run(testDir):
         # Validate the errors found.
         solutions = interesting.strip().split("\n")
         found = ["[" + re.search(r"\((.*)\)", sol).group(1) + "]" for sol in solutions]
-        if not validate(test["arity"], found, test["solutions"]):
+        diffMode = False if "nondeterministic" in test and test["nondeterministic"] else True
+        if not validate(test["arity"], diffMode, found, test["solutions"]):
             printOutputAndExit(output)
 
 def get_tests(testDir):
@@ -85,38 +86,43 @@ def get_options(test, testDir):
 def get_basedir(testDir):
     return testDir[:-len('/test')]
 
-def validate(arity, found, expected):
+def validate(arity, diffMode, found, expected):
     """
     Checks if the found erroneous inputs cover all the expected conditions.
     Parameters:
         arity : integer
+        diffMode : bool
         args : list of string
         cond : list of string
     """
     allfound = set(expected)
     for i in found:
-        matched = set([r for r in expected if is_expected_input(arity, i, str(r))])
+        matched = set([r for r in expected if is_expected_input(arity, diffMode, i, str(r))])
         if len(matched) == 0:
             return False
         allfound = allfound | matched
     return len(expected) == len(allfound)
 
-def is_expected_input(arity, args, cond):
+def is_expected_input(arity, diffMode, args, cond):
     """
     Checks if an erroneous input satisfies an expected condition.
     Parameters:
         arity : integer
+        diffMode : bool
         args : string
         cond : string
     """
-    pms = ",".join(["x{}".format(i + 1) for i in range(arity)])
-    cond = cond.replace("$", "x")
-    try:
-        assign = "[{}]=terms.parse('{}')".format(pms, args)
-        exec(assign)
-        return eval(cond)
-    except:
-        return False
+    if diffMode:
+        return args == cond
+    else:
+        pms = ",".join(["x{}".format(i + 1) for i in range(arity)])
+        cond = cond.replace("$", "x")
+        try:
+            assign = "[{}]=terms.parse('{}')".format(pms, args)
+            exec(assign)
+            return eval(cond)
+        except:
+            return False
 
 def printOutputAndExit(out):
     print "OUTPUT MISMATCH"
