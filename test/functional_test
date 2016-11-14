@@ -1,102 +1,137 @@
 #!/usr/bin/env python
 
-import json, multiprocessing, os, re, sys
+import json, multiprocessing, os, re, sys, math
 from subprocess import Popen, PIPE
 from pprint import pprint
+from types import *
+import terms
 
-testDir = os.path.dirname(os.path.realpath(__file__))
-baseDir = testDir[:-len('/test')]
-ftestEbin = os.path.join(testDir, "ftest", "ebin")
-utestEbin = os.path.join(testDir, "utest", "ebin")
-properEbin = os.path.join(baseDir, "lib", "proper", "ebin")
-cuterScript = os.path.join(baseDir, "cuter")
-testsJson = os.path.join(testDir, "ftests.json")
-nCores = multiprocessing.cpu_count()
-defaultOpts = "-p {} -s {}".format(nCores, nCores * 2)
-separator = "=== Inputs That Lead to Runtime Errors ==="
-bifSeparator = "=== BIFs Currently without Symbolic Interpretation ==="
+def run(testDir):
+    baseDir = get_basedir(testDir)
+    cuterScript = os.path.join(baseDir, "cuter")
+    separator = "=== Inputs That Lead to Runtime Errors ==="
+    bifSeparator = "=== BIFs Currently without Symbolic Interpretation ==="
 
-def getExpectedFile(test):
-  return os.path.join(testDir, "ftest", "expected", test["expected"] + ".expected")
+    for i, test in enumerate(get_tests(testDir)):
+        # Set the default values for optional parameters.
+        for param in ["withUtestBin", "validate", "withProper"]:
+            if not param in test:
+                test[param] = False
+        # Get the runtime options.
+        opts = get_options(test, testDir)
+        # Run the test.
+        cmd = "{} {} {} '{}' -d {} {} --sorted-errors".format(
+          cuterScript, test["module"], test["function"], test["args"], test["depth"], opts
+        )
+        print "\n[Test #{}]\n{}".format(i + 1, cmd)
+        if "skip" in test and test["skip"]:
+            print "Skipping ..."
+            continue
+        p = Popen(cmd, stdin=PIPE, stdout=PIPE, shell=True)
+        output, err = p.communicate()
+        # Validate the presence of errors or not.
+        parts = output.strip().split(separator)
+        if test["errors"]:
+            if len(parts) != 2:
+                printOutputAndExit(output)
+        else:
+            if len(parts) != 1:
+                printOutputAndExit(output)
+            else:
+                continue
+        interesting = parts[1]
+        # Validate the BIFs.
+        if "bifs" in test:
+            bifs = test["bifs"]
+            bifParts = interesting.split(bifSeparator)
+            interesting = bifParts[0].strip()
+            bifParts = bifParts[1].strip().split("\n")
+            if len(bifParts) != len(bifs):
+                printOutputAndExit(output)
+            if set([bif.strip() for bif in bifParts]) != set(bifs):
+                printOutputAndExit(output)
+        # Validate the errors found.
+        solutions = interesting.strip().split("\n")
+        found = ["[" + re.search(r"\((.*)\)", sol).group(1) + "]" for sol in solutions]
+        diffMode = False if "nondeterministic" in test and test["nondeterministic"] else True
+        if not validate(test["arity"], diffMode, found, test["solutions"]):
+            printOutputAndExit(output)
 
-def printOutputAndExit(out):
-  print "OUTPUT MISMATCH"
-  print "================================================================="
-  print out.strip()
-  print "================================================================="
-  sys.exit(1)
+def get_tests(testDir):
+    testsJson = os.path.join(testDir, "ftests.json")
+    with open(testsJson) as fd:
+        return json.load(fd)["tests"]
 
-with open(testsJson) as fd:
-  tests = json.load(fd)["tests"]
-
-  for i, test in enumerate(tests):
-    # Set the default values for optional parameters.
-    for param in ["withUtestBin", "validate", "withProper"]:
-      if not param in test:
-        test[param] = False
-    # Get the runtime options.
+def get_options(test, testDir):
+    # Set the base options.
+    nCores = multiprocessing.cpu_count()
+    defaultOpts = "-p {} -s {}".format(nCores, nCores * 2)
     opts = test["opts"] if "opts" in test else defaultOpts
-    # Get the whitelist.
-    if "whitelist" in test:
-      whitelist = os.path.join(testDir, "ftest", "whitelist", test["whitelist"] + ".txt")
-      opts += " -w {}".format(whitelist)
     # Add the extra paths.
+    ftestEbin = os.path.join(testDir, "ftest", "ebin")
     extraPaths = [ftestEbin]
     if test["withUtestBin"]:
-      extraPaths.append(utestEbin)
+        utestEbin = os.path.join(testDir, "utest", "ebin")
+        extraPaths.append(utestEbin)
     if test["withProper"]:
-      extraPaths.append(properEbin)
+        properEbin = os.path.join(get_basedir(testDir), "lib", "proper", "ebin")
+        extraPaths.append(properEbin)
     opts += " -pa {}".format(" ".join(extraPaths))
-    # Run the test.
-    cmd = "{} {} {} '{}' -d {} {} --sorted-errors".format(
-      cuterScript, test["module"], test["function"], test["args"], test["depth"], opts
-    )
-    print "\n[Test #{}]\n{}".format(i + 1, cmd)
-    if "skip" in test and test["skip"]:
-      print "Skipping ..."
-      continue
-    p = Popen(cmd, stdin=PIPE, stdout=PIPE, shell=True)
-    output, err = p.communicate()
-    # Validate the presence of errors or not.
-    parts = output.strip().split(separator)
-    if test["errors"]:
-      if len(parts) != 2:
-        printOutputAndExit(output)
-    else:
-      if len(parts) != 1:
-        printOutputAndExit(output)
-      else:
-        continue
-    interesting = parts[1]
-    # Validate the BIFs.
-    if "bifs" in test:
-      bifs = test["bifs"]
-      bifParts = interesting.split(bifSeparator)
-      interesting = bifParts[0].strip()
-      bifParts = bifParts[1].strip().split("\n")
-      if len(bifParts) != len(bifs):
-        printOutputAndExit(output)
-      if set([bif.strip() for bif in bifParts]) != set(bifs):
-        printOutputAndExit(output)
-    # Validate the number of errors found.
-    solutions = interesting.strip().split("\n")
-    found = set(["[" + re.search(r"\((.*)\)", sol).group(1) + "]" for sol in solutions])
-    if len(found) != len(test["solutions"]):
-      printOutputAndExit(output)
-    expected = set(test["solutions"])
-    # Validate the errors found.
-    if not test["validate"]:
-      # Simply check if found the expected errors.
-      if found != expected:
-        printOutputAndExit(output)
-    else:
-      # Validate that every error is actually an error.
-      for sol in found:
-        mfaCall = "{}:{}({})".format(test["module"], test["function"], sol[1:-1])
-        cmd = "erl -noshell -pa {} -eval \"{}\" -s init stop".format(ftestEbin, mfaCall)
-        p = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=PIPE, shell=True)
-        out, err = p.communicate()
-        if p.returncode != 1:
-          printOutputAndExit(output)
+    # Add the whitelist.
+    if "whitelist" in test:
+        whitelist = os.path.join(testDir, "ftest", "whitelist", test["whitelist"] + ".txt")
+        opts += " -w {}".format(whitelist)
+    return opts
 
-  sys.exit(0)
+def get_basedir(testDir):
+    return testDir[:-len('/test')]
+
+def validate(arity, diffMode, found, expected):
+    """
+    Checks if the found erroneous inputs cover all the expected conditions.
+    Parameters:
+        arity : integer
+        diffMode : bool
+        args : list of string
+        cond : list of string
+    """
+    allfound = set(expected)
+    for i in found:
+        matched = set([r for r in expected if is_expected_input(arity, diffMode, i, str(r))])
+        if len(matched) == 0:
+            return False
+        allfound = allfound | matched
+    return len(expected) == len(allfound)
+
+def is_expected_input(arity, diffMode, args, cond):
+    """
+    Checks if an erroneous input satisfies an expected condition.
+    Parameters:
+        arity : integer
+        diffMode : bool
+        args : string
+        cond : string
+    """
+    if diffMode:
+        return args == cond
+    else:
+        pms = ",".join(["x{}".format(i + 1) for i in range(arity)])
+        cond = cond.replace("$", "x")
+        try:
+            assign = "[{}]=terms.parse('{}')".format(pms, args)
+            exec(assign)
+            return eval(cond)
+        except:
+            return False
+
+def printOutputAndExit(out):
+    print "OUTPUT MISMATCH"
+    print "================================================================="
+    print out.strip()
+    print "================================================================="
+    sys.exit(1)
+
+if __name__ == "__main__":
+    testDir = os.path.dirname(os.path.realpath(__file__))
+    run(testDir)
+    sys.exit(0)

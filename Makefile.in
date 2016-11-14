@@ -187,6 +187,7 @@ $(FTEST_EBIN)/%.beam: %.erl
 utest: $(TARGETS)
 	@(./$(TEST)/eunit_test -e $(EBIN) -u $(UTEST_EBIN) -- $(SRC_MODULES))
 	@(./$(TEST)/python_test -p $(PRIV) -e $(EBIN) -u $(UTEST_EBIN) -- $(PRIV_MODULES))
+	@(python $(TEST)/terms.py)
 
 ftest: $(TARGETS)
 	@(./$(TEST)/functional_test)

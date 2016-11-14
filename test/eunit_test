@@ -31,7 +31,7 @@ def main(argv):
       print "CutEr's utest directory ebin has not been specified."
       sys.exit(1)
     # Run EUnit tests.
-    cmd = "erl -noshell -pa {} -pa {} -eval \"eunit:test([{}], [verbose])\" -s init stop".format(
+    cmd = "erl -noshell -pa {} -pa {} -eval \"case eunit:test([{}], [verbose]) of ok -> ok; _ -> halt(42) end\" -s init stop".format(
       ebin, utestEbin, ",".join(mods)
     )
     sys.exit(runCmd(cmd))
