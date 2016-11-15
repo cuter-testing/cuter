@@ -57,7 +57,7 @@ class Solver:
 	def __init__(self, args):
 		self.args = args
 
-	def solve(self, stmts, vars):
+	def solve(self, stmts):
 		process = subprocess.Popen(
 			self.args,
 			stdin=subprocess.PIPE,
@@ -74,19 +74,20 @@ class Solver:
 		status = process.stdout.readline()[:-1]
 		log(status)
 		if status == "sat":
-			process.stdin.write(encode(["get-value", vars]) + "\n")
-			log(encode(["get-value", vars]))
+			process.stdin.write(encode(["get-model"]) + "\n")
+			log(encode(["get-model"]))
 			process.stdin.write(encode(["exit"]) + "\n")
 			process.stdin.close()
 			smt = process.stdout.read()
-			obj = self.fix_names(decode(smt))
+			model = decode(smt)
+			# obj = self.fix_names(decode(smt)) # TODO fix_names
 			log(smt)
 		else:
 			process.stdin.write(encode(["exit"]) + "\n")
 			process.stdin.close()
 			process.stdout.read()
-			obj = None
-		return (status, obj)
+			model = None
+		return (status, model)
 
 	@staticmethod
 	def fix_names(obj):

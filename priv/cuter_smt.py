@@ -15,6 +15,7 @@ datatypes = [
 		["list", ["lval", "TList"]],
 		["tuple", ["tval", "TList"]],
 		["atom", ["aval", "IList"]],
+		["fun", ["fval", "Int"]],
 	],
 	[
 		"TList",
@@ -89,9 +90,10 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		self.aux_vars = []
 		self.cmds = []
 		self.cmds.append(["declare-datatypes", [], datatypes])
+		self.cmds.append(["declare-fun", "fmap", ["Int"], ["Array", "TList", "Term"]])
 		self.solver = None
 		self.model = None
-		self.fn_cnt = 0
+		self.fun_rec_cnt = 0
 		self.solver = smt.SolverZ3()
 
 	# =========================================================================
@@ -120,22 +122,39 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		Solves a constraint set and returns the result.
 		"""
-		tpl = self.solver.solve(self.cmds, self.vars)
-		self.model = tpl[1]
-		result = tpl[0]
-		if result == "sat":
+		tpl = self.solver.solve(self.cmds)
+		check_sat = tpl[0]
+		if check_sat == "sat":
+			get_model = tpl[1]
+			assert isinstance(get_model, list)
+			assert len(get_model) > 0
+			assert get_model[0] == "model"
+			self.model = {}
+			for define_fun in get_model[1:]:
+				assert len(define_fun) == 5
+				assert define_fun[0] == "define-fun"
+				assert not isinstance(define_fun[1], list)
+				self.model[define_fun[1]] = define_fun[4]
 			return cc.mk_sat()
-		elif result == "unsat":
+		elif check_sat == "unsat":
 			return cc.mk_unsat()
-		elif result == "unknown":
+		elif check_sat == "unknown":
 			return cc.mk_unknown()
+		else:
+			clg.debug_info("solve: " + tpl[0])
 
 	def encode_model(self):
 		"""
 		Encodes the resulting model.
 		"""
-		fn = lambda item: cc.mk_model_entry(cc.mk_symb(item[0][1:-1]), self.encode(item[1]))
-		return cc.mk_model_data(cc.mk_model(map(fn, self.model)))
+		entries = []
+		for var in self.vars:
+			if var in self.model:
+				val = self.model[var]
+			else:
+				val = ["bool", "false"]
+			entries.append(cc.mk_model_entry(cc.mk_symb(var[1:-1]), self.encode(val)))
+		return cc.mk_model_data(cc.mk_model(entries))
 
 	# =========================================================================
 	# Private Methods.
@@ -235,8 +254,28 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 				inner_table[var[0]] = var[1]
 			ret = self.encode(data[2], inner_table)
 			return ret
+		elif data[0] == "fun":
+			fval = int(data[1])
+			# get return value of fmap(fval)
+			ite = self.model["fmap"]
+			while isinstance(ite, list) and len(ite) == 4 and ite[0] == "ite":
+				if int(ite[1][2]) == fval:
+					ite = ite[2]
+				else:
+					ite = ite[3]
+			assert isinstance(ite, list) and len(ite) == 3 and ite[0] == "_" and ite[1] == "as-array"
+			# return actual function
+			ite = self.model[ite[2]]
+			entries = []
+			while isinstance(ite, list) and len(ite) == 4 and ite[0] == "ite":
+				entries.append(cc.mk_fun_entry(
+					cc.get_list_subterms(self.encode(["list", ite[1][2]], table)),
+					self.encode(ite[2], table)
+				))
+				ite = ite[3]
+			return cc.mk_fun(1, entries, self.encode(ite, table)) # TODO arity
 		clg.debug_info("encoding failed: " + str(data))
-		return None # TODO encode term
+		assert False # TODO encode term
 
 	# -------------------------------------------------------------------------
 	# Parse internal commands.
@@ -273,8 +312,8 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		#	return ["and", ["is-int", var], ["=", ["ival", var], literal.value]] # TODO literal.value
 		elif cc.is_type_list(spec):
 			inner_spec = self.build_spec(cc.get_inner_type_from_list(spec), ["hd", ["lval", "t"]])
-			name = "fn{}".format(self.fn_cnt)
-			self.fn_cnt += 1
+			name = "fn{}".format(self.fun_rec_cnt)
+			self.fun_rec_cnt += 1
 			self.cmds.append(define_fun_rec(name, "t", inner_spec))
 			return [name, var]
 		elif cc.is_type_tupledet(spec):
@@ -301,12 +340,14 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			return ret
 		elif cc.is_type_nonempty_list(spec):
 			inner_spec = self.build_spec(cc.get_inner_type_from_nonempty_list(spec), ["hd", ["lval", "t"]])
-			name = "fn{}".format(self.fn_cnt)
-			self.fn_cnt += 1
+			name = "fn{}".format(self.fun_rec_cnt)
+			self.fun_rec_cnt += 1
 			self.cmds.append(define_fun_rec(name, "t", inner_spec))
 			return ["and", ["is-list", var], ["is-cons", ["lval", var]], [name, var]]
 		elif cc.is_type_atom(spec):
 			return ["is-atom", var]
+		elif cc.is_type_complete_fun(spec):
+			return ["is-fun", var]
 		clg.debug_info("unknown spec: " + str(spec))
 
 	def unfold_tuple(self, *terms):
@@ -329,6 +370,24 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 	# -------------------------------------------------------------------------
 	# Constraints.
 	# -------------------------------------------------------------------------
+
+	def erl_lambda(self, *args):
+		"""
+		Asserts that a lambda application has succeeded.
+		"""
+		t_ret = self.decode(args[0])
+		t_fun = self.decode(args[1])
+		t_arg = "nil"
+		for arg in reversed(args[2:]):
+			t_arg = ["cons", self.decode(arg) ,t_arg]
+		self.assertion(["and", ["is-fun", t_fun], ["=", ["select", ["fmap", ["fval", t_fun]], t_arg], t_ret]])
+
+	def erl_lambda_reversed(self, *args):
+		"""
+		Asserts that a lambda application has failed.
+		"""
+		t_fun = self.decode(args[1])
+		self.assertion(["not", ["is-fun", t_fun]])
 
 	def guard_true(self, term):
 		"""

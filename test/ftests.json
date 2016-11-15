@@ -449,7 +449,7 @@
             "solutions": [
                 "[fun(3) -> 42; (10) -> 17; (_) -> 42 end]"
             ],
-            "skip": true
+            "skip": false
         },
         {
             "module": "funs",
