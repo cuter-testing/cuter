@@ -91,6 +91,13 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		self.cmds = []
 		self.cmds.append(["declare-datatypes", [], datatypes])
 		self.cmds.append(["declare-fun", "fmap", ["Int"], ["Array", "TList", "Term"]])
+		self.cmds.append(["declare-fun", "arity", ["Int"], "Int"])
+		self.cmds.append(["define-fun-rec", "length", [["l", "TList"]], "Int", [
+			"ite",
+			["is-nil", "l"],
+			"0",
+			["+", ["length", ["tl", "l"]], "1"]
+		]])
 		self.solver = None
 		self.model = None
 		self.fun_rec_cnt = 0
@@ -256,26 +263,38 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			return ret
 		elif data[0] == "fun":
 			fval = int(data[1])
-			# get return value of fmap(fval)
-			ite = self.model["fmap"]
+			# get return value of arity(fval)
+			ite = self.model["arity"]
 			while isinstance(ite, list) and len(ite) == 4 and ite[0] == "ite":
 				if int(ite[1][2]) == fval:
 					ite = ite[2]
 				else:
 					ite = ite[3]
-			assert isinstance(ite, list) and len(ite) == 3 and ite[0] == "_" and ite[1] == "as-array"
-			# return actual function
-			ite = self.model[ite[2]]
-			while ite[0] in self.model:
-				ite = self.model[ite[0]]
+			arity = int(ite)
 			entries = []
-			while isinstance(ite, list) and len(ite) == 4 and ite[0] == "ite":
-				entries.append(cc.mk_fun_entry(
-					cc.get_list_subterms(self.encode(["list", ite[1][2]], table)),
-					self.encode(ite[2], table)
-				))
-				ite = ite[3]
-			return cc.mk_fun(1, entries, self.encode(ite, table)) # TODO arity
+			if "fmap" in self.model:
+				# get return value of fmap(fval)
+				ite = self.model["fmap"]
+				while isinstance(ite, list) and len(ite) == 4 and ite[0] == "ite":
+					if int(ite[1][2]) == fval:
+						ite = ite[2]
+					else:
+						ite = ite[3]
+				assert isinstance(ite, list) and len(ite) == 3 and ite[0] == "_" and ite[1] == "as-array"
+				# return actual function
+				ite = self.model[ite[2]]
+				while ite[0] in self.model:
+					ite = self.model[ite[0]]
+				while isinstance(ite, list) and len(ite) == 4 and ite[0] == "ite":
+					entries.append(cc.mk_fun_entry(
+						cc.get_list_subterms(self.encode(["list", ite[1][2]], table)),
+						self.encode(ite[2], table)
+					))
+					ite = ite[3]
+				val = self.encode(ite, table)
+			else:
+				val = cc.mk_any()
+			return cc.mk_fun(arity, entries, val)
 		clg.debug_info("encoding failed: " + str(data))
 		assert False # TODO encode term
 
@@ -349,11 +368,11 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		elif cc.is_type_atom(spec):
 			return ["is-atom", var]
 		elif cc.is_type_complete_fun(spec):
-			# TODO arguments spec
-			#clg.debug_info("fun spec: " + str(spec))
+			# clg.debug_info("fun parameters spec: " + str(cc.get_parameters_from_complete_fun(spec))) # TODO arguments spec
 			return [
 				"and",
 				["is-fun", var],
+				["=", ["arity", ["fval", var]], str(len(cc.get_parameters_from_complete_fun(spec)))],
 				[
 					"forall",
 					[["l", "TList"]],
@@ -361,7 +380,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 				]
 			]
 		clg.debug_info("unknown spec: " + str(spec))
-		assert False # TODO apply spec
+		assert False
 
 	def unfold_tuple(self, *terms):
 		"""
@@ -397,9 +416,14 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t_arg = "nil"
 		for arg in reversed(args[2:]):
 			t_arg = ["cons", self.decode(arg) ,t_arg]
-		self.assertion(["and", ["is-fun", t_fun], ["=", ["select", ["fmap", ["fval", t_fun]], t_arg], t_ret]])
+		self.assertion([
+			"and",
+			["is-fun", t_fun],
+			["=", ["arity", ["fval", t_fun]], ["length", t_arg]],
+			["=", ["select", ["fmap", ["fval", t_fun]], t_arg], t_ret]
+		])
 
-	def erl_lambda_reversed(self, *args):
+	def erl_lambda_reversed(self, *args): # TODO is this the opposite of erl_lambda?
 		"""
 		Asserts that a lambda application has failed.
 		"""
@@ -560,6 +584,25 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t = self.decode(term)
 		self.assertion(["is-tuple", t])
 
+	def lambda_with_arity(self, tFun, tArity):
+		"""
+		Asserts that: tFun is a function with arity tArity.
+		"""
+		f = self.decode(tFun)
+		a = self.decode(tArity)
+		self.assertion([
+			"and",
+			["is-fun", f],
+			["is-int", a],
+			["=", ["arity", ["fval", f]], ["ival", a]]
+		])
+
+	def not_lambda_with_arity_reversed(self, tFun, tArity):
+		"""
+		Asserts that: Not (tFun is not a function with arity tArity).
+		"""
+		self.lambda_with_arity(tFun, tArity)
+
 	# -------------------------------------------------------------------------
 	# Erlang BIFs or MFAs treated as BIFs.
 	# -------------------------------------------------------------------------
@@ -594,6 +637,14 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		self.assertion(["is-list", t2])
 		self.assertion(["=", t0, ["list", ["cons", t1, ["lval", t2]]]])
 
+	def is_boolean(self, term0, term1):
+		"""
+		Asserts that: term0 == is_boolean(term1).
+		"""
+		t0 = self.decode(term0)
+		t1 = self.decode(term1)
+		self.assertion(["=", t0, ["bool", ["is-bool", t1]]])
+
 	def is_integer(self, term0, term1):
 		"""
 		Asserts that: term0 == is_integer(term1).
@@ -625,6 +676,31 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
 		self.assertion(["=", t0, ["bool", ["is-tuple", t1]]])
+
+	def is_atom(self, term0, term1):
+		"""
+		Asserts that: term0 == is_atom(term1).
+		"""
+		t0 = self.decode(term0)
+		t1 = self.decode(term1)
+		self.assertion(["=", t0, ["bool", ["or", ["is-bool", t1], ["is-atom", t1]]]])
+
+	def is_fun(self, term0, term1):
+		"""
+		Asserts that: term0 == is_function(term1).
+		"""
+		t0 = self.decode(term0)
+		t1 = self.decode(term1)
+		self.assertion(["=", t0, ["bool", ["is-fun", t1]]])
+
+	def is_fun_with_arity(self, r, t, a):
+		"""
+		Asserts that: r == is_function(t, a).
+		"""
+		r = self.decode(r)
+		t = self.decode(t)
+		a = self.decode(a)
+		self.assertion(["=", r, ["bool", ["and", ["is-fun", t], ["is-int", a], ["=", ["arity", ["fval", t]], ["ival", a]]]]])
 
 	def is_number(self, term0, term1):
 		"""
