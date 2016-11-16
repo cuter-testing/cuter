@@ -42,7 +42,7 @@ def calculate_int(obj):
 	else:
 		return int(obj)
 	clg.debug_info("calculate_int: unknown operation " + str(obj))
-	return None
+	assert False
 
 
 def calculate_real(obj):
@@ -57,7 +57,7 @@ def calculate_real(obj):
 	else:
 		return float(obj)
 	clg.debug_info("calculate_real: unknown operation " + str(obj))
-	return None
+	assert False
 
 
 def define_fun_rec(name, var, spec):
@@ -150,10 +150,11 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		entries = []
 		for var in self.vars:
 			if var in self.model:
-				val = self.model[var]
+				val = self.encode(self.model[var])
 			else:
-				val = ["bool", "false"]
-			entries.append(cc.mk_model_entry(cc.mk_symb(var[1:-1]), self.encode(val)))
+				clg.debug_info("encode_model: var not found in model: " + var)
+				val = cc.mk_any()
+			entries.append(cc.mk_model_entry(cc.mk_symb(var[1:-1]), val))
 		return cc.mk_model_data(cc.mk_model(entries))
 
 	# =========================================================================
@@ -189,9 +190,8 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			return ["list", self.value2tlist(cc.get_list_subterms(data))]
 		elif cc.is_tuple(data):
 			return ["tuple", self.value2tlist(cc.get_tuple_subterms(data))]
-		else:
-			clg.debug_info("decoding failed: " + str(data))
-			return None # TODO decode term
+		clg.debug_info("decoding failed: " + str(data))
+		assert False # TODO decode term
 
 	def value2tlist(self, value):
 		if not value:
@@ -266,6 +266,8 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			assert isinstance(ite, list) and len(ite) == 3 and ite[0] == "_" and ite[1] == "as-array"
 			# return actual function
 			ite = self.model[ite[2]]
+			while ite[0] in self.model:
+				ite = self.model[ite[0]]
 			entries = []
 			while isinstance(ite, list) and len(ite) == 4 and ite[0] == "ite":
 				entries.append(cc.mk_fun_entry(
@@ -347,8 +349,19 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		elif cc.is_type_atom(spec):
 			return ["is-atom", var]
 		elif cc.is_type_complete_fun(spec):
-			return ["is-fun", var]
+			# TODO arguments spec
+			#clg.debug_info("fun spec: " + str(spec))
+			return [
+				"and",
+				["is-fun", var],
+				[
+					"forall",
+					[["l", "TList"]],
+					self.build_spec(cc.get_rettype_from_fun(spec), ["select", ["fmap", ["fval", var]], "l"])
+				]
+			]
 		clg.debug_info("unknown spec: " + str(spec))
+		assert False # TODO apply spec
 
 	def unfold_tuple(self, *terms):
 		"""
@@ -366,6 +379,10 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			self.assertion(["=", s, ["hd", c]])
 			c = ["tl", c]
 		self.assertion(["is-nil", c])
+
+	#def fresh_closure(self, tFun, tArity): # TODO arity
+	#	t_fun = self.decode(tFun)
+	#	self.assertion(["is-fun", t_fun])
 
 	# -------------------------------------------------------------------------
 	# Constraints.
