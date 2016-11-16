@@ -544,11 +544,12 @@
             "depth": "6",
             "errors": true,
             "arity": 2,
+            "nondeterministic": true,
             "solutions": [
-                "[fun(_,_) -> 42 end, [5]]",
-                "[fun(8,0) -> 6; (_,_) -> 42 end, \"\\b\\t\"]"
+                "reduce($1, $2, 0) == 42 and len($2) == 1",
+                "reduce($1, $2, 0) == 42 and len($2) == 2"
             ],
-            "skip": false
+            "skip": true
         },
         {
             "module": "funs",
