@@ -406,9 +406,15 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			c = ["tl", c]
 		self.assertion(["is-nil", c])
 
-	#def fresh_closure(self, tFun, tArity): # TODO arity
-	#	t_fun = self.decode(tFun)
-	#	self.assertion(["is-fun", t_fun])
+	def fresh_closure(self, tFun, tArity):
+		f = self.decode(tFun)
+		a = self.decode(tArity)
+		self.assertion([
+			"and",
+			["is-fun", f],
+			["is-int", a],
+			["=", ["arity", ["fval", f]], ["ival", a]],
+		])
 
 	# -------------------------------------------------------------------------
 	# Constraints.
@@ -427,7 +433,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			"and",
 			["is-fun", t_fun],
 			["=", ["arity", ["fval", t_fun]], ["length", t_arg]],
-			["=", ["select", ["fmap", ["fval", t_fun]], t_arg], t_ret]
+			["=", ["select", ["fmap", ["fval", t_fun]], t_arg], t_ret],
 		])
 
 	def erl_lambda_reversed(self, *args): # TODO is this the opposite of erl_lambda?
