@@ -346,6 +346,8 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 				tlist = ["tl", tlist]
 			ret.append(["is-nil", tlist])
 			return ret
+		elif cc.is_type_tuple(spec):
+			return ["is-tuple", var]
 		elif cc.is_type_union(spec):
 			ret = ["or"]
 			for inner_type in cc.get_inner_types_from_union(spec):
@@ -407,6 +409,9 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		self.assertion(["is-nil", c])
 
 	def fresh_closure(self, tFun, tArity):
+		"""
+		Asserts that tFun is a closure with arity tArity.
+		"""
 		f = self.decode(tFun)
 		a = self.decode(tArity)
 		self.assertion([
@@ -414,6 +419,23 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			["is-fun", f],
 			["is-int", a],
 			["=", ["arity", ["fval", f]], ["ival", a]],
+		])
+
+	def evaluated_closure(self, *args):
+		"""
+		Asserts that the evaluation of a closure returns some specific terms.
+		"""
+		ret = self.decode(args[0])
+		fun = self.decode(args[1])
+		args = "nil"
+		clg.debug_info("args[2:] = " + str(args[2:])) # TODO some "l" is printed when testing f11 and f1hs
+		for arg in reversed(args[2:]):
+			args = ["cons", self.decode(arg), args]
+		self.assertion([
+			"and",
+			["is-fun", fun],
+			["=", ["arity", ["fval", fun]], ["length", args]],
+			["=", ["select", ["fmap", ["fval", fun]], args], ret],
 		])
 
 	# -------------------------------------------------------------------------
