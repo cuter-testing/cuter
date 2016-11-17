@@ -379,6 +379,8 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 					self.build_spec(cc.get_rettype_from_fun(spec), ["select", ["fmap", ["fval", var]], "l"])
 				]
 			]
+		elif cc.is_type_atomlit(spec):
+			return ["=", self.decode(cc.get_literal_from_atomlit(spec)), var]
 		clg.debug_info("unknown spec: " + str(spec))
 		assert False
 

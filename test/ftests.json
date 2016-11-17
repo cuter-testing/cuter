@@ -560,10 +560,10 @@
             "arity": 2,
             "nondeterministic": true,
             "solutions": [
-                "len([t for t in $2 if $1((t,))]) == 0  # [fun(_) -> false end, [0.0]]",
-                "len($2) == 0  # [fun(_) -> true end, []]"
+                "len($2) == 0",
+                "len($2) > 0 and len([t for t in $2 if $1((t,))]) == 0"
             ],
-            "skip": true
+            "skip": false
         },
         {
             "module": "funs",
