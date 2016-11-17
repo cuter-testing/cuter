@@ -159,7 +159,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			if var in self.model:
 				val = self.encode(self.model[var])
 			else:
-				clg.debug_info("encode_model: var not found in model: " + var)
+				#clg.debug_info("encode_model: var not found in model: " + var)
 				val = cc.mk_any()
 			entries.append(cc.mk_model_entry(cc.mk_symb(var[1:-1]), val))
 		return cc.mk_model_data(cc.mk_model(entries))
@@ -264,13 +264,16 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		elif data[0] == "fun":
 			fval = int(data[1])
 			# get return value of arity(fval)
-			ite = self.model["arity"]
-			while isinstance(ite, list) and len(ite) == 4 and ite[0] == "ite":
-				if int(ite[1][2]) == fval:
-					ite = ite[2]
-				else:
-					ite = ite[3]
-			arity = int(ite)
+			if "arity" in self.model:
+				ite = self.model["arity"]
+				while isinstance(ite, list) and len(ite) == 4 and ite[0] == "ite":
+					if int(ite[1][2]) == fval:
+						ite = ite[2]
+					else:
+						ite = ite[3]
+				arity = int(ite)
+			else:
+				arity = 0
 			entries = []
 			if "fmap" in self.model:
 				# get return value of fmap(fval)
@@ -328,9 +331,6 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			return ["is-real", var]
 		elif cc.is_type_integer(spec):
 			return ["is-int", var]
-		#elif cc.is_type_integerlit(spec):
-		#	literal = cc.get_literal_from_integerlit(spec)
-		#	return ["and", ["is-int", var], ["=", ["ival", var], literal.value]] # TODO literal.value
 		elif cc.is_type_list(spec):
 			inner_spec = self.build_spec(cc.get_inner_type_from_list(spec), ["hd", ["lval", "t"]])
 			name = "fn{}".format(self.fun_rec_cnt)
@@ -379,8 +379,13 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 					self.build_spec(cc.get_rettype_from_fun(spec), ["select", ["fmap", ["fval", var]], "l"])
 				]
 			]
+		elif cc.is_type_generic_fun(spec):
+			return ["is-fun", var]
 		elif cc.is_type_atomlit(spec):
-			return ["=", self.decode(cc.get_literal_from_atomlit(spec)), var]
+			return ["=", var, self.decode(cc.get_literal_from_atomlit(spec))]
+		elif cc.is_type_integerlit(spec):
+			literal = cc.get_literal_from_integerlit(spec)
+			return ["=", var, self.decode(cc.get_literal_from_integerlit(spec))]
 		clg.debug_info("unknown spec: " + str(spec))
 		assert False
 
