@@ -157,11 +157,11 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		entries = []
 		for var in self.vars:
 			if var in self.model:
-				val = self.encode(self.model[var])
+				val = self.model[var]
 			else:
 				#clg.debug_info("encode_model: var not found in model: " + var)
-				val = cc.mk_any()
-			entries.append(cc.mk_model_entry(cc.mk_symb(var[1:-1]), val))
+				val = ["bool", "false"] # TODO or cc.mk_any()? '__unboundvar' issue
+			entries.append(cc.mk_model_entry(cc.mk_symb(var[1:-1]), self.encode(val)))
 		return cc.mk_model_data(cc.mk_model(entries))
 
 	# =========================================================================
@@ -294,10 +294,9 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 						self.encode(ite[2], table)
 					))
 					ite = ite[3]
-				val = self.encode(ite, table)
 			else:
-				val = cc.mk_any()
-			return cc.mk_fun(arity, entries, val)
+				ite = ["bool", "false"] # TODO cc.mk_any() or not? '__unboundvar' issue
+			return cc.mk_fun(arity, entries, self.encode(ite, table))
 		clg.debug_info("encoding failed: " + str(data))
 		assert False # TODO encode term
 

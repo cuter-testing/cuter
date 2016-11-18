@@ -575,11 +575,11 @@
             "arity": 3,
             "nondeterministic": true,
             "solutions": [
-                "$1.func_code.co_argcount not in [1, 2]",
+                "isinstance($1, LambdaType)",
                 "$1(($2,)) == 42 and $3 == 1",
                 "$1(($2,$2)) == 42 and $3 == 2"
             ],
-            "skip": true
+            "skip": false
         },
         {
             "module": "funs",
@@ -594,7 +594,7 @@
                 "$1(($2,)) == 42",
                 "$1(($2,$2)) == 42"
             ],
-            "skip": true
+            "skip": false
         },
         {
             "module": "funs",
