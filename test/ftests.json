@@ -546,10 +546,10 @@
             "arity": 2,
             "nondeterministic": true,
             "solutions": [
-                "reduce($1, $2, 0) == 42 and len($2) == 1",
-                "reduce($1, $2, 0) == 42 and len($2) == 2"
+                "reduce(lambda a, b, f = $1: f((b,a,)), $2 if isinstance($2, list) else map(ord, $2), 0) == 42 and len($2) == 1",
+                "reduce(lambda a, b, f = $1: f((b,a,)), $2 if isinstance($2, list) else map(ord, $2), 0) == 42 and len($2) == 2"
             ],
-            "skip": true
+            "skip": false
         },
         {
             "module": "funs",
@@ -605,9 +605,9 @@
             "arity": 1,
             "nondeterministic": true,
             "solutions": [
-                "$1((fun(_) -> 1 end,)) == 42"
+                "$1((lambda x: 1,)) == 42"
             ],
-            "skip": true
+            "skip": false
         },
         {
             "module": "funs",
@@ -635,8 +635,8 @@
             "arity": 1,
             "nondeterministic": true,
             "solutions": [
-                "not isinstance($1((0,)), LambdaType)",
-                "$1((0,))((1,)) == 42"
+                "not isinstance($1((lambda l: reduce(lambda l1, l2: l1 + l2, l, []),)), LambdaType)",
+                "$1((lambda l: reduce(lambda l1, l2: l1 + l2, l, []),))((1,)) == 42"
             ],
             "skip": false
         },
