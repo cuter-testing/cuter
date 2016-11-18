@@ -91,7 +91,52 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		self.cmds = []
 		self.cmds.append(["declare-datatypes", [], datatypes])
 		self.cmds.append(["declare-fun", "fmap", ["Int"], ["Array", "TList", "Term"]])
+		
+		False and self.cmds.append([ # TODO switch on fmap forall - handles infinite recursion
+			"assert",
+			[
+				"forall",
+				[["i", "Int"], ["l", "TList"]],
+				["not", ["=", ["select", ["fmap", "i"], "l"], ["fun", "i"]]]
+			]
+		]) # TODO mutual recursion not handled; test f6
+		
+		# TODO unsupported - would handle mutual recursion
+		False and self.cmds.append(["delcare-const", "cmra", ["Array", "Int", "Bool"]])
+		False and self.cmds.append([
+			"define-fun-rec",
+			"cmr",
+			[["i", "Int"], ["l", "TList"], ["a", ["Array", "Int", "Bool"]],],
+			"Bool",
+			[
+				"and",
+				["=", ["select", "a", "i"], "false"],
+				[
+					"or",
+					["not", ["is-fun", ["select", ["fmap", "i"], "l"]]],
+					[
+						"let",
+						[["newa", ["store", "a", "i", "true"]],],
+						["cmr", ["fval", ["select", ["fmap", "i"], "l"]], "l", "newa"]
+					],
+				],
+			]
+		])
+		False and self.cmds.append(["assert", ["forall", [["i", "Int"], ["l", "TList"]], ["cmr", "i", "l", "cmra"]]])
+		
 		self.cmds.append(["declare-fun", "arity", ["Int"], "Int"])
+		
+		False and self.cmds.append([ # TODO switch on arity forall
+			"assert",
+			[
+				"forall",
+				[["i", "Int"]],
+				["and", ["<=", "0", ["arity", "i"]], ["<", ["arity", "i"], "256"]]
+			]
+		]) # TODO test func f91 first solution not found
+		
+		# TODO enabling the assertions, model will always contain an expression for fmap and arity functions
+		
 		self.cmds.append(["define-fun-rec", "length", [["l", "TList"]], "Int", [
 			"ite",
 			["is-nil", "l"],
@@ -278,6 +323,8 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			if "fmap" in self.model:
 				# get return value of fmap(fval)
 				ite = self.model["fmap"]
+				while ite[0] in self.model:
+					ite = self.model[ite[0]]
 				while isinstance(ite, list) and len(ite) == 4 and ite[0] == "ite":
 					if int(ite[1][2]) == fval:
 						ite = ite[2]
@@ -718,6 +765,14 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
 		self.assertion(["=", t0, ["bool", ["or", ["is-bool", t1], ["is-atom", t1]]]])
+
+	def is_bitstring(self, term0, term1):
+		"""
+		Asserts that: term0 == is_bitstring(term1).
+		"""
+		t0 = self.decode(term0)
+		t1 = self.decode(term1)
+		self.assertion(["=", t0, ["bool", "false"]]) # TODO temporary solution
 
 	def is_fun(self, term0, term1):
 		"""
