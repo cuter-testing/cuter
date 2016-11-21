@@ -10,7 +10,9 @@
          clear_and_delete_dir/1, clear_and_delete_dir/2, list_dir/1,
          unique_string/0, ensure_port_or_pid/1, is_improper_list/1,
          get_parts_of_list/1, create_improper_list/2, unzip_with/2]).
--export([mk_lambda/3, is_lambda/1, lambda_arity/1, lambda_kvs/1, lambda_default/1, compile_lambda/1, compile_lambdas_in_args/1]).
+-export([mk_lambda/3, is_lambda/1, lambda_arity/1, lambda_kvs/1,
+         lambda_default/1, compile_lambda/1, compile_lambdas_in_args/1,
+         default_any_value/0, is_unbound_var/1]).
 
 -export_type([lambda/0, lambda_kvs/0, lambda_default/0, lambda_arity/0]).
 
@@ -250,10 +252,21 @@ compile_lambda_h(T) when is_tuple(T) ->
   L = tuple_to_list(T),
   L1 = [compile_lambda_h(X) || X <- L],
   list_to_tuple(L1);
-compile_lambda_h(T) -> T.
+compile_lambda_h(T) ->
+  case is_unbound_var(T) of
+    true  -> default_any_value();
+    false -> T
+  end.
 
 lookup_args(As, Dict, Default) ->
   case dict:find(As, Dict) of
     error -> Default;
     {ok, Value} -> Value
   end.
+
+-spec default_any_value() -> 0.
+default_any_value() -> 0.
+
+%% Checks if the supplied term is an expression that denotes ANY term.
+-spec is_unbound_var(any()) -> boolean().
+is_unbound_var(X) -> X =:= ?UNBOUND_VAR_PREFIX.
