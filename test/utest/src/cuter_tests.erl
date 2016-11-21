@@ -4,24 +4,19 @@
 
 -include_lib("eunit/include/eunit.hrl").
 
--export([t0/1, t1/1, t2/2, run/0, bugs/0]).
+-export([t0/1, t1/1, t2/2]).
 
 -spec test() -> 'ok' | {'error', term()}.  %% This should be provided by EUnit
 
 %% Ensure it runs properly
-% FIXME Test is temporarily disabled.
-%-spec run_test() -> ok.
-%run_test() ->
--spec run() -> ok.
-run() ->
+-spec run_test() -> ok.
+run_test() ->
   R = cuter:run('lists', 'reverse', [[1]], 0),
   ?assertEqual([], R).
 
 % FIXME Test is temporarily disabled.
-%-spec bugs_test_() -> any().
-%bugs_test_() ->
--spec bugs() -> any().
-bugs() ->
+-spec bugs_test_() -> any().
+bugs_test_() ->
   Tests = [ {"Match to single value", {t0, [0], 1, [[42]]}}
           , {"Non-exhaustive pattern matching", {t1, [0], 17, [[42], [42.0]]}}
           , {"N-th element of a list to be an atom", {t2, [1, [1,2]], 25, fun check_t2/1}}
