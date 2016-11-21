@@ -95,7 +95,7 @@ def validate(arity, diffMode, found, expected):
         args : list of string
         cond : list of string
     """
-    allfound = set(expected)
+    allfound = set([])
     for i in found:
         matched = set([r for r in expected if is_expected_input(arity, diffMode, i, str(r))])
         if len(matched) == 0:

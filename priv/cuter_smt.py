@@ -6,30 +6,6 @@ import cuter_logger as clg
 import smt
 
 
-datatypes = [
-	[
-		"Term",
-		["bool", ["bval", "Bool"]],
-		["int", ["ival", "Int"]],
-		["real", ["rval", "Real"]],
-		["list", ["lval", "TList"]],
-		["tuple", ["tval", "TList"]],
-		["atom", ["aval", "IList"]],
-		["fun", ["fval", "Int"]],
-	],
-	[
-		"TList",
-		["nil"],
-		["cons", ["hd", "Term"], ["tl", "TList"]],
-	],
-	[
-		"IList",
-		["inil"],
-		["icons", ["ihd", "Int"], ["itl", "IList"]],
-	],
-]
-
-
 false = [102, 97, 108, 115, 101]
 true = [116, 114, 117, 101]
 
@@ -89,54 +65,30 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		self.vars = []
 		self.aux_vars = []
 		self.cmds = []
-		self.cmds.append(["declare-datatypes", [], datatypes])
+		self.cmds.append(["declare-datatypes", [], [
+			[
+				"Term",
+				["bool", ["bval", "Bool"]],
+				["int", ["ival", "Int"]],
+				["real", ["rval", "Real"]],
+				["list", ["lval", "TList"]],
+				["tuple", ["tval", "TList"]],
+				["atom", ["aval", "IList"]],
+				["fun", ["fval", "Int"]],
+			],
+			[
+				"TList",
+				["nil"],
+				["cons", ["hd", "Term"], ["tl", "TList"]],
+			],
+			[
+				"IList",
+				["inil"],
+				["icons", ["ihd", "Int"], ["itl", "IList"]],
+			],
+		]])
 		self.cmds.append(["declare-fun", "fmap", ["Int"], ["Array", "TList", "Term"]])
-		
-		False and self.cmds.append([ # TODO switch on fmap forall - handles infinite recursion
-			"assert",
-			[
-				"forall",
-				[["i", "Int"], ["l", "TList"]],
-				["not", ["=", ["select", ["fmap", "i"], "l"], ["fun", "i"]]]
-			]
-		]) # TODO mutual recursion not handled; test f6
-		
-		# TODO unsupported - would handle mutual recursion
-		False and self.cmds.append(["delcare-const", "cmra", ["Array", "Int", "Bool"]])
-		False and self.cmds.append([
-			"define-fun-rec",
-			"cmr",
-			[["i", "Int"], ["l", "TList"], ["a", ["Array", "Int", "Bool"]],],
-			"Bool",
-			[
-				"and",
-				["=", ["select", "a", "i"], "false"],
-				[
-					"or",
-					["not", ["is-fun", ["select", ["fmap", "i"], "l"]]],
-					[
-						"let",
-						[["newa", ["store", "a", "i", "true"]],],
-						["cmr", ["fval", ["select", ["fmap", "i"], "l"]], "l", "newa"]
-					],
-				],
-			]
-		])
-		False and self.cmds.append(["assert", ["forall", [["i", "Int"], ["l", "TList"]], ["cmr", "i", "l", "cmra"]]])
-		
 		self.cmds.append(["declare-fun", "arity", ["Int"], "Int"])
-		
-		False and self.cmds.append([ # TODO switch on arity forall
-			"assert",
-			[
-				"forall",
-				[["i", "Int"]],
-				["and", ["<=", "0", ["arity", "i"]], ["<", ["arity", "i"], "256"]]
-			]
-		]) # TODO test func f91 first solution not found
-		
-		# TODO enabling the assertions, model will always contain an expression for fmap and arity functions
-		
 		self.cmds.append(["define-fun-rec", "length", [["l", "TList"]], "Int", [
 			"ite",
 			["is-nil", "l"],
@@ -202,11 +154,10 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		entries = []
 		for var in self.vars:
 			if var in self.model:
-				val = self.model[var]
+				val = self.encode(self.model[var])
 			else:
-				#clg.debug_info("encode_model: var not found in model: " + var)
-				val = ["bool", "false"] # TODO or cc.mk_any()? '__unboundvar' issue
-			entries.append(cc.mk_model_entry(cc.mk_symb(var[1:-1]), self.encode(val)))
+				val = cc.mk_any()
+			entries.append(cc.mk_model_entry(cc.mk_symb(var[1:-1]), val))
 		return cc.mk_model_data(cc.mk_model(entries))
 
 	# =========================================================================
@@ -243,7 +194,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		elif cc.is_tuple(data):
 			return ["tuple", self.value2tlist(cc.get_tuple_subterms(data))]
 		clg.debug_info("decoding failed: " + str(data))
-		assert False # TODO decode term
+		assert False
 
 	def value2tlist(self, value):
 		if not value:
@@ -317,6 +268,10 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 					else:
 						ite = ite[3]
 				arity = int(ite)
+				# if arity is greater than 255, we assume it is an arbitrary value selected by the solver
+				# because there is no constraint limiting the function's arity; thus, we set it to zero
+				if arity > 255:
+					arity = 0
 			else:
 				arity = 0
 			entries = []
@@ -341,11 +296,12 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 						self.encode(ite[2], table)
 					))
 					ite = ite[3]
+				otherwise = self.encode(ite, table)
 			else:
-				ite = ["bool", "false"] # TODO cc.mk_any() or not? '__unboundvar' issue
-			return cc.mk_fun(arity, entries, self.encode(ite, table))
+				otherwise = cc.mk_any()
+			return cc.mk_fun(arity, entries, otherwise)
 		clg.debug_info("encoding failed: " + str(data))
-		assert False # TODO encode term
+		assert False
 
 	# -------------------------------------------------------------------------
 	# Parse internal commands.
@@ -416,19 +372,35 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		elif cc.is_type_atom(spec):
 			return ["is-atom", var]
 		elif cc.is_type_complete_fun(spec):
-			# clg.debug_info("fun parameters spec: " + str(cc.get_parameters_from_complete_fun(spec))) # TODO arguments spec
+			params_spec = cc.get_parameters_from_complete_fun(spec)
+			# clg.debug_info("fun parameters spec: " + str(params_spec)) # TODO arguments spec
+			argspec = ["and"]
+			tlist = "l"
+			for param_spec in params_spec:
+				argspec.append(["and", ["is-cons", "l"], self.build_spec(param_spec, ["hd", tlist])])
+				tlist = ["tl", tlist]
+			argspec.append(["is-nil", tlist])
+			retspec = self.build_spec(cc.get_rettype_from_fun(spec), ["select", ["fmap", ["fval", var]], "l"])
 			return [
 				"and",
 				["is-fun", var],
-				["=", ["arity", ["fval", var]], str(len(cc.get_parameters_from_complete_fun(spec)))],
+				["=", ["arity", ["fval", var]], str(len(params_spec))],
+				[
+					"forall",
+					[["l", "TList"]],
+					["or", ["not", argspec], retspec,]
+				]
+			]
+		elif cc.is_type_generic_fun(spec):
+			return [
+				"and",
+				["is-fun", var],
 				[
 					"forall",
 					[["l", "TList"]],
 					self.build_spec(cc.get_rettype_from_fun(spec), ["select", ["fmap", ["fval", var]], "l"])
 				]
 			]
-		elif cc.is_type_generic_fun(spec):
-			return ["is-fun", var]
 		elif cc.is_type_atomlit(spec):
 			return ["=", var, self.decode(cc.get_literal_from_atomlit(spec))]
 		elif cc.is_type_integerlit(spec):
@@ -473,15 +445,14 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		ret = self.decode(args[0])
 		fun = self.decode(args[1])
-		args = "nil"
-		clg.debug_info("args[2:] = " + str(args[2:])) # TODO some "l" is printed when testing f11 and f1hs
+		alist = "nil"
 		for arg in reversed(args[2:]):
-			args = ["cons", self.decode(arg), args]
+			alist = ["cons", self.decode(arg), alist]
 		self.assertion([
 			"and",
 			["is-fun", fun],
-			["=", ["arity", ["fval", fun]], ["length", args]],
-			["=", ["select", ["fmap", ["fval", fun]], args], ret],
+			["=", ["arity", ["fval", fun]], ["length", alist]],
+			["=", ["select", ["fmap", ["fval", fun]], alist], ret],
 		])
 
 	# -------------------------------------------------------------------------
