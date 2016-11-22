@@ -108,7 +108,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		Fixes a symbolic variable to a specific value.
 		"""
-		pass
+		clg.debug_info("fix parameter: " + str(p) + " to " + str(v)) # TODO fix parameter
 
 	def reset_solver(self):
 		"""
@@ -385,11 +385,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 				"and",
 				["is-fun", var],
 				["=", ["arity", ["fval", var]], str(len(params_spec))],
-				[
-					"forall",
-					[["l", "TList"]],
-					["or", ["not", argspec], retspec,]
-				]
+				["forall", [["l", "TList"]], retspec]
 			]
 		elif cc.is_type_generic_fun(spec):
 			return [

@@ -549,7 +549,7 @@
                 "reduce(lambda a, b, f = $1: f((b,a,)), $2 if isinstance($2, list) else map(ord, $2), 0) == 42 and len($2) == 1",
                 "reduce(lambda a, b, f = $1: f((b,a,)), $2 if isinstance($2, list) else map(ord, $2), 0) == 42 and len($2) == 2"
             ],
-            "skip": true
+            "skip": false
         },
         {
             "module": "funs",
@@ -563,7 +563,7 @@
                 "len($2) == 0",
                 "len($2) > 0 and len([t for t in $2 if $1((t,))]) == 0"
             ],
-            "skip": true
+            "skip": false
         },
         {
             "module": "funs",
@@ -605,7 +605,7 @@
             "arity": 1,
             "nondeterministic": true,
             "solutions": [
-                "$1((lambda x: 1,)) == 42"
+                "$1((0,)) == 42"
             ],
             "skip": false
         },
@@ -737,7 +737,7 @@
             "solutions": [
                 "$1(($2,)) == [1, 2, 3]"
             ],
-            "skip": true
+            "skip": false
         },
         {
             "module": "collection",
