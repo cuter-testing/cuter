@@ -504,7 +504,7 @@
                 "not isinstance($1(($2,)), LambdaType)",
                 "$1(($2,))(($3,)) == 42"
             ],
-            "skip": true
+            "skip": false
         },
         {
             "module": "funs",
@@ -526,16 +526,17 @@
             "depth": "15",
             "errors": true,
             "arity": 1,
+            "nondeterministic": true,
             "solutions": [
-                "[42]",
-                "[fun(_) -> 42 end]",
-                "[fun(_) -> fun(_) -> 42 end end]",
-                "[fun(_) -> fun(_) -> fun(_) -> 42 end end end]",
-                "[fun(_) -> fun(_) -> fun(_) -> fun(_) -> 42 end end end end]",
-                "[fun(_) -> fun(_) -> fun(_) -> fun(_) -> fun(_) -> 42 end end end end end]",
-                "[fun(_) -> fun(_) -> fun(_) -> fun(_) -> fun(_) -> fun(_) -> 42 end end end end end end]"
+                "$1 == 42",
+                "$1((0,)) == 42",
+                "$1((0,))((0,)) == 42",
+                "$1((0,))((0,))((0,)) == 42",
+                "$1((0,))((0,))((0,))((0,)) == 42",
+                "$1((0,))((0,))((0,))((0,))((0,)) == 42",
+                "$1((0,))((0,))((0,))((0,))((0,))((0,)) == 42"
             ],
-            "skip": true
+            "skip": false
         },
         {
             "module": "funs",
@@ -683,10 +684,11 @@
             "depth": "2",
             "errors": true,
             "arity": 1,
+            "nondeterministic": true,
             "solutions": [
-                "[fun(3) -> 42; (10) -> 17; (_) -> 42 end]"
+                "$1((3,)) == 42 and $1((10,)) == 17"
             ],
-            "skip": true
+            "skip": false
         },
         {
             "module": "funs",

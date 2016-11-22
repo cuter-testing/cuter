@@ -208,7 +208,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		else:
 			return ["icons", str(value[0]), self.value2ilist(value[1:])]
 
-	def encode(self, data, table = {}):
+	def encode(self, data, lets = {}, funs = []):
 		if data[0] == "bool":
 			if data[1] == "true":
 				return cc.mk_atom(true)
@@ -222,10 +222,10 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			node = data[1]
 			v = []
 			while node != "inil":
-				if isinstance(node, str) and node in table:
-					node = table[node]
-				if isinstance(node[1], str) and node[1] in table:
-					node[1] = table[node[1]]
+				if isinstance(node, str) and node in lets:
+					node = lets[node]
+				if isinstance(node[1], str) and node[1] in lets:
+					node[1] = lets[node[1]]
 				v.append(int(node[1]))
 				node = node[2]
 			return cc.mk_atom(v)
@@ -233,32 +233,38 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			node = data[1]
 			v = []
 			while node != "nil":
-				if isinstance(node, str) and node in table:
-					node = table[node]
-				if isinstance(node[1], str) and node[1] in table:
-					node[1] = table[node[1]]
-				v.append(self.encode(node[1], table))
+				if isinstance(node, str) and node in lets:
+					node = lets[node]
+				if isinstance(node[1], str) and node[1] in lets:
+					node[1] = lets[node[1]]
+				v.append(self.encode(node[1], lets, funs))
 				node = node[2]
 			return cc.mk_list(v)
 		elif data[0] == "tuple":
 			node = data[1]
 			v = []
 			while node != "nil":
-				if isinstance(node, str) and node in table:
-					node = table[node]
-				if isinstance(node[1], str) and node[1] in table:
-					node[1] = table[node[1]]
-				v.append(self.encode(node[1], table))
+				if isinstance(node, str) and node in lets:
+					node = lets[node]
+				if isinstance(node[1], str) and node[1] in lets:
+					node[1] = lets[node[1]]
+				v.append(self.encode(node[1], lets, funs))
 				node = node[2]
 			return cc.mk_tuple(v)
 		elif data[0] == "let":
-			inner_table = table.copy()
+			lets = lets.copy()
 			for var in data[1]:
-				inner_table[var[0]] = var[1]
-			ret = self.encode(data[2], inner_table)
+				lets[var[0]] = var[1]
+			ret = self.encode(data[2], lets, funs)
 			return ret
 		elif data[0] == "fun":
 			fval = int(data[1])
+			# if a cycle (a function calling itself recursively) is found,
+			# it is obvious that the solver has selected an arbitrary term as a value
+			if fval in funs:
+				return cc.mk_any()
+			funs = funs[:]
+			funs.append(fval)
 			# get return value of arity(fval)
 			if "arity" in self.model:
 				ite = self.model["arity"]
@@ -292,11 +298,11 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 					ite = self.model[ite[0]]
 				while isinstance(ite, list) and len(ite) == 4 and ite[0] == "ite":
 					entries.append(cc.mk_fun_entry(
-						cc.get_list_subterms(self.encode(["list", ite[1][2]], table)),
-						self.encode(ite[2], table)
+						cc.get_list_subterms(self.encode(["list", ite[1][2]], lets, funs)),
+						self.encode(ite[2], lets, funs)
 					))
 					ite = ite[3]
-				otherwise = self.encode(ite, table)
+				otherwise = self.encode(ite, lets, funs)
 			else:
 				otherwise = cc.mk_any()
 			return cc.mk_fun(arity, entries, otherwise)
