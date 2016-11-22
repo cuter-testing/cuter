@@ -170,6 +170,13 @@ def mk_tuple(subterms):
     t.subterms.extend(subterms)
     return t
 
+def is_tuple(t):
+    """
+    Parameters
+        t : ErlangTerm
+    """
+    return t.type == ErlangTerm.TUPLE
+
 def get_tuple_subterms(t):
     """
     Parameters
