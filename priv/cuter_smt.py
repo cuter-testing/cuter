@@ -95,10 +95,8 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			"0",
 			["+", ["length", ["tl", "l"]], "1"]
 		]])
-		self.solver = None
-		self.model = None
+		self.reset_solver()
 		self.fun_rec_cnt = 0
-		self.solver = smt.SolverZ3()
 
 	# =========================================================================
 	# Public API.
@@ -108,13 +106,17 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		Fixes a symbolic variable to a specific value.
 		"""
-		clg.debug_info("fix parameter: " + str(p) + " to " + str(v)) # TODO fix parameter
+		p = self.decode(p)
+		v = self.decode(v)
+		self.aux_cmds.append(["assert", ["=", p, v]])
 
 	def reset_solver(self):
 		"""
 		Resets the solver.
 		"""
-		pass
+		self.aux_cmds = []
+		self.solver = smt.SolverZ3()
+		self.model = None
 
 	def add_axioms(self):
 		"""
@@ -126,7 +128,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		Solves a constraint set and returns the result.
 		"""
-		tpl = self.solver.solve(self.cmds)
+		tpl = self.solver.solve(self.cmds + self.aux_cmds)
 		check_sat = tpl[0]
 		if check_sat == "sat":
 			get_model = tpl[1]
