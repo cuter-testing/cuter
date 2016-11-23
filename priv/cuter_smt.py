@@ -74,6 +74,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 				["list", ["lval", "TList"]],
 				["tuple", ["tval", "TList"]],
 				["atom", ["aval", "IList"]],
+				["bin", ["bvlen", "Int"], ["bvval", "Int"]],
 				["fun", ["fval", "Int"]],
 			],
 			[
@@ -195,6 +196,15 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			return ["list", self.value2tlist(cc.get_list_subterms(data))]
 		elif cc.is_tuple(data):
 			return ["tuple", self.value2tlist(cc.get_tuple_subterms(data))]
+		elif cc.is_bitstring(data):
+			bits = cc.get_bits(data)
+			l = len(bits)
+			v = 0
+			for bit in bits:
+				v = v << 1
+				if bit:
+					v = v | 1
+			return ["bin", str(l), str(v)]
 		clg.debug_info("decoding failed: " + str(data))
 		assert False
 
@@ -429,6 +439,15 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			self.assertion(["=", s, ["hd", c]])
 			c = ["tl", c]
 		self.assertion(["is-nil", c])
+
+	def make_bitstr(self, symb, encodedValue, size): # TODO should overflow bits be trimmed?
+		"""
+		Makes a bitstring by encoding an appropriate term.
+		"""
+		t = self.decode(symb)
+		v = self.decode(encodedValue)
+		l = self.decode(size)
+		self.assertion(["=", t, ["bin", ["ival", l], ["ival", v]]])
 
 	def fresh_closure(self, tFun, tArity):
 		"""
@@ -747,7 +766,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		self.assertion(["=", t0, ["bool", "false"]]) # TODO temporary solution
+		self.assertion(["=", t0, ["bool", ["is-bin", t1]]])
 
 	def is_fun(self, term0, term1):
 		"""

@@ -106,7 +106,7 @@
             "solutions": [
                 "[42]"
             ],
-            "skip": true
+            "skip": false
         },
         {
             "module": "bitstr",
