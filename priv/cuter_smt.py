@@ -389,6 +389,9 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			return ["and", ["is-list", var], ["is-cons", ["lval", var]], [name, var]]
 		elif cc.is_type_atom(spec):
 			return ["is-atom", var]
+		elif cc.is_type_bitstring(spec):
+			segment_size = cc.get_segment_size_from_bitstring(spec) # TODO include in spec
+			return ["is-bin", var]
 		elif cc.is_type_complete_fun(spec):
 			params_spec = cc.get_parameters_from_complete_fun(spec)
 			# clg.debug_info("fun parameters spec: " + str(params_spec)) # TODO arguments spec

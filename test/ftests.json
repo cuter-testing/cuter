@@ -666,7 +666,7 @@
             "depth": "10",
             "errors": false,
             "arity": 3,
-            "skip": true
+            "skip": false
         },
         {
             "module": "funs",
