@@ -102,6 +102,16 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			["+", ["length", ["tl", "l"]], "1"]
 		]])
 
+		self.cmds.append(["define-fun-rec", "slist_reverse_aux", [["l", "SList"], ["a", "SList"]], "SList", [
+			"ite",
+			["is-snil", "l"],
+			"a",
+			["slist_reverse_aux", ["stl", "l"], ["scons", ["shd", "l"], "a"]]
+		]])
+		self.cmds.append(["define-fun", "slist_reverse", [["l", "SList"]], "SList", [
+			"slist_reverse_aux", "l", "snil"
+		]])
+
 		self.cmds.append(["define-fun-rec", "slist_from_int_aux", [["n", "Int"], ["b", "Int"], ["a", "SList"]], "SList", [
 			"ite",
 			["=", "b", "0"],
@@ -115,6 +125,28 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		]])
 		self.cmds.append(["define-fun", "slist_from_int", [["n", "Int"], ["b", "Int"]], "SList", [
 			"slist_from_int_aux", "n", "b", "snil"
+		]])
+
+		self.cmds.append(["define-fun-rec", "slist_concat_aux", [["l1inv", "SList"], ["l2", "SList"]], "SList", [
+			"ite",
+			["is-snil", "l1inv"],
+			"l2",
+			["slist_concat_aux", ["stl", "l1inv"], ["scons", ["shd", "l1inv"], "l2"]]
+		]])
+		self.cmds.append(["define-fun", "slist_concat", [["l1", "SList"], ["l2", "SList"]], "SList", [
+			"slist_concat_aux", ["slist_reverse", "l1"], "l2"
+		]])
+
+		self.cmds.append(["define-fun-rec", "slist_match", [["l1", "SList"], ["l2", "SList"]], "Bool", [
+			"ite",
+			["is-snil", "l1"],
+			"true",
+			[
+				"ite",
+				["or", ["is-snil", "l2"], ["not", ["=", ["shd", "l1"], ["shd", "l2"]]]],
+				"false",
+				["slist_match", ["stl", "l1"], ["stl", "l2"]]
+			]
 		]])
 
 		self.reset_solver()
@@ -488,6 +520,22 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			["=", t, ["str", ["slist_from_int", ["ival", n], ["ival", b]]]],
 		])
 
+	def concat_segs(self, *terms):
+		"""
+		Concatenates many bitstrings into a large binary.
+		"""
+		1 + "" # TODO concat_segs: meaning of argument terms
+		t = self.decode(terms[0])
+		v = "snil"
+		for term in reversed(terms[1:]):
+			l = self.decode(term)
+			v = ["slist_concat", ["sval", l], v]
+		self.assertion([
+			"and",
+			["is-str", t],
+			["=", ["sval", t], v]
+		])
+
 	def fresh_closure(self, tFun, tArity):
 		"""
 		Asserts that tFun is a closure with arity tArity.
@@ -697,6 +745,70 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t = self.decode(term)
 		self.assertion(["is-tuple", t])
+
+	def bitmatch_const_true(self, termRest, cnstValue, size, termBitstr):
+		"""
+		Asserts that: termBitstr == <<cnstValue/size, termRest>>.
+		"""
+		r = self.decode(termRest)
+		n = self.decode(cnstValue)
+		b = self.decode(size)
+		t = self.decode(termBitstr)
+		self.assertion([
+			"and",
+			["is-str", r],
+			["is-int", n],
+			["is-int", b],
+			["is-str", t],
+			["=", ["slist_concat", ["slist_from_int", ["ival", n], ["ival", b]], ["sval", r]], ["sval", t]],
+		])
+
+	def bitmatch_const_true_reversed(self, termRest, cnstValue, size, termBitstr): # TODO is the following code correct?
+		"""
+		Asserts that: Not (termBitstr == <<cnstValue/size, termRest>>).
+		"""
+		r = self.decode(termRest)
+		n = self.decode(cnstValue)
+		b = self.decode(size)
+		t = self.decode(termBitstr)
+		self.assertion(["not", [
+			"and",
+			["is-str", r],
+			["is-int", n],
+			["is-int", b],
+			["is-str", t],
+			["=", ["slist_concat", ["slist_from_int", ["ival", n], ["ival", b]], ["sval", r]], ["sval", t]],
+		]])
+
+	def bitmatch_const_false(self, cnstValue, size, termBitstr): # TODO is the following code correct?
+		"""
+		Asserts that: termBitstr =/= <<cnstValue/size, termRest>>.
+		"""
+		n = self.decode(cnstValue)
+		b = self.decode(size)
+		t = self.decode(termBitstr)
+		self.assertion(["not",[
+			"and",
+			["is-int", n],
+			["is-int", b],
+			["is-str", t],
+			["slist_match", ["slist_from_int", ["ival", n], ["ival", b]], ["sval", t]],
+		]])
+
+	def bitmatch_const_false_reversed(self, cnstValue, size, termBitstr): # TODO meaning of termRest
+		"""
+		Asserts that: Not (termBitstr =/= <<cnstValue/size, termRest>>).
+		"""
+		n = self.decode(cnstValue)
+		b = self.decode(size)
+		t = self.decode(termBitstr)
+		self.assertion([
+			"and",
+			["is-int", n],
+			["is-int", b],
+			["is-str", t],
+			["slist_match", ["slist_from_int", ["ival", n], ["ival", b]], ["sval", t]],
+		])
 
 	def lambda_with_arity(self, tFun, tArity):
 		"""
