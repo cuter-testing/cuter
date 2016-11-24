@@ -103,8 +103,9 @@
             "depth": "9",
             "errors": true,
             "arity": 1,
+            "nondeterministic": true,
             "solutions": [
-                "[42]"
+                "$1 % (1 << 7) == 42"
             ],
             "skip": false
         },

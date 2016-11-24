@@ -74,7 +74,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 				["list", ["lval", "TList"]],
 				["tuple", ["tval", "TList"]],
 				["atom", ["aval", "IList"]],
-				["bin", ["bvlen", "Int"], ["bvval", "Int"]],
+				["str", ["sval", "SList"]],
 				["fun", ["fval", "Int"]],
 			],
 			[
@@ -87,6 +87,11 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 				["inil"],
 				["icons", ["ihd", "Int"], ["itl", "IList"]],
 			],
+			[
+				"SList",
+				["snil"],
+				["scons", ["shd", "Bool"], ["stl", "SList"]],
+			],
 		]])
 		self.cmds.append(["declare-fun", "fmap", ["Int"], ["Array", "TList", "Term"]])
 		self.cmds.append(["declare-fun", "arity", ["Int"], "Int"])
@@ -96,6 +101,22 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			"0",
 			["+", ["length", ["tl", "l"]], "1"]
 		]])
+
+		self.cmds.append(["define-fun-rec", "slist_from_int_aux", [["n", "Int"], ["b", "Int"], ["a", "SList"]], "SList", [
+			"ite",
+			["=", "b", "0"],
+			"a",
+			[
+				"slist_from_int_aux",
+				["div", "n", "2"],
+				["-", "b", "1"],
+				["scons", ["=", ["mod", "n", "2"], "1"], "a"]
+			]
+		]])
+		self.cmds.append(["define-fun", "slist_from_int", [["n", "Int"], ["b", "Int"]], "SList", [
+			"slist_from_int_aux", "n", "b", "snil"
+		]])
+
 		self.reset_solver()
 		self.fun_rec_cnt = 0
 
@@ -197,14 +218,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		elif cc.is_tuple(data):
 			return ["tuple", self.value2tlist(cc.get_tuple_subterms(data))]
 		elif cc.is_bitstring(data):
-			bits = cc.get_bits(data)
-			l = len(bits)
-			v = 0
-			for bit in bits:
-				v = v << 1
-				if bit:
-					v = v | 1
-			return ["bin", str(l), str(v)]
+			return ["str", self.value2slist(cc.get_bits(data))]
 		clg.debug_info("decoding failed: " + str(data))
 		assert False
 
@@ -219,6 +233,12 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			return "inil"
 		else:
 			return ["icons", str(value[0]), self.value2ilist(value[1:])]
+
+	def value2slist(self, value):
+		if not value:
+			return "snil"
+		else:
+			return ["scons", "true" if value[0] else "false", self.value2slist(value[1:])]
 
 	def encode(self, data, lets = {}, funs = []):
 		if data[0] == "bool":
@@ -263,6 +283,17 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 				v.append(self.encode(node[1], lets, funs))
 				node = node[2]
 			return cc.mk_tuple(v)
+		elif data[0] == "str":
+			node = data[1]
+			v = []
+			while node != "snil":
+				if isinstance(node, str) and node in lets:
+					node = lets[node]
+				if isinstance(node[1], str) and node[1] in lets:
+					node[1] = lets[node[1]]
+				v.append(node[1] == "true")
+				node = node[2]
+			return cc.mk_bitstring(v)
 		elif data[0] == "let":
 			lets = lets.copy()
 			for var in data[1]:
@@ -391,7 +422,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			return ["is-atom", var]
 		elif cc.is_type_bitstring(spec):
 			segment_size = cc.get_segment_size_from_bitstring(spec) # TODO include in spec
-			return ["is-bin", var]
+			return ["is-str", var]
 		elif cc.is_type_complete_fun(spec):
 			params_spec = cc.get_parameters_from_complete_fun(spec)
 			# clg.debug_info("fun parameters spec: " + str(params_spec)) # TODO arguments spec
@@ -443,14 +474,19 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			c = ["tl", c]
 		self.assertion(["is-nil", c])
 
-	def make_bitstr(self, symb, encodedValue, size): # TODO should overflow bits be trimmed?
+	def make_bitstr(self, symb, encodedValue, size):
 		"""
 		Makes a bitstring by encoding an appropriate term.
 		"""
 		t = self.decode(symb)
-		v = self.decode(encodedValue)
-		l = self.decode(size)
-		self.assertion(["=", t, ["bin", ["ival", l], ["ival", v]]])
+		n = self.decode(encodedValue)
+		b = self.decode(size)
+		self.assertion([
+			"and",
+			["is-int", n],
+			["is-int", b],
+			["=", t, ["str", ["slist_from_int", ["ival", n], ["ival", b]]]],
+		])
 
 	def fresh_closure(self, tFun, tArity):
 		"""
@@ -769,7 +805,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		self.assertion(["=", t0, ["bool", ["is-bin", t1]]])
+		self.assertion(["=", t0, ["bool", ["is-str", t1]]])
 
 	def is_fun(self, term0, term1):
 		"""
