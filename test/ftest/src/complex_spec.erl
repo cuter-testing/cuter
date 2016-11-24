@@ -1,5 +1,5 @@
 -module(complex_spec).
--export([f/1, g/1, h/1, k/1]).
+-export([f/1]).
 -export_type([int/0]).
 
 -type x() :: [{[[integer()]], [float()]} | integer() | {any(), [float()], atom()}].
@@ -13,14 +13,3 @@ f([H|T]=L) when length(L) < 4 ->
     _ -> f(T)
   end;
 f(_) -> ok.
-
--spec g({[x()], integer()}) -> ok.
-g({[],_}) -> ok.
-
--spec h([{x()}]) -> ok.
-h([]) -> ok.
-
--type y() :: [{[[integer()]], [float()]} | integer() | {any()}].
-
--spec k([{y(), y()}]) -> ok.
-k([]) -> ok.
