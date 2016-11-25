@@ -524,17 +524,20 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		Concatenates many bitstrings into a large binary.
 		"""
-		1 + "" # TODO concat_segs: meaning of argument terms
 		t = self.decode(terms[0])
-		v = "snil"
-		for term in reversed(terms[1:]):
-			l = self.decode(term)
-			v = ["slist_concat", ["sval", l], v]
-		self.assertion([
+		r = self.decode(terms[1])
+		v = ["sval", r]
+		l = [
 			"and",
 			["is-str", t],
-			["=", ["sval", t], v]
-		])
+			["is-str", r],
+		]
+		for term in reversed(terms[2:]):
+			b = self.decode(term)
+			l.append(["is-bool", b])
+			v = ["scons", ["bval", b], v] # TODO is b bool or int?
+		l.append(["=", ["sval", t], v])
+		self.assertion(l)
 
 	def fresh_closure(self, tFun, tArity):
 		"""
@@ -746,6 +749,64 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t = self.decode(term)
 		self.assertion(["is-tuple", t])
 
+	def empty_bitstr(self, term):
+		"""
+		Asserts that: term is an empty bitstring.
+		"""
+		t = self.decode(term)
+		self.assertion([
+			"and",
+			["is-str", t],
+			["is-snil", ["sval", t]]
+		])
+
+	def empty_bitstr_reversed(self, term):
+		"""
+		Asserts that: Not (term is an empty bitstring).
+		"""
+		t = self.decode(term)
+		self.assertion([
+			"not",
+			[
+				"and",
+				["is-str", t],
+				["is-snil", ["sval", t]]
+			]
+		])
+
+	def nonempty_bitstr(self, term1, term2, term):
+		"""
+		Asserts that: term is an nonempty bitstring.
+		"""
+		t = self.decode(term)
+		t1 = self.decode(term1)
+		t2 = self.decode(term2)
+		self.assertion([
+			"and",
+			["is-str", t],
+			["is-scons", ["sval", t]],
+			["is-bool", t1],
+			["=", ["bval", t1], ["shd", ["sval", t]]], # TODO is t1 bool or int?
+			["is-str", t2],
+			["=", ["sval", t2], ["stl", ["sval", t]]],
+		])
+
+	def nonempty_bitstr_reversed(self, term1, term2, term):
+		"""
+		Asserts that: Not (term is a nonempty bitstring).
+		"""
+		t = self.decode(term)
+		t1 = self.decode(term1)
+		t2 = self.decode(term2)
+		self.assertion([
+			"not",
+			[
+				"and",
+				["is-str", t],
+				["is-scons", ["sval", t]]
+			]
+		])
+
 	def bitmatch_const_true(self, termRest, cnstValue, size, termBitstr):
 		"""
 		Asserts that: termBitstr == <<cnstValue/size, termRest>>.
@@ -763,7 +824,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			["=", ["slist_concat", ["slist_from_int", ["ival", n], ["ival", b]], ["sval", r]], ["sval", t]],
 		])
 
-	def bitmatch_const_true_reversed(self, termRest, cnstValue, size, termBitstr): # TODO is the following code correct?
+	def bitmatch_const_true_reversed(self, termRest, cnstValue, size, termBitstr):
 		"""
 		Asserts that: Not (termBitstr == <<cnstValue/size, termRest>>).
 		"""
@@ -771,31 +832,37 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		n = self.decode(cnstValue)
 		b = self.decode(size)
 		t = self.decode(termBitstr)
-		self.assertion(["not", [
-			"and",
-			["is-str", r],
-			["is-int", n],
-			["is-int", b],
-			["is-str", t],
-			["=", ["slist_concat", ["slist_from_int", ["ival", n], ["ival", b]], ["sval", r]], ["sval", t]],
-		]])
+		self.assertion([
+			"not",
+			[
+				"and",
+				["is-str", r],
+				["is-int", n],
+				["is-int", b],
+				["is-str", t],
+				["=", ["slist_concat", ["slist_from_int", ["ival", n], ["ival", b]], ["sval", r]], ["sval", t]],
+			]
+		])
 
-	def bitmatch_const_false(self, cnstValue, size, termBitstr): # TODO is the following code correct?
+	def bitmatch_const_false(self, cnstValue, size, termBitstr):
 		"""
 		Asserts that: termBitstr =/= <<cnstValue/size, termRest>>.
 		"""
 		n = self.decode(cnstValue)
 		b = self.decode(size)
 		t = self.decode(termBitstr)
-		self.assertion(["not",[
-			"and",
-			["is-int", n],
-			["is-int", b],
-			["is-str", t],
-			["slist_match", ["slist_from_int", ["ival", n], ["ival", b]], ["sval", t]],
-		]])
+		self.assertion([
+			"not",
+			[
+				"and",
+				["is-int", n],
+				["is-int", b],
+				["is-str", t],
+				["slist_match", ["slist_from_int", ["ival", n], ["ival", b]], ["sval", t]],
+			]
+		])
 
-	def bitmatch_const_false_reversed(self, cnstValue, size, termBitstr): # TODO meaning of termRest
+	def bitmatch_const_false_reversed(self, cnstValue, size, termBitstr):
 		"""
 		Asserts that: Not (termBitstr =/= <<cnstValue/size, termRest>>).
 		"""
