@@ -102,6 +102,13 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			["+", ["length", ["tl", "l"]], "1"]
 		]])
 
+		self.cmds.append(["define-fun-rec", "slist_length", [["l", "SList"]], "Int", [
+			"ite",
+			["is-snil", "l"],
+			"0",
+			["+", ["slist_length", ["stl", "l"]], "1"]
+		]])
+
 		self.cmds.append(["define-fun-rec", "slist_reverse_aux", [["l", "SList"], ["a", "SList"]], "SList", [
 			"ite",
 			["is-snil", "l"],
@@ -875,6 +882,47 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			["is-int", b],
 			["is-str", t],
 			["slist_match", ["slist_from_int", ["ival", n], ["ival", b]], ["sval", t]],
+		])
+
+	def bitmatch_var_true(self, term1, term2, size, termBitstr):
+		"""
+		Asserts that: termBitstr == <<term1/size, term2>>.
+		"""
+		self.bitmatch_const_true(term2, term1, size, termBitstr)
+
+	def bitmatch_var_true_reversed(self, term1, term2, size, termBitStr):
+		"""
+		Asserts that: Not (termBitstr == <<term1/size, term2>>).
+		"""
+		self.bitmatch_const_true_reversed(term2, term1, size, termBitStr)
+
+	def bitmatch_var_false(self, size, termBitstr):
+		"""
+		Asserts that: termBitstr =/= <<term1/size, term2>>.
+		"""
+		b = self.decode(size)
+		t = self.decode(termBitstr)
+		self.assertion([
+			"not",
+			[
+				"and",
+				["is-int", b],
+				["is-str", t],
+				[">=", ["slist_length", ["sval", t]], ["ival", b]],
+			]
+		])
+
+	def bitmatch_var_false_reversed(self, size, termBitstr):
+		"""
+		Asserts that: Not (termBitstr =/= <<term1/size, term2>>).
+		"""
+		b = self.decode(size)
+		t = self.decode(termBitstr)
+		self.assertion([
+			"and",
+			["is-int", b],
+			["is-str", t],
+			[">=", ["slist_length", ["sval", t]], ["ival", b]],
 		])
 
 	def lambda_with_arity(self, tFun, tArity):

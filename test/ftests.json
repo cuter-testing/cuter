@@ -128,13 +128,13 @@
             "module": "bitstr",
             "function": "f31",
             "args": "[<<>>, 0]",
-            "depth": "6",
+            "depth": "10",
             "errors": true,
             "arity": 2,
             "solutions": [
                 "[<<0:4>>, 0]"
             ],
-            "skip": true
+            "skip": false
         },
         {
             "module": "bitstr",
