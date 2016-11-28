@@ -644,13 +644,14 @@
             "module": "bitstr",
             "function": "bit_sz",
             "args": "[<<>>]",
-            "depth": "15",
+            "depth": "5",
             "errors": true,
             "arity": 1,
+            "nondeterministic": true,
             "solutions": [
-                "[<<0:4>>]"
+                "len($1[2:]) >= 4"
             ],
-            "skip": true
+            "skip": false
         },
         {
             "module": "bitstr",
