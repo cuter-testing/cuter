@@ -1111,6 +1111,39 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		self._binary_operation("*", term0, term1, term2)
 
+	def idiv_nat(self, term0, term1, term2):
+		"""
+		Asserts that: term0 = term1 // term2.
+		"""
+		t0 = self.decode(term0)
+		t1 = self.decode(term1)
+		t2 = self.decode(term2)
+		self.assertion([
+			"and",
+			["is-int", t1],
+			["is-int", t2],
+			[">=", ["ival", t1], "0"],
+			[">", ["ival", t2], "0"],
+			["=", t0, ["int", ["div", ["ival", t1], ["ival", t2]]]],
+		])
+
+	def unary(self, term0, term1):
+		"""
+		Asserts that: term0 = - term1.
+		"""
+		t0 = self.decode(term0)
+		t1 = self.decode(term1)
+		self.assertion([
+			"and",
+			["or", ["is-int", t1], ["is-real", t1]],
+			[
+				"ite",
+				["is-int", t1],
+				["=", t0, ["int", ["-", ["ival", t1]]]],
+				["=", t0, ["real", ["-", ["rval", t1]]]]
+			],
+		])
+
 	def trunc(self, term0, term1):
 		"""
 		Asserts that: term0 is term1 truncated.
