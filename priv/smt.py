@@ -107,4 +107,4 @@ class SolverCVC4(Solver):
 class SolverZ3(Solver):
 
 	def __init__(self):
-		Solver.__init__(self, ["z3", "-smt2", "-in"])
+		Solver.__init__(self, ["z3", "-smt2", "-in", "timeout=1000"])

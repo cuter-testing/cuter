@@ -460,8 +460,18 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		elif cc.is_type_atom(spec):
 			return ["is-atom", var]
 		elif cc.is_type_bitstring(spec):
-			segment_size = cc.get_segment_size_from_bitstring(spec) # TODO include in spec
-			return ["is-str", var]
+			segment_size = cc.get_segment_size_from_bitstring(spec)
+			l = ["slist_length", ["sval", var]]
+			m = segment_size.m
+			n = segment_size.n
+			if segment_size.n == "0":
+				return ["and", ["is-str", var], ["=", l, m]]
+			return [
+				"and",
+				["is-str", var],
+				# [">=", l, m], # TODO this obvious restriction hides bug bitstr f25 Y=8
+				["=", ["mod", ["-", l, m], n], "0"],
+			]
 		elif cc.is_type_complete_fun(spec):
 			params_spec = cc.get_parameters_from_complete_fun(spec)
 			# clg.debug_info("fun parameters spec: " + str(params_spec)) # TODO arguments spec
