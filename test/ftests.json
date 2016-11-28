@@ -644,7 +644,7 @@
             "module": "bitstr",
             "function": "bit_sz",
             "args": "[<<>>]",
-            "depth": "5",
+            "depth": "15",
             "errors": true,
             "arity": 1,
             "nondeterministic": true,
