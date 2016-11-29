@@ -843,7 +843,7 @@
             "solutions": [
                 "$1 ^ $2 == 42"
             ],
-            "skip": true
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -856,7 +856,7 @@
             "solutions": [
                 "$1 ^ $2 == 546546546546546"
             ],
-            "skip": true
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -869,7 +869,7 @@
             "solutions": [
                 "$1 ^ $2 == 1321678065467065468706546708964"
             ],
-            "skip": true
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -882,7 +882,7 @@
             "solutions": [
                 "$1 ^ $2 == -42"
             ],
-            "skip": true
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -895,7 +895,7 @@
             "solutions": [
                 "$1 ^ $2 == -546546546546546"
             ],
-            "skip": true
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -908,7 +908,7 @@
             "solutions": [
                 "$1 ^ $2 == -1321678065467065468706546708964"
             ],
-            "skip": true
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -921,7 +921,7 @@
             "solutions": [
                 "$1 | $2 == 42"
             ],
-            "skip": true
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -934,7 +934,7 @@
             "solutions": [
                 "$1 | $2 == 654654621354008904"
             ],
-            "skip": true
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -947,7 +947,7 @@
             "solutions": [
                 "$1 | $2 == 132167806349873198573065468706546708964"
             ],
-            "skip": true
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -960,7 +960,7 @@
             "solutions": [
                 "$1 | $2 == -3"
             ],
-            "skip": true
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -973,7 +973,7 @@
             "solutions": [
                 "$1 | $2 == -2581098572349081592347598712638"
             ],
-            "skip": true
+            "skip": false
         },
         {
             "module": "collection",

@@ -1236,20 +1236,35 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 				"and",
 				["<", ["ival", t], "0"],
 				[">=", ["ival", t], str(-m)],
-				["=", ["-", ["ival", t]], ["bv2int", ["bvnot", name]]],
+				["=", ["-", ["ival", t]], ["+", ["bv2int", ["bvnot", name]], "1"]],
 			],
 		]])
 		self.const_bv_cnt += 1
 		return name
 
-	def band(self, term0, term1, term2):
-		"""
-		Asserts that: term0 = term1 & term2.
-		"""
+	def bitwise_operation(self, operation, term0, term1, term2):
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
 		t2 = self.decode(term2)
 		bv0 = self.const_bv(t0)
 		bv1 = self.const_bv(t1)
 		bv2 = self.const_bv(t2)
-		self.assertion(["=", bv0, ["bvand", bv1, bv2]])
+		self.assertion(["=", bv0, [operation, bv1, bv2]])
+
+	def band(self, term0, term1, term2):
+		"""
+		Asserts that: term0 = term1 & term2.
+		"""
+		self.bitwise_operation("bvand", term0, term1, term2)
+
+	def bxor(self, term0, term1, term2):
+		"""
+		Asserts that: term0 = term1 ^ term2.
+		"""
+		self.bitwise_operation("bvxor", term0, term1, term2)
+
+	def bor(self, term0, term1, term2):
+		"""
+		Asserts that: term0 = term1 | term2.
+		"""
+		self.bitwise_operation("bvor", term0, term1, term2)
