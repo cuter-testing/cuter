@@ -119,48 +119,6 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			"slist_reverse_aux", "l", "snil"
 		]])
 
-		# TODO handling of negatives
-
-		self.cmds.append(["define-fun-rec", "slist_from_int_aux", [["n", "Int"], ["a", "SList"]], "SList", [
-			"ite",
-			["=", "n", "0"],
-			"a",
-			["slist_from_int_aux", ["div", "n", "2"], ["scons", ["=", ["mod", "n", "2"], "1"], "a"]]
-		]])
-		self.cmds.append(["define-fun", "slist_from_int", [["n", "Int"]], "SList", [
-			"slist_from_int_aux", "n", "snil"
-		]])
-
-		self.cmds.append(["define-fun-rec", "slist_to_int_aux", [["l", "SList"], ["a", "Int"]], "Int", [
-			"ite",
-			["is-snil", "l"],
-			"a",
-			["slist_to_int_aux", ["stl", "l"], ["+", ["*", "2", "a"], ["ite", ["shd", "l"], "1", "0"]]]
-		]])
-		self.cmds.append(["define-fun", "slist_to_int", [["l", "SList"]], "Int", [
-			"slist_to_int_aux", "l", "0"
-		]])
-
-		self.cmds.append(["define-fun-rec", "slist_and_aux", [["l1r", "SList"], ["l2r", "SList"], ["a", "SList"]], "SList", [
-			"ite",
-			["is-snil", "l1r"],
-			[
-				"ite",
-				["is-snil", "l2r"],
-				"a",
-				["slist_and_aux", "snil", ["stl", "l2r"], ["scons", "false", "a"]]
-			],
-			[
-				"ite",
-				["is-snil", "l2r"],
-				["slist_and_aux", ["stl", "l1r"], "snil", ["scons", "false", "a"]],
-				["slist_and_aux", ["stl", "l1r"], ["stl", "l2r"], ["scons", ["and", ["shd", "l1r"], ["shd", "l2r"]], "a"]]
-			]
-		]])
-		self.cmds.append(["define-fun", "slist_and", [["l1", "SList"], ["l2", "SList"]], "SList", [
-			"slist_and_aux", ["slist_reverse", "l1"], ["slist_reverse", "l2"], "snil"
-		]])
-
 		self.cmds.append(["define-fun-rec", "slist_from_pair_aux", [["n", "Int"], ["b", "Int"], ["a", "SList"]], "SList", [
 			"ite",
 			["=", "b", "0"],
@@ -200,6 +158,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 
 		self.reset_solver()
 		self.fun_rec_cnt = 0
+		self.const_bv_cnt = 0
 
 	# =========================================================================
 	# Public API.
@@ -1256,6 +1215,33 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 
 	### Bitwise Operations.
 
+	def const_bv(self, t):
+		"""
+		Associates a new bitvector with a decoded integer term t.
+		"""
+		l = 256 # TODO max bv size set to 256
+		m = 2 ** (l - 1)
+		name = "bv" + str(self.const_bv_cnt)
+		self.cmds.append(["declare-const", name, ["_", "BitVec", str(l)]])
+		self.cmds.append(["assert", ["is-int", t]])
+		self.cmds.append(["assert", [
+			"or",
+			[
+				"and",
+				[">=", ["ival", t], "0"],
+				["<", ["ival", t], str(m)],
+				["=", ["ival", t], ["bv2int", name]],
+			],
+			[
+				"and",
+				["<", ["ival", t], "0"],
+				[">=", ["ival", t], str(-m)],
+				["=", ["-", ["ival", t]], ["bv2int", ["bvnot", name]]],
+			],
+		]])
+		self.const_bv_cnt += 1
+		return name
+
 	def band(self, term0, term1, term2):
 		"""
 		Asserts that: term0 = term1 & term2.
@@ -1263,12 +1249,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
 		t2 = self.decode(term2)
-		l1 = ["slist_from_int", ["ival", t1]]
-		l2 = ["slist_from_int", ["ival", t2]]
-		l0 = ["slist_and", l1, l2]
-		self.assertion([
-			"and",
-			["is-int", t1],
-			["is-int", t2],
-			["=", t0, ["int", ["slist_to_int", l0]]],
-		])
+		bv0 = self.const_bv(t0)
+		bv1 = self.const_bv(t1)
+		bv2 = self.const_bv(t2)
+		self.assertion(["=", bv0, ["bvand", bv1, bv2]])
