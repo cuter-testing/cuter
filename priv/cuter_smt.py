@@ -119,19 +119,61 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			"slist_reverse_aux", "l", "snil"
 		]])
 
-		self.cmds.append(["define-fun-rec", "slist_from_int_aux", [["n", "Int"], ["b", "Int"], ["a", "SList"]], "SList", [
+		# TODO handling of negatives
+
+		self.cmds.append(["define-fun-rec", "slist_from_int_aux", [["n", "Int"], ["a", "SList"]], "SList", [
+			"ite",
+			["=", "n", "0"],
+			"a",
+			["slist_from_int_aux", ["div", "n", "2"], ["scons", ["=", ["mod", "n", "2"], "1"], "a"]]
+		]])
+		self.cmds.append(["define-fun", "slist_from_int", [["n", "Int"]], "SList", [
+			"slist_from_int_aux", "n", "snil"
+		]])
+
+		self.cmds.append(["define-fun-rec", "slist_to_int_aux", [["l", "SList"], ["a", "Int"]], "Int", [
+			"ite",
+			["is-snil", "l"],
+			"a",
+			["slist_to_int_aux", ["stl", "l"], ["+", ["*", "2", "a"], ["ite", ["shd", "l"], "1", "0"]]]
+		]])
+		self.cmds.append(["define-fun", "slist_to_int", [["l", "SList"]], "Int", [
+			"slist_to_int_aux", "l", "0"
+		]])
+
+		self.cmds.append(["define-fun-rec", "slist_and_aux", [["l1r", "SList"], ["l2r", "SList"], ["a", "SList"]], "SList", [
+			"ite",
+			["is-snil", "l1r"],
+			[
+				"ite",
+				["is-snil", "l2r"],
+				"a",
+				["slist_and_aux", "snil", ["stl", "l2r"], ["scons", "false", "a"]]
+			],
+			[
+				"ite",
+				["is-snil", "l2r"],
+				["slist_and_aux", ["stl", "l1r"], "snil", ["scons", "false", "a"]],
+				["slist_and_aux", ["stl", "l1r"], ["stl", "l2r"], ["scons", ["and", ["shd", "l1r"], ["shd", "l2r"]], "a"]]
+			]
+		]])
+		self.cmds.append(["define-fun", "slist_and", [["l1", "SList"], ["l2", "SList"]], "SList", [
+			"slist_and_aux", ["slist_reverse", "l1"], ["slist_reverse", "l2"], "snil"
+		]])
+
+		self.cmds.append(["define-fun-rec", "slist_from_pair_aux", [["n", "Int"], ["b", "Int"], ["a", "SList"]], "SList", [
 			"ite",
 			["=", "b", "0"],
 			"a",
 			[
-				"slist_from_int_aux",
+				"slist_from_pair_aux",
 				["div", "n", "2"],
 				["-", "b", "1"],
 				["scons", ["=", ["mod", "n", "2"], "1"], "a"]
 			]
 		]])
-		self.cmds.append(["define-fun", "slist_from_int", [["n", "Int"], ["b", "Int"]], "SList", [
-			"slist_from_int_aux", "n", "b", "snil"
+		self.cmds.append(["define-fun", "slist_from_pair", [["n", "Int"], ["b", "Int"]], "SList", [
+			"slist_from_pair_aux", "n", "b", "snil"
 		]])
 
 		self.cmds.append(["define-fun-rec", "slist_concat_aux", [["l1inv", "SList"], ["l2", "SList"]], "SList", [
@@ -534,7 +576,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			"and",
 			["is-int", n],
 			["is-int", b],
-			["=", t, ["str", ["slist_from_int", ["ival", n], ["ival", b]]]],
+			["=", t, ["str", ["slist_from_pair", ["ival", n], ["ival", b]]]],
 		])
 
 	def concat_segs(self, *terms):
@@ -838,7 +880,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			["is-int", n],
 			["is-int", b],
 			["is-str", t],
-			["=", ["slist_concat", ["slist_from_int", ["ival", n], ["ival", b]], ["sval", r]], ["sval", t]],
+			["=", ["slist_concat", ["slist_from_pair", ["ival", n], ["ival", b]], ["sval", r]], ["sval", t]],
 		])
 
 	def bitmatch_const_true_reversed(self, termRest, cnstValue, size, termBitstr):
@@ -857,7 +899,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 				["is-int", n],
 				["is-int", b],
 				["is-str", t],
-				["=", ["slist_concat", ["slist_from_int", ["ival", n], ["ival", b]], ["sval", r]], ["sval", t]],
+				["=", ["slist_concat", ["slist_from_pair", ["ival", n], ["ival", b]], ["sval", r]], ["sval", t]],
 			]
 		])
 
@@ -875,7 +917,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 				["is-int", n],
 				["is-int", b],
 				["is-str", t],
-				["slist_match", ["slist_from_int", ["ival", n], ["ival", b]], ["sval", t]],
+				["slist_match", ["slist_from_pair", ["ival", n], ["ival", b]], ["sval", t]],
 			]
 		])
 
@@ -891,7 +933,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			["is-int", n],
 			["is-int", b],
 			["is-str", t],
-			["slist_match", ["slist_from_int", ["ival", n], ["ival", b]], ["sval", t]],
+			["slist_match", ["slist_from_pair", ["ival", n], ["ival", b]], ["sval", t]],
 		])
 
 	def bitmatch_var_true(self, term1, term2, size, termBitstr):
@@ -1201,6 +1243,8 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		self.assertion(["is-real", t2])
 		self.assertion(["=", t0, ["bool", ["<", ["rval", t1], ["rval", t2]]]])
 
+	### Type conversions.
+
 	def to_float(self, term0, term1):
 		"""
 		Asserts that: term0 = float(term1).
@@ -1209,3 +1253,22 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t1 = self.decode(term1)
 		self.assertion(["or", ["is-int", t1], ["is-real", t1]])
 		self.assertion(["=", t0, ["real", ["ite", ["is-int", t1], ["to_real", ["ival", t1]], ["rval", t1]]]])
+
+	### Bitwise Operations.
+
+	def band(self, term0, term1, term2):
+		"""
+		Asserts that: term0 = term1 & term2.
+		"""
+		t0 = self.decode(term0)
+		t1 = self.decode(term1)
+		t2 = self.decode(term2)
+		l1 = ["slist_from_int", ["ival", t1]]
+		l2 = ["slist_from_int", ["ival", t2]]
+		l0 = ["slist_and", l1, l2]
+		self.assertion([
+			"and",
+			["is-int", t1],
+			["is-int", t2],
+			["=", t0, ["int", ["slist_to_int", l0]]],
+		])
