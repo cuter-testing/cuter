@@ -36,29 +36,6 @@ def calculate_real(obj):
 	assert False
 
 
-def define_fun_rec(name, var, spec):
-	return [
-		"define-fun-rec",
-		name,
-		[[var, "Term"]],
-		"Bool",
-		[
-			"and",
-			["is-list", var],
-			[
-				"or",
-				["is-nil", ["lval", var]],
-				[
-					"and",
-					["is-cons", ["lval", var]],
-					spec,
-					[name, ["list", ["tl", ["lval", var]]]],
-				],
-			],
-		]
-	]
-
-
 class ErlangSMT(cgs.AbstractErlangSolver):
 
 	def __init__(self):
@@ -380,10 +357,10 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 				while ite[0] in self.model:
 					ite = self.model[ite[0]]
 				while isinstance(ite, list) and len(ite) == 4 and ite[0] == "ite":
-					entries.append(cc.mk_fun_entry(
-						cc.get_list_subterms(self.encode(["list", ite[1][2]], lets, funs)),
-						self.encode(ite[2], lets, funs)
-					))
+					args = cc.get_list_subterms(self.encode(["list", ite[1][2]], lets, funs))
+					if len(args) == arity:
+						value = self.encode(ite[2], lets, funs)
+						entries.append(cc.mk_fun_entry(args, value))
 					ite = ite[3]
 				otherwise = self.encode(ite, lets, funs)
 			else:
@@ -415,6 +392,21 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		for item in zip(self.vars, pms):
 			self.assertion(self.build_spec(item[1], item[0]))
 
+	def fun_rec(self, inner_spec):
+		name = "fn" + str(self.fun_rec_cnt)
+		self.fun_rec_cnt += 1
+		self.cmds.append(["define-fun-rec", name, [["l", "TList"]], "Bool", [
+			"or",
+			["is-nil", "l"],
+			[
+				"and",
+				["is-cons", "l"],
+				inner_spec,
+				[name, ["tl", "l"]],
+			],
+		]])
+		return name
+
 	def build_spec(self, spec, var):
 		if cc.is_type_any(spec):
 			return "true"
@@ -423,11 +415,22 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		elif cc.is_type_integer(spec):
 			return ["is-int", var]
 		elif cc.is_type_list(spec):
-			inner_spec = self.build_spec(cc.get_inner_type_from_list(spec), ["hd", ["lval", "t"]])
-			name = "fn{}".format(self.fun_rec_cnt)
-			self.fun_rec_cnt += 1
-			self.cmds.append(define_fun_rec(name, "t", inner_spec))
-			return [name, var]
+			inner_spec = self.build_spec(cc.get_inner_type_from_list(spec), ["hd", "l"])
+			name = self.fun_rec(inner_spec)
+			return [
+				"and",
+				["is-list", var],
+				[name, ["lval", var]],
+			]
+		elif cc.is_type_nonempty_list(spec):
+			inner_spec = self.build_spec(cc.get_inner_type_from_nonempty_list(spec), ["hd", "l"])
+			name = self.fun_rec(inner_spec)
+			return [
+				"and",
+				["is-list", var],
+				["is-cons", ["lval", var]],
+				[name, ["lval", var]],
+			]
 		elif cc.is_type_tupledet(spec):
 			inner_types = cc.get_inner_types_from_tupledet(spec)
 			ret = ["and", ["is-tuple", var]]
@@ -452,12 +455,6 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			if cc.has_upper_bound(limits):
 				ret.append(["<=", ["ival", var], str(cc.get_upper_bound(limits))])
 			return ret
-		elif cc.is_type_nonempty_list(spec):
-			inner_spec = self.build_spec(cc.get_inner_type_from_nonempty_list(spec), ["hd", ["lval", "t"]])
-			name = "fn{}".format(self.fun_rec_cnt)
-			self.fun_rec_cnt += 1
-			self.cmds.append(define_fun_rec(name, "t", inner_spec))
-			return ["and", ["is-list", var], ["is-cons", ["lval", var]], [name, var]]
 		elif cc.is_type_atom(spec):
 			return ["is-atom", var]
 		elif cc.is_type_bitstring(spec):
@@ -465,7 +462,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			l = ["slist_length", ["sval", var]]
 			m = segment_size.m
 			n = segment_size.n
-			if segment_size.n == "0":
+			if n == "0":
 				return ["and", ["is-str", var], ["=", l, m]]
 			return [
 				"and",

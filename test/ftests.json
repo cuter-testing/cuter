@@ -272,8 +272,9 @@
             "depth": "10",
             "errors": true,
             "arity": 1,
+            "nondeterministic": true,
             "solutions": [
-                "[[17,17,42]]"
+                "$1[0:3] == [17, 17, 42]"
             ],
             "skip": false
         },
@@ -284,8 +285,10 @@
             "depth": "2",
             "errors": true,
             "arity": 1,
+            "nondeterministic": true,
             "solutions": [
-                "[42]", "[[0,1,2]]", "[\"*\"]"
+                "$1 == 42",
+                "not isinstance($1, int)"
             ],
             "skip": false
         },
@@ -296,8 +299,11 @@
             "depth": "2",
             "errors": true,
             "arity": 1,
+            "nondeterministic": true,
             "solutions": [
-                "[42]", "[1]", "[[0,1,2]]"
+                "$1 == 42",
+                "isinstance($1, int) and $1 != 42",
+                "not isinstance($1, int) and len($1) != 0"
             ],
             "skip": false
         },
@@ -750,8 +756,9 @@
             "depth": "25",
             "errors": true,
             "arity": 1,
+            "nondeterministic": true,
             "solutions": [
-                "[2.75]"
+                "2.5 < $1 and $1 < 3"
             ],
             "skip": false
         },
@@ -762,8 +769,9 @@
             "depth": "25",
             "errors": true,
             "arity": 1,
+            "nondeterministic": true,
             "solutions": [
-                "[-42.75]"
+                "-43 < $1 and $1 < -42.5"
             ],
             "skip": false
         },
