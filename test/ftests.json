@@ -617,10 +617,11 @@
             "args": "[[]]",
             "depth": "25",
             "withProper": true,
-            "arity": 1,
             "errors": true,
+            "arity": 1,
+            "nondeterministic": true,
             "solutions": [
-                "[[8855,7719,-11863]]", "[[7719,-3008]]", "[[4711]]", "[[4711.0]]"
+                "sum($1) == 4711"
             ],
             "skip": false
         },
