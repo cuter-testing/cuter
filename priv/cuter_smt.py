@@ -72,12 +72,6 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		]])
 		self.cmds.append(["declare-fun", "fmap", ["Int"], ["Array", "TList", "Term"]])
 		self.cmds.append(["declare-fun", "arity", ["Int"], "Int"])
-		self.cmds.append(["define-fun-rec", "length", [["l", "TList"]], "Int", [
-			"ite",
-			["is-nil", "l"],
-			"0",
-			["+", ["length", ["tl", "l"]], "1"]
-		]])
 
 		self.cmds.append(["define-fun-rec", "slist_length", [["l", "SList"]], "Int", [
 			"ite",
@@ -475,26 +469,26 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			# clg.debug_info("fun parameters spec: " + str(params_spec)) # TODO arguments spec
 			argspec = ["and"]
 			tlist = "l"
+			tlist_length = 0
 			for param_spec in params_spec:
 				argspec.append(["and", ["is-cons", "l"], self.build_spec(param_spec, ["hd", tlist])])
 				tlist = ["tl", tlist]
+				tlist_length += 1
 			argspec.append(["is-nil", tlist])
 			retspec = self.build_spec(cc.get_rettype_from_fun(spec), ["select", ["fmap", ["fval", var]], "l"])
 			return [
 				"and",
 				["is-fun", var],
-				["=", ["arity", ["fval", var]], str(len(params_spec))],
-				["forall", [["l", "TList"]], retspec]
+				["=", ["arity", ["fval", var]], str(tlist_length)],
+				["forall", [["l", "TList"]], retspec],
 			]
 		elif cc.is_type_generic_fun(spec):
+			ret_spec = cc.get_rettype_from_fun(spec)
+			ret_val = ["select", ["fmap", ["fval", var]], "l"]
 			return [
 				"and",
 				["is-fun", var],
-				[
-					"forall",
-					[["l", "TList"]],
-					self.build_spec(cc.get_rettype_from_fun(spec), ["select", ["fmap", ["fval", var]], "l"])
-				]
+				["forall", [["l", "TList"]], self.build_spec(ret_spec, ret_val)],
 			]
 		elif cc.is_type_atomlit(spec):
 			return ["=", var, self.decode(cc.get_literal_from_atomlit(spec))]
@@ -571,17 +565,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		Asserts that the evaluation of a closure returns some specific terms.
 		"""
-		ret = self.decode(args[0])
-		fun = self.decode(args[1])
-		alist = "nil"
-		for arg in reversed(args[2:]):
-			alist = ["cons", self.decode(arg), alist]
-		self.assertion([
-			"and",
-			["is-fun", fun],
-			["=", ["arity", ["fval", fun]], ["length", alist]],
-			["=", ["select", ["fmap", ["fval", fun]], alist], ret],
-		])
+		self.erl_lambda(*args)
 
 	# -------------------------------------------------------------------------
 	# Constraints.
@@ -591,16 +575,18 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		Asserts that a lambda application has succeeded.
 		"""
-		t_ret = self.decode(args[0])
-		t_fun = self.decode(args[1])
-		t_arg = "nil"
+		ret = self.decode(args[0])
+		fun = self.decode(args[1])
+		tlist = "nil"
+		tlist_length = 0
 		for arg in reversed(args[2:]):
-			t_arg = ["cons", self.decode(arg) ,t_arg]
+			tlist = ["cons", self.decode(arg), tlist]
+			tlist_length += 1
 		self.assertion([
 			"and",
-			["is-fun", t_fun],
-			["=", ["arity", ["fval", t_fun]], ["length", t_arg]],
-			["=", ["select", ["fmap", ["fval", t_fun]], t_arg], t_ret],
+			["is-fun", fun],
+			["=", ["arity", ["fval", fun]], str(tlist_length)],
+			["=", ["select", ["fmap", ["fval", fun]], tlist], ret],
 		])
 
 	def erl_lambda_reversed(self, *args): # TODO is this the opposite of erl_lambda?
