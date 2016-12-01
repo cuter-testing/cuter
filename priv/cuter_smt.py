@@ -39,10 +39,27 @@ def calculate_real(obj):
 class ErlangSMT(cgs.AbstractErlangSolver):
 
 	def __init__(self):
-		self.vars = []
-		self.aux_vars = []
-		self.cmds = []
-		self.cmds.append(["declare-datatypes", [], [
+		self.reset_solver()
+
+	# =========================================================================
+	# Public API.
+	# =========================================================================
+
+	def fix_parameter(self, p, v):
+		"""
+		Fixes a symbolic variable to a specific value.
+		"""
+		p = self.decode(p)
+		v = self.decode(v)
+		self.aux_cmds.append(["assert", ["=", p, v]])
+
+	def reset_solver(self):
+		"""
+		Resets the solver.
+		"""
+		self.declarations = []
+
+		self.declarations.append(["declare-datatypes", [], [
 			[
 				"Term",
 				["bool", ["bval", "Bool"]],
@@ -70,28 +87,27 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 				["scons", ["shd", "Bool"], ["stl", "SList"]],
 			],
 		]])
-		self.cmds.append(["declare-fun", "fmap", ["Int"], ["Array", "TList", "Term"]])
-		self.cmds.append(["declare-fun", "arity", ["Int"], "Int"])
-		self.cmds.append(["declare-fun", "spec", ["Int", "TList"], "Bool"])
+		self.declarations.append(["declare-fun", "fmap", ["Int"], ["Array", "TList", "Term"]])
+		self.declarations.append(["declare-fun", "arity", ["Int"], "Int"])
 
-		self.cmds.append(["define-fun-rec", "slist_length", [["l", "SList"]], "Int", [
+		self.declarations.append(["define-fun-rec", "slist_length", [["l", "SList"]], "Int", [
 			"ite",
 			["is-snil", "l"],
 			"0",
 			["+", ["slist_length", ["stl", "l"]], "1"]
 		]])
 
-		self.cmds.append(["define-fun-rec", "slist_reverse_aux", [["l", "SList"], ["a", "SList"]], "SList", [
+		self.declarations.append(["define-fun-rec", "slist_reverse_aux", [["l", "SList"], ["a", "SList"]], "SList", [
 			"ite",
 			["is-snil", "l"],
 			"a",
 			["slist_reverse_aux", ["stl", "l"], ["scons", ["shd", "l"], "a"]]
 		]])
-		self.cmds.append(["define-fun", "slist_reverse", [["l", "SList"]], "SList", [
+		self.declarations.append(["define-fun", "slist_reverse", [["l", "SList"]], "SList", [
 			"slist_reverse_aux", "l", "snil"
 		]])
 
-		self.cmds.append(["define-fun-rec", "slist_from_pair_aux", [["n", "Int"], ["b", "Int"], ["a", "SList"]], "SList", [
+		self.declarations.append(["define-fun-rec", "slist_from_pair_aux", [["n", "Int"], ["b", "Int"], ["a", "SList"]], "SList", [
 			"ite",
 			["=", "b", "0"],
 			"a",
@@ -102,21 +118,21 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 				["scons", ["=", ["mod", "n", "2"], "1"], "a"]
 			]
 		]])
-		self.cmds.append(["define-fun", "slist_from_pair", [["n", "Int"], ["b", "Int"]], "SList", [
+		self.declarations.append(["define-fun", "slist_from_pair", [["n", "Int"], ["b", "Int"]], "SList", [
 			"slist_from_pair_aux", "n", "b", "snil"
 		]])
 
-		self.cmds.append(["define-fun-rec", "slist_concat_aux", [["l1inv", "SList"], ["l2", "SList"]], "SList", [
+		self.declarations.append(["define-fun-rec", "slist_concat_aux", [["l1inv", "SList"], ["l2", "SList"]], "SList", [
 			"ite",
 			["is-snil", "l1inv"],
 			"l2",
 			["slist_concat_aux", ["stl", "l1inv"], ["scons", ["shd", "l1inv"], "l2"]]
 		]])
-		self.cmds.append(["define-fun", "slist_concat", [["l1", "SList"], ["l2", "SList"]], "SList", [
+		self.declarations.append(["define-fun", "slist_concat", [["l1", "SList"], ["l2", "SList"]], "SList", [
 			"slist_concat_aux", ["slist_reverse", "l1"], "l2"
 		]])
 
-		self.cmds.append(["define-fun-rec", "slist_match", [["l1", "SList"], ["l2", "SList"]], "Bool", [
+		self.declarations.append(["define-fun-rec", "slist_match", [["l1", "SList"], ["l2", "SList"]], "Bool", [
 			"ite",
 			["is-snil", "l1"],
 			"true",
@@ -128,26 +144,12 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			]
 		]])
 
-		self.reset_solver()
+		self.vars = []
+		self.aux_vars = []
 		self.fun_rec_cnt = 0
 		self.const_bv_cnt = 0
-
-	# =========================================================================
-	# Public API.
-	# =========================================================================
-
-	def fix_parameter(self, p, v):
-		"""
-		Fixes a symbolic variable to a specific value.
-		"""
-		p = self.decode(p)
-		v = self.decode(v)
-		self.aux_cmds.append(["assert", ["=", p, v]])
-
-	def reset_solver(self):
-		"""
-		Resets the solver.
-		"""
+		self.funspec = "true"
+		self.cmds = []
 		self.aux_cmds = []
 		self.model = None
 
@@ -161,7 +163,8 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		Solves a constraint set and returns the result.
 		"""
-		tpl = smt.SolverZ3().solve(self.cmds + self.aux_cmds)
+		spec = ["define-fun", "spec", [["f", "Int"], ["l", "TList"]], "Bool", self.funspec]
+		tpl = smt.SolverZ3().solve(self.declarations + [spec] + self.cmds + self.aux_cmds)
 		check_sat = tpl[0]
 		if check_sat == "sat":
 			get_model = tpl[1]
@@ -210,7 +213,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			s = "|{}|".format(cc.get_symb(data))
 			if s not in self.vars and s not in self.aux_vars:
 				self.aux_vars.append(s)
-				self.cmds.append(["declare-const", s, "Term"])
+				self.declarations.append(["declare-const", s, "Term"])
 			return s
 		elif cc.is_int(data):
 			return ["int", str(cc.get_int(data))]
@@ -375,7 +378,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		for arg in args:
 			s = "|{}|".format(cc.get_symb(arg))
 			self.vars.append(s)
-			self.cmds.append(["declare-const", s, "Term"])
+			self.declarations.append(["declare-const", s, "Term"])
 
 	def mfa_spec(self, spec):
 		"""
@@ -389,7 +392,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 	def fun_rec(self, inner_spec):
 		name = "fn" + str(self.fun_rec_cnt)
 		self.fun_rec_cnt += 1
-		self.cmds.append(["define-fun-rec", name, [["l", "TList"]], "Bool", [
+		self.declarations.append(["define-fun-rec", name, [["l", "TList"]], "Bool", [
 			"or",
 			["is-nil", "l"],
 			[
@@ -466,7 +469,8 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			]
 		elif cc.is_type_complete_fun(spec):
 			params_spec = cc.get_parameters_from_complete_fun(spec)
-			# clg.debug_info("fun parameters spec: " + str(params_spec)) # TODO arguments spec
+			# TODO function arguments spec in list of functions etc
+			# TODO if a function is to be called with wrong arguments, program must crash
 			argspec = ["and"]
 			tlist = "l"
 			tlist_length = 0
@@ -476,11 +480,11 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 				tlist_length += 1
 			argspec.append(["is-nil", tlist])
 			retspec = self.build_spec(cc.get_rettype_from_fun(spec), ["select", ["fmap", ["fval", var]], "l"])
+			self.funspec = ["ite", ["=", "f", ["fval", var]], argspec, self.funspec]
 			return [
 				"and",
 				["is-fun", var],
 				["=", ["arity", ["fval", var]], str(tlist_length)],
-				["forall", [["l", "TList"]], ["=", ["spec", ["fval", var], "l"], argspec]],
 				["forall", [["l", "TList"]], retspec],
 			]
 		elif cc.is_type_generic_fun(spec):
@@ -489,7 +493,6 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			return [
 				"and",
 				["is-fun", var],
-				["forall", [["l", "TList"]], ["=", ["spec", ["fval", var], "l"], "true"]],
 				["forall", [["l", "TList"]], self.build_spec(ret_spec, ret_val)],
 			]
 		elif cc.is_type_atomlit(spec):
@@ -512,7 +515,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			s = "|{}|".format(cc.get_symb(x))
 			if s not in self.vars and s not in self.aux_vars:
 				self.aux_vars.append(s)
-				self.cmds.append(["declare-const", s, "Term"])
+				self.declarations.append(["declare-const", s, "Term"])
 			self.assertion(["=", s, ["hd", c]])
 			c = ["tl", c]
 		self.assertion(["is-nil", c])
@@ -546,7 +549,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		for term in reversed(terms[2:]):
 			b = self.decode(term)
 			l.append(["is-bool", b])
-			v = ["scons", ["bval", b], v] # TODO is b bool or int?
+			v = ["scons", ["bval", b], v]
 		l.append(["=", ["sval", t], v])
 		self.assertion(l)
 
@@ -790,7 +793,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			["is-str", t],
 			["is-scons", ["sval", t]],
 			["is-bool", t1],
-			["=", ["bval", t1], ["shd", ["sval", t]]], # TODO is t1 bool or int?
+			["=", ["bval", t1], ["shd", ["sval", t]]],
 			["is-str", t2],
 			["=", ["sval", t2], ["stl", ["sval", t]]],
 		])
@@ -1208,7 +1211,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		l = 256 # TODO max bv size set to 256
 		m = 2 ** (l - 1)
 		name = "bv" + str(self.const_bv_cnt)
-		self.cmds.append(["declare-const", name, ["_", "BitVec", str(l)]])
+		self.declarations.append(["declare-const", name, ["_", "BitVec", str(l)]])
 		self.cmds.append(["assert", ["is-int", t]])
 		self.cmds.append(["assert", [
 			"or",

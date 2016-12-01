@@ -606,7 +606,7 @@
                 "len($2) != 2",
                 "$1(($2,)) != 1 and $2 == (4, 2,)"
             ],
-            "skip": false
+            "skip": true
         },
         {
             "module": "funs",
@@ -620,7 +620,7 @@
                 "(len($2[2:]) - 2) % 4 != 0",
                 "$1(($2,)) != 1 and $2[2:] == bin(5 % (1 << 6))[2:].zfill(6)"
             ],
-            "skip": false
+            "skip": true
         },
         {
             "module": "sum",
