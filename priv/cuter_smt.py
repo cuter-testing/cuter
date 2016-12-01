@@ -72,6 +72,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		]])
 		self.cmds.append(["declare-fun", "fmap", ["Int"], ["Array", "TList", "Term"]])
 		self.cmds.append(["declare-fun", "arity", ["Int"], "Int"])
+		self.cmds.append(["declare-fun", "spec", ["Int", "TList"], "Bool"])
 
 		self.cmds.append(["define-fun-rec", "slist_length", [["l", "SList"]], "Int", [
 			"ite",
@@ -148,7 +149,6 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		Resets the solver.
 		"""
 		self.aux_cmds = []
-		self.solver = smt.SolverZ3()
 		self.model = None
 
 	def add_axioms(self):
@@ -161,7 +161,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		Solves a constraint set and returns the result.
 		"""
-		tpl = self.solver.solve(self.cmds + self.aux_cmds)
+		tpl = smt.SolverZ3().solve(self.cmds + self.aux_cmds)
 		check_sat = tpl[0]
 		if check_sat == "sat":
 			get_model = tpl[1]
@@ -480,6 +480,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 				"and",
 				["is-fun", var],
 				["=", ["arity", ["fval", var]], str(tlist_length)],
+				["forall", [["l", "TList"]], ["=", ["spec", ["fval", var], "l"], argspec]],
 				["forall", [["l", "TList"]], retspec],
 			]
 		elif cc.is_type_generic_fun(spec):
@@ -488,6 +489,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			return [
 				"and",
 				["is-fun", var],
+				["forall", [["l", "TList"]], ["=", ["spec", ["fval", var], "l"], "true"]],
 				["forall", [["l", "TList"]], self.build_spec(ret_spec, ret_val)],
 			]
 		elif cc.is_type_atomlit(spec):
@@ -586,6 +588,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			"and",
 			["is-fun", fun],
 			["=", ["arity", ["fval", fun]], str(tlist_length)],
+			["spec", ["fval", fun], tlist],
 			["=", ["select", ["fmap", ["fval", fun]], tlist], ret],
 		])
 
