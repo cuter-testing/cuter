@@ -39,24 +39,6 @@ def calculate_real(obj):
 class ErlangSMT(cgs.AbstractErlangSolver):
 
 	def __init__(self):
-		self.reset_solver()
-
-	# =========================================================================
-	# Public API.
-	# =========================================================================
-
-	def fix_parameter(self, p, v):
-		"""
-		Fixes a symbolic variable to a specific value.
-		"""
-		p = self.decode(p)
-		v = self.decode(v)
-		self.aux_cmds.append(["assert", ["=", p, v]])
-
-	def reset_solver(self):
-		"""
-		Resets the solver.
-		"""
 		self.declarations = []
 
 		self.declarations.append(["declare-datatypes", [], [
@@ -151,6 +133,24 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		self.funspec = "true"
 		self.cmds = []
 		self.aux_cmds = []
+		self.model = None
+
+	# =========================================================================
+	# Public API.
+	# =========================================================================
+
+	def fix_parameter(self, p, v):
+		"""
+		Fixes a symbolic variable to a specific value.
+		"""
+		p = self.decode(p)
+		v = self.decode(v)
+		self.aux_cmds.append(["assert", ["=", p, v]])
+
+	def reset_solver(self):
+		"""
+		Resets the solver.
+		"""
 		self.model = None
 
 	def add_axioms(self):

@@ -1,13 +1,14 @@
 import subprocess
-import os.path
+#import os.path
 
-filename = "solver.txt"
-if os.path.isfile(filename):
-	clog = open(filename, "a")
-else:
-	clog = open(filename, "w")
+#filename = "solver.txt"
+#if os.path.isfile(filename):
+#	clog = open(filename, "a")
+#else:
+#	clog = open(filename, "w")
 def log(msg = ""):
-	clog.write(msg + "\n")
+	pass
+#	clog.write(msg + "\n")
 
 
 def encode(obj):
