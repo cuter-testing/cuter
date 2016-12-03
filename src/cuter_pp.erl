@@ -477,15 +477,15 @@ handle_call({loading_visited_module, M}, _From, State=#st{pplevel = PpLevel}) ->
 
 %% Pre-run check: Non-existing module.
 handle_call({module_non_existing, M}, _From, State) ->
-  io:format("Module ~p does not exist.~n", [M]),
+  io:format("\033[01;31mModule ~p does not exist.\033[00m~n", [M]),
   {reply, ok, State};
 %% Pre-run check: Non-existing mfa.
 handle_call({mfa_non_existing, {M, F, Arity}}, _From, State) ->
-  io:format("MFA ~p:~p/~w does not exist or is not exported.~n", [M, F, Arity]),
+  io:format("\033[01;31mMFA ~p:~p/~w does not exist or is not exported.\033[00m~n", [M, F, Arity]),
   {reply, ok, State};
 %% The MFA to be tested.
 handle_call({mfa, {M, F, Ar}}, _From, State) ->
-  io:format("Testing ~p:~p/~p ...~n", [M, F, Ar]),
+  io:format("\033[0;34mTesting ~p:~p/~p ...\033[00m~n", [M, F, Ar]),
   {reply, ok, State#st{mfa = {M, F, Ar}}};
 %% Generated invalid Core Erlang AST with pmatch.
 handle_call({invalid_ast_with_pmatch, Mod, Generated}, _From, State=#st{pplevel = PpLevel}) ->
@@ -668,11 +668,11 @@ pp_execution_status_minimal({internal_error, _InternalError}) ->
 -spec pp_execution_status_verbose(cuter_iserver:execution_status()) -> ok.
 
 pp_execution_status_verbose({success, _Result}) ->
-  io:format("ok");
+  io:format("\033[01;32mok\033[00m");
 pp_execution_status_verbose({runtime_error, _RuntimeError}) ->
-  io:format("RUNTIME ERROR");
+  io:format("\033[01;31mRUNTIME ERROR\033[00m");
 pp_execution_status_verbose({internal_error, _InternalError}) ->
-  io:format("INTERNAL ERROR").
+  io:format("\033[01;31mINTERNAL ERROR\033[00m").
 
 -spec pp_execution_status_fully_verbose(cuter_iserver:execution_status()) -> ok.
 pp_execution_status_fully_verbose({success, Result}) ->
@@ -697,11 +697,11 @@ pp_execution_status_fully_verbose({internal_error, {Type, Node, Why}}) ->
 
 -spec pp_input_minimal(cuter:input(), mfa()) -> ok.
 pp_input_minimal([], {M, F, _}) ->
-  io:format(standard_error, "~p:~p()~n", [M, F]);
+  io:format(standard_error, "\033[01;31m~p:~p()\033[00m~n", [M, F]);
 pp_input_minimal(Input, {M, F, _}) ->
-  io:format(standard_error, "~p:~p(", [M, F]),
+  io:format(standard_error, "\033[01;31m~p:~p(\033[00m", [M, F]),
   S = pp_arguments(Input),
-  io:format(standard_error, "~s)~n", [S]).
+  io:format(standard_error, "\033[01;31m~s)\033[00m~n", [S]).
 
 -spec pp_input_verbose(cuter:input(), mfa()) -> ok.
 pp_input_verbose([], {M, F, _}) ->
@@ -893,7 +893,7 @@ pp_erroneous_inputs(Errors, MFA, Level) ->
 pp_erroneous_inputs_h([], _MFA, _N) ->
   io:format("~n");
 pp_erroneous_inputs_h([I|Is], {M, F, _}=MFA, N) ->
-  io:format("~n#~w ~p:~p(~s)", [N, M, F, pp_arguments(I)]),
+  io:format("~n#~w \033[00;31m~p:~p(~s)\033[00m", [N, M, F, pp_arguments(I)]),
   pp_erroneous_inputs_h(Is, MFA, N + 1).
 
 %% ----------------------------------------------------------------------------

@@ -23,9 +23,9 @@ def run(testDir):
         cmd = "{} {} {} '{}' -d {} {} --sorted-errors".format(
           cuterScript, test["module"], test["function"], test["args"], test["depth"], opts
         )
-        print "\n[Test #{}]\n{}".format(i + 1, cmd)
+        print "\n\033[00;34m[Test #{}]\033[00m\n{}".format(i + 1, cmd)
         if "skip" in test and test["skip"]:
-            print "Skipping ..."
+            print "\033[01;35Skipping ...\033[00m"
             continue
         p = Popen(cmd, stdin=PIPE, stdout=PIPE, shell=True)
         output, err = p.communicate()
