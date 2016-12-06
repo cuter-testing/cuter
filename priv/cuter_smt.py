@@ -72,22 +72,13 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		self.declarations.append(["declare-fun", "fmap", ["Int"], ["Array", "TList", "Term"]])
 		self.declarations.append(["declare-fun", "arity", ["Int"], "Int"])
 
-		self.declarations.append(["define-fun-rec", "slist_length", [["l", "SList"]], "Int", [
-			"ite",
-			["is-snil", "l"],
-			"0",
-			["+", ["slist_length", ["stl", "l"]], "1"]
-		]])
-
-		self.declarations.append(["define-fun-rec", "slist_reverse_aux", [["l", "SList"], ["a", "SList"]], "SList", [
+		self.declarations.append(["define-fun-rec", "slist_length_aux", [["l", "SList"], ["a", "Int"]], "Int", [
 			"ite",
 			["is-snil", "l"],
 			"a",
-			["slist_reverse_aux", ["stl", "l"], ["scons", ["shd", "l"], "a"]]
+			["slist_length_aux", ["stl", "l"], ["+", "a", "1"]]
 		]])
-		self.declarations.append(["define-fun", "slist_reverse", [["l", "SList"]], "SList", [
-			"slist_reverse_aux", "l", "snil"
-		]])
+		self.declarations.append(["define-fun", "slist_length", [["l", "SList"]], "Int", ["slist_length_aux", "l", "0"]])
 
 		self.declarations.append(["define-fun-rec", "slist_from_pair_aux", [["n", "Int"], ["b", "Int"], ["a", "SList"]], "SList", [
 			"ite",
@@ -104,26 +95,35 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			"slist_from_pair_aux", "n", "b", "snil"
 		]])
 
-		self.declarations.append(["define-fun-rec", "slist_concat_aux", [["l1inv", "SList"], ["l2", "SList"]], "SList", [
+		self.declarations.append(["define-fun-rec", "slist_concat_aux", [["l1", "SList"], ["l1inv", "SList"], ["l2", "SList"]], "SList", [
 			"ite",
-			["is-snil", "l1inv"],
-			"l2",
-			["slist_concat_aux", ["stl", "l1inv"], ["scons", ["shd", "l1inv"], "l2"]]
+			["is-snil", "l1"],
+			[
+				"ite",
+				["is-snil", "l1inv"],
+				"l2",
+				["slist_concat_aux", "l1", ["stl", "l1inv"], ["scons", ["shd", "l1inv"], "l2"]],
+			],
+			["slist_concat_aux", ["stl", "l1"], ["scons", ["shd", "l1"], "l1inv"], "l2"]
 		]])
-		self.declarations.append(["define-fun", "slist_concat", [["l1", "SList"], ["l2", "SList"]], "SList", [
-			"slist_concat_aux", ["slist_reverse", "l1"], "l2"
-		]])
+		self.declarations.append(["define-fun", "slist_concat", [["l1", "SList"], ["l2", "SList"]], "SList", ["slist_concat_aux", "l1", "snil", "l2"]])
 
-		self.declarations.append(["define-fun-rec", "slist_match", [["l1", "SList"], ["l2", "SList"]], "Bool", [
+		self.declarations.append(["define-fun-rec", "slist_match_aux", [["l1", "SList"], ["l2", "SList"]], "Bool", [
 			"ite",
 			["is-snil", "l1"],
 			"true",
 			[
 				"ite",
-				["or", ["is-snil", "l2"], ["not", ["=", ["shd", "l1"], ["shd", "l2"]]]],
-				"false",
-				["slist_match", ["stl", "l1"], ["stl", "l2"]]
+				["=", ["shd", "l1"], ["shd", "l2"]],
+				["slist_match_aux", ["stl", "l1"], ["stl", "l2"]],
+				"false"
 			]
+		]])
+		self.declarations.append(["define-fun", "slist_match", [["l1", "SList"], ["l2", "SList"]], "Bool", [
+			"ite",
+			[">", ["slist_length", "l1"], ["slist_length", "l2"]],
+			"false",
+			["slist_match_aux", "l1", "l2"]
 		]])
 
 		self.vars = []
@@ -183,7 +183,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		elif check_sat == "unknown":
 			return cc.mk_unknown()
 		else:
-			clg.debug_info("solve: " + tpl[0])
+			clg.debug_info("solve: " + check_sat)
 
 	def encode_model(self):
 		"""
@@ -464,7 +464,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			return [
 				"and",
 				["is-str", var],
-				# [">=", l, m], # TODO this obvious restriction hides bug bitstr f25 Y=8
+				[">=", l, m],
 				["=", ["mod", ["-", l, m], n], "0"],
 			]
 		elif cc.is_type_complete_fun(spec):
@@ -1208,7 +1208,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		Associates a new bitvector with a decoded integer term t.
 		"""
-		l = 256 # TODO max bv size set to 256
+		l = 128 # TODO max bv size set to 128; increase timeout for a bigger limit
 		m = 2 ** (l - 1)
 		name = "bv" + str(self.const_bv_cnt)
 		self.declarations.append(["declare-const", name, ["_", "BitVec", str(l)]])

@@ -1,14 +1,17 @@
 import subprocess
-#import os.path
 
-#filename = "solver.txt"
-#if os.path.isfile(filename):
-#	clog = open(filename, "a")
-#else:
-#	clog = open(filename, "w")
+debug = False
+
+if debug:
+	import os.path
+	filename = "solver.txt"
+	if os.path.isfile(filename):
+		clog = open(filename, "a")
+	else:
+		clog = open(filename, "w")
 def log(msg = ""):
-	pass
-#	clog.write(msg + "\n")
+	if debug:
+		clog.write(msg + "\n")
 
 
 def encode(obj):
@@ -108,4 +111,4 @@ class SolverCVC4(Solver):
 class SolverZ3(Solver):
 
 	def __init__(self):
-		Solver.__init__(self, ["z3", "-smt2", "-in", "timeout=10000"])
+		Solver.__init__(self, ["z3", "-smt2", "-in", "timeout=1000"])

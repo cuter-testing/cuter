@@ -114,7 +114,8 @@
             "arity": 2,
             "nondeterministic": true,
             "solutions": [
-                "$1[2:] == bin(42 % (1 << $2))[2:].zfill($2)"
+                "$1[2:] == bin(42 % (1 << $2))[2:].zfill($2) and $2 == 6",
+                "$1[2:] == bin(42 % (1 << $2))[2:].zfill($2) and $2 > 6"
             ],
             "skip": false
         },
@@ -151,7 +152,7 @@
             "solutions": [
                 "$1[2:] == \"010\" + bin($2 % (1 << $3))[2:].zfill($3) + \"00000011\""
             ],
-            "skip": false
+            "skip": true
         },
         {
             "module": "bitstr",
@@ -164,7 +165,7 @@
             "solutions": [
                 "$1[2:] == bin($3 % (1 << $2))[2:].zfill($2) + $4[2:]"
             ],
-            "skip": false
+            "skip": true
         },
         {
             "module": "bitstr",
@@ -678,10 +679,11 @@
             "depth": "42",
             "errors": true,
             "arity": 1,
+            "nondeterministic": true,
             "solutions": [
-                "[<<0,0:1>>]"
+                "len($1[2:]) > 8"
             ],
-            "skip": true
+            "skip": false
         },
         {
             "module": "bitstr",
