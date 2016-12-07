@@ -158,14 +158,14 @@
             "module": "bitstr",
             "function": "f33",
             "args": "[<<>>, 0, 0, <<>>]",
-            "depth": "24",
+            "depth": "25",
             "errors": true,
             "arity": 4,
             "nondeterministic": true,
             "solutions": [
                 "$1[2:] == bin($3 % (1 << $2))[2:].zfill($2) + $4[2:]"
             ],
-            "skip": true
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -676,7 +676,7 @@
             "module": "bitstr",
             "function": "byte_sz",
             "args": "[<<>>]",
-            "depth": "17",
+            "depth": "37",
             "errors": true,
             "arity": 1,
             "nondeterministic": true,
