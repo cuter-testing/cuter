@@ -127,22 +127,15 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		]])
 		self.declarations.append(["define-fun", "slist_concat", [["l1", "SList"], ["l2", "SList"]], "SList", ["slist_concat_aux", "l1", "snil", "l2"]])
 
-		self.declarations.append(["define-fun-rec", "slist_match_aux", [["l1", "SList"], ["l2", "SList"]], "Bool", [
-			"ite",
+		self.declarations.append(["define-fun-rec", "slist_match", [["l1", "SList"], ["l2", "SList"]], "Bool", [
+			"or",
 			["is-snil", "l1"],
-			"true",
 			[
-				"ite",
+				"and",
+				["not", ["is-snil", "l2"]],
 				["=", ["shd", "l1"], ["shd", "l2"]],
-				["slist_match_aux", ["stl", "l1"], ["stl", "l2"]],
-				"false"
-			]
-		]])
-		self.declarations.append(["define-fun", "slist_match", [["l1", "SList"], ["l2", "SList"]], "Bool", [
-			"ite",
-			[">", ["slist_length", "l1"], ["slist_length", "l2"]],
-			"false",
-			["slist_match_aux", "l1", "l2"]
+				["slist_match", ["stl", "l1"], ["stl", "l2"]],
+			],
 		]])
 
 		self.vars = []
