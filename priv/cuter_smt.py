@@ -72,15 +72,19 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		self.declarations.append(["declare-fun", "fmap", ["Int"], ["Array", "TList", "Term"]])
 		self.declarations.append(["declare-fun", "arity", ["Int"], "Int"])
 
-		self.declarations.append(["define-fun-rec", "slist_length_aux", [["l", "SList"], ["a", "Int"]], "Int", [
-			"ite",
-			["is-snil", "l"],
-			"a",
-			["slist_length_aux", ["stl", "l"], ["+", "a", "1"]]
+		# slist_longer(l, n) returns whether length(l) >= n
+		self.declarations.append(["define-fun-rec", "slist_longer", [["l", "SList"], ["n", "Int"]], "Bool", [
+			"or",
+			["=", "n", "0"],
+			[
+				"and",
+				["not", ["is-snil", "l"]],
+				["slist_longer", ["stl", "l"], ["-", "n", "1"]],
+			],
 		]])
-		self.declarations.append(["define-fun", "slist_length", [["l", "SList"]], "Int", ["slist_length_aux", "l", "0"]])
 
-		# slist_spec and slist_spec_aux are efficient when n and m are given integer constants
+		# slist_spec(l, m, n) returns whether len(l) >= m and (len(l) - m) % n == 0
+		# slist_spec is efficient when n and m are given integer constants
 		self.declarations.append(["define-fun-rec", "slist_spec_aux", [["l", "SList"], ["n", "Int"], ["r", "Int"]], "Bool", [
 			"ite",
 			["is-snil", "l"],
@@ -910,7 +914,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 				"and",
 				["is-int", b],
 				["is-str", t],
-				[">=", ["slist_length", ["sval", t]], ["ival", b]],
+				["slist_longer", ["sval", t], ["ival", b]],
 			]
 		])
 
@@ -924,7 +928,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			"and",
 			["is-int", b],
 			["is-str", t],
-			[">=", ["slist_length", ["sval", t]], ["ival", b]],
+			["slist_longer", ["sval", t], ["ival", b]],
 		])
 
 	def lambda_with_arity(self, tFun, tArity):
