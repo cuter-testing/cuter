@@ -80,6 +80,25 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		]])
 		self.declarations.append(["define-fun", "slist_length", [["l", "SList"]], "Int", ["slist_length_aux", "l", "0"]])
 
+		# slist_spec and slist_spec_aux are efficient when n and m are given integer constants
+		self.declarations.append(["define-fun-rec", "slist_spec_aux", [["l", "SList"], ["n", "Int"], ["r", "Int"]], "Bool", [
+			"ite",
+			["is-snil", "l"],
+			["=", "r", "0"],
+			["slist_spec_aux", ["stl", "l"], "n", ["-", ["ite", ["=", "r", "0"], "n", "r"], "1"]]
+		]])
+		self.declarations.append(["define-fun-rec", "slist_spec", [["l", "SList"], ["m", "Int"], ["n", "Int"]], "Bool", [
+			"ite",
+			["=", "m", "0"],
+			[
+				"ite",
+				["=", "n", "0"],
+				["is-snil", "l"],
+				["slist_spec_aux", "l", "n", "0"]
+			],
+			["and", ["not", ["is-snil", "l"]], ["slist_spec", ["stl", "l"], ["-", "m", "1"], "n"],]
+		]])
+
 		self.declarations.append(["define-fun-rec", "slist_from_pair_aux", [["n", "Int"], ["b", "Int"], ["a", "SList"]], "SList", [
 			"ite",
 			["=", "b", "0"],
@@ -456,17 +475,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			return ["is-atom", var]
 		elif cc.is_type_bitstring(spec):
 			segment_size = cc.get_segment_size_from_bitstring(spec)
-			l = ["slist_length", ["sval", var]]
-			m = segment_size.m
-			n = segment_size.n
-			if n == "0":
-				return ["and", ["is-str", var], ["=", l, m]]
-			return [
-				"and",
-				["is-str", var],
-				[">=", l, m],
-				["=", ["mod", ["-", l, m], n], "0"],
-			]
+			return ["and", ["is-str", var], ["slist_spec", ["sval", var], segment_size.m, segment_size.n]]
 		elif cc.is_type_complete_fun(spec):
 			params_spec = cc.get_parameters_from_complete_fun(spec)
 			# TODO function arguments spec in list of functions etc

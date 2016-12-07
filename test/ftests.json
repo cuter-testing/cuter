@@ -152,7 +152,7 @@
             "solutions": [
                 "$1[2:] == \"010\" + bin($2 % (1 << $3))[2:].zfill($3) + \"00000011\""
             ],
-            "skip": true
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -663,7 +663,7 @@
             "module": "bitstr",
             "function": "bit_sz",
             "args": "[<<>>]",
-            "depth": "15",
+            "depth": "1",
             "errors": true,
             "arity": 1,
             "nondeterministic": true,
@@ -676,7 +676,7 @@
             "module": "bitstr",
             "function": "byte_sz",
             "args": "[<<>>]",
-            "depth": "42",
+            "depth": "17",
             "errors": true,
             "arity": 1,
             "nondeterministic": true,
