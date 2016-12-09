@@ -82,6 +82,8 @@ l2i(L) ->
     I when is_integer(I) -> ok
   end.
 
+; if solver returns a valid list that does not match the pattern,
+; cuter will not be lead to the inner case statement
 -spec l2in([45 | 43 | 48..57, ...]) -> ok.
 l2in(L) ->
   case re:run(L, "^(\\+|-)?[0-9]+$") of
