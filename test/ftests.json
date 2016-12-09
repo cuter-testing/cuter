@@ -576,11 +576,7 @@
             "depth": "2",
             "errors": false,
             "arity": 4,
-            "nondeterministic": true,
-            "solutions": [
-                "True"
-            ],
-            "skip": true
+            "skip": false
         },
         {
             "module": "funs",
@@ -604,10 +600,9 @@
             "arity": 2,
             "nondeterministic": true,
             "solutions": [
-                "len($2) != 2",
                 "$1(($2,)) != 1 and $2 == (4, 2,)"
             ],
-            "skip": true
+            "skip": false
         },
         {
             "module": "funs",
@@ -618,10 +613,9 @@
             "arity": 2,
             "nondeterministic": true,
             "solutions": [
-                "(len($2[2:]) - 2) % 4 != 0",
                 "$1(($2,)) != 1 and $2[2:] == bin(5 % (1 << 6))[2:].zfill(6)"
             ],
-            "skip": true
+            "skip": false
         },
         {
             "module": "sum",
