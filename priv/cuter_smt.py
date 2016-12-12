@@ -163,6 +163,27 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			["int-and-rec", "n1", "n2", "n"],
 		]])
 
+		# int-or returns whether n1 | n2 == n
+		self.declarations.append(["define-fun-rec", "int-or-rec", [["n1", "Int"], ["n2", "Int"], ["n", "Int"]], "Bool", [
+			"or",
+			["=", "n1", "n", "-1"],
+			["=", "n2", "n", "-1"],
+			["=", "n1", "n2", "n", "0"],
+			[
+				"and",
+				["=", ["or", ["not", ["=", ["mod", "n1", "2"], "0"]], ["not", ["=", ["mod", "n2", "2"], "0"]]], ["not", ["=", ["mod", "n", "2"], "0"]]],
+				["int-or-rec", ["div", "n1", "2"], ["div", "n2", "2"], ["div", "n", "2"]],
+			],
+		]])
+		self.declarations.append(["define-fun", "int-or", [["n1", "Int"], ["n2", "Int"], ["n", "Int"]], "Bool", [
+			"and",
+			["implies", ["<", "n1", "0"], ["and", ["<=", "n1", "n"], ["<", "n", "0"]]],
+			["implies", ["<", "n2", "0"], ["and", ["<=", "n2", "n"], ["<", "n", "0"]]],
+			["implies", ["and", [">=", "n1", "0"], [">=", "n2", "0"]], ["<=", "0", "n", ["+", "n1", "n2"]]],
+			["implies", [">=", "n", "0"], ["and", ["<=", "0", "n1", "n"], ["<=", "0", "n2", "n"]]],
+			["int-or-rec", "n1", "n2", "n"],
+		]])
+
 		self.vars = []
 		self.aux_vars = []
 		self.fun_rec_cnt = 0
@@ -1292,4 +1313,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		Asserts that: term0 = term1 | term2.
 		"""
-		self.bitwise_operation("bvor", term0, term1, term2)
+		t0 = self.decode(term0)
+		t1 = self.decode(term1)
+		t2 = self.decode(term2)
+		self.cmds.append(["assert", ["int-or", ["ival", t1], ["ival", t2], ["ival", t0]]])
