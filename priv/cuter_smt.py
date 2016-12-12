@@ -184,10 +184,23 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			["int-or-rec", "n1", "n2", "n"],
 		]])
 
+		# int-xor returns whether n1 ^ n2 == n
+		self.declarations.append(["define-fun-rec", "int-xor", [["n1", "Int"], ["n2", "Int"], ["n", "Int"]], "Bool", [
+			"or",
+			["and", ["=", "n1", "0"], ["=", "n2", "n"]],
+			["and", ["=", "n2", "0"], ["=", "n1", "n"]],
+			["and", ["=", "n1", "n2", "-1"], ["=", "n", "0"]],
+			["and", ["=", "n", "0"], ["=", "n1", "n2"]],
+			[
+				"and",
+				["=", ["xor", ["not", ["=", ["mod", "n1", "2"], "0"]], ["not", ["=", ["mod", "n2", "2"], "0"]]], ["not", ["=", ["mod", "n", "2"], "0"]]],
+				["int-xor", ["div", "n1", "2"], ["div", "n2", "2"], ["div", "n", "2"]],
+			],
+		]])
+
 		self.vars = []
 		self.aux_vars = []
 		self.fun_rec_cnt = 0
-		self.const_bv_cnt = 0
 		self.const_slist_cnt = 0
 		self.funspec = "true"
 		self.cmds = []
@@ -1258,42 +1271,6 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 
 	### Bitwise Operations.
 
-	def const_bv(self, t):
-		"""
-		Associates a new bitvector with a decoded integer term t.
-		"""
-		l = 128 # TODO max bv size set to 128; increase timeout for a bigger limit
-		m = 2 ** (l - 1)
-		name = "bv" + str(self.const_bv_cnt)
-		self.declarations.append(["declare-const", name, ["_", "BitVec", str(l)]])
-		self.cmds.append(["assert", ["is-int", t]])
-		self.cmds.append(["assert", [
-			"or",
-			[
-				"and",
-				[">=", ["ival", t], "0"],
-				["<", ["ival", t], str(m)],
-				["=", ["ival", t], ["bv2int", name]],
-			],
-			[
-				"and",
-				["<", ["ival", t], "0"],
-				[">=", ["ival", t], str(-m)],
-				["=", ["-", ["ival", t]], ["+", ["bv2int", ["bvnot", name]], "1"]],
-			],
-		]])
-		self.const_bv_cnt += 1
-		return name
-
-	def bitwise_operation(self, operation, term0, term1, term2):
-		t0 = self.decode(term0)
-		t1 = self.decode(term1)
-		t2 = self.decode(term2)
-		bv0 = self.const_bv(t0)
-		bv1 = self.const_bv(t1)
-		bv2 = self.const_bv(t2)
-		self.assertion(["=", bv0, [operation, bv1, bv2]])
-
 	def band(self, term0, term1, term2):
 		"""
 		Asserts that: term0 = term1 & term2.
@@ -1307,7 +1284,10 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		Asserts that: term0 = term1 ^ term2.
 		"""
-		self.bitwise_operation("bvxor", term0, term1, term2)
+		t0 = self.decode(term0)
+		t1 = self.decode(term1)
+		t2 = self.decode(term2)
+		self.cmds.append(["assert", ["int-xor", ["ival", t1], ["ival", t2], ["ival", t0]]])
 
 	def bor(self, term0, term1, term2):
 		"""
