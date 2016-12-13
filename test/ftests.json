@@ -1074,18 +1074,6 @@
                 "[foo]"
             ],
             "skip": false
-        },
-        {
-            "module": "funs",
-            "function": "fx",
-            "args": "[fun(_,_) -> ok end]",
-            "depth": "17",
-            "errors": true,
-            "arity": 1,
-            "solutions": [
-                "[fun(_) -> 2 end]"
-            ],
-            "skip": true
         }
     ]
 }
