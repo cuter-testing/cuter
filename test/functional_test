@@ -52,10 +52,16 @@ def run(testDir):
                 printOutputAndExit(output)
         # Validate the errors found.
         solutions = interesting.strip().split("\n")
-        found = ["[" + re.search(r"\((.*)\)", sol).group(1) + "]" for sol in solutions]
+        found = filter_funs(["[" + re.search(r"\((.*)\)", sol).group(1) + "]" for sol in solutions])
         diffMode = False if "nondeterministic" in test and test["nondeterministic"] else True
         if not validate(test["arity"], diffMode, found, test["solutions"]):
             printOutputAndExit(output)
+
+def filter_funs(found):
+    filtered = [f for f in found if not "#Fun" in f]
+    if len(found) > len(filtered):
+        print "[INFO] Initial function argument filtered from errors."
+    return filtered
 
 def get_tests(testDir):
     testsJson = os.path.join(testDir, "ftests.json")
