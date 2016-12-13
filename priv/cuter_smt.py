@@ -1045,6 +1045,21 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		self.assertion(["is-list", t2])
 		self.assertion(["=", t0, ["list", ["cons", t1, ["lval", t2]]]])
 
+	### Operations on tuples.
+
+	def tcons(self, *terms):
+		"""
+		Asserts that: a term is tuple of many terms.
+		"""
+		t0 = self.decode(terms[0])
+		tlist = "nil"
+		for term in reversed(terms[1:]):
+			t = self.decode(term)
+			tlist = ["cons", t, tlist]
+		self.cmds.append(["assert", ["=", t0, ["tuple", tlist]]])
+
+	### Query types.
+
 	def is_boolean(self, term0, term1):
 		"""
 		Asserts that: term0 == is_boolean(term1).
@@ -1125,6 +1140,8 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
 		self.assertion(["=", t0, ["bool", ["or", ["is-int", t1], ["is-real", t1]]]])
+
+	### Arithmetic Operations.
 
 	def _binary_operation(self, operator, term0, term1, term2):
 		t0 = self.decode(term0)
@@ -1227,6 +1244,8 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			]
 		])
 
+	### Comparisons.
+
 	def equal(self, term0, term1, term2):
 		"""
 		Asserts that: term0 = (term1 == term2).
@@ -1268,6 +1287,30 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t1 = self.decode(term1)
 		self.assertion(["or", ["is-int", t1], ["is-real", t1]])
 		self.assertion(["=", t0, ["real", ["ite", ["is-int", t1], ["to_real", ["ival", t1]], ["rval", t1]]]])
+
+	def list_to_tuple(self, term0, term1):
+		"""
+		Asserts that: term0 = list_to_tuple(term1).
+		"""
+		t0 = self.decode(term0)
+		t1 = self.decode(term1)
+		self.cmds.append(["assert", [
+			"and",
+			["is-list", t1],
+			["=", t0, ["tuple", ["lval", t1]]],
+		]])
+
+	def tuple_to_list(self, term0, term1):
+		"""
+		Asserts that: term0 = tuple_to_list(term1).
+		"""
+		t0 = self.decode(term0)
+		t1 = self.decode(term1)
+		self.cmds.append(["assert", [
+			"and",
+			["is-tuple", t1],
+			["=", t0, ["list", ["tval", t1]]],
+		]])
 
 	### Bitwise Operations.
 

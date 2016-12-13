@@ -1035,7 +1035,7 @@
             "solutions": [
                 "[1, 2]"
             ],
-            "skip": true
+            "skip": false
         },
         {
             "module": "collection",
