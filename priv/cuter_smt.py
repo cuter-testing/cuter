@@ -1185,6 +1185,34 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		self._binary_operation("*", term0, term1, term2)
 
+	def rdiv(self, term0, term1, term2):
+		"""
+		Asserts that: term0 = term1 / term2.
+		"""
+		t0 = self.decode(term0)
+		t1 = self.decode(term1)
+		t2 = self.decode(term2)
+		self.cmds.append(["assert", [
+			"and",
+			["or", ["is-int", t1], ["is-real", t1]],
+			[
+				"or",
+				["and", ["is-int", t2], ["not", ["=", ["ival", t2], "0"]]],
+				["and", ["is-real", t2], ["not", ["=", ["rval", t2], "0"]]],
+			],
+			[
+				"ite",
+				["and", ["is-int", t1], ["is-int", t2]],
+				["=", t0, ["int", ["div", ["ival", t1], ["ival", t2]]]], # TODO cuter_z3.py returns a real when dividing two integers?
+				["=", t0, ["real", [
+					"/",
+					["ite", ["is-int", t1], ["to_real", ["ival", t1]], ["rval", t1]],
+					["ite", ["is-int", t2], ["to_real", ["ival", t2]], ["rval", t2]]
+				]]]
+			],
+		]])
+		# TODO solver returns unknown when there are no other constraints; nonlinear integer arithmetic is undecidable
+
 	def idiv_nat(self, term0, term1, term2):
 		"""
 		Asserts that: term0 = term1 // term2.
@@ -1200,6 +1228,22 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			[">", ["ival", t2], "0"],
 			["=", t0, ["int", ["div", ["ival", t1], ["ival", t2]]]],
 		])
+
+	def rem_nat(self, term0, term1, term2):
+		"""
+		Asserts that: term0 = term1 % term2.
+		"""
+		t0 = self.decode(term0)
+		t1 = self.decode(term1)
+		t2 = self.decode(term2)
+		self.cmds.append(["assert", [
+			"and",
+			["is-int", t1],
+			["is-int", t2],
+			[">=", ["ival", t1], "0"],
+			[">", ["ival", t2], "0"],
+			["=", t0, ["int", ["mod", ["ival", t1], ["ival", t2]]]],
+		]])
 
 	def unary(self, term0, term1):
 		"""
