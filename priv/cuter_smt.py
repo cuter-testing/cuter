@@ -1045,6 +1045,43 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		self.assertion(["is-list", t2])
 		self.assertion(["=", t0, ["list", ["cons", t1, ["lval", t2]]]])
 
+	### Operations on atoms.
+	# TODO replace booleans as true != atomTrue and false != atomFalse
+
+	def atom_nil(self, term0, term1):
+		"""
+		Asserts that: term0 = (term1 == '').
+		"""
+		t0 = self.decode(term0)
+		t1 = self.decode(term1)
+		self.cmds.append(["assert", ["=", t0, ["bool", ["=", t1, ["atom", "inil"]]]]])
+
+	def atom_head(self, term0, term1):
+		"""
+		Asserts that: term0 is the first character of term1.
+		"""
+		t0 = self.decode(term0)
+		t1 = self.decode(term1)
+		self.cmds.append(["assert", [
+			"and",
+			["is-atom", t1],
+			["is-icons", ["aval", t1]],
+			["=", t0, ["int", ["ihd", ["aval", t1]]]],
+		]])
+
+	def atom_tail(self, term0, term1):
+		"""
+		Asserts that: term0 is term1 without its first character.
+		"""
+		t0 = self.decode(term0)
+		t1 = self.decode(term1)
+		self.cmds.append(["assert", [
+			"and",
+			["is-atom", t1],
+			["is-icons", ["aval", t1]],
+			["=", t0, ["atom", ["itl", ["aval", t1]]]],
+		]])
+
 	### Operations on tuples.
 
 	def tcons(self, *terms):
@@ -1355,6 +1392,16 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			["is-tuple", t1],
 			["=", t0, ["list", ["tval", t1]]],
 		]])
+
+	### Bogus operations (used for their side-effects in Erlang).
+
+	def bogus(self, term0, term1):
+		"""
+		Asserts that: term0 == term1 (Identity function).
+		"""
+		t0 = self.decode(term0)
+		t1 = self.decode(term1)
+		self.cmds.append(["assert", ["=", t0, t1]])
 
 	### Bitwise Operations.
 

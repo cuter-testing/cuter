@@ -1073,7 +1073,7 @@
             "solutions": [
                 "[foo]"
             ],
-            "skip": true
+            "skip": false
         },
         {
             "module": "funs",
