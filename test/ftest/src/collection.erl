@@ -1,8 +1,6 @@
 -module(collection).
--export([
-	f/1, g/1, g1/1, h/1, f1/1,
-	eval_nif/1, trunc1/1, trunc2/1, l2i/1, l2in/1, to_upper/1
-]).
+-export([f/1, g/1, g1/1, h/1, f1/1, eval_nif/1, trunc1/1, trunc2/1, l2i/1, l2in/1,
+         to_upper/1, k/2, k2/3, p/1, a2l/1]).
 
 -type t() :: [complex_spec:int()].
 
@@ -111,3 +109,36 @@ to_upper(C) when is_integer(C) ->
 char_to_upper(16#0061) -> 16#0041;
 char_to_upper(16#0062) -> 16#0042;
 char_to_upper(C) -> C.
+
+-spec k(integer(), integer()) -> ok.
+k(X, Y) ->
+  Z = {X, Y},
+  case list_to_tuple(tuple_to_list(Z)) of
+    {1, 2} -> error(bug);
+    _ -> ok
+  end.
+
+-spec k2(number(), pos_integer(), integer()) -> ok.
+k2(X, Y, Z) ->
+  case X / Y of
+      0.7 -> error(bug);
+      _ ->
+        case Z rem Y of
+          3 -> error(bug);
+          _ -> ok
+        end
+  end.
+
+-spec p(integer()) -> ok.
+p(X) ->
+  case math:pow(X, 1) of  %% The solver can only handle trivial cases.
+    8.0 -> error(bug);
+    _ -> ok
+  end.
+
+-spec a2l(atom()) -> ok.
+a2l(A) ->
+  case atom_to_list(A) of
+      "foo" -> error(bug);
+      _ -> ok
+  end.

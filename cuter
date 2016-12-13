@@ -106,7 +106,7 @@ def compileModule(module, paths, again = False):
     if not os.path.isfile(erl):
       print "Cannot locate {} ...  ".format(erl)
       return 1
-    print "Compiling {} ...".format(erl),
+    print "\033[00;34mCompiling {} ...\033[00m".format(erl),
     if len(paths) > 0:
       pathParts = paths.split(" ")
       cmdParts = ["erlc"] + pathParts + ["+debug_info", erl]
@@ -114,7 +114,7 @@ def compileModule(module, paths, again = False):
       cmdParts = ["erlc", "+debug_info", erl]
     p = subp.Popen(cmdParts, stdout=subp.PIPE, stderr=subp.PIPE)
     out, err = p.communicate()
-    print "OK" if p.returncode == 0 else "ERROR"
+    print "\033[01;32mok\033[00m" if p.returncode == 0 else "ERROR"
     return p.returncode, "\n".join([out.strip(), err.strip()]).strip()
   return 0
 

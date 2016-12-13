@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import sys
 import re, parsimonious
 
 def parse(s):
@@ -79,7 +80,7 @@ def call_fn(points, arg):
     return get_otherwise(points)[1]
 
 if __name__ == "__main__":
-    print "{} ...".format(__file__)
+    sys.stdout.write("{} ...".format(__file__))
     terms = [
         ("42", 42),
         ("[42]", [42]),
@@ -107,3 +108,5 @@ if __name__ == "__main__":
         for x, v in fn[1].items():
             r = parse(fn[0])(x)
             assert r == v, "{} === {}".format(r, v)
+    sys.stdout.write(" \033[01;32mok\033[00m\n")
+    sys.stdout.flush

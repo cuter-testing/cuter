@@ -1024,6 +1024,68 @@
             "errors": false,
             "arity": 1,
             "skip": false
+        },
+        {
+            "module": "collection",
+            "function": "k",
+            "args": "[0,0]",
+            "depth": "10",
+            "errors": true,
+            "arity": 2,
+            "solutions": [
+                "[1, 2]"
+            ],
+            "skip": true
+        },
+        {
+            "module": "collection",
+            "function": "k2",
+            "args": "[0,1,0]",
+            "depth": "50",
+            "errors": true,
+            "arity": 3,
+            "nondeterministic": true,
+            "solutions": [
+                "$2 * 0.7 == $1",
+                "$3 % $2 == 3"
+            ],
+            "skip": true
+        },
+        {
+            "module": "collection",
+            "function": "p",
+            "args": "[0]",
+            "depth": "50",
+            "errors": true,
+            "arity": 3,
+            "solutions": [
+                "[8]"
+            ],
+            "skip": true
+        },
+        {
+            "module": "collection",
+            "function": "a2l",
+            "args": "[ok]",
+            "depth": "17",
+            "errors": true,
+            "arity": 1,
+            "solutions": [
+                "[foo]"
+            ],
+            "skip": true
+        },
+        {
+            "module": "funs",
+            "function": "fx",
+            "args": "[fun(_,_) -> ok end]",
+            "depth": "17",
+            "errors": true,
+            "arity": 1,
+            "solutions": [
+                "[fun(_) -> 2 end]"
+            ],
+            "skip": true
         }
     ]
 }
