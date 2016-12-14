@@ -198,6 +198,31 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			],
 		]])
 
+		# real-pow returns whether b ** e == p
+		# real-pow isn't efficient when having to calculate the e-root of p or a large e-power of b.
+		self.declarations.append(["define-fun-rec", "real-pow", [["p", "Real"], ["b", "Real"], ["e", "Real"]], "Bool", [
+			"or",
+			["and", ["=", "b", "0"], ["not", ["=", "e", "0"]], ["=", "p", "0"]],
+			["and", ["=", "b", "1"], ["=", "p", "1"]],
+			["and", ["=", "b", "-1"], ["=", ["mod", "e", "2"], "0"], ["=", "p", "1"]],
+			["and", ["=", "b", "-1"], ["=", ["mod", "e", "2"], "1"], ["=", "p", "-1"]],
+			["and", [">", "e", "1"], ["<", "1", "b", "p"], ["real-pow", ["/", "p", "b"], "b", ["-", "e", "1"]]],
+			["and", [">", "e", "1"], ["<", "0", "p", "b", "1"], ["real-pow", ["/", "p", "b"], "b", ["-", "e", "1"]]],
+			["and", [">", "e", "1"], ["=", ["mod", "e", "2"], "0"], ["<", "-1", "b", "0", "p", ["-", "b"], "1"], ["real-pow", ["/", "p", "b"], "b", ["-", "e", "1"]]],
+			["and", [">", "e", "1"], ["=", ["mod", "e", "2"], "0"], ["<", "b", "-1", "1", ["-", "b"], "p"], ["real-pow", ["/", "p", "b"], "b", ["-", "e", "1"]]],
+			["and", [">", "e", "1"], ["=", ["mod", "e", "2"], "1"], ["<", "-1", "b", "p", "0"], ["real-pow", ["/", "p", "b"], "b", ["-", "e", "1"]]],
+			["and", [">", "e", "1"], ["=", ["mod", "e", "2"], "1"], ["<", "p", "b", "-1"], ["real-pow", ["/", "p", "b"], "b", ["-", "e", "1"]]],
+			["and", ["=", "e", "1"], ["=", "b", "p"]],
+			["and", ["=", "e", "0"], ["not", ["=", "b", "0"]], ["=", "p", "1"]],
+			["and", ["=", "e", "-1"], ["=", ["*", "b", "p"], "1"]],
+			["and", ["<", "e", "-1"], ["<", "0", "p", "1", "b"], ["real-pow", ["*", "p", "b"], "b", ["+", "e", "1"]]],
+			["and", ["<", "e", "-1"], ["<", "0", "b", "1", "p"], ["real-pow", ["*", "p", "b"], "b", ["+", "e", "1"]]],
+			["and", ["<", "e", "-1"], ["=", ["mod", "e", "2"], "0"], ["<", "-1", "b", "0", ["-", "b"], "1", "p"], ["real-pow", ["*", "p", "b"], "b", ["+", "e", "1"]]],
+			["and", ["<", "e", "-1"], ["=", ["mod", "e", "2"], "0"], ["<", "b", "-1", "0", "p", "1", ["-", "b"]], ["real-pow", ["*", "p", "b"], "b", ["+", "e", "1"]]],
+			["and", ["<", "e", "-1"], ["=", ["mod", "e", "2"], "1"], ["<", "p", "-1", "b", "0"], ["real-pow", ["*", "p", "b"], "b", ["+", "e", "1"]]],
+			["and", ["<", "e", "-1"], ["=", ["mod", "e", "2"], "1"], ["<", "b", "-1", "p", "0"], ["real-pow", ["*", "p", "b"], "b", ["+", "e", "1"]]],
+		]])
+
 		self.vars = []
 		self.aux_vars = []
 		self.fun_rec_cnt = 0
@@ -1298,6 +1323,22 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 				["=", t0, ["real", ["-", ["rval", t1]]]]
 			],
 		])
+
+	# TODO currently term0 must be a real and term2 an integer
+	def pow(self, term0, term1, term2):
+		"""
+		Asserts that: term0 = term1 ** term2.
+		"""
+		t0 = self.decode(term0)
+		t1 = self.decode(term1)
+		t2 = self.decode(term2)
+		self.cmds.append(["assert", [
+			"and",
+			["is-real", t0],
+			["or", ["is-int", t1], ["is-real", t1]],
+			["is-int", t2],
+			["real-pow", ["rval", t0], ["ite", ["is-int", t1], ["to_real", ["ival", t1]], ["rval", t1]], ["ival", t2]],
+		]])
 
 	def trunc(self, term0, term1):
 		"""
