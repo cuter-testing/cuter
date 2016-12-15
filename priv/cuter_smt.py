@@ -103,21 +103,6 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			["and", ["not", ["is-snil", "l"]], ["slist_spec", ["stl", "l"], ["-", "m", "1"], "n"],]
 		]])
 
-		self.declarations.append(["define-fun-rec", "slist_from_pair_aux", [["n", "Int"], ["b", "Int"], ["a", "SList"]], "SList", [
-			"ite",
-			["=", "b", "0"],
-			"a",
-			[
-				"slist_from_pair_aux",
-				["div", "n", "2"],
-				["-", "b", "1"],
-				["scons", ["=", ["mod", "n", "2"], "1"], "a"]
-			]
-		]])
-		self.declarations.append(["define-fun", "slist_from_pair", [["n", "Int"], ["b", "Int"]], "SList", [
-			"slist_from_pair_aux", "n", "b", "snil"
-		]])
-
 		self.declarations.append(["define-fun-rec", "slist_concat_aux", [["l1", "SList"], ["l1inv", "SList"], ["l2", "SList"]], "SList", [
 			"ite",
 			["is-snil", "l1"],
@@ -226,7 +211,6 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		self.vars = []
 		self.aux_vars = []
 		self.fun_rec_cnt = 0
-		self.const_slist_cnt = 0
 		self.funspec = "true"
 		self.cmds = []
 		self.aux_cmds = []
@@ -607,6 +591,22 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			c = ["tl", c]
 		self.assertion(["is-nil", c])
 
+	def slist_pair(self, n, b): # TODO b must be a given integer
+		assert isinstance(b, list) and len(b) == 2 and b[0] == "int", "b must be a given integer decoded term"
+		b = calculate_int(b[1])
+		axioms = ["and"]
+		axioms.append(["is-int", n])
+		n = ["ival", n]
+		axioms.append(["<=", "0", n])
+		slist = "snil"
+		while b > 0:
+			slist = ["scons", ["not", ["=", ["mod", n, "2"], "0"]], slist]
+			n = ["div", n, "2"]
+			b -= 1
+		axioms.append(["=", n, "0"])
+		self.cmds.append(["assert", axioms])
+		return slist
+
 	def make_bitstr(self, symb, encodedValue, size):
 		"""
 		Makes a bitstring by encoding an appropriate term.
@@ -614,12 +614,12 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t = self.decode(symb)
 		n = self.decode(encodedValue)
 		b = self.decode(size)
-		self.assertion([
+		slist = self.slist_pair(n, b)
+		self.cmds.append(["assert", [
 			"and",
-			["is-int", n],
-			["is-int", b],
-			["=", t, ["str", ["slist_from_pair", ["ival", n], ["ival", b]]]],
-		])
+			["is-str", t],
+			["=", ["sval", t], slist],
+		]])
 
 	def concat_segs(self, *terms):
 		"""
@@ -901,13 +901,6 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			]
 		])
 
-	def const_slist(self, expr):
-		name = "slist" + str(self.const_slist_cnt)
-		self.declarations.append(["declare-const", name, "SList"])
-		self.cmds.append(["assert", ["=", name, expr]])
-		self.const_slist_cnt += 1
-		return name
-
 	def bitmatch_const_true(self, termRest, cnstValue, size, termBitstr):
 		"""
 		Asserts that: termBitstr == <<cnstValue/size, termRest>>.
@@ -916,16 +909,9 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		n = self.decode(cnstValue)
 		b = self.decode(size)
 		t = self.decode(termBitstr)
-		self.cmds.append(["assert", ["and",
-			["is-str", r],
-			["is-int", n],
-			["is-int", b],
-			["is-str", t],
-		]])
-		slist_nb = self.const_slist(["slist_from_pair", ["ival", n], ["ival", b]])
-		slist_r = self.const_slist(["sval", r])
-		slist_t = self.const_slist(["sval", t])
-		self.assertion(["=", ["slist_concat", slist_nb, slist_r], slist_t])
+		slist = self.slist_pair(n, b)
+		self.cmds.append(["assert", ["and", ["is-str", r], ["is-str", t]]])
+		self.cmds.append(["assert", ["=", ["slist_concat", slist, ["sval", r]], ["sval", t]]])
 
 	def bitmatch_const_true_reversed(self, termRest, cnstValue, size, termBitstr): # TODO not exact negation
 		"""
@@ -935,16 +921,9 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		n = self.decode(cnstValue)
 		b = self.decode(size)
 		t = self.decode(termBitstr)
-		self.cmds.append(["assert", ["and",
-			["is-str", r],
-			["is-int", n],
-			["is-int", b],
-			["is-str", t],
-		]])
-		slist_nb = self.const_slist(["slist_from_pair", ["ival", n], ["ival", b]])
-		slist_r = self.const_slist(["sval", r])
-		slist_t = self.const_slist(["sval", t])
-		self.assertion(["not", ["=", ["slist_concat", slist_nb, slist_r], slist_t]])
+		slist = self.slist_pair(n, b)
+		self.cmds.append(["assert", ["and", ["is-str", r], ["is-str", t]]])
+		self.cmds.append(["assert", ["not", ["=", ["slist_concat", slist, ["sval", r]], ["sval", t]]]])
 
 	def bitmatch_const_false(self, cnstValue, size, termBitstr):
 		"""
@@ -953,13 +932,9 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		n = self.decode(cnstValue)
 		b = self.decode(size)
 		t = self.decode(termBitstr)
-		self.cmds.append(["assert", ["and",
-			["is-int", n],
-			["is-int", b],
-			["is-str", t],
-		]])
-		slist_nb = self.const_slist(["slist_from_pair", ["ival", n], ["ival", b]])
-		self.assertion(["not", ["slist_match", slist_nb, ["sval", t]]])
+		slist = self.slist_pair(n, b)
+		self.cmds.append(["assert", ["is-str", t]])
+		self.cmds.append(["assert", ["not", ["slist_match", slist, ["sval", t]]]])
 
 	def bitmatch_const_false_reversed(self, cnstValue, size, termBitstr): # TODO not exact negation
 		"""
@@ -968,13 +943,9 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		n = self.decode(cnstValue)
 		b = self.decode(size)
 		t = self.decode(termBitstr)
-		self.cmds.append(["assert", ["and",
-			["is-int", n],
-			["is-int", b],
-			["is-str", t],
-		]])
-		slist_nb = self.const_slist(["slist_from_pair", ["ival", n], ["ival", b]])
-		self.assertion(["slist_match", slist_nb, ["sval", t]])
+		slist = self.slist_pair(n, b)
+		self.cmds.append(["assert", ["is-str", t]])
+		self.cmds.append(["assert", ["slist_match", slist, ["sval", t]]])
 
 	def bitmatch_var_true(self, term1, term2, size, termBitstr):
 		"""
