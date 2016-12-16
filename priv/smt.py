@@ -16,7 +16,7 @@ def log(msg = ""):
 
 def encode(obj):
 	"""
-	Encodes a structured list to an SMT string
+	Encodes a structured list to an SMTLIB string
 	"""
 	if isinstance(obj, list):
 		return "(" + " ".join(map(encode, obj)) + ")"
@@ -26,7 +26,7 @@ def encode(obj):
 
 def decode(smt):
 	"""
-	Decodes an SMT string to a structured list
+	Decodes an SMTLIB string to a structured list
 	"""
 	return decode_aux(smt, 0)[0]
 
@@ -58,44 +58,40 @@ def decode_aux(smt, cur):
 
 class Solver:
 
-	def __init__(self, args):
-		self.args = args
-
-	def solve(self, stmts):
-		process = subprocess.Popen(
-			self.args,
+	def __init__(self, arguments):
+		"""
+		Creates a subprocess using provided program arguments
+		"""
+		self.process = subprocess.Popen(
+			arguments,
 			stdin=subprocess.PIPE,
 			stdout=subprocess.PIPE,
 			stderr=subprocess.PIPE,
 			universal_newlines=True
 		)
 		log(";")
-		for stmt in stmts:
-			process.stdin.write(encode(stmt) + "\n")
-			log(encode(stmt))
-		process.stdin.write(encode(["check-sat"]) + "\n")
-		log(encode(["check-sat"]))
-		status = process.stdout.readline()[:-1]
-		log(status)
-		if status == "sat":
-			process.stdin.write(encode(["get-model"]) + "\n")
-			log(encode(["get-model"]))
-			process.stdin.write(encode(["exit"]) + "\n")
-			process.stdin.close()
-			smt = process.stdout.read()
-			model = decode(smt)
-			# obj = self.fix_names(decode(smt)) # TODO fix_names
-			log(smt)
-		else:
-			process.stdin.write(encode(["exit"]) + "\n")
-			process.stdin.close()
-			process.stdout.read()
-			model = None
-		return (status, model)
 
-	@staticmethod
-	def fix_names(obj):
-		return obj
+	def write(self, stmt):
+		line = encode(stmt)
+		self.process.stdin.write(line + "\n")
+		log(line)
+
+	def read(self):
+		open_cnt = 0
+		close_cnt = 0
+		lines = []
+		while True:
+			line = self.process.stdout.readline()[:-1]
+			lines.append(line)
+			open_cnt += line.count("(")
+			close_cnt += line.count(")")
+			if open_cnt == close_cnt:
+				break;
+		smt = "\n".join(lines)
+		log(smt)
+		if open_cnt == 0 and close_cnt == 0:
+			return smt
+		return decode(smt)
 
 
 class SolverCVC4(Solver):
@@ -104,11 +100,11 @@ class SolverCVC4(Solver):
 		Solver.__init__(self, ["cvc4", "--lang", "smt", "--produce-models"])
 
 	@staticmethod
-	def fix_names(obj):
+	def fix_names(obj): # TODO fix_names
 		return [["|{}|".format(item[0]), item[1]] for item in obj]
 
 
 class SolverZ3(Solver):
 
 	def __init__(self):
-		Solver.__init__(self, ["z3", "-smt2", "-in", "timeout=1000"])
+		Solver.__init__(self, ["z3", "-smt2", "-in"])
