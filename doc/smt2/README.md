@@ -1,14 +1,18 @@
-SMT Backend
-===========
+Evaluate SMT files
+==================
 
-This is the under development SMT backend of CutEr.
+Requirements
+------------
 
-More info are to be added ...
+1. [Docker](https://docs.docker.com/engine/installation/)
 
-### Tests
+Usage
+-----
 
-You can run the unit tests with
+1. Solve with Z3
 
-```bash
-python -m unittest discover test
-```
+        ./z3 smt-file
+
+2. Solve with CVC4
+
+        ./cvc4 smt-file
