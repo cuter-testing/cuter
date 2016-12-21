@@ -25,7 +25,7 @@ def run(testDir):
         )
         print "\n\033[00;34m[Test #{}]\033[00m\n{}".format(i + 1, cmd)
         if "skip" in test and test["skip"]:
-            print "\033[01;35Skipping ...\033[00m"
+            print "\033[01;35mSkipping ...\033[00m"
             continue
         p = Popen(cmd, stdin=PIPE, stdout=PIPE, shell=True)
         output, err = p.communicate()
