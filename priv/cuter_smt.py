@@ -61,12 +61,10 @@ def expand_lets(obj, lets = {}):
 class ErlangSMT(cgs.AbstractErlangSolver):
 
 	def __init__(self):
-		# TODO all commands in a single list
-		self.options = []
-		self.options.append(["set-option", ":timeout", "1000"])
-		self.declarations = []
+		self.commands = []
+		self.commands.append(["set-option", ":timeout", "1000"])
 
-		self.declarations.append(["declare-datatypes", [], [
+		self.commands.append(["declare-datatypes", [], [
 			[
 				"Term",
 				["bool", ["bval", "Bool"]],
@@ -101,7 +99,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		]])
 
 		# flist-equals return whether f(x) = y with depth at most d
-		self.declarations.append(["define-fun-rec", "flist-equals", [["f", "FList"], ["x", "TList"], ["y", "Term"], ["d", "Int"]], "Bool", [
+		self.commands.append(["define-fun-rec", "flist-equals", [["f", "FList"], ["x", "TList"], ["y", "Term"], ["d", "Int"]], "Bool", [
 			"or",
 			["and", [">=", "d", "0"], ["is-fn", "f"], ["=", ["fd", "f"], "y"]],
 			["and", [">=", "d", "0"], ["is-fc", "f"], ["=", ["fx", "f"], "x"], ["=", ["fy", "f"], "y"]],
@@ -110,13 +108,13 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 
 		# slist_spec(l, m, n) returns whether len(l) >= m and (len(l) - m) % n == 0
 		# slist_spec is efficient when n and m are given integer constants
-		self.declarations.append(["define-fun-rec", "slist_spec_aux", [["l", "SList"], ["n", "Int"], ["r", "Int"]], "Bool", [
+		self.commands.append(["define-fun-rec", "slist_spec_aux", [["l", "SList"], ["n", "Int"], ["r", "Int"]], "Bool", [
 			"ite",
 			["is-snil", "l"],
 			["=", "r", "0"],
 			["slist_spec_aux", ["stl", "l"], "n", ["-", ["ite", ["=", "r", "0"], "n", "r"], "1"]]
 		]])
-		self.declarations.append(["define-fun-rec", "slist_spec", [["l", "SList"], ["m", "Int"], ["n", "Int"]], "Bool", [
+		self.commands.append(["define-fun-rec", "slist_spec", [["l", "SList"], ["m", "Int"], ["n", "Int"]], "Bool", [
 			"ite",
 			["=", "m", "0"],
 			[
@@ -128,7 +126,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			["and", ["not", ["is-snil", "l"]], ["slist_spec", ["stl", "l"], ["-", "m", "1"], "n"],]
 		]])
 
-		self.declarations.append(["define-fun-rec", "slist_concat_aux", [["l1", "SList"], ["l1inv", "SList"], ["l2", "SList"]], "SList", [
+		self.commands.append(["define-fun-rec", "slist_concat_aux", [["l1", "SList"], ["l1inv", "SList"], ["l2", "SList"]], "SList", [
 			"ite",
 			["is-snil", "l1"],
 			[
@@ -139,9 +137,9 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			],
 			["slist_concat_aux", ["stl", "l1"], ["scons", ["shd", "l1"], "l1inv"], "l2"]
 		]])
-		self.declarations.append(["define-fun", "slist_concat", [["l1", "SList"], ["l2", "SList"]], "SList", ["slist_concat_aux", "l1", "snil", "l2"]])
+		self.commands.append(["define-fun", "slist_concat", [["l1", "SList"], ["l2", "SList"]], "SList", ["slist_concat_aux", "l1", "snil", "l2"]])
 
-		self.declarations.append(["define-fun-rec", "slist_match", [["l1", "SList"], ["l2", "SList"]], "Bool", [
+		self.commands.append(["define-fun-rec", "slist_match", [["l1", "SList"], ["l2", "SList"]], "Bool", [
 			"or",
 			["is-snil", "l1"],
 			[
@@ -153,7 +151,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		]])
 
 		# int-and returns whether n1 & n2 == n
-		self.declarations.append(["define-fun-rec", "int-and-rec", [["n1", "Int"], ["n2", "Int"], ["n", "Int"]], "Bool", [
+		self.commands.append(["define-fun-rec", "int-and-rec", [["n1", "Int"], ["n2", "Int"], ["n", "Int"]], "Bool", [
 			"or",
 			["=", "n1", "n", "0"],
 			["=", "n2", "n", "0"],
@@ -164,7 +162,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 				["int-and-rec", ["div", "n1", "2"], ["div", "n2", "2"], ["div", "n", "2"]],
 			],
 		]])
-		self.declarations.append(["define-fun", "int-and", [["n1", "Int"], ["n2", "Int"], ["n", "Int"]], "Bool", [
+		self.commands.append(["define-fun", "int-and", [["n1", "Int"], ["n2", "Int"], ["n", "Int"]], "Bool", [
 			"and",
 			["implies", [">=", "n1", "0"], ["<=", "0", "n", "n1"]],
 			["implies", [">=", "n2", "0"], ["<=", "0", "n", "n2"]],
@@ -174,7 +172,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		]])
 
 		# int-or returns whether n1 | n2 == n
-		self.declarations.append(["define-fun-rec", "int-or-rec", [["n1", "Int"], ["n2", "Int"], ["n", "Int"]], "Bool", [
+		self.commands.append(["define-fun-rec", "int-or-rec", [["n1", "Int"], ["n2", "Int"], ["n", "Int"]], "Bool", [
 			"or",
 			["=", "n1", "n", "-1"],
 			["=", "n2", "n", "-1"],
@@ -185,7 +183,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 				["int-or-rec", ["div", "n1", "2"], ["div", "n2", "2"], ["div", "n", "2"]],
 			],
 		]])
-		self.declarations.append(["define-fun", "int-or", [["n1", "Int"], ["n2", "Int"], ["n", "Int"]], "Bool", [
+		self.commands.append(["define-fun", "int-or", [["n1", "Int"], ["n2", "Int"], ["n", "Int"]], "Bool", [
 			"and",
 			["implies", ["<", "n1", "0"], ["and", ["<=", "n1", "n"], ["<", "n", "0"]]],
 			["implies", ["<", "n2", "0"], ["and", ["<=", "n2", "n"], ["<", "n", "0"]]],
@@ -195,7 +193,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		]])
 
 		# int-xor returns whether n1 ^ n2 == n
-		self.declarations.append(["define-fun-rec", "int-xor", [["n1", "Int"], ["n2", "Int"], ["n", "Int"]], "Bool", [
+		self.commands.append(["define-fun-rec", "int-xor", [["n1", "Int"], ["n2", "Int"], ["n", "Int"]], "Bool", [
 			"or",
 			["and", ["=", "n1", "0"], ["=", "n2", "n"]],
 			["and", ["=", "n2", "0"], ["=", "n1", "n"]],
@@ -210,7 +208,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 
 		# real-pow returns whether b ** e == p
 		# real-pow isn't efficient when having to calculate the e-root of p or a large e-power of b.
-		self.declarations.append(["define-fun-rec", "real-pow", [["p", "Real"], ["b", "Real"], ["e", "Real"]], "Bool", [
+		self.commands.append(["define-fun-rec", "real-pow", [["p", "Real"], ["b", "Real"], ["e", "Real"]], "Bool", [
 			"or",
 			["and", ["=", "b", "0"], ["not", ["=", "e", "0"]], ["=", "p", "0"]],
 			["and", ["=", "b", "1"], ["=", "p", "1"]],
@@ -233,9 +231,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			["and", ["<", "e", "-1"], ["=", ["mod", "e", "2"], "1"], ["<", "b", "-1", "p", "0"], ["real-pow", ["*", "p", "b"], "b", ["+", "e", "1"]]],
 		]])
 
-		self.axioms = []
-		self.aux_axioms = []
-		self.model = None
+		self.solver = smt.SolverZ3()
 
 	# =========================================================================
 	# Public API.
@@ -247,44 +243,31 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		p = self.decode(p)
 		v = self.decode(v)
-		self.aux_axioms.append(["assert", ["=", p, v]])
+		self.solver.write(["assert", ["=", p, v]])
 
 	def reset_solver(self):
 		"""
 		Resets the solver.
 		"""
-		self.model = None
+		self.commands = []
 
 	def add_axioms(self):
 		"""
 		Adds the axioms from memory to the solver.
 		"""
-		# TODO solver lifecycle
-		pass
+		for command in self.commands:
+			self.solver.write(command)
 
 	def solve(self):
 		"""
 		Solves a constraint set and returns the result.
 		"""
-		solver = smt.SolverZ3()
-		for cmd in self.options + self.declarations + self.axioms + self.aux_axioms:
-			solver.write(cmd)
-		solver.write(["check-sat"])
-		status = solver.read()
+		self.solver.write(["check-sat"])
+		status = self.solver.read()
 		if status == "sat":
-			solver.write(["get-model"])
-			model = solver.read()
-			assert isinstance(model, list)
-			assert len(model) > 0
-			assert model[0] == "model"
-			self.model = {}
-			for define_fun in model[1:]:
-				assert len(define_fun) == 5
-				assert define_fun[0] == "define-fun"
-				assert not isinstance(define_fun[1], list)
-				self.model[define_fun[1]] = expand_lets(define_fun[4])
 			return cc.mk_sat()
 		elif status == "unsat":
+			self.solver.write(["exit"])
 			return cc.mk_unsat()
 		elif status == "unknown":
 			return cc.mk_unknown()
@@ -297,11 +280,14 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		entries = []
 		for var in self.vars:
-			if var in self.model:
-				val = self.encode(self.model[var])
-			else:
-				val = cc.mk_any()
+			self.solver.write(["get-value", [var]])
+			val = self.solver.read()
+			assert isinstance(val, list) and len(val) == 1
+			val = val[0]
+			assert isinstance(val, list) and len(val) == 2 and val[0] == var
+			val = self.encode(expand_lets(val[1]))
 			entries.append(cc.mk_model_entry(cc.mk_symb(var[1:-1]), val))
+		self.solver.write(["exit"])
 		return cc.mk_model_data(cc.mk_model(entries))
 
 	# =========================================================================
@@ -316,7 +302,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			s = "|{}|".format(cc.get_symb(data))
 			if s not in self.vars and s not in self.aux_vars:
 				self.aux_vars.append(s)
-				self.declarations.append(["declare-const", s, "Term"])
+				self.commands.append(["declare-const", s, "Term"])
 			return s
 		elif cc.is_int(data):
 			return ["int", str(cc.get_int(data))]
@@ -437,7 +423,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		p = cc.get_spec_clauses(spec)[0]
 		pms = cc.get_parameters_from_complete_funsig(p)
 		for item in zip(self.vars, pms):
-			self.axioms.append(["assert", self.build_spec(item[1], item[0])])
+			self.commands.append(["assert", self.build_spec(item[1], item[0])])
 
 	def fun_rec_name(self):
 		if hasattr(self, "fun_rec_cnt"):
@@ -448,7 +434,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 
 	def fun_rec_tlist(self, spec):
 		name = self.fun_rec_name()
-		self.declarations.append(["define-fun-rec", name, [["l", "TList"]], "Bool", [
+		self.commands.append(["define-fun-rec", name, [["l", "TList"]], "Bool", [
 			"or",
 			["is-nil", "l"],
 			["and", ["is-cons", "l"], spec, [name, ["tl", "l"]]],
@@ -466,7 +452,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 				tlist = ["tl", tlist]
 			arg_spec.append(["is-nil", tlist])
 		name = self.fun_rec_name()
-		self.declarations.append(["define-fun-rec", name, [["f", "FList"]], "Bool", [
+		self.commands.append(["define-fun-rec", name, [["f", "FList"]], "Bool", [
 			"or",
 			["and", ["is-fn", "f"], self.build_spec(ret_spec, ["fd", "f"])],
 			["and", ["is-fc", "f"], arg_spec, self.build_spec(ret_spec, ["fy", "f"]), [name, ["ft", "f"]]],
@@ -558,7 +544,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			l.append(["=", s, ["hd", tlist]])
 			tlist = ["tl", tlist]
 		l.append(["is-nil", tlist])
-		self.axioms.append(["assert", l])
+		self.commands.append(["assert", l])
 
 	# TODO when constructing bitstrings, size must have a concrete non-negative integer value
 
@@ -591,7 +577,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			n = ["div", n, "2"]
 			b -= 1
 		axioms.append(["=", n, "0"])
-		self.axioms.append(["assert", axioms])
+		self.commands.append(["assert", axioms])
 		return slist
 
 	def make_bitstr(self, symb, encodedValue, size):
@@ -602,7 +588,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		n = self.decode(encodedValue)
 		b = self.decode(size)
 		slist = self.slist_var_pair(n, b)
-		self.axioms.append(["assert", [
+		self.commands.append(["assert", [
 			"and",
 			["is-str", t],
 			["=", ["sval", t], slist],
@@ -625,7 +611,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			l.append(["is-bool", b])
 			v = ["scons", ["bval", b], v]
 		l.append(["=", ["sval", t], v])
-		self.axioms.append(["assert", l])
+		self.commands.append(["assert", l])
 
 	def fresh_closure(self, tFun, tArity):
 		"""
@@ -633,7 +619,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		f = self.decode(tFun)
 		a = self.decode(tArity)
-		self.axioms.append(["assert", [
+		self.commands.append(["assert", [
 			"and",
 			["is-fun", f],
 			["is-int", a],
@@ -665,7 +651,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			self.flist_depth += 1
 		else:
 			self.flist_depth = 0
-		self.axioms.append(["assert", [
+		self.commands.append(["assert", [
 			"and",
 			["is-fun", fun],
 			["=", ["fa", fun], str(tlist_length)],
@@ -677,35 +663,35 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		Asserts that a lambda application has failed.
 		"""
 		t_fun = self.decode(args[1])
-		self.axioms.append(["assert", ["not", ["is-fun", t_fun]]])
+		self.commands.append(["assert", ["not", ["is-fun", t_fun]]])
 
 	def guard_true(self, term):
 		"""
 		Asserts the predicate: term == true
 		"""
 		t = self.decode(term)
-		self.axioms.append(["assert", ["=", t, ["bool", "true"]]])
+		self.commands.append(["assert", ["=", t, ["bool", "true"]]])
 
 	def guard_true_reversed(self, term):
 		"""
 		Asserts the predicate: Not (term == true)
 		"""
 		t = self.decode(term)
-		self.axioms.append(["assert", ["not", ["=", t, ["bool", "true"]]]])
+		self.commands.append(["assert", ["not", ["=", t, ["bool", "true"]]]])
 
 	def guard_false(self, term):
 		"""
 		Asserts the predicate: term == false
 		"""
 		t = self.decode(term)
-		self.axioms.append(["assert", ["=", t, ["bool", "false"]]])
+		self.commands.append(["assert", ["=", t, ["bool", "false"]]])
 
 	def guard_false_reversed(self, term):
 		"""
 		Asserts the predicate: Not (term == false)
 		"""
 		t = self.decode(term)
-		self.axioms.append(["assert", ["not", ["=", t, ["bool", "false"]]]])
+		self.commands.append(["assert", ["not", ["=", t, ["bool", "false"]]]])
 
 	def match_equal(self, term1, term2):
 		"""
@@ -713,7 +699,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t1 = self.decode(term1)
 		t2 = self.decode(term2)
-		self.axioms.append(["assert", ["=", t1, t2]])
+		self.commands.append(["assert", ["=", t1, t2]])
 
 	def match_equal_reversed(self, term1, term2):
 		"""
@@ -727,7 +713,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t1 = self.decode(term1)
 		t2 = self.decode(term2)
-		self.axioms.append(["assert", ["not", ["=", t1, t2]]])
+		self.commands.append(["assert", ["not", ["=", t1, t2]]])
 
 	def match_not_equal_reversed(self, term1, term2):
 		"""
@@ -740,42 +726,42 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		Asserts that: term is a nonempty list.
 		"""
 		t = self.decode(term)
-		self.axioms.append(["assert", ["and", ["is-list", t], ["is-cons", ["lval", t]]]])
+		self.commands.append(["assert", ["and", ["is-list", t], ["is-cons", ["lval", t]]]])
 
 	def list_nonempty_reversed(self, term):
 		"""
 		Asserts that: Not(term is a nonempty list).
 		"""
 		t = self.decode(term)
-		self.axioms.append(["assert", ["not", ["and", ["is-list", t], ["is-cons", ["lval", t]]]]])
+		self.commands.append(["assert", ["not", ["and", ["is-list", t], ["is-cons", ["lval", t]]]]])
 
 	def list_empty(self, term):
 		"""
 		Asserts that: term is an empty list.
 		"""
 		t = self.decode(term)
-		self.axioms.append(["assert", ["=", t, ["list", "nil"]]])
+		self.commands.append(["assert", ["=", t, ["list", "nil"]]])
 
 	def list_empty_reversed(self, term):
 		"""
 		Asserts that: Not(term is an empty list).
 		"""
 		t = self.decode(term)
-		self.axioms.append(["assert", ["not", ["=", t, ["list", "nil"]]]])
+		self.commands.append(["assert", ["not", ["=", t, ["list", "nil"]]]])
 
 	def list_not_lst(self, term):
 		"""
 		Asserts that: term is not list.
 		"""
 		t = self.decode(term)
-		self.axioms.append(["assert", ["not", ["is-list", t]]])
+		self.commands.append(["assert", ["not", ["is-list", t]]])
 
 	def list_not_lst_reversed(self, term):
 		"""
 		Asserts that: Not (term is not list).
 		"""
 		t = self.decode(term)
-		self.axioms.append(["assert", ["is-list", t]])
+		self.commands.append(["assert", ["is-list", t]])
 
 	def tuple_sz(self, term, num):
 		"""
@@ -790,7 +776,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			c = ["tl", c]
 			n -= 1
 		l.append(["is-nil", c])
-		self.axioms.append(["assert", l])
+		self.commands.append(["assert", l])
 
 	def tuple_sz_reversed(self, term, num):
 		"""
@@ -811,7 +797,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			c = ["tl", c]
 			n -= 1
 		l.append(["is-nil", c])
-		self.axioms.append(["assert", ["not", l]])
+		self.commands.append(["assert", ["not", l]])
 
 	def tuple_not_sz_reversed(self, term, num):
 		"""
@@ -824,21 +810,21 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		Asserts that: term is not a tuple.
 		"""
 		t = self.decode(term)
-		self.axioms.append(["assert", ["not", ["is-tuple", t]]])
+		self.commands.append(["assert", ["not", ["is-tuple", t]]])
 
 	def tuple_not_tpl_reversed(self, term, num): # TODO why is num over here?
 		"""
 		Asserts that: Not (term is not a tuple).
 		"""
 		t = self.decode(term)
-		self.axioms.append(["assert", ["is-tuple", t]])
+		self.commands.append(["assert", ["is-tuple", t]])
 
 	def empty_bitstr(self, term):
 		"""
 		Asserts that: term is an empty bitstring.
 		"""
 		t = self.decode(term)
-		self.axioms.append(["assert", [
+		self.commands.append(["assert", [
 			"and",
 			["is-str", t],
 			["is-snil", ["sval", t]]
@@ -849,7 +835,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		Asserts that: Not (term is an empty bitstring).
 		"""
 		t = self.decode(term)
-		self.axioms.append(["assert", [
+		self.commands.append(["assert", [
 			"not",
 			[
 				"and",
@@ -865,7 +851,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t = self.decode(term)
 		t1 = self.decode(term1)
 		t2 = self.decode(term2)
-		self.axioms.append(["assert", [
+		self.commands.append(["assert", [
 			"and",
 			["is-str", t],
 			["is-scons", ["sval", t]],
@@ -882,7 +868,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t = self.decode(term)
 		t1 = self.decode(term1)
 		t2 = self.decode(term2)
-		self.axioms.append(["assert", [
+		self.commands.append(["assert", [
 			"not",
 			[
 				"and",
@@ -902,8 +888,8 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		b = self.decode(size)
 		t = self.decode(termBitstr)
 		slist = self.slist_const_pair(n, b)
-		self.axioms.append(["assert", ["and", ["is-str", r], ["is-str", t]]])
-		self.axioms.append(["assert", ["=", ["slist_concat", slist, ["sval", r]], ["sval", t]]])
+		self.commands.append(["assert", ["and", ["is-str", r], ["is-str", t]]])
+		self.commands.append(["assert", ["=", ["slist_concat", slist, ["sval", r]], ["sval", t]]])
 
 	def bitmatch_const_true_reversed(self, termRest, cnstValue, size, termBitstr):
 		"""
@@ -914,8 +900,8 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		b = self.decode(size)
 		t = self.decode(termBitstr)
 		slist = self.slist_const_pair(n, b)
-		self.axioms.append(["assert", ["and", ["is-str", r], ["is-str", t]]])
-		self.axioms.append(["assert", ["not", ["=", ["slist_concat", slist, ["sval", r]], ["sval", t]]]])
+		self.commands.append(["assert", ["and", ["is-str", r], ["is-str", t]]])
+		self.commands.append(["assert", ["not", ["=", ["slist_concat", slist, ["sval", r]], ["sval", t]]]])
 
 	def bitmatch_const_false(self, cnstValue, size, termBitstr):
 		"""
@@ -925,8 +911,8 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		b = self.decode(size)
 		t = self.decode(termBitstr)
 		slist = self.slist_const_pair(n, b)
-		self.axioms.append(["assert", ["is-str", t]])
-		self.axioms.append(["assert", ["not", ["slist_match", slist, ["sval", t]]]])
+		self.commands.append(["assert", ["is-str", t]])
+		self.commands.append(["assert", ["not", ["slist_match", slist, ["sval", t]]]])
 
 	def bitmatch_const_false_reversed(self, cnstValue, size, termBitstr):
 		"""
@@ -936,8 +922,8 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		b = self.decode(size)
 		t = self.decode(termBitstr)
 		slist = self.slist_const_pair(n, b)
-		self.axioms.append(["assert", ["is-str", t]])
-		self.axioms.append(["assert", ["slist_match", slist, ["sval", t]]])
+		self.commands.append(["assert", ["is-str", t]])
+		self.commands.append(["assert", ["slist_match", slist, ["sval", t]]])
 
 	def bitmatch_var_true(self, term1, term2, size, termBitstr):
 		"""
@@ -948,8 +934,8 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		b = self.decode(size)
 		t = self.decode(termBitstr)
 		slist = self.slist_var_pair(n, b)
-		self.axioms.append(["assert", ["and", ["is-str", r], ["is-str", t]]])
-		self.axioms.append(["assert", ["=", ["slist_concat", slist, ["sval", r]], ["sval", t]]])
+		self.commands.append(["assert", ["and", ["is-str", r], ["is-str", t]]])
+		self.commands.append(["assert", ["=", ["slist_concat", slist, ["sval", r]], ["sval", t]]])
 
 	def bitmatch_var_true_reversed(self, term1, term2, size, termBitstr):
 		"""
@@ -960,8 +946,8 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		b = self.decode(size)
 		t = self.decode(termBitstr)
 		slist = self.slist_var_pair(n, b)
-		self.axioms.append(["assert", ["and", ["is-str", r], ["is-str", t]]])
-		self.axioms.append(["assert", ["not", ["=", ["slist_concat", slist, ["sval", r]], ["sval", t]]]])
+		self.commands.append(["assert", ["and", ["is-str", r], ["is-str", t]]])
+		self.commands.append(["assert", ["not", ["=", ["slist_concat", slist, ["sval", r]], ["sval", t]]]])
 
 	def bitmatch_var_false(self, size, termBitstr):
 		"""
@@ -978,8 +964,8 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			axioms.append(["not", ["is-snil", slist]])
 			slist = ["stl", slist]
 			b -= 1
-		self.axioms.append(["assert", ["is-str", t]])
-		self.axioms.append(["assert", ["not", axioms]])
+		self.commands.append(["assert", ["is-str", t]])
+		self.commands.append(["assert", ["not", axioms]])
 
 	def bitmatch_var_false_reversed(self, size, termBitstr):
 		"""
@@ -996,8 +982,8 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			axioms.append(["not", ["is-snil", slist]])
 			slist = ["stl", slist]
 			b -= 1
-		self.axioms.append(["assert", ["is-str", t]])
-		self.axioms.append(["assert", axioms])
+		self.commands.append(["assert", ["is-str", t]])
+		self.commands.append(["assert", axioms])
 
 	def not_lambda_with_arity_reversed(self, tFun, tArity):
 		"""
@@ -1005,7 +991,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		f = self.decode(tFun)
 		a = self.decode(tArity)
-		self.axioms.append(["assert", [
+		self.commands.append(["assert", [
 			"and",
 			["is-fun", f],
 			["is-int", a],
@@ -1022,7 +1008,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		self.axioms.append(["assert", [
+		self.commands.append(["assert", [
 			"and",
 			["is-list", t1],
 			["is-cons", ["lval", t1]],
@@ -1035,7 +1021,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		self.axioms.append(["assert", [
+		self.commands.append(["assert", [
 			"and",
 			["is-list", t1],
 			["is-cons", ["lval", t1]],
@@ -1049,7 +1035,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
 		t2 = self.decode(term2)
-		self.axioms.append(["assert", [
+		self.commands.append(["assert", [
 			"and",
 			["is-list", t2],
 			["=", t0, ["list", ["cons", t1, ["lval", t2]]]],
@@ -1064,7 +1050,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		self.axioms.append(["assert", ["=", t0, ["bool", ["=", t1, ["atom", "inil"]]]]])
+		self.commands.append(["assert", ["=", t0, ["bool", ["=", t1, ["atom", "inil"]]]]])
 
 	def atom_head(self, term0, term1):
 		"""
@@ -1072,7 +1058,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		self.axioms.append(["assert", [
+		self.commands.append(["assert", [
 			"and",
 			["is-atom", t1],
 			["is-icons", ["aval", t1]],
@@ -1085,7 +1071,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		self.axioms.append(["assert", [
+		self.commands.append(["assert", [
 			"and",
 			["is-atom", t1],
 			["is-icons", ["aval", t1]],
@@ -1103,7 +1089,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		for term in reversed(terms[1:]):
 			t = self.decode(term)
 			tlist = ["cons", t, tlist]
-		self.axioms.append(["assert", ["=", t0, ["tuple", tlist]]])
+		self.commands.append(["assert", ["=", t0, ["tuple", tlist]]])
 
 	### Query types.
 
@@ -1113,7 +1099,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		self.axioms.append(["assert", ["=", t0, ["bool", ["is-bool", t1]]]])
+		self.commands.append(["assert", ["=", t0, ["bool", ["is-bool", t1]]]])
 
 	def is_integer(self, term0, term1):
 		"""
@@ -1121,7 +1107,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		self.axioms.append(["assert", ["=", t0, ["bool", ["is-int", t1]]]])
+		self.commands.append(["assert", ["=", t0, ["bool", ["is-int", t1]]]])
 
 	def is_float(self, term0, term1):
 		"""
@@ -1129,7 +1115,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		self.axioms.append(["assert", ["=", t0, ["bool", ["is-real", t1]]]])
+		self.commands.append(["assert", ["=", t0, ["bool", ["is-real", t1]]]])
 
 	def is_list(self, term0, term1):
 		"""
@@ -1137,7 +1123,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		self.axioms.append(["assert", ["=", t0, ["bool", ["is-list", t1]]]])
+		self.commands.append(["assert", ["=", t0, ["bool", ["is-list", t1]]]])
 
 	def is_tuple(self, term0, term1):
 		"""
@@ -1145,7 +1131,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		self.axioms.append(["assert", ["=", t0, ["bool", ["is-tuple", t1]]]])
+		self.commands.append(["assert", ["=", t0, ["bool", ["is-tuple", t1]]]])
 
 	def is_atom(self, term0, term1):
 		"""
@@ -1153,7 +1139,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		self.axioms.append(["assert", ["=", t0, ["bool", ["or", ["is-bool", t1], ["is-atom", t1]]]]])
+		self.commands.append(["assert", ["=", t0, ["bool", ["or", ["is-bool", t1], ["is-atom", t1]]]]])
 
 	def is_bitstring(self, term0, term1):
 		"""
@@ -1161,7 +1147,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		self.axioms.append(["assert", ["=", t0, ["bool", ["is-str", t1]]]])
+		self.commands.append(["assert", ["=", t0, ["bool", ["is-str", t1]]]])
 
 	def is_fun(self, term0, term1):
 		"""
@@ -1169,7 +1155,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		self.axioms.append(["assert", ["=", t0, ["bool", ["is-fun", t1]]]])
+		self.commands.append(["assert", ["=", t0, ["bool", ["is-fun", t1]]]])
 
 	def is_fun_with_arity(self, r, t, a):
 		"""
@@ -1178,7 +1164,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		r = self.decode(r)
 		t = self.decode(t)
 		a = self.decode(a)
-		self.axioms.append(["assert", ["=", r, ["bool", [
+		self.commands.append(["assert", ["=", r, ["bool", [
 			"and",
 			["is-fun", t],
 			["is-int", a],
@@ -1191,7 +1177,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		self.axioms.append(["assert", ["=", t0, ["bool", ["or", ["is-int", t1], ["is-real", t1]]]]])
+		self.commands.append(["assert", ["=", t0, ["bool", ["or", ["is-int", t1], ["is-real", t1]]]]])
 
 	### Arithmetic Operations.
 
@@ -1199,7 +1185,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
 		t2 = self.decode(term2)
-		self.axioms.append(["assert", [
+		self.commands.append(["assert", [
 			"and",
 			["or", ["is-int", t1], ["is-real", t1]],
 			["or", ["is-int", t2], ["is-real", t2]],
@@ -1247,7 +1233,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
 		t2 = self.decode(term2)
-		self.axioms.append(["assert", [
+		self.commands.append(["assert", [
 			"and",
 			["or", ["is-int", t1], ["is-real", t1]],
 			[
@@ -1275,7 +1261,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
 		t2 = self.decode(term2)
-		self.axioms.append(["assert", [
+		self.commands.append(["assert", [
 			"and",
 			["is-int", t1],
 			["is-int", t2],
@@ -1291,7 +1277,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
 		t2 = self.decode(term2)
-		self.axioms.append(["assert", [
+		self.commands.append(["assert", [
 			"and",
 			["is-int", t1],
 			["is-int", t2],
@@ -1306,7 +1292,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		self.axioms.append(["assert", [
+		self.commands.append(["assert", [
 			"and",
 			["or", ["is-int", t1], ["is-real", t1]],
 			[
@@ -1325,7 +1311,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
 		t2 = self.decode(term2)
-		self.axioms.append(["assert", [
+		self.commands.append(["assert", [
 			"and",
 			["is-real", t0],
 			["or", ["is-int", t1], ["is-real", t1]],
@@ -1339,7 +1325,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		self.axioms.append(["assert", [
+		self.commands.append(["assert", [
 			"and",
 			["or", ["is-int", t1], ["is-real", t1]],
 			[
@@ -1371,7 +1357,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
 		t2 = self.decode(term2)
-		self.axioms.append(["assert", ["=", t0, ["bool", ["=", t1, t2]]]])
+		self.commands.append(["assert", ["=", t0, ["bool", ["=", t1, t2]]]])
 
 	def lt_integers(self, term0, term1, term2):
 		"""
@@ -1380,7 +1366,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
 		t2 = self.decode(term2)
-		self.axioms.append(["assert", [
+		self.commands.append(["assert", [
 			"and",
 			["is-int", t1],
 			["is-int", t2],
@@ -1394,7 +1380,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
 		t2 = self.decode(term2)
-		self.axioms.append(["assert", [
+		self.commands.append(["assert", [
 			"and",
 			["is-real", t1],
 			["is-real", t2],
@@ -1409,7 +1395,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		self.axioms.append(["assert", [
+		self.commands.append(["assert", [
 			"and",
 			["or", ["is-int", t1], ["is-real", t1]],
 			["=", t0, ["real", ["ite", ["is-int", t1], ["to_real", ["ival", t1]], ["rval", t1]]]],
@@ -1421,7 +1407,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		self.axioms.append(["assert", [
+		self.commands.append(["assert", [
 			"and",
 			["is-list", t1],
 			["=", t0, ["tuple", ["lval", t1]]],
@@ -1433,7 +1419,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		self.axioms.append(["assert", [
+		self.commands.append(["assert", [
 			"and",
 			["is-tuple", t1],
 			["=", t0, ["list", ["tval", t1]]],
@@ -1447,7 +1433,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		self.axioms.append(["assert", ["=", t0, t1]])
+		self.commands.append(["assert", ["=", t0, t1]])
 
 	### Bitwise Operations.
 
@@ -1458,7 +1444,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
 		t2 = self.decode(term2)
-		self.axioms.append(["assert", ["int-and", ["ival", t1], ["ival", t2], ["ival", t0]]])
+		self.commands.append(["assert", ["int-and", ["ival", t1], ["ival", t2], ["ival", t0]]])
 
 	def bxor(self, term0, term1, term2):
 		"""
@@ -1467,7 +1453,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
 		t2 = self.decode(term2)
-		self.axioms.append(["assert", ["int-xor", ["ival", t1], ["ival", t2], ["ival", t0]]])
+		self.commands.append(["assert", ["int-xor", ["ival", t1], ["ival", t2], ["ival", t0]]])
 
 	def bor(self, term0, term1, term2):
 		"""
@@ -1476,4 +1462,4 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
 		t2 = self.decode(term2)
-		self.axioms.append(["assert", ["int-or", ["ival", t1], ["ival", t2], ["ival", t0]]])
+		self.commands.append(["assert", ["int-or", ["ival", t1], ["ival", t2], ["ival", t0]]])
