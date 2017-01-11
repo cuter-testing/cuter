@@ -61,9 +61,9 @@ def expand_lets(obj, lets = {}):
 class ErlangSMT(cgs.AbstractErlangSolver):
 
 	def __init__(self):
+		self.library = []
 		self.commands = []
 		self.commands.append(["set-option", ":timeout", "1000"])
-
 		self.commands.append(["declare-datatypes", [], [
 			[
 				"Term",
@@ -97,140 +97,6 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 				["fc", ["fx", "TList"], ["fy", "Term"], ["ft", "FList"]],
 			],
 		]])
-
-		# flist-equals return whether f(x) = y with depth at most d
-		self.commands.append(["define-fun-rec", "flist-equals", [["f", "FList"], ["x", "TList"], ["y", "Term"], ["d", "Int"]], "Bool", [
-			"or",
-			["and", [">=", "d", "0"], ["is-fn", "f"], ["=", ["fd", "f"], "y"]],
-			["and", [">=", "d", "0"], ["is-fc", "f"], ["=", ["fx", "f"], "x"], ["=", ["fy", "f"], "y"]],
-			["and", [">", "d", "0"], ["is-fc", "f"], ["not", ["=", ["fx", "f"], "x"]], ["flist-equals", ["ft", "f"], "x", "y", ["-", "d", "1"]]],
-		]])
-
-		# slist_spec(l, m, n) returns whether len(l) >= m and (len(l) - m) % n == 0
-		# slist_spec is efficient when n and m are given integer constants
-		self.commands.append(["define-fun-rec", "slist_spec_aux", [["l", "SList"], ["n", "Int"], ["r", "Int"]], "Bool", [
-			"ite",
-			["is-snil", "l"],
-			["=", "r", "0"],
-			["slist_spec_aux", ["stl", "l"], "n", ["-", ["ite", ["=", "r", "0"], "n", "r"], "1"]]
-		]])
-		self.commands.append(["define-fun-rec", "slist_spec", [["l", "SList"], ["m", "Int"], ["n", "Int"]], "Bool", [
-			"ite",
-			["=", "m", "0"],
-			[
-				"ite",
-				["=", "n", "0"],
-				["is-snil", "l"],
-				["slist_spec_aux", "l", "n", "0"]
-			],
-			["and", ["not", ["is-snil", "l"]], ["slist_spec", ["stl", "l"], ["-", "m", "1"], "n"],]
-		]])
-
-		self.commands.append(["define-fun-rec", "slist_concat_aux", [["l1", "SList"], ["l1inv", "SList"], ["l2", "SList"]], "SList", [
-			"ite",
-			["is-snil", "l1"],
-			[
-				"ite",
-				["is-snil", "l1inv"],
-				"l2",
-				["slist_concat_aux", "l1", ["stl", "l1inv"], ["scons", ["shd", "l1inv"], "l2"]],
-			],
-			["slist_concat_aux", ["stl", "l1"], ["scons", ["shd", "l1"], "l1inv"], "l2"]
-		]])
-		self.commands.append(["define-fun", "slist_concat", [["l1", "SList"], ["l2", "SList"]], "SList", ["slist_concat_aux", "l1", "snil", "l2"]])
-
-		self.commands.append(["define-fun-rec", "slist_match", [["l1", "SList"], ["l2", "SList"]], "Bool", [
-			"or",
-			["is-snil", "l1"],
-			[
-				"and",
-				["not", ["is-snil", "l2"]],
-				["=", ["shd", "l1"], ["shd", "l2"]],
-				["slist_match", ["stl", "l1"], ["stl", "l2"]],
-			],
-		]])
-
-		# int-and returns whether n1 & n2 == n
-		self.commands.append(["define-fun-rec", "int-and-rec", [["n1", "Int"], ["n2", "Int"], ["n", "Int"]], "Bool", [
-			"or",
-			["=", "n1", "n", "0"],
-			["=", "n2", "n", "0"],
-			["=", "n1", "n2", "n", "-1"],
-			[
-				"and",
-				["=", ["and", ["not", ["=", ["mod", "n1", "2"], "0"]], ["not", ["=", ["mod", "n2", "2"], "0"]]], ["not", ["=", ["mod", "n", "2"], "0"]]],
-				["int-and-rec", ["div", "n1", "2"], ["div", "n2", "2"], ["div", "n", "2"]],
-			],
-		]])
-		self.commands.append(["define-fun", "int-and", [["n1", "Int"], ["n2", "Int"], ["n", "Int"]], "Bool", [
-			"and",
-			["implies", [">=", "n1", "0"], ["<=", "0", "n", "n1"]],
-			["implies", [">=", "n2", "0"], ["<=", "0", "n", "n2"]],
-			["implies", ["and", ["<", "n1", "0"], ["<", "n2", "0"]], ["<", ["+", "n1", "n2"], "n", "0"]],
-			["implies", ["<", "n", "0"], ["and", ["<", "n1", "0"], ["<=", "n", "n1"], ["<", "n2", "0"], ["<=", "n", "n2"]]],
-			["int-and-rec", "n1", "n2", "n"],
-		]])
-
-		# int-or returns whether n1 | n2 == n
-		self.commands.append(["define-fun-rec", "int-or-rec", [["n1", "Int"], ["n2", "Int"], ["n", "Int"]], "Bool", [
-			"or",
-			["=", "n1", "n", "-1"],
-			["=", "n2", "n", "-1"],
-			["=", "n1", "n2", "n", "0"],
-			[
-				"and",
-				["=", ["or", ["not", ["=", ["mod", "n1", "2"], "0"]], ["not", ["=", ["mod", "n2", "2"], "0"]]], ["not", ["=", ["mod", "n", "2"], "0"]]],
-				["int-or-rec", ["div", "n1", "2"], ["div", "n2", "2"], ["div", "n", "2"]],
-			],
-		]])
-		self.commands.append(["define-fun", "int-or", [["n1", "Int"], ["n2", "Int"], ["n", "Int"]], "Bool", [
-			"and",
-			["implies", ["<", "n1", "0"], ["and", ["<=", "n1", "n"], ["<", "n", "0"]]],
-			["implies", ["<", "n2", "0"], ["and", ["<=", "n2", "n"], ["<", "n", "0"]]],
-			["implies", ["and", [">=", "n1", "0"], [">=", "n2", "0"]], ["<=", "0", "n", ["+", "n1", "n2"]]],
-			["implies", [">=", "n", "0"], ["and", ["<=", "0", "n1", "n"], ["<=", "0", "n2", "n"]]],
-			["int-or-rec", "n1", "n2", "n"],
-		]])
-
-		# int-xor returns whether n1 ^ n2 == n
-		self.commands.append(["define-fun-rec", "int-xor", [["n1", "Int"], ["n2", "Int"], ["n", "Int"]], "Bool", [
-			"or",
-			["and", ["=", "n1", "0"], ["=", "n2", "n"]],
-			["and", ["=", "n2", "0"], ["=", "n1", "n"]],
-			["and", ["=", "n1", "n2", "-1"], ["=", "n", "0"]],
-			["and", ["=", "n", "0"], ["=", "n1", "n2"]],
-			[
-				"and",
-				["=", ["xor", ["not", ["=", ["mod", "n1", "2"], "0"]], ["not", ["=", ["mod", "n2", "2"], "0"]]], ["not", ["=", ["mod", "n", "2"], "0"]]],
-				["int-xor", ["div", "n1", "2"], ["div", "n2", "2"], ["div", "n", "2"]],
-			],
-		]])
-
-		# real-pow returns whether b ** e == p
-		# real-pow isn't efficient when having to calculate the e-root of p or a large e-power of b.
-		self.commands.append(["define-fun-rec", "real-pow", [["p", "Real"], ["b", "Real"], ["e", "Real"]], "Bool", [
-			"or",
-			["and", ["=", "b", "0"], ["not", ["=", "e", "0"]], ["=", "p", "0"]],
-			["and", ["=", "b", "1"], ["=", "p", "1"]],
-			["and", ["=", "b", "-1"], ["=", ["mod", "e", "2"], "0"], ["=", "p", "1"]],
-			["and", ["=", "b", "-1"], ["=", ["mod", "e", "2"], "1"], ["=", "p", "-1"]],
-			["and", [">", "e", "1"], ["<", "1", "b", "p"], ["real-pow", ["/", "p", "b"], "b", ["-", "e", "1"]]],
-			["and", [">", "e", "1"], ["<", "0", "p", "b", "1"], ["real-pow", ["/", "p", "b"], "b", ["-", "e", "1"]]],
-			["and", [">", "e", "1"], ["=", ["mod", "e", "2"], "0"], ["<", "-1", "b", "0", "p", ["-", "b"], "1"], ["real-pow", ["/", "p", "b"], "b", ["-", "e", "1"]]],
-			["and", [">", "e", "1"], ["=", ["mod", "e", "2"], "0"], ["<", "b", "-1", "1", ["-", "b"], "p"], ["real-pow", ["/", "p", "b"], "b", ["-", "e", "1"]]],
-			["and", [">", "e", "1"], ["=", ["mod", "e", "2"], "1"], ["<", "-1", "b", "p", "0"], ["real-pow", ["/", "p", "b"], "b", ["-", "e", "1"]]],
-			["and", [">", "e", "1"], ["=", ["mod", "e", "2"], "1"], ["<", "p", "b", "-1"], ["real-pow", ["/", "p", "b"], "b", ["-", "e", "1"]]],
-			["and", ["=", "e", "1"], ["=", "b", "p"]],
-			["and", ["=", "e", "0"], ["not", ["=", "b", "0"]], ["=", "p", "1"]],
-			["and", ["=", "e", "-1"], ["=", ["*", "b", "p"], "1"]],
-			["and", ["<", "e", "-1"], ["<", "0", "p", "1", "b"], ["real-pow", ["*", "p", "b"], "b", ["+", "e", "1"]]],
-			["and", ["<", "e", "-1"], ["<", "0", "b", "1", "p"], ["real-pow", ["*", "p", "b"], "b", ["+", "e", "1"]]],
-			["and", ["<", "e", "-1"], ["=", ["mod", "e", "2"], "0"], ["<", "-1", "b", "0", ["-", "b"], "1", "p"], ["real-pow", ["*", "p", "b"], "b", ["+", "e", "1"]]],
-			["and", ["<", "e", "-1"], ["=", ["mod", "e", "2"], "0"], ["<", "b", "-1", "0", "p", "1", ["-", "b"]], ["real-pow", ["*", "p", "b"], "b", ["+", "e", "1"]]],
-			["and", ["<", "e", "-1"], ["=", ["mod", "e", "2"], "1"], ["<", "p", "-1", "b", "0"], ["real-pow", ["*", "p", "b"], "b", ["+", "e", "1"]]],
-			["and", ["<", "e", "-1"], ["=", ["mod", "e", "2"], "1"], ["<", "b", "-1", "p", "0"], ["real-pow", ["*", "p", "b"], "b", ["+", "e", "1"]]],
-		]])
-
 		self.solver = smt.SolverZ3()
 
 	# =========================================================================
@@ -511,7 +377,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			return ["is-atom", var]
 		elif cc.is_type_bitstring(spec):
 			segment_size = cc.get_segment_size_from_bitstring(spec)
-			return ["and", ["is-str", var], ["slist_spec", ["sval", var], segment_size.m, segment_size.n]]
+			return ["and", ["is-str", var], self.SListSpec(["sval", var], segment_size.m, segment_size.n)]
 		elif cc.is_type_complete_fun(spec):
 			# TODO if a function is to be called with wrong arguments, program must crash
 			par_spec = cc.get_parameters_from_complete_fun(spec)
@@ -655,7 +521,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			"and",
 			["is-fun", fun],
 			["=", ["fa", fun], str(tlist_length)],
-			["flist-equals", ["fv", fun], tlist, ret, str(self.flist_depth)],
+			self.FListEquals(["fv", fun], tlist, ret, str(self.flist_depth)),
 		]])
 
 	def erl_lambda_reversed(self, *args): # TODO is this the opposite of erl_lambda?
@@ -889,7 +755,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t = self.decode(termBitstr)
 		slist = self.slist_const_pair(n, b)
 		self.commands.append(["assert", ["and", ["is-str", r], ["is-str", t]]])
-		self.commands.append(["assert", ["=", ["slist_concat", slist, ["sval", r]], ["sval", t]]])
+		self.commands.append(["assert", ["=", self.SListConcat(slist, ["sval", r]), ["sval", t]]])
 
 	def bitmatch_const_true_reversed(self, termRest, cnstValue, size, termBitstr):
 		"""
@@ -901,7 +767,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t = self.decode(termBitstr)
 		slist = self.slist_const_pair(n, b)
 		self.commands.append(["assert", ["and", ["is-str", r], ["is-str", t]]])
-		self.commands.append(["assert", ["not", ["=", ["slist_concat", slist, ["sval", r]], ["sval", t]]]])
+		self.commands.append(["assert", ["not", ["=", self.SListConcat(slist, ["sval", r]), ["sval", t]]]])
 
 	def bitmatch_const_false(self, cnstValue, size, termBitstr):
 		"""
@@ -912,7 +778,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t = self.decode(termBitstr)
 		slist = self.slist_const_pair(n, b)
 		self.commands.append(["assert", ["is-str", t]])
-		self.commands.append(["assert", ["not", ["slist_match", slist, ["sval", t]]]])
+		self.commands.append(["assert", ["not", self.SListMatch(slist, ["sval", t])]])
 
 	def bitmatch_const_false_reversed(self, cnstValue, size, termBitstr):
 		"""
@@ -923,7 +789,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t = self.decode(termBitstr)
 		slist = self.slist_const_pair(n, b)
 		self.commands.append(["assert", ["is-str", t]])
-		self.commands.append(["assert", ["slist_match", slist, ["sval", t]]])
+		self.commands.append(["assert", self.SListMatch(slist, ["sval", t])])
 
 	def bitmatch_var_true(self, term1, term2, size, termBitstr):
 		"""
@@ -935,7 +801,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t = self.decode(termBitstr)
 		slist = self.slist_var_pair(n, b)
 		self.commands.append(["assert", ["and", ["is-str", r], ["is-str", t]]])
-		self.commands.append(["assert", ["=", ["slist_concat", slist, ["sval", r]], ["sval", t]]])
+		self.commands.append(["assert", ["=", self.SListConcat(slist, ["sval", r]), ["sval", t]]])
 
 	def bitmatch_var_true_reversed(self, term1, term2, size, termBitstr):
 		"""
@@ -947,7 +813,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t = self.decode(termBitstr)
 		slist = self.slist_var_pair(n, b)
 		self.commands.append(["assert", ["and", ["is-str", r], ["is-str", t]]])
-		self.commands.append(["assert", ["not", ["=", ["slist_concat", slist, ["sval", r]], ["sval", t]]]])
+		self.commands.append(["assert", ["not", ["=", self.SListConcat(slist, ["sval", r]), ["sval", t]]]])
 
 	def bitmatch_var_false(self, size, termBitstr):
 		"""
@@ -1316,7 +1182,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			["is-real", t0],
 			["or", ["is-int", t1], ["is-real", t1]],
 			["is-int", t2],
-			["real-pow", ["rval", t0], ["ite", ["is-int", t1], ["to_real", ["ival", t1]], ["rval", t1]], ["ival", t2]],
+			self.RealPow(["rval", t0], ["ite", ["is-int", t1], ["to_real", ["ival", t1]], ["rval", t1]], ["ival", t2]),
 		]])
 
 	def trunc(self, term0, term1):
@@ -1436,6 +1302,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		self.commands.append(["assert", ["=", t0, t1]])
 
 	### Bitwise Operations.
+	# TODO do we have to check whether terms are integers?
 
 	def band(self, term0, term1, term2):
 		"""
@@ -1444,7 +1311,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
 		t2 = self.decode(term2)
-		self.commands.append(["assert", ["int-and", ["ival", t1], ["ival", t2], ["ival", t0]]])
+		self.commands.append(["assert", self.IntAnd(["ival", t1], ["ival", t2], ["ival", t0])])
 
 	def bxor(self, term0, term1, term2):
 		"""
@@ -1453,7 +1320,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
 		t2 = self.decode(term2)
-		self.commands.append(["assert", ["int-xor", ["ival", t1], ["ival", t2], ["ival", t0]]])
+		self.commands.append(["assert", self.IntXor(["ival", t1], ["ival", t2], ["ival", t0])])
 
 	def bor(self, term0, term1, term2):
 		"""
@@ -1462,4 +1329,183 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
 		t2 = self.decode(term2)
-		self.commands.append(["assert", ["int-or", ["ival", t1], ["ival", t2], ["ival", t0]]])
+		self.commands.append(["assert", self.IntOr(["ival", t1], ["ival", t2], ["ival", t0])])
+
+	### SMTLIB recursive functions
+
+	def SListSpec(self, l, m, n):
+		"""
+		slist-spec returns whether len(l) >= m and (len(l) - m) % n == 0
+		"""
+		# slist-spec is efficient when n and m are given integer constants
+		if "slist-spec" not in self.library:
+			self.library.append("slist-spec")
+			self.commands.append(["define-fun-rec", "slist-spec-aux", [["l", "SList"], ["n", "Int"], ["r", "Int"]], "Bool", [
+				"ite",
+				["is-snil", "l"],
+				["=", "r", "0"],
+				["slist-spec-aux", ["stl", "l"], "n", ["-", ["ite", ["=", "r", "0"], "n", "r"], "1"]]
+			]])
+			self.commands.append(["define-fun-rec", "slist-spec", [["l", "SList"], ["m", "Int"], ["n", "Int"]], "Bool", [
+				"ite",
+				["=", "m", "0"],
+				[
+					"ite",
+					["=", "n", "0"],
+					["is-snil", "l"],
+					["slist-spec-aux", "l", "n", "0"]
+				],
+				["and", ["not", ["is-snil", "l"]], ["slist-spec", ["stl", "l"], ["-", "m", "1"], "n"],]
+			]])
+		return ["slist-spec", l, m, n]
+
+	def SListConcat(self, l1, l2):
+		if "slist-concat" not in self.library:
+			self.library.append("slist-concat")
+			self.commands.append(["define-fun-rec", "slist-concat-aux", [["l1", "SList"], ["l1inv", "SList"], ["l2", "SList"]], "SList", [
+				"ite",
+				["is-snil", "l1"],
+				[
+					"ite",
+					["is-snil", "l1inv"],
+					"l2",
+					["slist-concat-aux", "l1", ["stl", "l1inv"], ["scons", ["shd", "l1inv"], "l2"]],
+				],
+				["slist-concat-aux", ["stl", "l1"], ["scons", ["shd", "l1"], "l1inv"], "l2"]
+			]])
+			self.commands.append(["define-fun", "slist-concat", [["l1", "SList"], ["l2", "SList"]], "SList", ["slist-concat-aux", "l1", "snil", "l2"]])
+		return ["slist-concat", l1, l2]
+
+	def SListMatch(self, l1, l2):
+		if "slist-match" not in self.library:
+			self.library.append("slist-match")
+			self.commands.append(["define-fun-rec", "slist-match", [["l1", "SList"], ["l2", "SList"]], "Bool", [
+				"or",
+				["is-snil", "l1"],
+				[
+					"and",
+					["not", ["is-snil", "l2"]],
+					["=", ["shd", "l1"], ["shd", "l2"]],
+					["slist-match", ["stl", "l1"], ["stl", "l2"]],
+				],
+			]])
+		return ["slist-match", l1, l2]
+
+	def FListEquals(self, f, x, y, d):
+		"""
+		flist-equals return whether f(x) = y with depth at most d
+		"""
+		if "flist-equals" not in self.library:
+			self.library.append("flist-equals")
+			self.commands.append(["define-fun-rec", "flist-equals", [["f", "FList"], ["x", "TList"], ["y", "Term"], ["d", "Int"]], "Bool", [
+				"or",
+				["and", [">=", "d", "0"], ["is-fn", "f"], ["=", ["fd", "f"], "y"]],
+				["and", [">=", "d", "0"], ["is-fc", "f"], ["=", ["fx", "f"], "x"], ["=", ["fy", "f"], "y"]],
+				["and", [">", "d", "0"], ["is-fc", "f"], ["not", ["=", ["fx", "f"], "x"]], ["flist-equals", ["ft", "f"], "x", "y", ["-", "d", "1"]]],
+			]])
+		return ["flist-equals", f, x, y, d]
+
+	def IntAnd(self, n1, n2, n):
+		"""
+		int-and returns whether n1 & n2 == n
+		"""
+		if "int-and" not in self.library:
+			self.library.append("int-and")
+			self.commands.append(["define-fun-rec", "int-and-rec", [["n1", "Int"], ["n2", "Int"], ["n", "Int"]], "Bool", [
+				"or",
+				["=", "n1", "n", "0"],
+				["=", "n2", "n", "0"],
+				["=", "n1", "n2", "n", "-1"],
+				[
+					"and",
+					["=", ["and", ["not", ["=", ["mod", "n1", "2"], "0"]], ["not", ["=", ["mod", "n2", "2"], "0"]]], ["not", ["=", ["mod", "n", "2"], "0"]]],
+					["int-and-rec", ["div", "n1", "2"], ["div", "n2", "2"], ["div", "n", "2"]],
+				],
+			]])
+			self.commands.append(["define-fun", "int-and", [["n1", "Int"], ["n2", "Int"], ["n", "Int"]], "Bool", [
+				"and",
+				["implies", [">=", "n1", "0"], ["<=", "0", "n", "n1"]],
+				["implies", [">=", "n2", "0"], ["<=", "0", "n", "n2"]],
+				["implies", ["and", ["<", "n1", "0"], ["<", "n2", "0"]], ["<", ["+", "n1", "n2"], "n", "0"]],
+				["implies", ["<", "n", "0"], ["and", ["<", "n1", "0"], ["<=", "n", "n1"], ["<", "n2", "0"], ["<=", "n", "n2"]]],
+				["int-and-rec", "n1", "n2", "n"],
+			]])
+		return ["int-and", n1, n2, n]
+
+	def IntOr(self, n1, n2, n):
+		"""
+		int-or returns whether n1 | n2 == n
+		"""
+		if "int-or" not in self.library:
+			self.library.append("int-or")
+			self.commands.append(["define-fun-rec", "int-or-rec", [["n1", "Int"], ["n2", "Int"], ["n", "Int"]], "Bool", [
+				"or",
+				["=", "n1", "n", "-1"],
+				["=", "n2", "n", "-1"],
+				["=", "n1", "n2", "n", "0"],
+				[
+					"and",
+					["=", ["or", ["not", ["=", ["mod", "n1", "2"], "0"]], ["not", ["=", ["mod", "n2", "2"], "0"]]], ["not", ["=", ["mod", "n", "2"], "0"]]],
+					["int-or-rec", ["div", "n1", "2"], ["div", "n2", "2"], ["div", "n", "2"]],
+				],
+			]])
+			self.commands.append(["define-fun", "int-or", [["n1", "Int"], ["n2", "Int"], ["n", "Int"]], "Bool", [
+				"and",
+				["implies", ["<", "n1", "0"], ["and", ["<=", "n1", "n"], ["<", "n", "0"]]],
+				["implies", ["<", "n2", "0"], ["and", ["<=", "n2", "n"], ["<", "n", "0"]]],
+				["implies", ["and", [">=", "n1", "0"], [">=", "n2", "0"]], ["<=", "0", "n", ["+", "n1", "n2"]]],
+				["implies", [">=", "n", "0"], ["and", ["<=", "0", "n1", "n"], ["<=", "0", "n2", "n"]]],
+				["int-or-rec", "n1", "n2", "n"],
+			]])
+		return ["int-or", n1, n2, n]
+
+	def IntXor(self, n1, n2, n):
+		"""
+		int-xor returns whether n1 ^ n2 == n
+		"""
+		if "int-xor" not in self.library:
+			self.library.append("int-xor")
+			self.commands.append(["define-fun-rec", "int-xor", [["n1", "Int"], ["n2", "Int"], ["n", "Int"]], "Bool", [
+				"or",
+				["and", ["=", "n1", "0"], ["=", "n2", "n"]],
+				["and", ["=", "n2", "0"], ["=", "n1", "n"]],
+				["and", ["=", "n1", "n2", "-1"], ["=", "n", "0"]],
+				["and", ["=", "n", "0"], ["=", "n1", "n2"]],
+				[
+					"and",
+					["=", ["xor", ["not", ["=", ["mod", "n1", "2"], "0"]], ["not", ["=", ["mod", "n2", "2"], "0"]]], ["not", ["=", ["mod", "n", "2"], "0"]]],
+					["int-xor", ["div", "n1", "2"], ["div", "n2", "2"], ["div", "n", "2"]],
+				],
+			]])
+		return ["int-xor", n1, n2, n]
+
+	def RealPow(self, p, b, e):
+		"""
+		real-pow returns whether b ** e == p
+		"""
+		# real-pow isn't efficient when having to calculate the e-root of p or a large e-power of b.
+		if "real-pow" not in self.library:
+			self.library.append("real-pow")
+			self.commands.append(["define-fun-rec", "real-pow", [["p", "Real"], ["b", "Real"], ["e", "Real"]], "Bool", [
+				"or",
+				["and", ["=", "b", "0"], ["not", ["=", "e", "0"]], ["=", "p", "0"]],
+				["and", ["=", "b", "1"], ["=", "p", "1"]],
+				["and", ["=", "b", "-1"], ["=", ["mod", "e", "2"], "0"], ["=", "p", "1"]],
+				["and", ["=", "b", "-1"], ["=", ["mod", "e", "2"], "1"], ["=", "p", "-1"]],
+				["and", [">", "e", "1"], ["<", "1", "b", "p"], ["real-pow", ["/", "p", "b"], "b", ["-", "e", "1"]]],
+				["and", [">", "e", "1"], ["<", "0", "p", "b", "1"], ["real-pow", ["/", "p", "b"], "b", ["-", "e", "1"]]],
+				["and", [">", "e", "1"], ["=", ["mod", "e", "2"], "0"], ["<", "-1", "b", "0", "p", ["-", "b"], "1"], ["real-pow", ["/", "p", "b"], "b", ["-", "e", "1"]]],
+				["and", [">", "e", "1"], ["=", ["mod", "e", "2"], "0"], ["<", "b", "-1", "1", ["-", "b"], "p"], ["real-pow", ["/", "p", "b"], "b", ["-", "e", "1"]]],
+				["and", [">", "e", "1"], ["=", ["mod", "e", "2"], "1"], ["<", "-1", "b", "p", "0"], ["real-pow", ["/", "p", "b"], "b", ["-", "e", "1"]]],
+				["and", [">", "e", "1"], ["=", ["mod", "e", "2"], "1"], ["<", "p", "b", "-1"], ["real-pow", ["/", "p", "b"], "b", ["-", "e", "1"]]],
+				["and", ["=", "e", "1"], ["=", "b", "p"]],
+				["and", ["=", "e", "0"], ["not", ["=", "b", "0"]], ["=", "p", "1"]],
+				["and", ["=", "e", "-1"], ["=", ["*", "b", "p"], "1"]],
+				["and", ["<", "e", "-1"], ["<", "0", "p", "1", "b"], ["real-pow", ["*", "p", "b"], "b", ["+", "e", "1"]]],
+				["and", ["<", "e", "-1"], ["<", "0", "b", "1", "p"], ["real-pow", ["*", "p", "b"], "b", ["+", "e", "1"]]],
+				["and", ["<", "e", "-1"], ["=", ["mod", "e", "2"], "0"], ["<", "-1", "b", "0", ["-", "b"], "1", "p"], ["real-pow", ["*", "p", "b"], "b", ["+", "e", "1"]]],
+				["and", ["<", "e", "-1"], ["=", ["mod", "e", "2"], "0"], ["<", "b", "-1", "0", "p", "1", ["-", "b"]], ["real-pow", ["*", "p", "b"], "b", ["+", "e", "1"]]],
+				["and", ["<", "e", "-1"], ["=", ["mod", "e", "2"], "1"], ["<", "p", "-1", "b", "0"], ["real-pow", ["*", "p", "b"], "b", ["+", "e", "1"]]],
+				["and", ["<", "e", "-1"], ["=", ["mod", "e", "2"], "1"], ["<", "b", "-1", "p", "0"], ["real-pow", ["*", "p", "b"], "b", ["+", "e", "1"]]],
+			]])
+		return ["real-pow", p, b, e]
