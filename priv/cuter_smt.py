@@ -61,6 +61,7 @@ def expand_lets(obj, lets = {}):
 class ErlangSMT(cgs.AbstractErlangSolver):
 
 	def __init__(self):
+		# TODO all commands in a single list
 		self.options = []
 		self.options.append(["set-option", ":timeout", "1000"])
 		self.declarations = []
@@ -75,7 +76,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 				["tuple", ["tval", "TList"]],
 				["atom", ["aval", "IList"]],
 				["str", ["sval", "SList"]],
-				["fun", ["fval", "Int"]],
+				["fun", ["fv", "FList"], ["fa", "Int"]],
 			],
 			[
 				"TList",
@@ -92,9 +93,20 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 				["snil"],
 				["scons", ["shd", "Bool"], ["stl", "SList"]],
 			],
+			[
+				"FList",
+				["fn", ["fd", "Term"]],
+				["fc", ["fx", "TList"], ["fy", "Term"], ["ft", "FList"]],
+			],
 		]])
-		self.declarations.append(["declare-fun", "fmap", ["Int"], ["Array", "TList", "Term"]])
-		self.declarations.append(["declare-fun", "arity", ["Int"], "Int"])
+
+		# flist-equals return whether f(x) = y with depth at most d
+		self.declarations.append(["define-fun-rec", "flist-equals", [["f", "FList"], ["x", "TList"], ["y", "Term"], ["d", "Int"]], "Bool", [
+			"or",
+			["and", [">=", "d", "0"], ["is-fn", "f"], ["=", ["fd", "f"], "y"]],
+			["and", [">=", "d", "0"], ["is-fc", "f"], ["=", ["fx", "f"], "x"], ["=", ["fy", "f"], "y"]],
+			["and", [">", "d", "0"], ["is-fc", "f"], ["not", ["=", ["fx", "f"], "x"]], ["flist-equals", ["ft", "f"], "x", "y", ["-", "d", "1"]]],
+		]])
 
 		# slist_spec(l, m, n) returns whether len(l) >= m and (len(l) - m) % n == 0
 		# slist_spec is efficient when n and m are given integer constants
@@ -221,8 +233,6 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			["and", ["<", "e", "-1"], ["=", ["mod", "e", "2"], "1"], ["<", "b", "-1", "p", "0"], ["real-pow", ["*", "p", "b"], "b", ["+", "e", "1"]]],
 		]])
 
-		self.fun_rec_cnt = 0
-		self.funspec = "true"
 		self.axioms = []
 		self.aux_axioms = []
 		self.model = None
@@ -249,15 +259,15 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		Adds the axioms from memory to the solver.
 		"""
+		# TODO solver lifecycle
 		pass
 
 	def solve(self):
 		"""
 		Solves a constraint set and returns the result.
 		"""
-		spec = ["define-fun", "spec", [["f", "Int"], ["l", "TList"]], "Bool", self.funspec]
 		solver = smt.SolverZ3()
-		for cmd in self.options + self.declarations + [spec] + self.axioms + self.aux_axioms:
+		for cmd in self.options + self.declarations + self.axioms + self.aux_axioms:
 			solver.write(cmd)
 		solver.write(["check-sat"])
 		status = solver.read()
@@ -347,7 +357,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		else:
 			return ["scons", "true" if value[0] else "false", self.value2slist(value[1:])]
 
-	def encode(self, data, funs = []):
+	def encode(self, data):
 		if data[0] == "bool":
 			if data[1] == "true":
 				return cc.mk_atom(true)
@@ -368,14 +378,14 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			node = data[1]
 			v = []
 			while node != "nil":
-				v.append(self.encode(node[1], funs))
+				v.append(self.encode(node[1]))
 				node = node[2]
 			return cc.mk_list(v)
 		elif data[0] == "tuple":
 			node = data[1]
 			v = []
 			while node != "nil":
-				v.append(self.encode(node[1], funs))
+				v.append(self.encode(node[1]))
 				node = node[2]
 			return cc.mk_tuple(v)
 		elif data[0] == "str":
@@ -386,53 +396,21 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 				node = node[2]
 			return cc.mk_bitstring(v)
 		elif data[0] == "fun":
-			fval = int(data[1])
-			# if a cycle (a function calling itself recursively) is found,
-			# it is obvious that the solver has selected an arbitrary term as a value
-			if fval in funs:
-				return cc.mk_any()
-			funs = funs[:]
-			funs.append(fval)
-			# get return value of arity(fval)
-			if "arity" in self.model:
-				ite = self.model["arity"]
-				while isinstance(ite, list) and len(ite) == 4 and ite[0] == "ite":
-					if int(ite[1][2]) == fval:
-						ite = ite[2]
-					else:
-						ite = ite[3]
-				arity = int(ite)
-				# if arity is greater than 255, we assume it is an arbitrary value selected by the solver
-				# because there is no constraint limiting the function's arity; thus, we set it to zero
-				if arity > 255:
-					arity = 0
-			else:
+			arity = calculate_int(data[2])
+			# if arity is less than or greater than 255, we assume it is an arbitrary value selected by the solver
+			# because there is no constraint limiting the function's arity; thus, we set it to zero
+			if arity < 0 or arity > 255:
 				arity = 0
+			node = data[1]
 			entries = []
-			if "fmap" in self.model:
-				# get return value of fmap(fval)
-				ite = self.model["fmap"]
-				while ite[0] in self.model:
-					ite = self.model[ite[0]]
-				while isinstance(ite, list) and len(ite) == 4 and ite[0] == "ite":
-					if int(ite[1][2]) == fval:
-						ite = ite[2]
-					else:
-						ite = ite[3]
-				assert isinstance(ite, list) and len(ite) == 3 and ite[0] == "_" and ite[1] == "as-array"
-				# return actual function
-				ite = self.model[ite[2]]
-				while ite[0] in self.model:
-					ite = self.model[ite[0]]
-				while isinstance(ite, list) and len(ite) == 4 and ite[0] == "ite":
-					args = cc.get_list_subterms(self.encode(["list", ite[1][2]], funs))
-					if len(args) == arity:
-						value = self.encode(ite[2], funs)
-						entries.append(cc.mk_fun_entry(args, value))
-					ite = ite[3]
-				otherwise = self.encode(ite, funs)
-			else:
-				otherwise = cc.mk_any()
+			while node[0] != "fn":
+				x = cc.get_list_subterms(self.encode(["list", node[1]]))
+				# keep only entries with argument length equal to arity
+				if len(x) == arity:
+					y = self.encode(node[2])
+					entries.append(cc.mk_fun_entry(x, y))
+				node = node[3]
+			otherwise = self.encode(node[1])
 			return cc.mk_fun(arity, entries, otherwise)
 		clg.debug_info("encoding failed: " + str(data))
 		assert False
@@ -461,18 +439,37 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		for item in zip(self.vars, pms):
 			self.axioms.append(["assert", self.build_spec(item[1], item[0])])
 
-	def fun_rec(self, inner_spec):
-		name = "fn" + str(self.fun_rec_cnt)
-		self.fun_rec_cnt += 1
+	def fun_rec_name(self):
+		if hasattr(self, "fun_rec_cnt"):
+			self.fun_rec_cnt += 1
+		else:
+			self.fun_rec_cnt = 0
+		return "fun-rec-" + str(self.fun_rec_cnt)
+
+	def fun_rec_tlist(self, spec):
+		name = self.fun_rec_name()
 		self.declarations.append(["define-fun-rec", name, [["l", "TList"]], "Bool", [
 			"or",
 			["is-nil", "l"],
-			[
-				"and",
-				["is-cons", "l"],
-				inner_spec,
-				[name, ["tl", "l"]],
-			],
+			["and", ["is-cons", "l"], spec, [name, ["tl", "l"]]],
+		]])
+		return name
+
+	def fun_rec_flist(self, par_spec, ret_spec):
+		if par_spec is None:
+			arg_spec = "true"
+		else:
+			arg_spec = ["and"]
+			tlist = ["fx", "f"]
+			for param_spec in par_spec:
+				arg_spec.append(["and", ["is-cons", tlist], self.build_spec(param_spec, ["hd", tlist])])
+				tlist = ["tl", tlist]
+			arg_spec.append(["is-nil", tlist])
+		name = self.fun_rec_name()
+		self.declarations.append(["define-fun-rec", name, [["f", "FList"]], "Bool", [
+			"or",
+			["and", ["is-fn", "f"], self.build_spec(ret_spec, ["fd", "f"])],
+			["and", ["is-fc", "f"], arg_spec, self.build_spec(ret_spec, ["fy", "f"]), [name, ["ft", "f"]]],
 		]])
 		return name
 
@@ -485,7 +482,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			return ["is-int", var]
 		elif cc.is_type_list(spec):
 			inner_spec = self.build_spec(cc.get_inner_type_from_list(spec), ["hd", "l"])
-			name = self.fun_rec(inner_spec)
+			name = self.fun_rec_tlist(inner_spec)
 			return [
 				"and",
 				["is-list", var],
@@ -493,7 +490,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			]
 		elif cc.is_type_nonempty_list(spec):
 			inner_spec = self.build_spec(cc.get_inner_type_from_nonempty_list(spec), ["hd", "l"])
-			name = self.fun_rec(inner_spec)
+			name = self.fun_rec_tlist(inner_spec)
 			return [
 				"and",
 				["is-list", var],
@@ -530,37 +527,19 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			segment_size = cc.get_segment_size_from_bitstring(spec)
 			return ["and", ["is-str", var], ["slist_spec", ["sval", var], segment_size.m, segment_size.n]]
 		elif cc.is_type_complete_fun(spec):
-			params_spec = cc.get_parameters_from_complete_fun(spec)
-			# TODO function arguments spec in list of functions etc
 			# TODO if a function is to be called with wrong arguments, program must crash
-			argspec = ["and"]
-			tlist = "l"
-			tlist_length = 0
-			for param_spec in params_spec:
-				argspec.append(["and", ["is-cons", "l"], self.build_spec(param_spec, ["hd", tlist])])
-				tlist = ["tl", tlist]
-				tlist_length += 1
-			argspec.append(["is-nil", tlist])
-			retspec = self.build_spec(cc.get_rettype_from_fun(spec), ["select", ["fmap", ["fval", var]], "l"])
-			self.funspec = ["ite", ["=", "f", ["fval", var]], argspec, self.funspec]
-			return [
-				"and",
-				["is-fun", var],
-				["=", ["arity", ["fval", var]], str(tlist_length)],
-				["forall", [["l", "TList"]], retspec],
-			]
-		elif cc.is_type_generic_fun(spec):
+			par_spec = cc.get_parameters_from_complete_fun(spec)
 			ret_spec = cc.get_rettype_from_fun(spec)
-			ret_val = ["select", ["fmap", ["fval", var]], "l"]
-			return [
-				"and",
-				["is-fun", var],
-				["forall", [["l", "TList"]], self.build_spec(ret_spec, ret_val)],
-			]
+			name = self.fun_rec_flist(par_spec, ret_spec)
+			return ["and", ["is-fun", var], ["=", ["fa", var], str(len(par_spec))], [name, ["fv", var]]]
+		elif cc.is_type_generic_fun(spec):
+			par_spec = None
+			ret_spec = cc.get_rettype_from_fun(spec)
+			name = self.fun_rec_flist(par_spec, ret_spec)
+			return ["and", ["is-fun", var], [name, ["fv", var]]]
 		elif cc.is_type_atomlit(spec):
 			return ["=", var, self.decode(cc.get_literal_from_atomlit(spec))]
 		elif cc.is_type_integerlit(spec):
-			literal = cc.get_literal_from_integerlit(spec)
 			return ["=", var, self.decode(cc.get_literal_from_integerlit(spec))]
 		clg.debug_info("unknown spec: " + str(spec))
 		assert False
@@ -658,7 +637,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			"and",
 			["is-fun", f],
 			["is-int", a],
-			["=", ["arity", ["fval", f]], ["ival", a]],
+			["=", ["fa", f], ["ival", a]],
 		]])
 
 	def evaluated_closure(self, *args):
@@ -682,12 +661,15 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		for arg in reversed(args[2:]):
 			tlist = ["cons", self.decode(arg), tlist]
 			tlist_length += 1
+		if hasattr(self, "flist_depth"):
+			self.flist_depth += 1
+		else:
+			self.flist_depth = 0
 		self.axioms.append(["assert", [
 			"and",
 			["is-fun", fun],
-			["=", ["arity", ["fval", fun]], str(tlist_length)],
-			["spec", ["fval", fun], tlist],
-			["=", ["select", ["fmap", ["fval", fun]], tlist], ret],
+			["=", ["fa", fun], str(tlist_length)],
+			["flist-equals", ["fv", fun], tlist, ret, str(self.flist_depth)],
 		]])
 
 	def erl_lambda_reversed(self, *args): # TODO is this the opposite of erl_lambda?
@@ -1017,9 +999,9 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		self.axioms.append(["assert", ["is-str", t]])
 		self.axioms.append(["assert", axioms])
 
-	def lambda_with_arity(self, tFun, tArity):
+	def not_lambda_with_arity_reversed(self, tFun, tArity):
 		"""
-		Asserts that: tFun is a function with arity tArity.
+		Asserts that: Not (tFun is not a function with arity tArity).
 		"""
 		f = self.decode(tFun)
 		a = self.decode(tArity)
@@ -1027,14 +1009,8 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			"and",
 			["is-fun", f],
 			["is-int", a],
-			["=", ["arity", ["fval", f]], ["ival", a]],
+			["=", ["fa", f], ["ival", a]],
 		]])
-
-	def not_lambda_with_arity_reversed(self, tFun, tArity):
-		"""
-		Asserts that: Not (tFun is not a function with arity tArity).
-		"""
-		self.lambda_with_arity(tFun, tArity)
 
 	# -------------------------------------------------------------------------
 	# Erlang BIFs or MFAs treated as BIFs.
@@ -1206,7 +1182,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			"and",
 			["is-fun", t],
 			["is-int", a],
-			["=", ["arity", ["fval", t]], ["ival", a]],
+			["=", ["fa", t], ["ival", a]],
 		]]]])
 
 	def is_number(self, term0, term1):
