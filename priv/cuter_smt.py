@@ -299,7 +299,13 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		return "fun-rec-" + str(self.fun_rec_cnt)
 
 	def fun_rec_tlist(self, spec):
+		spec_smt = smt.encode(spec)
+		if not hasattr(self, "fun_rec_tlists"):
+			self.fun_rec_tlists = {}
+		elif spec_smt in self.fun_rec_tlists:
+			return self.fun_rec_tlists[spec_smt]
 		name = self.fun_rec_name()
+		self.fun_rec_tlists[spec_smt] = name
 		self.commands.append(["define-fun-rec", name, [["l", "TList"]], "Bool", [
 			"or",
 			["is-nil", "l"],
@@ -318,6 +324,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 				tlist = ["tl", tlist]
 			arg_spec.append(["is-nil", tlist])
 		name = self.fun_rec_name()
+		# TODO call self.build_spec(ret_spec, _) only once
 		self.commands.append(["define-fun-rec", name, [["f", "FList"]], "Bool", [
 			"or",
 			["and", ["is-fn", "f"], self.build_spec(ret_spec, ["fd", "f"])],
