@@ -639,7 +639,7 @@
             "solutions": [
                 "$1(($2,)) == [1, 2, 3]"
             ],
-            "skip": true
+            "skip": false
         },
         {
             "module": "collection",
