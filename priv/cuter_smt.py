@@ -531,7 +531,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			self.FListEquals(["fv", fun], tlist, ret, str(self.flist_depth)),
 		]])
 
-	def erl_lambda_reversed(self, *args): # TODO is this the opposite of erl_lambda?
+	def erl_lambda_reversed(self, *args): # TODO not exactly reversed
 		"""
 		Asserts that a lambda application has failed.
 		"""
@@ -545,12 +545,11 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t = self.decode(term)
 		self.commands.append(["assert", ["=", t, ["bool", "true"]]])
 
-	def guard_true_reversed(self, term):
+	def guard_true_reversed(self, term): # TODO not exactly reversed
 		"""
 		Asserts the predicate: Not (term == true)
 		"""
-		t = self.decode(term)
-		self.commands.append(["assert", ["not", ["=", t, ["bool", "true"]]]])
+		self.guard_false(term)
 
 	def guard_false(self, term):
 		"""
@@ -559,12 +558,11 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t = self.decode(term)
 		self.commands.append(["assert", ["=", t, ["bool", "false"]]])
 
-	def guard_false_reversed(self, term):
+	def guard_false_reversed(self, term): # TODO not exactly reversed
 		"""
 		Asserts the predicate: Not (term == false)
 		"""
-		t = self.decode(term)
-		self.commands.append(["assert", ["not", ["=", t, ["bool", "false"]]]])
+		self.guard_true(term)
 
 	def match_equal(self, term1, term2):
 		"""
@@ -613,14 +611,13 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		Asserts that: term is an empty list.
 		"""
 		t = self.decode(term)
-		self.commands.append(["assert", ["=", t, ["list", "nil"]]])
+		self.commands.append(["assert", ["and", ["is-list", t], ["is-nil", ["lval", t]]]])
 
-	def list_empty_reversed(self, term):
+	def list_empty_reversed(self, term): # TODO not exactly reversed
 		"""
 		Asserts that: Not(term is an empty list).
 		"""
-		t = self.decode(term)
-		self.commands.append(["assert", ["not", ["=", t, ["list", "nil"]]]])
+		self.list_nonempty(term)
 
 	def list_not_lst(self, term):
 		"""
@@ -629,12 +626,12 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t = self.decode(term)
 		self.commands.append(["assert", ["not", ["is-list", t]]])
 
-	def list_not_lst_reversed(self, term):
+	def list_not_lst_reversed(self, term): # TODO not exactly reversed
 		"""
 		Asserts that: Not (term is not list).
 		"""
 		t = self.decode(term)
-		self.commands.append(["assert", ["is-list", t]])
+		self.list_nonempty(term)
 
 	def tuple_sz(self, term, num):
 		"""
@@ -678,19 +675,18 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		self.tuple_sz(term, num)
 
-	def tuple_not_tpl(self, term, num): # TODO why is num over here?
+	def tuple_not_tpl(self, term, num):
 		"""
 		Asserts that: term is not a tuple.
 		"""
 		t = self.decode(term)
 		self.commands.append(["assert", ["not", ["is-tuple", t]]])
 
-	def tuple_not_tpl_reversed(self, term, num): # TODO why is num over here?
+	def tuple_not_tpl_reversed(self, term, num): # TODO not exactly reversed
 		"""
 		Asserts that: Not (term is not a tuple).
 		"""
-		t = self.decode(term)
-		self.commands.append(["assert", ["is-tuple", t]])
+		self.tuple_sz(term, num)
 
 	def empty_bitstr(self, term):
 		"""
@@ -700,21 +696,18 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		self.commands.append(["assert", [
 			"and",
 			["is-str", t],
-			["is-snil", ["sval", t]]
+			["is-snil", ["sval", t]],
 		]])
 
-	def empty_bitstr_reversed(self, term):
+	def empty_bitstr_reversed(self, term): # TODO not exactly reversed
 		"""
 		Asserts that: Not (term is an empty bitstring).
 		"""
 		t = self.decode(term)
 		self.commands.append(["assert", [
-			"not",
-			[
-				"and",
-				["is-str", t],
-				["is-snil", ["sval", t]]
-			]
+			"and",
+			["is-str", t],
+			["is-scons", ["sval", t]],
 		]])
 
 	def nonempty_bitstr(self, term1, term2, term):
@@ -734,23 +727,15 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			["=", ["sval", t2], ["stl", ["sval", t]]],
 		]])
 
-	def nonempty_bitstr_reversed(self, term1, term2, term):
+	def nonempty_bitstr_reversed(self, term1, term2, term): # TODO not exactly reversed
 		"""
 		Asserts that: Not (term is a nonempty bitstring).
 		"""
-		t = self.decode(term)
 		t1 = self.decode(term1)
 		t2 = self.decode(term2)
-		self.commands.append(["assert", [
-			"not",
-			[
-				"and",
-				["is-str", t],
-				["is-scons", ["sval", t]]
-			]
-		]])
+		self.empty_bitstr(term)
 
-	# TODO bitmatch_*_*_reversed methods negate only the last assertion
+	# TODO as size has a concrete value, slist-concat and slist-match can be implemented without use of recursive functions
 
 	def bitmatch_const_true(self, termRest, cnstValue, size, termBitstr):
 		"""
@@ -761,20 +746,19 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		b = self.decode(size)
 		t = self.decode(termBitstr)
 		slist = self.slist_const_pair(n, b)
-		self.commands.append(["assert", ["and", ["is-str", r], ["is-str", t]]])
-		self.commands.append(["assert", ["=", self.SListConcat(slist, ["sval", r]), ["sval", t]]])
+		self.commands.append(["assert", [
+			"and",
+			["is-str", r],
+			["is-str", t],
+			["=", self.SListConcat(slist, ["sval", r]), ["sval", t]],
+		]])
 
-	def bitmatch_const_true_reversed(self, termRest, cnstValue, size, termBitstr):
+	def bitmatch_const_true_reversed(self, termRest, cnstValue, size, termBitstr): # TODO not exactly reversed
 		"""
 		Asserts that: Not (termBitstr == <<cnstValue/size, termRest>>).
 		"""
 		r = self.decode(termRest)
-		n = self.decode(cnstValue)
-		b = self.decode(size)
-		t = self.decode(termBitstr)
-		slist = self.slist_const_pair(n, b)
-		self.commands.append(["assert", ["and", ["is-str", r], ["is-str", t]]])
-		self.commands.append(["assert", ["not", ["=", self.SListConcat(slist, ["sval", r]), ["sval", t]]]])
+		self.bitmatch_const_false(cnstValue, size, termBitstr)
 
 	def bitmatch_const_false(self, cnstValue, size, termBitstr):
 		"""
@@ -784,8 +768,11 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		b = self.decode(size)
 		t = self.decode(termBitstr)
 		slist = self.slist_const_pair(n, b)
-		self.commands.append(["assert", ["is-str", t]])
-		self.commands.append(["assert", ["not", self.SListMatch(slist, ["sval", t])]])
+		self.commands.append(["assert", ["not", [
+			"and",
+			["is-str", t],
+			self.SListMatch(slist, ["sval", t])
+		]]])
 
 	def bitmatch_const_false_reversed(self, cnstValue, size, termBitstr):
 		"""
@@ -795,8 +782,11 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		b = self.decode(size)
 		t = self.decode(termBitstr)
 		slist = self.slist_const_pair(n, b)
-		self.commands.append(["assert", ["is-str", t]])
-		self.commands.append(["assert", self.SListMatch(slist, ["sval", t])])
+		self.commands.append(["assert", [
+			"and",
+			["is-str", t],
+			self.SListMatch(slist, ["sval", t])
+		]])
 
 	def bitmatch_var_true(self, term1, term2, size, termBitstr):
 		"""
@@ -807,20 +797,18 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		b = self.decode(size)
 		t = self.decode(termBitstr)
 		slist = self.slist_var_pair(n, b)
-		self.commands.append(["assert", ["and", ["is-str", r], ["is-str", t]]])
-		self.commands.append(["assert", ["=", self.SListConcat(slist, ["sval", r]), ["sval", t]]])
+		self.commands.append(["assert", [
+			"and",
+			["is-str", r],
+			["is-str", t],
+			["=", self.SListConcat(slist, ["sval", r]), ["sval", t]],
+		]])
 
-	def bitmatch_var_true_reversed(self, term1, term2, size, termBitstr):
+	def bitmatch_var_true_reversed(self, term1, term2, size, termBitstr): # TODO not exactly reversed
 		"""
 		Asserts that: Not (termBitstr == <<term1/size, term2>>).
 		"""
-		r = self.decode(term2)
-		n = self.decode(term1)
-		b = self.decode(size)
-		t = self.decode(termBitstr)
-		slist = self.slist_var_pair(n, b)
-		self.commands.append(["assert", ["and", ["is-str", r], ["is-str", t]]])
-		self.commands.append(["assert", ["not", ["=", self.SListConcat(slist, ["sval", r]), ["sval", t]]]])
+		self.bitmatch_var_false(size, termBitstr)
 
 	def bitmatch_var_false(self, size, termBitstr):
 		"""
@@ -832,12 +820,12 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		b = calculate_int(b[1])
 		assert b >= 0, "b must be a non-negative integer"
 		axioms = ["and"]
+		axioms.append(["is-str", t])
 		slist = ["sval", t]
 		while b > 0:
-			axioms.append(["not", ["is-snil", slist]])
+			axioms.append(["is-scons", slist])
 			slist = ["stl", slist]
 			b -= 1
-		self.commands.append(["assert", ["is-str", t]])
 		self.commands.append(["assert", ["not", axioms]])
 
 	def bitmatch_var_false_reversed(self, size, termBitstr):
@@ -850,15 +838,15 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		b = calculate_int(b[1])
 		assert b >= 0, "b must be a non-negative integer"
 		axioms = ["and"]
+		axioms.append(["is-str", t])
 		slist = ["sval", t]
 		while b > 0:
-			axioms.append(["not", ["is-snil", slist]])
+			axioms.append(["is-scons", slist])
 			slist = ["stl", slist]
 			b -= 1
-		self.commands.append(["assert", ["is-str", t]])
 		self.commands.append(["assert", axioms])
 
-	def not_lambda_with_arity_reversed(self, tFun, tArity):
+	def not_lambda_with_arity_reversed(self, tFun, tArity): # TODO function appears only in reversed form
 		"""
 		Asserts that: Not (tFun is not a function with arity tArity).
 		"""
@@ -1125,7 +1113,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 				]]]
 			],
 		]])
-		# TODO solver returns unknown when there are no other constraints; nonlinear integer arithmetic is undecidable
+		# solver returns unknown when there are no other constraints; nonlinear integer arithmetic is undecidable
 
 	def idiv_nat(self, term0, term1, term2):
 		"""
