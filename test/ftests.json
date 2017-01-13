@@ -129,7 +129,7 @@
             "module": "bitstr",
             "function": "f31",
             "args": "[<<>>, 0]",
-            "depth": "10",
+            "depth": "6",
             "errors": true,
             "arity": 2,
             "nondeterministic": true,

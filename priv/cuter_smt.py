@@ -384,7 +384,20 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			return ["is-atom", var]
 		elif cc.is_type_bitstring(spec):
 			segment_size = cc.get_segment_size_from_bitstring(spec)
-			return ["and", ["is-str", var], self.SListSpec(["sval", var], segment_size.m, segment_size.n)]
+			m = int(segment_size.m)
+			n = int(segment_size.n)
+			slist = ["sval", var]
+			axioms = ["and"]
+			axioms.append(["is-str", var])
+			while m > 0:
+				axioms.append(["is-scons", slist])
+				slist = ["stl", slist]
+				m -= 1
+			if n == 0: # TODO is this interpretation valid?
+				axioms.append(["is-snil", slist])
+			elif n > 1:
+				axioms.append(self.SListSpec(slist, str(n)))
+			return axioms
 		elif cc.is_type_complete_fun(spec):
 			# TODO if a function is to be called with wrong arguments, program must crash
 			par_spec = cc.get_parameters_from_complete_fun(spec)
@@ -1328,31 +1341,20 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 
 	### SMTLIB recursive functions
 
-	def SListSpec(self, l, m, n):
+	def SListSpec(self, l, n):
 		"""
-		slist-spec returns whether len(l) >= m and (len(l) - m) % n == 0
+		slist-spec returns whether len(l) % n == r
 		"""
-		# slist-spec is efficient when n and m are given integer constants
+		# slist-spec is efficient when n is a given integer constant
 		if "slist-spec" not in self.library:
 			self.library.append("slist-spec")
-			self.commands.append(["define-fun-rec", "slist-spec-aux", [["l", "SList"], ["n", "Int"], ["r", "Int"]], "Bool", [
+			self.commands.append(["define-fun-rec", "slist-spec", [["l", "SList"], ["n", "Int"], ["r", "Int"]], "Bool", [
 				"ite",
 				["is-snil", "l"],
 				["=", "r", "0"],
-				["slist-spec-aux", ["stl", "l"], "n", ["-", ["ite", ["=", "r", "0"], "n", "r"], "1"]]
+				["slist-spec", ["stl", "l"], "n", ["-", ["ite", ["=", "r", "0"], "n", "r"], "1"]]
 			]])
-			self.commands.append(["define-fun-rec", "slist-spec", [["l", "SList"], ["m", "Int"], ["n", "Int"]], "Bool", [
-				"ite",
-				["=", "m", "0"],
-				[
-					"ite",
-					["=", "n", "0"],
-					["is-snil", "l"],
-					["slist-spec-aux", "l", "n", "0"]
-				],
-				["and", ["not", ["is-snil", "l"]], ["slist-spec", ["stl", "l"], ["-", "m", "1"], "n"],]
-			]])
-		return ["slist-spec", l, m, n]
+		return ["slist-spec", l, n, "0"]
 
 	def SListConcat(self, l1, l2):
 		if "slist-concat" not in self.library:
