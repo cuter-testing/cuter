@@ -6,8 +6,31 @@ import cuter_logger as clg
 import smt
 
 
-false = [102, 97, 108, 115, 101]
-true = [116, 114, 117, 101]
+def listAtom(items):
+	ilist = "inil"
+	for item in reversed(items):
+		ilist = ["icons", str(item), ilist]
+	return ["atom", ilist]
+
+
+false = listAtom([102, 97, 108, 115, 101])
+true = listAtom([116, 114, 117, 101])
+
+
+def IsBool(expr):
+	return [
+		"or",
+		["=", expr, true],
+		["=", expr, false],
+	]
+
+
+def BoolAtom(expr):
+	return ["ite", expr, true, false]
+
+
+def AtomBool(expr):
+	return ["=", expr, true]
 
 
 def calculate_int(obj):
@@ -98,7 +121,6 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		self.commands.append(["declare-datatypes", [], [
 			[
 				"Term",
-				["bool", ["bval", "Bool"]],
 				["int", ["ival", "Int"]],
 				["real", ["rval", "Real"]],
 				["list", ["lval", "TList"]],
@@ -206,13 +228,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		elif cc.is_float(data):
 			return ["real", str(cc.get_float(data))]
 		elif cc.is_atom(data):
-			atom = cc.get_atom_chars(data)
-			if atom == true:
-				return ["bool", "true"]
-			elif atom == false:
-				return ["bool", "false"]
-			else:
-				return ["atom", self.value2ilist(atom)]
+			return ["atom", self.value2ilist(cc.get_atom_chars(data))]
 		elif cc.is_list(data):
 			return ["list", self.value2tlist(cc.get_list_subterms(data))]
 		elif cc.is_tuple(data):
@@ -241,12 +257,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			return ["scons", "true" if value[0] else "false", self.value2slist(value[1:])]
 
 	def encode(self, data):
-		if data[0] == "bool":
-			if data[1] == "true":
-				return cc.mk_atom(true)
-			else:
-				return cc.mk_atom(false)
-		elif data[0] == "int":
+		if data[0] == "int":
 			return cc.mk_int(calculate_int(data[1]))
 		elif data[0] == "real":
 			return cc.mk_float(calculate_real(data[1]))
@@ -489,17 +500,17 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t = self.decode(terms[0])
 		r = self.decode(terms[1])
 		v = ["sval", r]
-		l = [
+		conj = [
 			"and",
 			["is-str", t],
 			["is-str", r],
 		]
 		for term in reversed(terms[2:]):
 			b = self.decode(term)
-			l.append(["is-bool", b])
-			v = ["scons", ["bval", b], v]
-		l.append(["=", ["sval", t], v])
-		self.commands.append(["assert", l])
+			conj.append(IsBool(b))
+			v = ["scons", AtomBool(b), v]
+		conj.append(["=", ["sval", t], v])
+		self.commands.append(["assert", conj])
 
 	def fresh_closure(self, tFun, tArity):
 		"""
@@ -558,7 +569,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		Asserts the predicate: term == true
 		"""
 		t = self.decode(term)
-		self.commands.append(["assert", ["=", t, ["bool", "true"]]])
+		self.commands.append(["assert", ["=", t, true]])
 
 	def guard_true_reversed(self, term): # TODO not exactly reversed
 		"""
@@ -571,7 +582,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		Asserts the predicate: term == false
 		"""
 		t = self.decode(term)
-		self.commands.append(["assert", ["=", t, ["bool", "false"]]])
+		self.commands.append(["assert", ["=", t, false]])
 
 	def guard_false_reversed(self, term): # TODO not exactly reversed
 		"""
@@ -736,8 +747,8 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			"and",
 			["is-str", t],
 			["is-scons", ["sval", t]],
-			["is-bool", t1],
-			["=", ["bval", t1], ["shd", ["sval", t]]],
+			IsBool(t1),
+			["=", AtomBool(t1), ["shd", ["sval", t]]],
 			["is-str", t2],
 			["=", ["sval", t2], ["stl", ["sval", t]]],
 		]])
@@ -942,7 +953,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		self.commands.append(["assert", ["=", t0, ["bool", ["=", t1, ["atom", "inil"]]]]])
+		self.commands.append(["assert", ["=", t0, BoolAtom(["=", t1, ["atom", "inil"]])]])
 
 	def atom_head(self, term0, term1):
 		"""
@@ -991,7 +1002,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		self.commands.append(["assert", ["=", t0, ["bool", ["is-bool", t1]]]])
+		self.commands.append(["assert", ["=", t0, BoolAtom(IsBool(t1))]])
 
 	def is_integer(self, term0, term1):
 		"""
@@ -999,7 +1010,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		self.commands.append(["assert", ["=", t0, ["bool", ["is-int", t1]]]])
+		self.commands.append(["assert", ["=", t0, BoolAtom(["is-int", t1])]])
 
 	def is_float(self, term0, term1):
 		"""
@@ -1007,7 +1018,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		self.commands.append(["assert", ["=", t0, ["bool", ["is-real", t1]]]])
+		self.commands.append(["assert", ["=", t0, BoolAtom(["is-real", t1])]])
 
 	def is_list(self, term0, term1):
 		"""
@@ -1015,7 +1026,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		self.commands.append(["assert", ["=", t0, ["bool", ["is-list", t1]]]])
+		self.commands.append(["assert", ["=", t0, BoolAtom(["is-list", t1])]])
 
 	def is_tuple(self, term0, term1):
 		"""
@@ -1023,7 +1034,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		self.commands.append(["assert", ["=", t0, ["bool", ["is-tuple", t1]]]])
+		self.commands.append(["assert", ["=", t0, BoolAtom(["is-tuple", t1])]])
 
 	def is_atom(self, term0, term1):
 		"""
@@ -1031,7 +1042,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		self.commands.append(["assert", ["=", t0, ["bool", ["or", ["is-bool", t1], ["is-atom", t1]]]]])
+		self.commands.append(["assert", ["=", t0, BoolAtom(["is-atom", t1])]])
 
 	def is_bitstring(self, term0, term1):
 		"""
@@ -1039,7 +1050,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		self.commands.append(["assert", ["=", t0, ["bool", ["is-str", t1]]]])
+		self.commands.append(["assert", ["=", t0, BoolAtom(["is-str", t1])]])
 
 	def is_fun(self, term0, term1):
 		"""
@@ -1047,7 +1058,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		self.commands.append(["assert", ["=", t0, ["bool", ["is-fun", t1]]]])
+		self.commands.append(["assert", ["=", t0, BoolAtom(["is-fun", t1])]])
 
 	def is_fun_with_arity(self, r, t, a):
 		"""
@@ -1056,12 +1067,12 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		r = self.decode(r)
 		t = self.decode(t)
 		a = self.decode(a)
-		self.commands.append(["assert", ["=", r, ["bool", [
+		self.commands.append(["assert", ["=", r, BoolAtom([
 			"and",
 			["is-fun", t],
 			["is-int", a],
 			["=", ["fa", t], ["ival", a]],
-		]]]])
+		])]])
 
 	def is_number(self, term0, term1):
 		"""
@@ -1069,7 +1080,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		self.commands.append(["assert", ["=", t0, ["bool", ["or", ["is-int", t1], ["is-real", t1]]]]])
+		self.commands.append(["assert", ["=", t0, BoolAtom(["or", ["is-int", t1], ["is-real", t1]])]])
 
 	### Arithmetic Operations.
 
@@ -1249,7 +1260,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
 		t2 = self.decode(term2)
-		self.commands.append(["assert", ["=", t0, ["bool", ["=", t1, t2]]]])
+		self.commands.append(["assert", ["=", t0, BoolAtom(["=", t1, t2])]])
 
 	def lt_integers(self, term0, term1, term2):
 		"""
@@ -1262,7 +1273,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			"and",
 			["is-int", t1],
 			["is-int", t2],
-			["=", t0, ["bool", ["<", ["ival", t1], ["ival", t2]]]],
+			["=", t0, BoolAtom(["<", ["ival", t1], ["ival", t2]])],
 		]])
 
 	def lt_floats(self, term0, term1, term2):
@@ -1276,7 +1287,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			"and",
 			["is-real", t1],
 			["is-real", t2],
-			["=", t0, ["bool", ["<", ["rval", t1], ["rval", t2]]]],
+			["=", t0, BoolAtom(["<", ["rval", t1], ["rval", t2]])],
 		]])
 
 	### Type conversions.
