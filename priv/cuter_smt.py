@@ -1398,10 +1398,9 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		if "slist-spec" not in self.library:
 			self.library.append("slist-spec")
 			self.commands.append(["define-fun-rec", "slist-spec", [["l", "SList"], ["n", "Int"], ["r", "Int"]], "Bool", [
-				"ite",
-				["is-snil", "l"],
-				["=", "r", "0"],
-				["slist-spec", ["stl", "l"], "n", ["-", ["ite", ["=", "r", "0"], "n", "r"], "1"]]
+				"or",
+				["and", ["is-snil", "l"], ["=", "r", "0"]],
+				["and", ["is-scons", "l"], ["slist-spec", ["stl", "l"], "n", ["-", ["ite", ["=", "r", "0"], "n", "r"], "1"]]],
 			]])
 		return ["slist-spec", l, n, "0"]
 

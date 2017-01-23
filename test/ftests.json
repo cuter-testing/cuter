@@ -612,7 +612,7 @@
             "solutions": [
                 "$1(($2,)) != 1 and $2[2:] == bin(5 % (1 << 6))[2:].zfill(6)"
             ],
-            "skip": true
+            "skip": false
         },
         {
             "module": "sum",
