@@ -146,7 +146,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			],
 			[
 				"FList",
-				["fn", ["fd", "Term"]],
+				["fn"],
 				["fc", ["fx", "TList"], ["fy", "Term"], ["ft", "FList"]],
 			],
 		]])
@@ -290,6 +290,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 				node = node[2]
 			return cc.mk_bitstring(v)
 		elif data[0] == "fun":
+			# TODO function decoding and encoding
 			arity = calculate_int(data[2])
 			# if arity is less than or greater than 255, we assume it is an arbitrary value selected by the solver
 			# because there is no constraint limiting the function's arity; thus, we set it to zero
@@ -297,14 +298,19 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 				arity = 0
 			node = data[1]
 			entries = []
-			while node[0] != "fn":
+			otherwise = None
+			while node != "fn":
 				x = cc.get_list_subterms(self.encode(["list", node[1]]))
 				# keep only entries with argument length equal to arity
 				if len(x) == arity:
 					y = self.encode(node[2])
-					entries.append(cc.mk_fun_entry(x, y))
+					if otherwise is None:
+						otherwise = y
+					else:
+						entries.append(cc.mk_fun_entry(x, y))
 				node = node[3]
-			otherwise = self.encode(node[1])
+			if otherwise is None:
+				otherwise = cc.mk_any()
 			return cc.mk_fun(arity, entries, otherwise)
 		clg.debug_info("encoding failed: " + str(data))
 		assert False
@@ -366,10 +372,9 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 				tlist = ["tl", tlist]
 			arg_spec.append(["is-nil", tlist])
 		name = self.fun_rec_name()
-		# TODO call self.build_spec(ret_spec, _) only once
 		self.commands.append(["define-fun-rec", name, [["f", "FList"]], "Bool", [
 			"or",
-			["and", ["is-fn", "f"], self.build_spec(ret_spec, ["fd", "f"])],
+			["is-fn", "f"],
 			["and", ["is-fc", "f"], arg_spec, self.build_spec(ret_spec, ["fy", "f"]), [name, ["ft", "f"]]],
 		]])
 		return name
@@ -1408,7 +1413,6 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			self.library.append("flist-equals")
 			self.commands.append(["define-fun-rec", "flist-equals", [["f", "FList"], ["x", "TList"], ["y", "Term"], ["d", "Int"]], "Bool", [
 				"or",
-				["and", [">=", "d", "0"], ["is-fn", "f"], ["=", ["fd", "f"], "y"]],
 				["and", [">=", "d", "0"], ["is-fc", "f"], ["=", ["fx", "f"], "x"], ["=", ["fy", "f"], "y"]],
 				["and", [">", "d", "0"], ["is-fc", "f"], ["not", ["=", ["fx", "f"], "x"]], ["flist-equals", ["ft", "f"], "x", "y", ["-", "d", "1"]]],
 			]])
