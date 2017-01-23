@@ -435,7 +435,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 				axioms.append(["is-scons", slist])
 				slist = ["stl", slist]
 				m -= 1
-			if n == 0: # TODO is this interpretation valid?
+			if n == 0:
 				axioms.append(["is-snil", slist])
 			elif n > 1:
 				axioms.append(self.SListSpec(slist, str(n)))
@@ -945,7 +945,6 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		]])
 
 	### Operations on atoms.
-	# TODO replace booleans as true != atomTrue and false != atomFalse
 
 	def atom_nil(self, term0, term1):
 		"""
@@ -1144,16 +1143,11 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 				["and", ["is-int", t2], ["not", ["=", ["ival", t2], "0"]]],
 				["and", ["is-real", t2], ["not", ["=", ["rval", t2], "0"]]],
 			],
-			[
-				"ite",
-				["and", ["is-int", t1], ["is-int", t2]],
-				["=", t0, ["int", ["div", ["ival", t1], ["ival", t2]]]], # TODO cuter_z3.py returns a real when dividing two integers?
-				["=", t0, ["real", [
-					"/",
-					["ite", ["is-int", t1], ["to_real", ["ival", t1]], ["rval", t1]],
-					["ite", ["is-int", t2], ["to_real", ["ival", t2]], ["rval", t2]]
-				]]]
-			],
+			["=", t0, ["real", [
+				"/",
+				["ite", ["is-int", t1], ["to_real", ["ival", t1]], ["rval", t1]],
+				["ite", ["is-int", t2], ["to_real", ["ival", t2]], ["rval", t2]]
+			]]],
 		]])
 		# solver returns unknown when there are no other constraints; nonlinear integer arithmetic is undecidable
 
@@ -1339,7 +1333,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		self.commands.append(["assert", ["=", t0, t1]])
 
 	### Bitwise Operations.
-	# TODO do we have to check whether terms are integers?
+	# no need to check again whether terms are integers
 
 	def band(self, term0, term1, term2):
 		"""
