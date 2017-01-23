@@ -463,16 +463,37 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		Unfolds a symbolic tuple.
 		"""
 		t = self.decode(terms[0])
-		l = ["and"]
-		l.append(["is-tuple", t])
+		conj = [
+			"and",
+			["is-tuple", t],
+		]
 		tlist = ["tval", t]
 		for x in terms[1:]:
 			s = self.decode(x)
-			l.append(["is-cons", tlist])
-			l.append(["=", s, ["hd", tlist]])
+			conj.append(["is-cons", tlist])
+			conj.append(["=", s, ["hd", tlist]])
 			tlist = ["tl", tlist]
-		l.append(["is-nil", tlist])
-		self.commands.append(["assert", l])
+		conj.append(["is-nil", tlist])
+		self.commands.append(["assert", conj])
+
+	def unfold_list(self, *terms):
+		"""
+		Unfolds a symbolic list.
+		"""
+		# TODO missing testcase
+		t = self.decode(terms[0])
+		conj = [
+			"and",
+			["is-list", t],
+		]
+		tlist = ["lval", t]
+		for x in terms[1:]:
+			s = self.decode(x)
+			conj.append(["is-cons", tlist])
+			conj.append(["=", s, ["hd", tlist]])
+			tlist = ["tl", tlist]
+		conj.append(["is-nil", tlist])
+		self.commands.append(["assert", conj])
 
 	# TODO when constructing bitstrings, size must have a concrete non-negative integer value
 
