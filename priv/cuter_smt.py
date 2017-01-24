@@ -347,6 +347,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		return "fun-rec-" + str(self.fun_rec_cnt)
 
 	def fun_rec_tlist(self, spec):
+		spec = self.build_spec(spec, ["hd", "l"])
 		spec_smt = smt.encode(spec)
 		if not hasattr(self, "fun_rec_tlists"):
 			self.fun_rec_tlists = {}
@@ -371,11 +372,18 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 				arg_spec.append(["and", ["is-cons", tlist], self.build_spec(param_spec, ["hd", tlist])])
 				tlist = ["tl", tlist]
 			arg_spec.append(["is-nil", tlist])
+		ret_spec = self.build_spec(ret_spec, ["fy", "f"])
+		spec_smt = smt.encode([arg_spec, ret_spec])
+		if not hasattr(self, "fun_rec_flists"):
+			self.fun_rec_flists = {}
+		elif spec_smt in self.fun_rec_flists:
+			return self.fun_rec_flists[spec_smt]
 		name = self.fun_rec_name()
+		self.fun_rec_flists[spec_smt] = name
 		self.commands.append(["define-fun-rec", name, [["f", "FList"]], "Bool", [
 			"or",
 			["is-fn", "f"],
-			["and", ["is-fc", "f"], arg_spec, self.build_spec(ret_spec, ["fy", "f"]), [name, ["ft", "f"]]],
+			["and", ["is-fc", "f"], arg_spec, ret_spec, [name, ["ft", "f"]]],
 		]])
 		return name
 
@@ -387,7 +395,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		elif cc.is_type_integer(spec):
 			return ["is-int", var]
 		elif cc.is_type_list(spec):
-			inner_spec = self.build_spec(cc.get_inner_type_from_list(spec), ["hd", "l"])
+			inner_spec = cc.get_inner_type_from_list(spec)
 			name = self.fun_rec_tlist(inner_spec)
 			return [
 				"and",
@@ -395,7 +403,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 				[name, ["lval", var]],
 			]
 		elif cc.is_type_nonempty_list(spec):
-			inner_spec = self.build_spec(cc.get_inner_type_from_nonempty_list(spec), ["hd", "l"])
+			inner_spec = cc.get_inner_type_from_nonempty_list(spec)
 			name = self.fun_rec_tlist(inner_spec)
 			return [
 				"and",
