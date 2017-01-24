@@ -235,6 +235,28 @@ def get_bits(t):
     assert is_bitstring(t)
     return t.bits
 
+def is_alias(t):
+    """
+    Parameters
+        t : ErlangTerm
+    """
+    return t.type == ErlangTerm.SUBTERM
+
+def get_alias(t):
+    """
+    Parameters
+        t : ErlangTerm
+    """
+    assert is_alias(t)
+    return t.value
+
+def get_shared(t):
+    """
+    Parameters
+        t : ErlangTerm
+    """
+    return t.shared
+
 def mk_alias(s):
     """
     Parameters

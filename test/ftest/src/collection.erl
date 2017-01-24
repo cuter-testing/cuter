@@ -1,6 +1,6 @@
 -module(collection).
 -export([f/1, g/1, g1/1, h/1, f1/1, eval_nif/1, trunc1/1, trunc2/1, l2i/1, l2in/1,
-         to_upper/1, k/2, k2/3, p/1, a2l/1]).
+         to_upper/1, k/2, k2/3, p/1, a2l/1, test_alias/1]).
 
 -type t() :: [complex_spec:int()].
 
@@ -140,5 +140,13 @@ p(X) ->
 a2l(A) ->
   case atom_to_list(A) of
       "foo" -> error(bug);
+      _ -> ok
+  end.
+
+-spec test_alias(any()) -> ok.
+test_alias(X) ->
+  Y = [X | [[1,2],[1,2],[1,2]]],
+  case hd(Y) of
+      5 -> error(bug);
       _ -> ok
   end.

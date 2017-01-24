@@ -213,7 +213,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 	# Private Methods.
 	# =========================================================================
 
-	def decode(self, data):
+	def decode(self, data, shared = None):
 		"""
 		Decodes a term to its SMT representation
 		"""
@@ -230,19 +230,21 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		elif cc.is_atom(data):
 			return ["atom", self.value2ilist(cc.get_atom_chars(data))]
 		elif cc.is_list(data):
-			return ["list", self.value2tlist(cc.get_list_subterms(data))]
+			return ["list", self.value2tlist(cc.get_list_subterms(data), cc.get_shared(data))]
 		elif cc.is_tuple(data):
-			return ["tuple", self.value2tlist(cc.get_tuple_subterms(data))]
+			return ["tuple", self.value2tlist(cc.get_tuple_subterms(data), cc.get_shared(data))]
 		elif cc.is_bitstring(data):
 			return ["str", self.value2slist(cc.get_bits(data))]
+		elif cc.is_alias(data):
+			return self.decode(shared[cc.get_alias(data)], shared)
 		clg.debug_info("decoding failed: " + str(data))
 		assert False
 
-	def value2tlist(self, value):
+	def value2tlist(self, value, shared):
 		if not value:
 			return "nil"
 		else:
-			return ["cons", self.decode(value[0]), self.value2tlist(value[1:])]
+			return ["cons", self.decode(value[0], shared), self.value2tlist(value[1:], shared)]
 
 	def value2ilist(self, value):
 		if not value:

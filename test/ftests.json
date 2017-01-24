@@ -1071,6 +1071,18 @@
                 "[foo]"
             ],
             "skip": false
+        },
+        {
+            "module": "collection",
+            "function": "test_alias",
+            "args": "[1]",
+            "depth": "20",
+            "errors": true,
+            "arity": 1,
+            "solutions": [
+                "[5]"
+            ],
+            "skip": false
         }
     ]
 }
