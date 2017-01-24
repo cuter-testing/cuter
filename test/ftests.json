@@ -504,7 +504,7 @@
             "arity": 1,
             "nondeterministic": true,
             "solutions": [
-                "$1((0,)) == 42"
+                "$1((1532,)) == 42"
             ],
             "skip": false
         },
@@ -523,7 +523,7 @@
                 "not isinstance($2((0,))(($3,)), int) or isinstance($2((0,))(($3,)), bool)",
                 "$1((0,))(($3,)) + $2((0,))(($3,)) == 9"
             ],
-            "skip": true
+            "skip": false
         },
         {
             "module": "funs",
