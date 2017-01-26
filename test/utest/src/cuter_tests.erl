@@ -14,7 +14,6 @@ run_test() ->
   R = cuter:run('lists', 'reverse', [[1]], 0),
   ?assertEqual([], R).
 
-% FIXME Test is temporarily disabled.
 -spec bugs_test_() -> any().
 bugs_test_() ->
   Tests = [ {"Match to single value", {t0, [0], 1, [[42]]}}
