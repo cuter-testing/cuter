@@ -217,7 +217,6 @@ f13b(F, X) ->
   case F(X) of
     1 ->
       case X of
-        %% FIXME Add the proper type constraints to exclude this branch.
         <<5:8>> -> error(unreachable_bug);
         _ -> ok
       end;
