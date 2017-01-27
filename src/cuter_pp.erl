@@ -725,7 +725,7 @@ pp_arguments(Args) ->
 pp_argument(X) ->
   case cuter_lib:is_lambda(X) of
     true  -> pp_lambda(X);
-    false -> io_lib:format("~p", [X])
+    false -> io_lib:format("~p", [cuter_lib:handle_unbound_var(X)])
   end.
 
 -spec pp_lambda(any()) -> string().

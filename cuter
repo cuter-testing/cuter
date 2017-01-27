@@ -27,6 +27,7 @@ def main():
   parser.add_argument("--disable-pmatch", action='store_true', help="disable the pattern matching compilation")
   parser.add_argument("--sorted-errors", action='store_true', help="report the erroneous inputs in a sorted order")
   parser.add_argument("--suppress-unsupported", action='store_true', help="suppresses the reporting of unsupported MFAs")
+  parser.add_argument("--z3py", action='store_true', help="use the z3py solver backend")
 
   # Parse the arguments
   args = parser.parse_args()
@@ -85,6 +86,8 @@ def main():
     opts.append("suppress_unsupported")
   if args.w != None:
       opts.append("{{whitelist, '{}'}}".format(args.w))
+  if args.z3py:
+      opts.append("z3py")
   strOpts = ",".join(opts)
 
   # Run CutEr

@@ -279,8 +279,11 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         sResult = self.env.freshVar(cc.get_symb(tResult), T)
         sFun = self.decode_term(tFun)
         sArgs = L.nil
+        ss = []
         for t in reversed(tArgs):
-            sArgs = L.cons(self.decode_term(t), sArgs)
+            s = self.decode_term(t)
+            ss.insert(0, s)
+            sArgs = L.cons(s, sArgs)
         self.axs.extend([
             T.is_fun(sFun),
             arity(T.fval(sFun)) == len(tArgs),
@@ -296,6 +299,9 @@ class ErlangZ3(cgs.AbstractErlangSolver):
                 currTp = env.lookupType(cc.get_symb(t))
                 if not currTp.unify(tpArgs[i]):
                     self.axs.append(True == False)
+                if cc.is_type_bitstring(tpArgs[i].typ):
+                    segSizes = cc.get_segment_size_from_bitstring(tpArgs[i].typ)
+                    self.axs.append(self.bitstringToAxioms(ss[i], segSizes))
         env.bindType(cc.get_symb(tResult), tpResult)
 
     def guard_true(self, term):

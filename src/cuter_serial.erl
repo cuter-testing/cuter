@@ -327,12 +327,7 @@ from_erlang_term(T=#'ErlangTerm'{type=Type}, Shared) when Type =:= 'FUN' ->
   Arity = T#'ErlangTerm'.arity,
   Points = [from_fun_entry(E, Shared) || E <- T#'ErlangTerm'.points],
   Otherwise = from_erlang_term(T#'ErlangTerm'.otherwise, Shared),
-  case Points of
-    %% Funs with just one element in their inputs will be
-    %% transformed into constant functions.
-    [{_As, V}] -> cuter_lib:mk_lambda([], V, Arity);
-    _ -> cuter_lib:mk_lambda(Points, Otherwise, Arity)
-  end.
+  cuter_lib:mk_lambda(Points, Otherwise, Arity).
 
 from_map_entry(#'ErlangTerm.MapEntry'{key=K, value=V}, Shared) ->
   {from_erlang_term(K, Shared), from_erlang_term(V, Shared)}.

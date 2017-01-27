@@ -7,9 +7,11 @@
             "depth": "9",
             "errors": true,
             "arity": 1,
+            "nondeterministic": true,
             "solutions": [
-                "[42]"
-            ]
+                "$1 % (1 << 7) == 42"
+            ],
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -18,9 +20,11 @@
             "depth": "14",
             "errors": true,
             "arity": 3,
+            "nondeterministic": true,
             "solutions": [
-                "[0, 5, 2]"
-            ]
+                "$1 % (1 << 2) == 0 and $2 % (1 << 3) == 5 and $3 % (1 << 3) == 2"
+            ],
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -29,9 +33,11 @@
             "depth": "24",
             "errors": true,
             "arity": 3,
+            "nondeterministic": true,
             "solutions": [
-                "[3, 2, 3]", "[6, 3, 2]", "[26, 5, 0]"
-            ]
+                "(5 << ($2 + $3)) + (($1 % (1 << $2)) << $3) + (2 % (1 << $3)) == 186"
+            ],
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -42,7 +48,8 @@
             "arity": 1,
             "solutions": [
                 "[<<0,42:7>>]"
-            ]
+            ],
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -51,9 +58,11 @@
             "depth": "8",
             "errors": true,
             "arity": 2,
+            "nondeterministic": true,
             "solutions": [
-                "[<<42:6>>, 6]"
-            ]
+                "$1[2:] == bin(42 % (1 << $2))[2:].zfill($2) if $2 > 0 else \"\""
+            ],
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -62,9 +71,11 @@
             "depth": "7",
             "errors": true,
             "arity": 2,
+            "nondeterministic": true,
             "solutions": [
-                "[9, 5]"
-            ]
+                "$1 % (1 << 5) == 9 and $2 == 5"
+            ],
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -75,7 +86,8 @@
             "arity": 2,
             "solutions": [
                 "[<<42:6>>, 6]"
-            ]
+            ],
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -84,9 +96,11 @@
             "depth": "8",
             "errors": true,
             "arity": 2,
+            "nondeterministic": true,
             "solutions": [
-                "[<<42:6>>, 6]"
-            ]
+                "$1[2:] == bin(42 % (1 << $2))[2:].zfill($2) if $2 > 0 else \"\""
+            ],
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -95,9 +109,12 @@
             "depth": "10",
             "errors": true,
             "arity": 2,
+            "nondeterministic": true,
             "solutions": [
-                "[<<\"*\">>, 8]", "[<<42:6>>, 6]"
-            ]
+                "$1[2:] == bin(42 % (1 << $2))[2:].zfill($2) and $2 == 6",
+                "$1[2:] == bin(42 % (1 << $2))[2:].zfill($2) and $2 > 6"
+            ],
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -105,7 +122,8 @@
             "args": "[<<>>, 0]",
             "depth": "20",
             "errors": false,
-            "arity": 2
+            "arity": 2,
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -114,9 +132,11 @@
             "depth": "6",
             "errors": true,
             "arity": 2,
+            "nondeterministic": true,
             "solutions": [
-                "[<<0:4>>, 0]"
-            ]
+                "$1[2:] == bin($2 % (1 << 4))[2:].zfill(4)"
+            ],
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -125,9 +145,11 @@
             "depth": "11",
             "errors": true,
             "arity": 3,
+            "nondeterministic": true,
             "solutions": [
-                "[<<64,3:3>>, 0, 0]"
-            ]
+                "$1[2:] == \"010\" + bin($2 % (1 << $3))[2:].zfill($3) if $2 > 0 else \"\" + \"00000011\""
+            ],
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -136,9 +158,11 @@
             "depth": "21",
             "errors": true,
             "arity": 4,
+            "nondeterministic": true,
             "solutions": [
-                "[<<0:1>>, 0, 0, <<0:1>>]"
-            ]
+                "$1[2:] == bin($3 % (1 << $2))[2:].zfill($2) if $2 > 0 else \"\" + $4[2:]"
+            ],
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -146,7 +170,8 @@
             "args": "[<<>>, 0]",
             "depth": "50",
             "errors": false,
-            "arity": 2
+            "arity": 2,
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -154,7 +179,8 @@
             "args": "[<<>>]",
             "depth": "50",
             "errors": false,
-            "arity": 1
+            "arity": 1,
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -162,7 +188,8 @@
             "args": "[<<>>]",
             "depth": "50",
             "errors": false,
-            "arity": 1
+            "arity": 1,
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -171,9 +198,11 @@
             "depth": "50",
             "errors": true,
             "arity": 1,
+            "nondeterministic": true,
             "solutions": [
-                "[<<0,0,0,0,0,0:2>>]"
-            ]
+                "len($1[2:]) == 42"
+            ],
+            "skip": false
         },
         {
             "module": "otp_int",
@@ -184,7 +213,8 @@
             "arity": 3,
             "solutions": [
                 "[ssl, negotiated_next_protocol, 1]"
-            ]
+            ],
+            "skip": false
         },
         {
             "module": "whitelist",
@@ -196,7 +226,8 @@
             "arity": 1,
             "solutions": [
                 "[424242]"
-            ]
+            ],
+            "skip": false
         },
         {
             "module": "whitelist",
@@ -208,7 +239,8 @@
             "arity": 1,
             "solutions": [
                 "[4242]"
-            ]
+            ],
+            "skip": false
         },
         {
             "module": "whitelist",
@@ -220,7 +252,8 @@
             "arity": 1,
             "solutions": [
                 "[42]"
-            ]
+            ],
+            "skip": false
         },
         {
             "module": "complex_spec",
@@ -231,7 +264,8 @@
             "arity": 1,
             "solutions": [
                 "[[{[1,2],[{[[1],[2]],[3.14]},2]}]]"
-            ]
+            ],
+            "skip": true
         },
         {
             "module": "collection",
@@ -240,9 +274,11 @@
             "depth": "10",
             "errors": true,
             "arity": 1,
+            "nondeterministic": true,
             "solutions": [
-                "[[17,17,42]]"
-            ]
+                "$1[0:3] == [17, 17, 42]"
+            ],
+            "skip": false
         },
         {
             "module": "collection",
@@ -251,9 +287,12 @@
             "depth": "2",
             "errors": true,
             "arity": 1,
+            "nondeterministic": true,
             "solutions": [
-                "[42]", "[[0]]", "[\"*\"]"
-            ]
+                "$1 == 42",
+                "not isinstance($1, int)"
+            ],
+            "skip": false
         },
         {
             "module": "collection",
@@ -262,9 +301,13 @@
             "depth": "2",
             "errors": true,
             "arity": 1,
+            "nondeterministic": true,
             "solutions": [
-                "[42]", "[1]", "[[0]]"
-            ]
+                "$1 == 42",
+                "isinstance($1, int) and $1 != 42",
+                "not isinstance($1, int) and len($1) != 0"
+            ],
+            "skip": false
         },
         {
             "module": "collection",
@@ -278,7 +321,8 @@
             ],
             "bifs": [
                 "erlang:get/1"
-            ]
+            ],
+            "skip": false
         },
         {
             "module": "collection",
@@ -290,7 +334,8 @@
             "withUtestBin": true,
             "solutions": [
                 "[38.86]"
-            ]
+            ],
+            "skip": false
         },
         {
             "module": "funs",
@@ -299,9 +344,11 @@
             "depth": "2",
             "errors": true,
             "arity": 1,
+            "nondeterministic": true,
             "solutions": [
-                "[fun(3) -> 42; (10) -> 17; (_) -> 42 end]"
-            ]
+                "$1((3,)) == 42 and $1((10,)) == 17"
+            ],
+            "skip": false
         },
         {
             "module": "funs",
@@ -310,9 +357,11 @@
             "depth": "2",
             "errors": true,
             "arity": 3,
+            "nondeterministic": true,
             "solutions": [
-                "[fun(2) -> 42; (3) -> 17; (_) -> 42 end, 2, 3]"
-            ]
+                "$1(($2,)) == 42 and $1(($3,)) == 17"
+            ],
+            "skip": false
         },
         {
             "module": "funs",
@@ -321,9 +370,11 @@
             "depth": "2",
             "errors": true,
             "arity": 3,
+            "nondeterministic": true,
             "solutions": [
-                "[fun(5) -> 17; (2) -> 4; (4) -> 42; (3) -> 5; (_) -> 17 end, 2, 3]"
-            ]
+                "$1(($1(($2,)),)) == 42 and $1(($1(($3,)),)) == 17"
+            ],
+            "skip": false
         },
         {
             "module": "funs",
@@ -334,9 +385,10 @@
             "arity": 3,
             "nondeterministic": true,
             "solutions": [
-                "not isinstance($1(($2,)), LambdaType) and isinstance($2, int) and isinstance($3, int)  # [fun(_) -> 0.0 end, 2, 3]",
-                "$1(($2,))(($3,))==42 and isinstance($2, int) and isinstance($3, int)  # [fun(_) -> fun(_) -> 42 end end, 2, 3]"
-            ]
+                "not isinstance($1(($2,)), LambdaType)",
+                "$1(($2,))(($3,)) == 42"
+            ],
+            "skip": false
         },
         {
             "module": "funs",
@@ -347,9 +399,10 @@
             "arity": 3,
             "nondeterministic": true,
             "solutions": [
-                "not isinstance($1(($2,)), LambdaType) and isinstance($2, int) and isinstance($3, int)  # [fun(_) -> 0.0 end, 2, 3]",
-                "$1(($2,))(($3,))==42 and isinstance($2, int) and isinstance($3, int)  # [fun(_) -> fun(_) -> 42 end end, 2, 3]"
-            ]
+                "not isinstance($1(($2,)), LambdaType)",
+                "$1(($2,))(($3,)) == 42"
+            ],
+            "skip": false
         },
         {
             "module": "funs",
@@ -358,9 +411,11 @@
             "depth": "2",
             "errors": true,
             "arity": 4,
+            "nondeterministic": true,
             "solutions": [
-                "[fun(4,2,1) -> 17; (1,2,4) -> 42; (_,_,_) -> 17 end, 1, 2, 4]"
-            ]
+                "$1(($2, $3, $4,)) == 42 and $1(($4, $3, $2,)) == 17"
+            ],
+            "skip": false
         },
         {
             "module": "funs",
@@ -369,15 +424,17 @@
             "depth": "15",
             "errors": true,
             "arity": 1,
+            "nondeterministic": true,
             "solutions": [
-                "[42]",
-                "[fun(_) -> 42 end]",
-                "[fun(_) -> fun(_) -> 42 end end]",
-                "[fun(_) -> fun(_) -> fun(_) -> 42 end end end]",
-                "[fun(_) -> fun(_) -> fun(_) -> fun(_) -> 42 end end end end]",
-                "[fun(_) -> fun(_) -> fun(_) -> fun(_) -> fun(_) -> 42 end end end end end]",
-                "[fun(_) -> fun(_) -> fun(_) -> fun(_) -> fun(_) -> fun(_) -> 42 end end end end end end]"
-            ]
+                "$1 == 42",
+                "$1((0,)) == 42",
+                "$1((0,))((0,)) == 42",
+                "$1((0,))((0,))((0,)) == 42",
+                "$1((0,))((0,))((0,))((0,)) == 42",
+                "$1((0,))((0,))((0,))((0,))((0,)) == 42",
+                "$1((0,))((0,))((0,))((0,))((0,))((0,)) == 42"
+            ],
+            "skip": false
         },
         {
             "module": "funs",
@@ -386,10 +443,12 @@
             "depth": "6",
             "errors": true,
             "arity": 2,
+            "nondeterministic": true,
             "solutions": [
-                "[fun(_,_) -> 42 end, [3]]",
-                "[fun(3,0) -> 5; (4,5) -> 42; (_,_) -> 5 end, [3,4]]"
-            ]
+                "reduce(lambda a, b, f = $1: f((b,a,)), $2 if isinstance($2, list) else map(ord, $2), 0) == 42 and len($2) == 1",
+                "reduce(lambda a, b, f = $1: f((b,a,)), $2 if isinstance($2, list) else map(ord, $2), 0) == 42 and len($2) == 2"
+            ],
+            "skip": false
         },
         {
             "module": "funs",
@@ -400,9 +459,10 @@
             "arity": 2,
             "nondeterministic": true,
             "solutions": [
-                "len([t for t in $2 if $1((t,))]) == 0  # [fun(_) -> false end, [0.0]]",
-                "len($2) == 0  # [fun(_) -> true end, []]"
-            ]
+                "len($2) == 0",
+                "len($2) > 0 and len([t for t in $2 if $1((t,))]) == 0"
+            ],
+            "skip": false
         },
         {
             "module": "funs",
@@ -414,10 +474,11 @@
             "arity": 3,
             "nondeterministic": true,
             "solutions": [
-                "$1(($2,))==42 and $3==1  # [fun(_) -> 42 end, 0.0, 1]",
-                "$1(($2,$2))==42 and $3==2  #  [fun(_,_) -> 42 end, 0.0, 2]",
-                "isinstance($1, LambdaType) and $3==2  # [fun(_) -> fun(_) -> 0 end end, 1, 2]"
-            ]
+                "isinstance($1, LambdaType)",
+                "$1(($2,)) == 42 and $3 == 1",
+                "$1(($2,$2)) == 42 and $3 == 2"
+            ],
+            "skip": false
         },
         {
             "module": "funs",
@@ -428,10 +489,11 @@
             "arity": 2,
             "nondeterministic": true,
             "solutions": [
-                "isinstance($1, LambdaType)  # [fun() -> fun() -> 0 end end, 1]",
-                "$1(($2,))==42  # [fun(_) -> 42 end, 0.0]",
-                "$1(($2,$2))==42  # [fun(_,_) -> 42 end, 0.0]"
-            ]
+                "isinstance($1, LambdaType)",
+                "$1(($2,)) == 42",
+                "$1(($2,$2)) == 42"
+            ],
+            "skip": false
         },
         {
             "module": "funs",
@@ -440,9 +502,11 @@
             "depth": "4",
             "errors": true,
             "arity": 1,
+            "nondeterministic": true,
             "solutions": [
-                "[fun(_) -> 42 end]"
-            ]
+                "$1((1532,)) == 42"
+            ],
+            "skip": false
         },
         {
             "module": "funs",
@@ -453,12 +517,13 @@
             "arity": 3,
             "nondeterministic": true,
             "solutions": [
-                "not isinstance($1((0,)), LambdaType)  # [fun(_) -> 6 end, fun(_) -> fun(_) -> 0 end end, 1]",
-                "not isinstance($2((0,)), LambdaType)  # [fun(_) -> fun(_) -> 8 end end, fun(_) -> 0.0 end, 1.0]",
-                "not isinstance($2((0,))(($3,)), int)  # [fun(_) -> fun(_) -> [] end end, fun(_) -> fun(_) -> 9 end end, 0.0]",
-                "not isinstance($1((0,))(($3,)), int)  # [fun(_) -> fun(_) -> 0.0 end end, fun(_) -> fun(_) -> [] end end, 1.0]",
-                "$1((0,))(($3,)) + $2((0,))(($3,)) == 9  # [fun(_) -> fun(_) -> 7719 end end, fun(_) -> fun(_) -> -7710 end end, 0.0]"
-            ]
+                "not isinstance($1((0,)), LambdaType)",
+                "not isinstance($2((0,)), LambdaType)",
+                "not isinstance($1((0,))(($3,)), int) or isinstance($1((0,))(($3,)), bool)",
+                "not isinstance($2((0,))(($3,)), int) or isinstance($2((0,))(($3,)), bool)",
+                "$1((0,))(($3,)) + $2((0,))(($3,)) == 9"
+            ],
+            "skip": false
         },
         {
             "module": "funs",
@@ -469,9 +534,10 @@
             "arity": 1,
             "nondeterministic": true,
             "solutions": [
-                "not isinstance($1((0,)), LambdaType)  # [fun(_) -> 0.0 end]",
-                "$1((0,))((1,))==42  # [fun(_) -> fun(_) -> 42 end end]"
-            ]
+                "not isinstance($1((lambda l: reduce(lambda l1, l2: l1 + l2, l, []),)), LambdaType)",
+                "$1((lambda l: reduce(lambda l1, l2: l1 + l2, l, []),))((1,)) == 42"
+            ],
+            "skip": false
         },
         {
             "module": "funs",
@@ -479,7 +545,8 @@
             "args": "[fun(_) -> 1 end]",
             "depth": "10",
             "errors": false,
-            "arity": 1
+            "arity": 1,
+            "skip": false
         },
         {
             "module": "funs",
@@ -487,7 +554,8 @@
             "args": "[fun(_) -> 1 end, 1, 1]",
             "depth": "10",
             "errors": false,
-            "arity": 3
+            "arity": 3,
+            "skip": false
         },
         {
             "module": "funs",
@@ -495,7 +563,8 @@
             "args": "[fun(_) -> 1 end, 1, 1]",
             "depth": "10",
             "errors": false,
-            "arity": 3
+            "arity": 3,
+            "skip": false
         },
         {
             "module": "funs",
@@ -503,7 +572,8 @@
             "args": "[fun(_,_,_) -> 1 end, 0, 0, 0]",
             "depth": "2",
             "errors": false,
-            "arity": 4
+            "arity": 4,
+            "skip": false
         },
         {
             "module": "funs",
@@ -512,9 +582,11 @@
             "depth": "2",
             "errors": true,
             "arity": 1,
+            "nondeterministic": true,
             "solutions": [
-                "[fun(3) -> 42; (10) -> 17; (_) -> 42 end]"
-            ]
+                "$1((3,)) == 42 and $1((10,)) == 17"
+            ],
+            "skip": false
         },
         {
             "module": "funs",
@@ -523,9 +595,11 @@
             "depth": "5",
             "errors": true,
             "arity": 2,
+            "nondeterministic": true,
             "solutions": [
-                "[fun(_) -> 3 end, {4,2}]"
-            ]
+                "$1(($2,)) != 1 and $2 == (4, 2,)"
+            ],
+            "skip": false
         },
         {
             "module": "funs",
@@ -534,10 +608,11 @@
             "depth": "25",
             "errors": true,
             "arity": 2,
+            "nondeterministic": true,
             "solutions": [
-                "[fun(_) -> 1 end, <<5>>]",
-                "[fun(_) -> 10 end, <<5:6>>]"
-            ]
+                "$1(($2,)) != 1 and $2[2:] == bin(5 % (1 << 6))[2:].zfill(6)"
+            ],
+            "skip": false
         },
         {
             "module": "sum",
@@ -545,11 +620,13 @@
             "args": "[[]]",
             "depth": "25",
             "withProper": true,
-            "arity": 1,
             "errors": true,
+            "arity": 1,
+            "nondeterministic": true,
             "solutions": [
-                "[[-5450,8365,1796]]", "[[2437,2274]]", "[[4711]]", "[[4711.0]]"
-            ]
+                "sum($1) == 4711"
+            ],
+            "skip": false
         },
         {
             "module": "funs",
@@ -558,9 +635,11 @@
             "depth": "25",
             "errors": true,
             "arity": 2,
+            "nondeterministic": true,
             "solutions": [
-                "[fun(_) -> [1, 2, 3] end, [4]]"
-            ]
+                "$1(($2,)) == [1, 2, 3]"
+            ],
+            "skip": false
         },
         {
             "module": "collection",
@@ -568,7 +647,8 @@
             "args": "[ok]",
             "depth": "25",
             "errors": false,
-            "arity": 1
+            "arity": 1,
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -577,9 +657,11 @@
             "depth": "15",
             "errors": true,
             "arity": 1,
+            "nondeterministic": true,
             "solutions": [
-                "[<<0:4>>]"
-            ]
+                "len($1[2:]) >= 4"
+            ],
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -588,9 +670,11 @@
             "depth": "42",
             "errors": true,
             "arity": 1,
+            "nondeterministic": true,
             "solutions": [
-                "[<<0,0:1>>]"
-            ]
+                "len($1[2:]) > 8"
+            ],
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -601,7 +685,8 @@
             "arity": 2,
             "solutions": [
                 "[21, 1]", "[42, 0]", "[84, -1]", "[168, -2]"
-            ]
+            ],
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -614,7 +699,8 @@
                 "[7716049313272]",
                 "[7716049313271604931327160494]",
                 "[77160493132716049313271604931327160493132716049313271604931327160494]"
-            ]
+            ],
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -625,7 +711,8 @@
             "arity": 2,
             "solutions": [
                 "[21, -1]", "[42, 0]", "[84, 1]", "[168, 2]"
-            ]
+            ],
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -638,7 +725,8 @@
                 "[1975308624197536]",
                 "[1975308624197530862419753086256]",
                 "[19753086241975308624197530862419753086241975308624197530862419753086256]"
-            ]
+            ],
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -649,7 +737,8 @@
             "arity": 1,
             "solutions": [
                 "[-43]"
-            ]
+            ],
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -662,7 +751,8 @@
                 "[-1234567890123456789012345678901234567890123456789012345678901234567892]",
                 "[-123456789012345678901234567892]",
                 "[-123456789012347]"
-            ]
+            ],
+            "skip": false
         },
         {
             "module": "collection",
@@ -671,9 +761,11 @@
             "depth": "25",
             "errors": true,
             "arity": 1,
+            "nondeterministic": true,
             "solutions": [
-                "[2.75]"
-            ]
+                "2.5 < $1 and $1 < 3"
+            ],
+            "skip": false
         },
         {
             "module": "collection",
@@ -682,9 +774,11 @@
             "depth": "25",
             "errors": true,
             "arity": 1,
+            "nondeterministic": true,
             "solutions": [
-                "[-42.75]"
-            ]
+                "-43 < $1 and $1 < -42.5"
+            ],
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -696,7 +790,8 @@
             "nondeterministic": true,
             "solutions": [
                 "$1 & $2 == 42"
-            ]
+            ],
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -708,7 +803,8 @@
             "nondeterministic": true,
             "solutions": [
                 "$1 & $2 == -42"
-            ]
+            ],
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -720,7 +816,8 @@
             "nondeterministic": true,
             "solutions": [
                 "$1 & $2 == 1267650600228229401496703205376"
-            ]
+            ],
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -732,7 +829,8 @@
             "nondeterministic": true,
             "solutions": [
                 "$1 & $2 == -1299341865233935136534120785510400"
-            ]
+            ],
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -744,7 +842,8 @@
             "nondeterministic": true,
             "solutions": [
                 "($1 + $2) & ($1 - $2) == 1208425819634629144706176"
-            ]
+            ],
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -756,7 +855,8 @@
             "nondeterministic": true,
             "solutions": [
                 "$1 ^ $2 == 42"
-            ]
+            ],
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -768,7 +868,8 @@
             "nondeterministic": true,
             "solutions": [
                 "$1 ^ $2 == 546546546546546"
-            ]
+            ],
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -780,7 +881,8 @@
             "nondeterministic": true,
             "solutions": [
                 "$1 ^ $2 == 1321678065467065468706546708964"
-            ]
+            ],
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -792,7 +894,8 @@
             "nondeterministic": true,
             "solutions": [
                 "$1 ^ $2 == -42"
-            ]
+            ],
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -804,7 +907,8 @@
             "nondeterministic": true,
             "solutions": [
                 "$1 ^ $2 == -546546546546546"
-            ]
+            ],
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -816,7 +920,8 @@
             "nondeterministic": true,
             "solutions": [
                 "$1 ^ $2 == -1321678065467065468706546708964"
-            ]
+            ],
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -828,7 +933,8 @@
             "nondeterministic": true,
             "solutions": [
                 "$1 | $2 == 42"
-            ]
+            ],
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -840,7 +946,8 @@
             "nondeterministic": true,
             "solutions": [
                 "$1 | $2 == 654654621354008904"
-            ]
+            ],
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -852,7 +959,8 @@
             "nondeterministic": true,
             "solutions": [
                 "$1 | $2 == 132167806349873198573065468706546708964"
-            ]
+            ],
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -864,7 +972,8 @@
             "nondeterministic": true,
             "solutions": [
                 "$1 | $2 == -3"
-            ]
+            ],
+            "skip": false
         },
         {
             "module": "bitstr",
@@ -876,7 +985,8 @@
             "nondeterministic": true,
             "solutions": [
                 "$1 | $2 == -2581098572349081592347598712638"
-            ]
+            ],
+            "skip": false
         },
         {
             "module": "collection",
@@ -887,19 +997,21 @@
             "arity": 1,
             "solutions": [
                 "[\"42\"]"
-            ]
+            ],
+            "skip": false
         },
         {
             "module": "collection",
             "function": "l2in",
-            "args": "[[49]]",
+            "args": "[[49, 48]]",
             "depth": "80",
             "errors": true,
             "arity": 1,
             "whitelist": "collection-l2in-1",
             "solutions": [
                 "[\"42\"]"
-            ]
+            ],
+            "skip": false
         },
         {
             "module": "collection",
@@ -907,7 +1019,8 @@
             "args": "[[]]",
             "depth": "7",
             "errors": false,
-            "arity": 1
+            "arity": 1,
+            "skip": false
         },
         {
             "module": "collection",
@@ -918,7 +1031,8 @@
             "arity": 2,
             "solutions": [
                 "[1, 2]"
-            ]
+            ],
+            "skip": false
         },
         {
             "module": "collection",
@@ -931,7 +1045,8 @@
             "solutions": [
                 "$2 * 0.7 == $1",
                 "$3 % $2 == 3"
-            ]
+            ],
+            "skip": false
         },
         {
             "module": "collection",
@@ -942,7 +1057,8 @@
             "arity": 3,
             "solutions": [
                 "[8]"
-            ]
+            ],
+            "skip": false
         },
         {
             "module": "collection",
@@ -953,18 +1069,20 @@
             "arity": 1,
             "solutions": [
                 "[foo]"
-            ]
+            ],
+            "skip": false
         },
         {
-            "module": "funs",
-            "function": "fx",
-            "args": "[fun(_,_) -> ok end]",
-            "depth": "17",
+            "module": "collection",
+            "function": "test_alias",
+            "args": "[1]",
+            "depth": "20",
             "errors": true,
             "arity": 1,
             "solutions": [
-                "[fun(_) -> 2 end]"
-            ]
+                "[5]"
+            ],
+            "skip": false
         }
     ]
 }

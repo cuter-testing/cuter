@@ -6,7 +6,7 @@ from pprint import pprint
 from types import *
 import terms
 
-def run(testDir):
+def run(testDir, z3py):
     baseDir = get_basedir(testDir)
     cuterScript = os.path.join(baseDir, "cuter")
     separator = "=== Inputs That Lead to Runtime Errors ==="
@@ -20,8 +20,9 @@ def run(testDir):
         # Get the runtime options.
         opts = get_options(test, testDir)
         # Run the test.
-        cmd = "{} {} {} '{}' -d {} {} --sorted-errors".format(
-          cuterScript, test["module"], test["function"], test["args"], test["depth"], opts
+        withZ3py = "--z3py" if z3py else ""
+        cmd = "{} {} {} '{}' -d {} {} --sorted-errors {}".format(
+          cuterScript, test["module"], test["function"], test["args"], test["depth"], opts, withZ3py
         )
         print "\n\033[00;34m[Test #{}]\033[00m\n{}".format(i + 1, cmd)
         if "skip" in test and test["skip"]:
@@ -101,7 +102,7 @@ def validate(arity, diffMode, found, expected):
         args : list of string
         cond : list of string
     """
-    allfound = set(expected)
+    allfound = set([])
     for i in found:
         matched = set([r for r in expected if is_expected_input(arity, diffMode, i, str(r))])
         if len(matched) == 0:
@@ -138,6 +139,7 @@ def printOutputAndExit(out):
     sys.exit(1)
 
 if __name__ == "__main__":
+    z3py = "--z3py" in sys.argv
     testDir = os.path.dirname(os.path.realpath(__file__))
-    run(testDir)
+    run(testDir, z3py)
     sys.exit(0)

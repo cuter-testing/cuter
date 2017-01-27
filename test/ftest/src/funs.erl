@@ -1,7 +1,7 @@
 -module(funs).
 -export([f1/1, f2/3, f3/3, f41/3, f42/3, f5/4, f6/1, f7/2, f8/2,
          f91/3, f92/2, f10/1, f11/3, f12/1, f1ws/1, f2ws/3, f3ws/3,
-         f5ws/4, f1hs/1, f13a/2, f13b/2, f14/2, fx/1]).
+         f5ws/4, f1hs/1, f13a/2, f13b/2, f14/2]).
 
 -spec f1(fun((integer()) -> integer())) -> ok.
 f1(F) ->
@@ -217,7 +217,6 @@ f13b(F, X) ->
   case F(X) of
     1 ->
       case X of
-        %% FIXME Add the proper type constraints to exclude this branch.
         <<5:8>> -> error(unreachable_bug);
         _ -> ok
       end;
@@ -232,13 +231,5 @@ f13b(F, X) ->
 f14(F, L) ->
   case F(L) of
     [1, 2, 3] -> error(bug);
-    _ -> ok
-  end.
-
--spec fx(function()) -> ok.
-fx(F) ->
-  FF = fun(X) -> F(X) end,
-  case FF(1) of
-    2 -> error(bug);
     _ -> ok
   end.

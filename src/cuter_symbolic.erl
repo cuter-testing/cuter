@@ -45,9 +45,10 @@ abstract(Vs) ->
 -spec generate_new_input([mapping()], [{symbolic(), cuter_solver:model()}]) -> [any()].
 generate_new_input(Maps, Model) ->
   F = fun({X, V}) ->
-    case cuter_solver:lookup_in_model(X, Model) of  %% Do not expect an exception to be raised
-      ?UNBOUND_VAR_PREFIX -> V;
-      NV -> NV
+    NV = cuter_solver:lookup_in_model(X, Model),  %% Do not expect an exception to be raised
+    case cuter_lib:is_unbound_var(NV) of
+      true  -> V;
+      false -> NV
     end
   end,
   [F(M) || M <- Maps].
