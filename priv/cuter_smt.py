@@ -366,6 +366,17 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			self.fun_rec_cnt = 0
 		return "fun-rec-" + str(self.fun_rec_cnt)
 
+	def fun_rec(self, body):
+		body_smt = smt.encode(body)
+		if not hasattr(self, "fun_recs"):
+			self.fun_recs = {}
+		elif body_smt in self.fun_recs:
+			return self.fun_recs[body_smt]
+		name = self.fun_rec_name()
+		self.fun_recs[body_smt] = name
+		self.commands.append(["define-fun-rec", name, [["t", "Term"]], "Bool", body]) # TODO define-fun doesn't work
+		return name
+
 	def fun_rec_tlist(self, spec):
 		spec = self.build_spec(spec, ["hd", "l"])
 		spec_smt = smt.encode(spec)
@@ -432,14 +443,14 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 				[name, ["lval", var]],
 			]
 		elif cc.is_type_tupledet(spec):
-			ret = ["and", ["is-tuple", var]]
-			tlist = ["tval", var]
+			body = ["and", ["is-tuple", "t"]]
+			tlist = ["tval", "t"]
 			for inner_type in cc.get_inner_types_from_tupledet(spec):
-				ret.append(["is-cons", tlist])
-				ret.append(self.build_spec(inner_type, ["hd", tlist]))
+				body.append(["is-cons", tlist])
+				body.append(self.build_spec(inner_type, ["hd", tlist]))
 				tlist = ["tl", tlist]
-			ret.append(["is-nil", tlist])
-			return ret
+			body.append(["is-nil", tlist])
+			return [self.fun_rec(body), var]
 		elif cc.is_type_tuple(spec):
 			return ["is-tuple", var]
 		elif cc.is_type_union(spec):
