@@ -597,7 +597,7 @@
             "arity": 2,
             "nondeterministic": true,
             "solutions": [
-                "$1(($2,)) != 1 and $2 == (4, 2,)"
+                "(not isinstance($1(($2,)), int) or $1(($2,)) != 1) and $2 == (4, 2,)"
             ],
             "skip": false
         },
