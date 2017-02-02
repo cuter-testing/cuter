@@ -1526,7 +1526,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		# real-pow isn't efficient when having to calculate the e-root of p or a large e-power of b.
 		if "real-pow" not in self.library:
 			self.library.append("real-pow")
-			self.commands.append(["define-fun-rec", "real-pow", [["p", "Real"], ["b", "Real"], ["e", "Real"]], "Bool", [
+			self.commands.append(["define-fun-rec", "real-pow", [["p", "Real"], ["b", "Real"], ["e", "Int"]], "Bool", [
 				"or",
 				["and", ["=", "b", "0"], ["not", ["=", "e", "0"]], ["=", "p", "0"]],
 				["and", ["=", "b", "1"], ["=", "p", "1"]],
