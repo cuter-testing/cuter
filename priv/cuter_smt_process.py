@@ -3,6 +3,7 @@
 import subprocess
 from cuter_smt_library import serialize, unserialize
 
+
 debug = False
 
 
@@ -20,6 +21,9 @@ def log(msg = ""):
 		clog.write(msg + "\n")
 
 
+timeout = 1000
+
+
 class Solver:
 
 	def __init__(self, arguments):
@@ -33,7 +37,7 @@ class Solver:
 			stderr=subprocess.PIPE,
 			universal_newlines=True
 		)
-		log("; +" + str(arguments))
+		log("; " + " ".join(arguments))
 
 	def write(self, stmt):
 		line = serialize(stmt)
@@ -61,8 +65,8 @@ class Solver:
 		self.write(["check-sat"])
 		return self.read()
 
-	def get_value(self, expr):
-		self.write(["get-value", [expr]])
+	def get_value(self, *expr):
+		self.write(["get-value", list(expr)])
 		return self.read()
 
 	def exit(self):
@@ -72,14 +76,11 @@ class Solver:
 #class SolverCVC4(Solver):
 #
 #	def __init__(self):
-#		Solver.__init__(self, ["cvc4", "--lang", "smt", "--produce-models"])
-#
-#	@staticmethod
-#	def fix_names(obj): # TODO fix_names
-#		return [["|{}|".format(item[0]), item[1]] for item in obj]
+#		Solver.__init__(self, ["cvc4", "--lang=smt2", "--tlimit={}".format(timeout), "--fmf-fun", "--incremental"])
+#		self.write(["set-logic", "UFDTLIRA"])
 
 
 class SolverZ3(Solver):
 
 	def __init__(self):
-		Solver.__init__(self, ["z3", "-smt2", "-in"])
+		Solver.__init__(self, ["z3", "-smt2", "-t:{}".format(timeout), "-in"])

@@ -16,7 +16,7 @@ def int2bv(n, b):
 		ret.append("true" if n % 2 != 0 else "false")
 		n /= 2
 		b -= 1
-	# assert n == 0, "n overflows b bits as an unsigned integer" # TODO cuter sends b = 0 and n = 42
+	# assert n == 0, "n overflows b bits as an unsigned integer" # TODO erlang sends b = 0 and n = 42
 	ret.reverse()
 	return ret
 
@@ -44,7 +44,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 	def __init__(self):
 		self.library = []
 		self.commands = []
-		self.commands.append(["set-option", ":timeout", "1000"])
+		self.commands.append(["set-option", ":produce-models", "true"])
 		self.commands.append(["declare-datatypes", [], datatypes])
 		self.commands.append(["declare-fun", "fa", ["Int"], "Int"])
 		self.commands.append(["declare-fun", "fm", ["Int"], "FList"])
@@ -99,7 +99,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			val = self.solver.get_value(var)
 			assert isinstance(val, list) and len(val) == 1
 			val = val[0]
-			assert isinstance(val, list) and len(val) == 2 and val[0] == var
+			assert isinstance(val, list) and len(val) == 2
 			val = self.encode(expand_lets(val[1]))
 			entries.append(cc.mk_model_entry(cc.mk_symb(var[1:-1]), val))
 		self.solver.exit()
@@ -120,9 +120,9 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 				self.commands.append(["declare-const", s, "Term"])
 			return s
 		elif cc.is_int(data):
-			return ["int", str(cc.get_int(data))]
+			return ["int", build_int(cc.get_int(data))]
 		elif cc.is_float(data):
-			return ["real", str(cc.get_float(data))]
+			return ["real", build_real(cc.get_float(data))]
 		elif cc.is_atom(data):
 			return ["atom", build_ilist(cc.get_atom_chars(data))]
 		elif cc.is_list(data):
@@ -150,7 +150,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			node = data[1]
 			v = []
 			while node != "in":
-				v.append(int(node[1]))
+				v.append(parse_int(node[1]))
 				node = node[2]
 			return cc.mk_atom(v)
 		elif data[0] == "list":
@@ -186,16 +186,15 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			funs.append(fv)
 			# get function info from solver
 			# TODO save function arity and entries to an array
-			self.solver.write(["get-value", [["fa", data[1]], ["fm", data[1]]]])
-			val = self.solver.read()
+			val = self.solver.get_value(["fa", data[1]], ["fm", data[1]])
 			assert isinstance(val, list) and len(val) == 2
-			assert isinstance(val[0], list) and len(val[0]) == 2 and val[0][0] == ["fa", data[1]]
+			assert isinstance(val[0], list) and len(val[0]) == 2
 			arity = parse_int(expand_lets(val[0][1]))
 			# if arity is less than or greater than 255, we assume it is an arbitrary value selected by the solver
 			# because there is no constraint limiting the function's arity; thus, we set it to zero
 			if arity < 0 or arity > 255:
 				arity = 0
-			assert isinstance(val[1], list) and len(val[1]) == 2 and val[1][0] == ["fm", data[1]]
+			assert isinstance(val[1], list) and len(val[1]) == 2
 			node = expand_lets(val[1][1])
 			entries = []
 			otherwise = None
@@ -343,9 +342,9 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			ret = ["and", ["is-int", var]]
 			limits = cc.get_range_bounds_from_range(spec)
 			if cc.has_lower_bound(limits):
-				ret.append([">=", ["iv", var], str(cc.get_lower_bound(limits))])
+				ret.append([">=", ["iv", var], build_int(cc.get_lower_bound(limits))])
 			if cc.has_upper_bound(limits):
-				ret.append(["<=", ["iv", var], str(cc.get_upper_bound(limits))])
+				ret.append(["<=", ["iv", var], build_int(cc.get_upper_bound(limits))])
 			return ret
 		elif cc.is_type_atom(spec):
 			return ["is-atom", var]
@@ -363,14 +362,14 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			if n == 0:
 				axioms.append(["is-sn", slist])
 			elif n > 1:
-				axioms.append(SListSpec(slist, str(n), self))
+				axioms.append(SListSpec(slist, build_int(n), self))
 			return axioms
 		elif cc.is_type_complete_fun(spec):
 			# TODO if a function is to be called with wrong arguments, program must crash
 			par_spec = cc.get_parameters_from_complete_fun(spec)
 			ret_spec = cc.get_rettype_from_fun(spec)
 			name = self.fun_rec_flist(par_spec, ret_spec)
-			return ["and", ["is-fun", var], ["=", ["fa", ["fv", var]], str(len(par_spec))], [name, ["fm", ["fv", var]]]]
+			return ["and", ["is-fun", var], ["=", ["fa", ["fv", var]], build_int(len(par_spec))], [name, ["fm", ["fv", var]]]]
 		elif cc.is_type_generic_fun(spec):
 			par_spec = None
 			ret_spec = cc.get_rettype_from_fun(spec)
@@ -499,8 +498,8 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		self.commands.append(["assert", [
 			"and",
 			["is-fun", fun],
-			["=", ["fa", ["fv", fun]], str(tlist_length)],
-			FListEquals(["fm", ["fv", fun]], tlist, ret, str(self.flist_depth), self),
+			["=", ["fa", ["fv", fun]], build_int(tlist_length)],
+			FListEquals(["fm", ["fv", fun]], tlist, ret, build_int(self.flist_depth), self),
 		]])
 
 	def erl_lambda_reversed(self, *args): # TODO not exactly reversed
@@ -684,7 +683,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 
 	def nonempty_bitstr(self, term1, term2, term):
 		"""
-		Assert that: term is an nonempty bitstring.
+		Assert that: term is a nonempty bitstring.
 		"""
 		t = self.decode(term)
 		t1 = self.decode(term1)
