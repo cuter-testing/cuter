@@ -6,13 +6,15 @@ from pprint import pprint
 from types import *
 import terms
 
-def run(testDir, z3py):
+def run(testDir, z3py, n):
     baseDir = get_basedir(testDir)
     cuterScript = os.path.join(baseDir, "cuter")
     separator = "=== Inputs That Lead to Runtime Errors ==="
     bifSeparator = "=== BIFs Currently without Symbolic Interpretation ==="
 
     for i, test in enumerate(get_tests(testDir)):
+        if n is not None and n != i + 1:
+            continue
         # Set the default values for optional parameters.
         for param in ["withUtestBin", "validate", "withProper"]:
             if not param in test:
@@ -140,6 +142,9 @@ def printOutputAndExit(out):
 
 if __name__ == "__main__":
     z3py = "--z3py" in sys.argv
+    xs = map(int, filter(None,
+        filter(lambda x: x.startswith("--no="), sys.argv)[0].split("--no=")))
+    n = xs[0] if len(xs) > 0 else None
     testDir = os.path.dirname(os.path.realpath(__file__))
-    run(testDir, z3py)
+    run(testDir, z3py, n)
     sys.exit(0)

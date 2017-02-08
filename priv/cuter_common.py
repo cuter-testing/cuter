@@ -385,6 +385,13 @@ def get_model_entries(model_data):
 # Manipulate Spec objects.
 # =============================================================================
 
+def get_type_defs_of_spec(spec):
+    """
+    Parameters
+        spec : Spec
+    """
+    return spec.typedefs
+
 def get_spec_clauses(spec):
     """
     Parameters
@@ -782,3 +789,32 @@ def is_type_ntuple(t):
         t : Spec.Type
     """
     return t.type == Spec.NTUPLE
+
+def is_type_userdef(t):
+    """
+    Parameters
+        t : Spec.Type
+    """
+    return t.type == Spec.USERDEF
+
+def get_type_name_of_userdef(t):
+    """
+    Parameters
+        t : Spec.Type
+    """
+    assert t.type == Spec.USERDEF
+    return t.type_name
+
+def get_typedef_name(tdef):
+    """
+    Parameters
+        tdef : Spec.TypeDef
+    """
+    return tdef.name
+
+def get_typedef_definition(tdef):
+    """
+    Parameters
+        tdef : Spec.TypeDef
+    """
+    return tdef.definition

@@ -25,6 +25,8 @@
 %% Format errors.
 -export([abstract_code_missing/1, cover_compiled_module/1, non_existing_module/1,
          compilation_errors/2, non_existing_mfa/1]).
+%% Debug Verbose prints.
+-export([parsed_spec/1]).
 
 -export([ reversible_operations/1
         %% Execution info reporting level
@@ -59,8 +61,8 @@
         , mfa_non_existing/3
        ]).
 
-
 -include("include/cuter_macros.hrl").
+-include("include/cuter_types.hrl").
 
 -export_type([pp_level/0]).
 
@@ -118,6 +120,7 @@
               | {solved_models, non_neg_integer(), non_neg_integer()}
               | coverage_title
               | {coverage_call(), non_neg_integer(), non_neg_integer(), float()}
+              | {parsed_spec, cuter_types:erl_spec()}
               .
 
 %% Reporting levels.
@@ -236,6 +239,11 @@ errors_found(Errors) ->
 -spec code_logs(cuter_codeserver:logs(), cuter_mock:whitelist(), boolean()) -> ok.
 code_logs(Logs, Whitelist, SuppressUnsupported) ->
   gen_server:call(?PRETTY_PRINTER, {code_logs, Logs, Whitelist, SuppressUnsupported}).
+
+%% Print the parsed spec of the MFA.
+-spec parsed_spec(cuter_types:erl_spec()) -> ok.
+parsed_spec(Spec) ->
+  gen_server:call(?PRETTY_PRINTER, {parsed_spec, Spec}).
 
 %% ----------------------------------------------------------------------------
 %% Parsing of options.
@@ -558,8 +566,16 @@ handle_call({errors_found, Errors}, _From, State=#st{mfa = MFA, pplevel = PpLeve
 %% Prints the logs of a CodeServer.
 handle_call({code_logs, CodeLogs, Whitelist, SuppressUnsupported}, _From, State=#st{pplevel = PpLevel}) ->
   pp_code_logs(CodeLogs, Whitelist, SuppressUnsupported, PpLevel#pp_level.execInfo),
-  {reply, ok, State#st{nl = false}}.
-
+  {reply, ok, State#st{nl = false}};
+%% Prints the parsed spec of the mfa.
+handle_call({parsed_spec, Spec}, _From, State=#st{mfa = Mfa, pplevel = PpLevel}) ->
+  case get(parsed_spec) of
+    yes -> {reply, ok, State};
+    undefined ->
+      put(parsed_spec, yes),
+      pp_parsed_spec(Mfa, Spec, PpLevel#pp_level.execInfo),
+      {reply, ok, State}
+  end.
 
 %% gen_server callback : handle_cast/2
 -spec handle_cast({stop, pid()}, state()) -> {stop, normal, state()} | {noreply, state()}.
@@ -1113,3 +1129,90 @@ open_pending_file(File) ->
 -else.
 open_pending_file(_File) -> ok.
 -endif.
+
+%% ----------------------------------------------------------------------------
+%% Various debug prints.
+%% ----------------------------------------------------------------------------
+
+pp_parsed_spec(_Mfa, _Spec, ?MINIMAL) ->
+  ok;
+pp_parsed_spec({M, F, A}, {Spec, TypeDeps}, _Level) ->
+  io:format("\033[01;34m~p:~p/~w\033[00m~n", [M, F, A]),
+  Cs = [pp_type(C, fun io_lib:format/2) || C <- Spec],
+  io:format("    Spec:~n"),
+  io:format("        \033[01;33m~s\033[00m~n", [string:join(Cs, " | ")]),
+  io:format("    Types:~n"),
+  pp_typedeps(TypeDeps),
+  io:nl().
+
+-spec pp_typedeps(cuter_types:erl_type_deps()) -> ok.
+pp_typedeps(TypeDeps) ->
+  lists:foreach(fun pp_typedep/1, TypeDeps).
+
+pp_typedep({Name, Type}) ->
+  io:format("        \033[01;36m~s\033[00m =>~n", [Name]),
+  io:format("            \033[01;33m~s\033[00m~n", [pp_type(Type, fun io_lib:format/2)]).
+
+pp_type(Type, FmtFn) ->
+  StrFmtFn = fun io_lib:format/2,
+  case cuter_types:get_kind(Type) of
+    ?any_tag ->
+      FmtFn("any()", []);
+    ?atom_tag ->
+      FmtFn("atom()", []);
+    ?atom_lit_tag ->
+      FmtFn("~w", [cuter_types:atom_of_t_atom_lit(Type)]);
+    ?float_tag ->
+      FmtFn("float()", []);
+    ?integer_tag ->
+      FmtFn("integer()", []);
+    ?integer_lit_tag ->
+      FmtFn("~w", [cuter_types:integer_of_t_integer_lit(Type)]);
+    ?list_tag ->
+      FmtFn("[~s]", [pp_type(cuter_types:elements_type_of_t_list(Type), StrFmtFn)]);
+    ?nonempty_list_tag ->
+      FmtFn("[~s, ...]", [pp_type(cuter_types:elements_type_of_t_nonempty_list(Type), StrFmtFn)]);
+    ?nil_tag ->
+      FmtFn("[]", []);
+    ?bitstring_tag ->
+      {M, N} = cuter_types:segment_size_of_bitstring(Type),
+      FmtFn("<<_:~w, _:_*~w>>", [M, N]);
+    ?tuple_tag ->
+      %% TODO Distinguish between tuple() and {}.
+      case cuter_types:elements_types_of_t_tuple(Type) of
+        [] ->
+          FmtFn("tuple()", []);
+        Ts ->
+          Ts1 = [pp_type(T, StrFmtFn) || T <- Ts],
+          FmtFn("{~s}", [string:join(Ts1, ", ")])
+      end;
+    ?union_tag ->
+      Ts1 = [pp_type(T, StrFmtFn) || T <- cuter_types:elements_types_of_t_union(Type)],
+      FmtFn("~s", [string:join(Ts1, " | ")]);
+    ?range_tag ->
+      {Lower, Upper} = cuter_types:bounds_of_t_range(Type),
+      FmtFn("~s..~s", [pp_range_bound(Lower), pp_range_bound(Upper)]);
+    ?function_tag ->
+      FmtFn("~s", [pp_typesig(Type, StrFmtFn)]);
+    ?userdef_tag ->
+      FmtFn("~s", [cuter_types:name_of_t_userdef(Type)])
+  end.
+
+pp_range_bound(Limit) ->
+  case cuter_types:get_kind(Limit) of
+    ?integer_lit_tag ->
+      integer_to_list(cuter_types:integer_of_t_integer_lit(Limit));
+    Kind when Kind =:= ?pos_inf orelse Kind =:= ?neg_inf ->
+      ""
+  end.
+
+pp_typesig(Fun, FmtFn) ->
+  StrFmtFn = fun io_lib:format/2,
+  Ret = pp_type(cuter_types:ret_of_t_function(Fun), StrFmtFn),
+  case cuter_types:is_generic_function(Fun) of
+    true ->
+      FmtFn("fun((...) -> ~s)", [Ret]);
+    false ->
+      Params = [pp_type(P, StrFmtFn) || P <- cuter_types:params_of_t_function_det(Fun)],
+      FmtFn("fun((~s) -> ~s)", [string:join(Params, ", "), Ret])
+  end.

@@ -205,6 +205,14 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		Store the spec of the entry point MFA.
 		"""
+		typedefs = cc.get_type_defs_of_spec(spec)
+		if len(typedefs) > 0:
+			# TODO First define the rec funs for the typedefs (all of them together).
+			for tdf in typedefs:
+				tname = cc.get_typedef_name(tdf)
+				clg.debug_info("typedef name: " + str(tname))
+				tdefinition = cc.get_typedef_definition(tdf)
+				clg.debug_info("typedef definition: " + str(tdefinition))
 		p = cc.get_spec_clauses(spec)[0]
 		pms = cc.get_parameters_from_complete_funsig(p)
 		for item in zip(self.vars, pms):
@@ -350,6 +358,10 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			return ["=", var, self.decode(cc.get_literal_from_atomlit(spec))]
 		elif cc.is_type_integerlit(spec):
 			return ["=", var, self.decode(cc.get_literal_from_integerlit(spec))]
+		elif cc.is_type_userdef(spec):
+			type_name = cc.get_type_name_of_userdef(spec)
+			# TODO Refer to defined rec fun for the type.
+			return "true"
 		clg.debug_info("unknown spec: " + str(spec))
 		assert False
 

@@ -190,10 +190,10 @@ utest: $(TARGETS)
 	@(python $(TEST)/terms.py)
 
 ftest: $(TARGETS)
-	@(./$(TEST)/functional_test)
+	@(./$(TEST)/functional_test --no=$(no))
 
 z3py-ftest: $(TARGETS)
-	@(./$(TEST)/functional_test --z3py)
+	@(./$(TEST)/functional_test --no=$(no) --z3py)
 
 dialyzer: .plt/.cuter_plt cuter_target
 	dialyzer --plt $< $(DIALYZER_FLAGS) $(EBIN)/*.beam

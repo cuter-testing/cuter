@@ -219,12 +219,13 @@ handle_call({get_spec, {M, F, A}=MFA}, _From, State) ->
         {ok, CerlSpec} ->
           DepMods = load_all_deps_of_spec(CerlSpec, M, MDb, State),
           Fn = fun(Mod) ->
-		   {ok, ModDb} = try_load(Mod, State),
-		   StoredTypes = cuter_cerl:get_stored_types(ModDb),
-		   {Mod, StoredTypes}
-	       end,
+              {ok, ModDb} = try_load(Mod, State),
+              StoredTypes = cuter_cerl:get_stored_types(ModDb),
+              {Mod, StoredTypes}
+            end,
           ManyStoredTypes = [Fn(Mod) || Mod <- DepMods],
           Parsed = cuter_types:parse_spec(MFA, CerlSpec, ManyStoredTypes),
+          cuter_pp:parsed_spec(Parsed),
           {reply, {ok, Parsed}, State}
       end;
     Msg ->

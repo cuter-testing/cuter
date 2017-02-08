@@ -24,3 +24,4 @@
 -define(local_tag, local).
 -define(record_tag, record).
 -define(function_tag, function).
+-define(userdef_tag, userdef).

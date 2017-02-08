@@ -7,14 +7,18 @@
 
 -export([params_of_t_function_det/1, ret_of_t_function/1, atom_of_t_atom_lit/1, integer_of_t_integer_lit/1,
          elements_type_of_t_list/1, elements_type_of_t_nonempty_list/1, elements_types_of_t_tuple/1,
-         elements_types_of_t_union/1, bounds_of_t_range/1, segment_size_of_bitstring/1, is_generic_function/1]).
+         elements_types_of_t_union/1, bounds_of_t_range/1, segment_size_of_bitstring/1, is_generic_function/1,
+         name_of_t_userdef/1]).
 
 -export([t_atom/0, t_atom_lit/1, t_any/0, t_binary/0, t_bitstring/0, t_bitstring/2, t_char/0, t_float/0,
          t_function/0, t_function/2, t_function/3, t_integer/0, t_integer_lit/1, t_list/0, t_list/1,
          t_nonempty_list/1, t_nil/0, t_number/0, t_remote/3, t_string/0, t_tuple/0, t_tuple/1,
-         t_union/1, t_range/2, t_pos_inf/0, t_neg_inf/0]).
+         t_union/1, t_range/2, t_pos_inf/0, t_neg_inf/0, t_userdef/1]).
+
+-export([erl_type_deps_map/2, get_type_name_from_type_dep/1, get_type_from_type_dep/1, unique_type_name/3]).
 
 -export_type([erl_type/0, erl_spec_clause/0, erl_spec/0, stored_specs/0, stored_types/0, stored_spec_value/0, t_range_limit/0]).
+-export_type([erl_type_dep/0, erl_type_deps/0]).
 
 -include("include/cuter_macros.hrl").
 -include("include/cuter_types.hrl").
@@ -65,6 +69,7 @@
                   | t_range()             % Erlang_Integer..Erlang_Integer
                   | t_bitstring()         % <<_:M>>
                   | t_function()          % function() | Fun | BoundedFun
+                  | t_userdef()           % User defined type.
                   .
 
 %% raw_type() represents every possible type or record supported.
@@ -114,6 +119,7 @@
 %% User-defined types (module-local and remote).
 -type t_local()  :: #t{kind :: ?local_tag, rep :: {type_name(), [raw_type()]}}.
 -type t_remote() :: #t{kind :: ?remote_tag, rep :: {module(), type_name(), [raw_type()]}}.
+-type t_userdef() :: #t{kind :: ?userdef_tag, rep :: string()}.
 
 %% Records.
 -type t_record()          :: #t{kind :: ?record_tag, rep :: {record_name(), [record_field_type()]}}.
@@ -154,14 +160,18 @@
 
 %% The data types that holds the configuration info of spec parsing.
 -record(pconf, {
-  mfa        :: mfa(),
-  typesCache :: many_stored_types_cache()
+  mfa            :: mfa(),
+  typesCache     :: many_stored_types_cache(),
+  typeDepsCache  :: ets:tid()
 }).
 -type parse_conf() :: #pconf{}.
 
+-type unique_type_name() :: string().
 -type type_var_env() :: dict:dict(type_var(), raw_type()).
+-type erl_type_dep() :: {unique_type_name(), erl_type()}.
+-type erl_type_deps() :: [erl_type_dep()].
 -type erl_spec_clause() :: t_function_det().
--type erl_spec() :: [erl_spec_clause()].
+-type erl_spec() :: {[erl_spec_clause()], erl_type_deps()}.
 
 %% ============================================================================
 %% Pre-process the type & record declarations and generate their intermediate
@@ -525,6 +535,10 @@ t_function(Types, Ret, Constraints) ->
   Ts = [T || {_V, T} <- Constraints],
   #t{kind = ?function_tag, rep = Rep, deps = unify_deps([Ret|Types] ++ Ts)}.
 
+-spec t_userdef(string()) -> t_userdef().
+t_userdef(Name) ->
+  #t{kind = ?userdef_tag, rep = Name}.
+
 %% Constructors that are essentially aliases.
 
 -spec t_boolean() -> t_union().
@@ -639,6 +653,10 @@ segment_size_of_bitstring(#t{kind = ?bitstring_tag, rep = Sz}) ->
 is_tvar_wild_card(#t{kind = ?type_variable, rep = {?type_var, Var}}) ->
   Var =:= '_'.
 
+-spec name_of_t_userdef(t_userdef()) -> string().
+name_of_t_userdef(#t{kind = ?userdef_tag, rep = Name}) ->
+  Name.
+
 %% ----------------------------------------------------------------------------
 %% Generic API for raw_type().
 %% ----------------------------------------------------------------------------
@@ -713,11 +731,54 @@ stored_types_of_modules([{Module, StoredTypes}|Rest], Acc) ->
 -spec mk_conf(mfa(), many_stored_types()) -> parse_conf().
 mk_conf(Mfa, ManyStoredTypes) ->
   Cache = stored_types_of_modules(ManyStoredTypes),
-  #pconf{mfa = Mfa, typesCache = Cache}.
+  DepsCache = ets:new(?MODULE, [ordered_set, protected]),
+  true = ets:insert(DepsCache, {parsed, []}),
+  true = ets:insert(DepsCache, {pending, []}),
+  #pconf{mfa = Mfa, typesCache = Cache, typeDepsCache = DepsCache}.
 
 %% Accesses the base mfa.
 getMfa(Conf) ->
   Conf#pconf.mfa.
+
+%% Accesses the type deps.
+getTypeDeps(Conf) ->
+  Cache = Conf#pconf.typeDepsCache,
+  [{parsed, Parsed}] = ets:lookup(Cache, parsed),
+  Parsed.
+
+%% Stores a parsed type dep.
+store_parsed_type(Conf, Name, Type) ->
+  Cache = Conf#pconf.typeDepsCache,
+  [{parsed, Parsed}] = ets:lookup(Cache, parsed),
+  true = ets:insert(Cache, {parsed, [{Name, Type}|Parsed]}).
+
+%% Checks if there are pending types to parse.
+hasPendingTypes(Conf) ->
+  Cache = Conf#pconf.typeDepsCache,
+  [{pending, []}] =/= ets:lookup(Cache, pending).
+
+%% Adds a pending type dep.
+add_pending_type(Conf, Name, Fn) ->
+  Cache = Conf#pconf.typeDepsCache,
+  case ets:lookup(Cache, Name) of
+    [{Name, true}] ->
+      true;
+    [] ->
+      [{pending, Pending}] = ets:lookup(Cache, pending),
+      true = ets:insert(Cache, {pending, [{Name, Fn}|Pending]}),
+      true = ets:insert(Cache, {Name, true})
+  end.
+
+%% Gets the next pending type to parse.
+next_pending_type(Conf) ->
+  Cache = Conf#pconf.typeDepsCache,
+  case ets:lookup(Cache, pending) of
+    [{pending, []}] -> error;
+    [{pending, [T|Ts]}] ->
+      % T :: {Name :: string(), Fn :: function()}
+      true = ets:insert(Cache, {pending, Ts}),
+      T
+  end.
 
 %% Accesses the stored_types() of a particular module.
 getTypesCacheOfModule(Module, Conf) ->
@@ -726,6 +787,22 @@ getTypesCacheOfModule(Module, Conf) ->
     {ok, StoredTypes} -> StoredTypes
   end.
 
+-spec cleanup_conf(parse_conf()) -> true.
+cleanup_conf(#pconf{typeDepsCache = Cache}) ->
+  ets:delete(Cache).
+
+-spec unique_type_name(atom(), atom(), [any()]) -> string().
+unique_type_name(Mod, TypeName, Args) ->
+  Ps = [atom_to_list(Mod), atom_to_list(TypeName)],
+  Ps1 = maybe_hash_args(Ps, Args),
+  string:join(Ps1, "@").
+
+maybe_hash_args(Ps, []) ->
+  Ps;
+maybe_hash_args(Ps, Args) ->
+  Arity = length(Args),
+  Ps ++ [integer_to_list(Arity), integer_to_list(erlang:phash2(Args))].
+
 %% ----------------------------------------------------------------------------
 %% Traverse a spec and substitute the local and remote types.
 %% ----------------------------------------------------------------------------
@@ -733,14 +810,25 @@ getTypesCacheOfModule(Module, Conf) ->
 -spec parse_spec(mfa(), stored_spec_value(), many_stored_types()) -> erl_spec().
 parse_spec(Mfa, Spec, ManyStoredTypes) ->
   Conf = mk_conf(Mfa, ManyStoredTypes),
-  parse_spec_clauses(Spec, Conf, []).
+  Parsed = parse_spec_clauses(Spec, Conf, []),
+  true = cleanup_conf(Conf),
+  Parsed.
 
-parse_spec_clauses([], _Conf, Acc) ->
-  lists:reverse(Acc);
+parse_spec_clauses([], Conf, Acc) ->
+  {lists:reverse(Acc), parse_type_deps(Conf)};
 parse_spec_clauses([Clause|Clauses], Conf, Acc) ->
   {M,_,_} = getMfa(Conf),
   Simplified = simplify(Clause, M, new_env(), ordsets:new(), Conf),
   parse_spec_clauses(Clauses, Conf, [Simplified|Acc]).
+
+parse_type_deps(Conf) ->
+  case hasPendingTypes(Conf) of
+    false -> getTypeDeps(Conf);
+    true ->
+      {Name, Fn} = next_pending_type(Conf),
+      true = store_parsed_type(Conf, Name, Fn()),
+      parse_type_deps(Conf)
+  end.
 
 bind_parameters([], [], Env) ->
   Env;
@@ -792,23 +880,20 @@ simplify(#t{kind = ?union_tag, rep = Types}=Raw, CurrModule, Env, Visited, Conf)
 %% local type
 simplify(#t{kind = ?local_tag, rep = {Name, Args}}, CurrModule, Env, Visited, Conf) ->
   Arity = length(Args),
-  Local = {CurrModule, Name, Arity},
-  case ordsets:is_element(Local, Visited) of
-    true ->
-      cuter_pp:error_retrieving_spec(getMfa(Conf), {recursive_type, Local}),
+  StoredTypes = getTypesCacheOfModule(CurrModule, Conf),
+  case dict:find({type, Name, Arity}, StoredTypes) of
+    error ->
+      cuter_pp:error_retrieving_spec(getMfa(Conf), {unsupported_type, Name}),
       t_any();
-    false ->
-      StoredTypes = getTypesCacheOfModule(CurrModule, Conf),
-      case dict:find({type, Name, Arity}, StoredTypes) of
-        error ->
-          cuter_pp:error_retrieving_spec(getMfa(Conf), {unsupported_type, Name}),
-          t_any();
-        {ok, {Type, Params}} ->
-          Visited1 = ordsets:add_element(Local, Visited),
-          As = [simplify(A, CurrModule, Env, Visited1, Conf) || A <- Args],
-          Env1 = bind_parameters(Params, As, new_env()),
-          simplify(Type, CurrModule, Env1, Visited1, Conf)
-      end
+    {ok, {Type, Params}} ->
+      As = [simplify(A, CurrModule, Env, Visited, Conf) || A <- Args],
+      Env1 = bind_parameters(Params, As, new_env()),
+      Fn = fun() -> simplify(Type, CurrModule, Env1, Visited, Conf) end,
+      % Add the type to the pending types, if needed.
+      UniqueTypeName = unique_type_name(CurrModule, Name, As),
+      true = add_pending_type(Conf, UniqueTypeName, Fn),
+      % Return the reference to the type.
+      t_userdef(UniqueTypeName)
   end;
 %% type variable
 simplify(#t{kind = ?type_variable, rep = TVar}=T, CurrModule, Env, Visited, Conf) ->
@@ -848,7 +933,11 @@ simplify(#t{kind = ?remote_tag, rep = {Module, Name, Args}}, CurrModule, Env, Vi
           Visited1 = ordsets:add_element(Remote, Visited),
           As = [simplify(A, CurrModule, Env, Visited1, Conf) || A <- Args],
           Env1 = bind_parameters(Params, As, new_env()),
-          simplify(Type, Module, Env1, Visited1, Conf)
+          Fn = fun() -> simplify(Type, Module, Env1, Visited1, Conf) end,
+          % Add the type to the pending types, if needed.
+          UniqueTypeName = unique_type_name(Module, Name, As),
+          true = add_pending_type(Conf, UniqueTypeName, Fn),
+          t_userdef(UniqueTypeName)
       end
   end;
 %% record
@@ -966,3 +1055,19 @@ find_remote_deps(#t{kind = ?record_tag, rep = {Name, OverridenFields}}, Visited,
 %% all others
 find_remote_deps(_Type, _Visited, Deps, _StoredTypes) ->
   Deps.
+
+%% ----------------------------------------------------------------------------
+%% API for erl_type_defs().
+%% ----------------------------------------------------------------------------
+
+-spec erl_type_deps_map(fun((erl_type_dep()) -> T), erl_type_deps()) -> [T].
+erl_type_deps_map(Fn, Deps) ->
+  lists:map(Fn, Deps).
+
+-spec get_type_name_from_type_dep(erl_type_dep()) -> string().
+get_type_name_from_type_dep({Name, _Type}) ->
+  Name.
+
+-spec get_type_from_type_dep(erl_type_dep()) -> erl_type().
+get_type_from_type_dep({_Name, Type}) ->
+  Type.
