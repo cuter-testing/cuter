@@ -23,6 +23,7 @@ start_stop_test_() ->
 setup() ->
   process_flag(trap_exit, true),
   Dir = cuter_tests_lib:setup_dir(),
+  ok = cuter_pp:start(cuter_pp:default_reporting_level()),
   CodeServer = cuter_codeserver:start(self(), ?Pmatch, cuter_mock:empty_whitelist()),
   Server = cuter_iserver:start(lists, reverse, [[42,17]], Dir, ?TRACE_DEPTH, CodeServer),
   {Dir, Server}.
@@ -33,5 +34,7 @@ cleanup({Dir, Server}) ->
   after
     5000 -> ok
   end,
+  cuter_pp:stop(),
+  timer:sleep(200),
   cuter_lib:clear_and_delete_dir(Dir).
 

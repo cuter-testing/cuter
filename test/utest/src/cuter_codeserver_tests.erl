@@ -53,15 +53,16 @@ get_spec_test_() ->
     Cs = cuter_codeserver:start(self(), ?Pmatch, cuter_mock:empty_whitelist()),
     %% types_and_specs:foo/0
     Spec0 = cuter_codeserver:retrieve_spec(Cs, {types_and_specs, foo, 0}),
-    Expected0 = [cuter_types:t_function([], cuter_types:t_atom_lit(ok))],
+    Expected0 = {[cuter_types:t_function([], cuter_types:t_atom_lit(ok))], []},
     %% types_and_specs:f11/1, f12/1
     Spec11 = cuter_codeserver:retrieve_spec(Cs, {types_and_specs, f11, 1}),
     Spec12 = cuter_codeserver:retrieve_spec(Cs, {types_and_specs, f12, 1}),
-    Expected1 = [cuter_types:t_function([cuter_types:t_float()], cuter_types:t_float())],
+    T1 = cuter_types:unique_type_name(types_and_specs, t6, []),
+    Expected1 = [cuter_types:t_function([cuter_types:t_userdef(T1)], cuter_types:t_float())],
     Stop = cuter_codeserver:stop(Cs),
     [ {"types_and_specs:foo/0", ?_assertEqual({ok, Expected0}, Spec0)}
-    , {"types_and_specs:f11/1", ?_assertEqual({ok, Expected1}, Spec11)}
-    , {"types_and_specs:f12/1", ?_assertEqual({ok, Expected1}, Spec12)}
+    , {"types_and_specs:f11/1", ?_assertEqual(Expected1, element(1, element(2, Spec11)))}
+    , {"types_and_specs:f12/1", ?_assertEqual(Expected1, element(1, element(2, Spec12)))}
     , {"codeserver termination", ?_assertEqual(ok, Stop)}
     ]
   end,

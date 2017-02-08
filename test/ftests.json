@@ -278,7 +278,7 @@
             "solutions": [
                 "$1[0:3] == [17, 17, 42]"
             ],
-            "skip": false
+            "skip": true
         },
         {
             "module": "collection",

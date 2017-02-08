@@ -360,8 +360,15 @@ to_solver_command(stop, none) ->
 %% Encode mfa specs to Spec messages.
 %% ============================================================================
 
-to_spec(Spec) ->
-  #'Spec'{clauses = [to_typesig(C) || C <- Spec]}.
+to_spec({Spec, TypeDeps}) ->
+  Clauses = [to_typesig(C) || C <- Spec],
+  Ts = cuter_types:erl_type_deps_map(fun to_typedef/1, TypeDeps),
+  #'Spec'{clauses = Clauses, typedefs = Ts}.
+
+to_typedef(T) ->
+  Name = cuter_types:get_type_name_from_type_dep(T),
+  Def = cuter_types:get_type_from_type_dep(T),
+  #'Spec.TypeDef'{name = Name, definition = to_type(Def)}.
 
 to_typesig(Fun) ->
   Ret = to_type(cuter_types:ret_of_t_function(Fun)),
@@ -421,7 +428,9 @@ to_type(Type) ->
                                   , upper_bound = to_range_bound(Upper)},
       #'Spec.Type'{type = 'RANGE', arg = {'range_bounds', Bounds}};
     ?function_tag ->
-      #'Spec.Type'{type = 'FUN', arg = {'fun', to_typesig(Type)}}
+      #'Spec.Type'{type = 'FUN', arg = {'fun', to_typesig(Type)}};
+    ?userdef_tag ->
+      #'Spec.Type'{type = 'USERDEF', arg = {'type_name', cuter_types:name_of_t_userdef(Type)}}
   end.
 
 to_range_bound(Limit) ->

@@ -201,5 +201,5 @@ encode_spec_test_() ->
   [{"Serialize specs: " ++ C, {setup, Setup(T), Inst}} || {C, T} <- Ts].
 
 encode_spec(Spec) ->
-  cuter_serial:to_log_entry('OP_SPEC', [Spec], false, 0),
+  cuter_serial:to_log_entry('OP_SPEC', [{Spec, []}], false, 0),
   [].
