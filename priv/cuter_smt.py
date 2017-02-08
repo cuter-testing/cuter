@@ -8,37 +8,6 @@ import cuter_smt_process
 from cuter_smt_library import *
 
 
-def int2bv(n, b):
-	assert isinstance(b, int) and b >= 0, "b must be a non-negative integer"
-	assert isinstance(n, int) and n >= 0, "n must be a non-negative integer"
-	ret = []
-	while b > 0:
-		ret.append("true" if n % 2 != 0 else "false")
-		n /= 2
-		b -= 1
-	# assert n == 0, "n overflows b bits as an unsigned integer" # TODO erlang sends b = 0 and n = 42
-	ret.reverse()
-	return ret
-
-
-def var2bv(n, b):
-	assert isinstance(b, int) and b >= 0, "b must be a non-negative integer"
-	conj = [
-		"and",
-		["is-int", n],
-	]
-	n = ["iv", n]
-	conj.append(["<=", "0", n])
-	ret = []
-	while b > 0:
-		ret.append(["not", ["=", ["mod", n, "2"], "0"]])
-		n = ["div", n, "2"]
-		b -= 1
-	conj.append(["=", n, "0"])
-	ret.reverse()
-	return (ret, conj)
-
-
 class ErlangSMT(cgs.AbstractErlangSolver):
 
 	def __init__(self):
@@ -421,6 +390,37 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 
 	# TODO when constructing bitstrings, size must have a concrete non-negative integer value
 
+	def int2bv(self, n, b):
+		assert isinstance(b, int) and b >= 0, "b must be a non-negative integer"
+		assert isinstance(n, int) and n >= 0, "n must be a non-negative integer"
+		ret = []
+		while b > 0:
+			ret.append("true" if n % 2 != 0 else "false")
+			n /= 2
+			b -= 1
+		# assert n == 0, "n overflows b bits as an unsigned integer" # TODO erlang sends b = 0 and n = 42
+		ret.reverse()
+		return ret
+
+
+	def var2bv(self, n, b):
+		assert isinstance(b, int) and b >= 0, "b must be a non-negative integer"
+		conj = [
+			"and",
+			["is-int", n],
+		]
+		n = ["iv", n]
+		conj.append(["<=", "0", n])
+		ret = []
+		while b > 0:
+			ret.append(["not", ["=", ["mod", n, "2"], "0"]])
+			n = ["div", n, "2"]
+			b -= 1
+		conj.append(["=", n, "0"])
+		ret.reverse()
+		self.commands.append(["assert", conj])
+		return ret
+
 	def make_bitstr(self, symb, encodedValue, size):
 		"""
 		Make a bitstring by encoding an appropriate term.
@@ -428,10 +428,12 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t = self.decode(symb)
 		n = self.decode(encodedValue)
 		b = cc.get_int(size)
-		(bits, conj) = var2bv(n, b)
-		conj.append(["is-str", t])
+		conj = [
+			"and",
+			["is-str", t],
+		]
 		slist = ["sv", t]
-		for bit in bits:
+		for bit in self.var2bv(n, b):
 			conj.append(["is-sc", slist])
 			conj.append(["=", ["sh", slist], bit])
 			slist = ["st", slist]
@@ -720,7 +722,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			["is-str", r],
 		]
 		slist = ["sv", t]
-		for bit in int2bv(n, b):
+		for bit in self.int2bv(n, b):
 			conj.append(["is-sc", slist])
 			conj.append(["=", ["sh", slist], bit])
 			slist = ["st", slist]
@@ -746,7 +748,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			["is-str", t],
 		]
 		slist = ["sv", t]
-		for bit in int2bv(n, b):
+		for bit in self.int2bv(n, b):
 			conj.append(["is-sc", slist])
 			conj.append(["=", ["sh", slist], bit])
 			slist = ["st", slist]
@@ -764,7 +766,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			["is-str", t],
 		]
 		slist = ["sv", t]
-		for bit in int2bv(n, b):
+		for bit in self.int2bv(n, b):
 			conj.append(["is-sc", slist])
 			conj.append(["=", ["sh", slist], bit])
 			slist = ["st", slist]
@@ -778,11 +780,13 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		n = self.decode(term1)
 		b = cc.get_int(size)
 		t = self.decode(termBitstr)
-		(bits, conj) = var2bv(n, b)
-		conj.append(["is-str", r])
-		conj.append(["is-str", t])
+		conj = [
+			"and",
+			["is-str", r],
+			["is-str", t],
+		]
 		slist = ["sv", t]
-		for bit in bits:
+		for bit in self.var2bv(n, b):
 			conj.append(["is-sc", slist])
 			conj.append(["=", ["sh", slist], bit])
 			slist = ["st", slist]
