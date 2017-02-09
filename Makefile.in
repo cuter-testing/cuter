@@ -146,7 +146,7 @@ suite: utest_target ftest_target
 
 test: utest ftest
 
-all: $(TARGETS) dialyzer utest ftest z3py-ftest
+all: $(TARGETS) dialyzer utest ftest
 
 cuter_target: $(SRC_MODULES:%=$(EBIN)/%.beam) $(PROTOBUFS:%=$(EBIN)/%.beam) $(PROTOBUFS:%=$(PRIV)/%_pb2.py)
 
