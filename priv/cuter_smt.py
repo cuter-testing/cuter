@@ -18,6 +18,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		self.commands.append(["declare-fun", "fa", ["Int"], "Int"])
 		self.commands.append(["declare-fun", "fm", ["Int"], "FList"])
 		self.solver = cuter_smt_process.SolverZ3()
+		self.define_funs_rec = []
 
 	# =========================================================================
 	# Public API.
@@ -207,16 +208,24 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		typedefs = cc.get_type_defs_of_spec(spec)
 		if len(typedefs) > 0:
-			# TODO First define the rec funs for the typedefs (all of them together).
 			for tdf in typedefs:
 				tname = cc.get_typedef_name(tdf)
-				clg.debug_info("typedef name: " + str(tname))
 				tdefinition = cc.get_typedef_definition(tdf)
-				clg.debug_info("typedef definition: " + str(tdefinition))
+				body = self.build_spec(tdefinition, "t")
+				self.define_funs_rec.append(("|{}|".format(tname), [["t", "Term"]], body))
+		# Build the define-funs-rec definition for the type definitions, if needed.
+		self.assert_typedef_funs()
 		p = cc.get_spec_clauses(spec)[0]
 		pms = cc.get_parameters_from_complete_funsig(p)
 		for item in zip(self.vars, pms):
 			self.commands.append(["assert", self.build_spec(item[1], item[0])])
+
+	def assert_typedef_funs(self):
+		if len(self.define_funs_rec) > 0:
+			[names, args, bodies] = zip(*self.define_funs_rec)
+			n = len(names)
+			self.commands.append(["define-funs-rec", map(list, zip(names, args, ["Bool"]*n)), list(bodies)])
+		self.define_funs_rec = None
 
 	def fun_rec_name(self):
 		if hasattr(self, "fun_rec_cnt"):
@@ -233,7 +242,10 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			return self.fun_recs[body_smt]
 		name = self.fun_rec_name()
 		self.fun_recs[body_smt] = name
-		self.commands.append(["define-fun-rec", name, [["t", "Term"]], "Bool", body]) # TODO define-fun doesn't work
+		if self.define_funs_rec is not None:
+			self.define_funs_rec.append((name, [["t", "Term"]], body))
+		else:
+			self.commands.append(["define-fun-rec", name, [["t", "Term"]], "Bool", body]) # TODO define-fun doesn't work
 		return name
 
 	def fun_rec_tlist(self, spec):
@@ -245,11 +257,16 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			return self.fun_rec_tlists[spec_smt]
 		name = self.fun_rec_name()
 		self.fun_rec_tlists[spec_smt] = name
-		self.commands.append(["define-fun-rec", name, [["l", "TList"]], "Bool", [
+		args = [["l", "TList"]]
+		body = [
 			"or",
 			["is-tn", "l"],
 			["and", ["is-tc", "l"], spec, [name, ["tt", "l"]]],
-		]])
+		]
+		if self.define_funs_rec is not None:
+			self.define_funs_rec.append((name, args, body))
+		else:
+			self.commands.append(["define-fun-rec", name, args, "Bool", body])
 		return name
 
 	def fun_rec_flist(self, par_spec, ret_spec):
@@ -270,11 +287,16 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			return self.fun_rec_flists[spec_smt]
 		name = self.fun_rec_name()
 		self.fun_rec_flists[spec_smt] = name
-		self.commands.append(["define-fun-rec", name, [["f", "FList"]], "Bool", [
+		args = [["f", "FList"]]
+		body = [
 			"or",
 			["is-fn", "f"],
 			["and", ["is-fc", "f"], arg_spec, ret_spec, [name, ["ft", "f"]]],
-		]])
+		]
+		if self.define_funs_rec is not None:
+			self.define_funs_rec.append((name, args, body))
+		else:
+			self.commands.append(["define-fun-rec", name, args, "Bool", body])
 		return name
 
 	def build_spec(self, spec, var):
@@ -302,14 +324,14 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 				[name, ["lv", var]],
 			]
 		elif cc.is_type_tupledet(spec):
-			body = ["and", ["is-tuple", "t"]]
-			tlist = ["tv", "t"]
+			body = ["and", ["is-tuple", var]]
+			tlist = ["tv", var]
 			for inner_type in cc.get_inner_types_from_tupledet(spec):
 				body.append(["is-tc", tlist])
 				body.append(self.build_spec(inner_type, ["th", tlist]))
 				tlist = ["tt", tlist]
 			body.append(["is-tn", tlist])
-			return [self.fun_rec(body), var]
+			return body
 		elif cc.is_type_tuple(spec):
 			return ["is-tuple", var]
 		elif cc.is_type_union(spec):
@@ -360,8 +382,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			return ["=", var, self.decode(cc.get_literal_from_integerlit(spec))]
 		elif cc.is_type_userdef(spec):
 			type_name = cc.get_type_name_of_userdef(spec)
-			# TODO Refer to defined rec fun for the type.
-			return "true"
+			return ["|{}|".format(type_name), var]
 		clg.debug_info("unknown spec: " + str(spec))
 		assert False
 

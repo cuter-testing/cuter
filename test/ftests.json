@@ -278,7 +278,7 @@
             "solutions": [
                 "$1[0:3] == [17, 17, 42]"
             ],
-            "skip": true
+            "skip": false
         },
         {
             "module": "collection",
@@ -1081,6 +1081,18 @@
             "arity": 1,
             "solutions": [
                 "[5]"
+            ],
+            "skip": false
+        },
+        {
+            "module": "collection",
+            "function": "fclist",
+            "args": "[nil]",
+            "depth": "10",
+            "errors": true,
+            "arity": 1,
+            "solutions": [
+                "[{42,{17,nil}}]"
             ],
             "skip": false
         }
