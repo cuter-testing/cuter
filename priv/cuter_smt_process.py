@@ -21,7 +21,8 @@ def log(msg = ""):
 		clog.write(msg + "\n")
 
 
-timeout = 1000
+# time limit per solver process in seconds
+timeout = 2
 
 
 class Solver:
@@ -76,11 +77,11 @@ class Solver:
 #class SolverCVC4(Solver):
 #
 #	def __init__(self):
-#		Solver.__init__(self, ["cvc4", "--lang=smt2", "--tlimit={}".format(timeout), "--fmf-fun", "--incremental"])
+#		Solver.__init__(self, ["cvc4", "--lang=smt2", "--tlimit={}".format(timeout * 1000), "--fmf-fun", "--incremental"])
 #		self.write(["set-logic", "UFDTLIRA"])
 
 
 class SolverZ3(Solver):
 
 	def __init__(self):
-		Solver.__init__(self, ["z3", "-smt2", "-t:{}".format(timeout), "-in"])
+		Solver.__init__(self, ["z3", "-smt2", "-T:{}".format(timeout), "-in"])

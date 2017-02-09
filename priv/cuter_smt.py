@@ -48,6 +48,8 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			return cc.mk_unsat()
 		elif status == "unknown":
 			return cc.mk_unknown()
+		elif status == "timeout":
+			return cc.mk_timeout()
 		clg.debug_info("solve: " + str(status))
 		assert False
 
