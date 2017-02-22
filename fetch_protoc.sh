@@ -3,21 +3,32 @@
 set -e
 
 DL="lib"
-VER="3.1.0"
+VER="3.2.0"
 PROTOC_DIR="$DL/protoc-$VER"
 rm -rf $PROTOC_DIR
 
 ME=`basename "$0"`
+
+SYSTEM_TYPE=`uname -s`
+case ${SYSTEM_TYPE} in
+  'Darwin') OS=osx;;
+  'Linux')  OS=linux;;
+  *) echo "Sorry, but there is no automatic support for ${SYSTEM_TYPE}" >&2
+     exit 1
+     ;;
+esac
+
 MACHINE_TYPE=`uname -m`
-if [ ${MACHINE_TYPE} == 'x86_64' ]; then
-  # 64-bit
-  echo "[$ME] Detected 64-bit installation ..."
-  ZIP_FILE="protoc-$VER-linux-x86_64.zip"
-else
-  # 32-bit
-  echo "[$ME] Detected 32-bit installation ..."
-  ZIP_FILE="protoc-$VER-linux-x86_32.zip"
-fi
+case ${MACHINE_TYPE} in
+  'i686')   ARCH='x86_32';;	# 32-bit
+  'x86_64') ARCH='x86_64';;	# 64-bit
+  *) echo "Sorry, but there is no automatic support for the ${MACHINE_TYPE} architecture" >&2
+     exit 1
+     ;;
+esac
+
+ZIP_FILE="protoc-$VER-$OS-$ARCH.zip"
+
 wget -P $DL https://github.com/google/protobuf/releases/download/v$VER/$ZIP_FILE
 mkdir -p $PROTOC_DIR
 unzip $DL/$ZIP_FILE -d $PROTOC_DIR
