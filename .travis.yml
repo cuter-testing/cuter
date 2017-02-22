@@ -8,7 +8,7 @@ before_install:
   - export PYTHONPATH=$PWD/z3-4.5.0-x64-ubuntu-14.04/bin/python:$PYTHONPATH
   - export C_INCLUDE_PATH=$PWD/z3-4.5.0-x64-ubuntu-14.04/include/:$C_INCLUDE_PATH
   - export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD/z3-4.5.0-x64-ubuntu-14.04/bin
-  - pip install protobuf==3.1.0
+  - pip install protobuf==3.2.0
   - pip install parsimonious==0.7.0
 script:
   - git submodule update
