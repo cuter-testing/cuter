@@ -15,7 +15,7 @@ load_modules_test_() ->
   Setup = fun setup/0,
   Cleanup = fun cleanup/1,
   Inst = fun(_) ->
-    Cs = cuter_codeserver:start(self(), ?Pmatch, cuter_mock:empty_whitelist()),
+    Cs = cuter_codeserver:start(self(), ?Pmatch, cuter_mock:empty_whitelist(), true),
     As = [load_mod(Cs, M) || M <- ?MODS_LIST],
     Stop = cuter_codeserver:stop(Cs),
     [{"codeserver termination", ?_assertEqual(ok, Stop)},
@@ -33,7 +33,7 @@ load_and_retrieve_test_() ->
   Setup = fun setup/0,
   Cleanup = fun cleanup/1,
   Inst = fun(_) ->
-    Cs = cuter_codeserver:start(self(), ?Pmatch, cuter_mock:empty_whitelist()),
+    Cs = cuter_codeserver:start(self(), ?Pmatch, cuter_mock:empty_whitelist(), true),
     R1 = cuter_codeserver:load(Cs, lists),
     R2 = cuter_codeserver:load(Cs, os),
     R3 = cuter_codeserver:load(Cs, lists),
@@ -50,7 +50,7 @@ get_spec_test_() ->
   Setup = fun setup/0,
   Cleanup = fun cleanup/1,
   Inst = fun(_) ->
-    Cs = cuter_codeserver:start(self(), ?Pmatch, cuter_mock:empty_whitelist()),
+    Cs = cuter_codeserver:start(self(), ?Pmatch, cuter_mock:empty_whitelist(), true),
     %% types_and_specs:foo/0
     Spec0 = cuter_codeserver:retrieve_spec(Cs, {types_and_specs, foo, 0}),
     Expected0 = {[cuter_types:t_function([], cuter_types:t_atom_lit(ok))], []},
@@ -74,7 +74,7 @@ error_load_test_() ->
   Setup = fun setup/0,
   Cleanup = fun cleanup/1,
   Inst = fun(_) ->
-    Cs = cuter_codeserver:start(self(), ?Pmatch, cuter_mock:empty_whitelist()),
+    Cs = cuter_codeserver:start(self(), ?Pmatch, cuter_mock:empty_whitelist(), true),
     R1 = cuter_codeserver:load(Cs, erlang),
     R2 = cuter_codeserver:load(Cs, foobar),
     Stop = cuter_codeserver:stop(Cs),

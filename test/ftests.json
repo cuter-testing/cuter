@@ -259,13 +259,13 @@
             "module": "complex_spec",
             "function": "f",
             "args": "[[]]",
-            "depth": "32",
+            "depth": "35",
             "errors": true,
             "arity": 1,
             "solutions": [
                 "[[{[1,2],[{[[1],[2]],[3.14]},2]}]]"
             ],
-            "skip": true
+            "skip": false
         },
         {
             "module": "collection",
@@ -1091,8 +1091,21 @@
             "depth": "10",
             "errors": true,
             "arity": 1,
+            "opts": "--no-type-normalization",
             "solutions": [
                 "[{42,{17,nil}}]"
+            ],
+            "skip": false
+        },
+        {
+            "module": "collection",
+            "function": "fweird",
+            "args": "[ok]",
+            "depth": "25",
+            "errors": true,
+            "arity": 1,
+            "solutions": [
+                "[[42,[ok],[17,ok,ok,[1,2]]]]"
             ],
             "skip": false
         }

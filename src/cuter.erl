@@ -41,6 +41,7 @@
 -define(CALCULATE_COVERAGE, coverage).
 -define(SORTED_ERRORS, sorted_errors).
 -define(SUPPRESS_UNSUPPORTED_MFAS, suppress_unsupported).
+-define(NO_TYPE_NORMALIZATION, no_type_normalization).
 -define(Z3PY, z3py).
 
 -type default_option() :: {?POLLERS_NO, ?ONE}
@@ -57,6 +58,7 @@
                 | ?CALCULATE_COVERAGE
                 | ?SORTED_ERRORS
                 | ?SUPPRESS_UNSUPPORTED_MFAS
+                | ?NO_TYPE_NORMALIZATION
                 | ?Z3PY
                 .
 
@@ -200,7 +202,8 @@ initialize_app(M, F, As, Depth, Options) ->
   WithPmatch = with_pmatch(Options),
   SolverBackend = get_solver_backend(Options),
   Whitelist = get_whitelist(Options),
-  CodeServer = cuter_codeserver:start(self(), WithPmatch, Whitelist),
+  NormalizeTypes = type_normalization(Options),
+  CodeServer = cuter_codeserver:start(self(), WithPmatch, Whitelist, NormalizeTypes),
   SchedPid = cuter_scheduler_maxcover:start(SolverBackend, Depth, As, CodeServer),
   cuter_pp:mfa({M, F, length(As)}),
   #conf{ codeServer = CodeServer
@@ -283,3 +286,6 @@ sort_errors(Options) -> lists:member(?SORTED_ERRORS, Options).
 
 -spec suppress_unsupported_mfas([option()]) -> boolean().
 suppress_unsupported_mfas(Options) -> lists:member(?SUPPRESS_UNSUPPORTED_MFAS, Options).
+
+-spec type_normalization([option()]) -> boolean().
+type_normalization(Options) -> not lists:member(?NO_TYPE_NORMALIZATION, Options).
