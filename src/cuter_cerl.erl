@@ -24,7 +24,8 @@
 	      cerl_recdef/0, cerl_record_field/0, cerl_spec/0,
 	      cerl_spec_func/0, cerl_type/0, cerl_typedef/0,
 	      cerl_type_record_field/0, node_types/0,
-	      tagID/0, tag/0, tag_generator/0, visited_tags/0]).
+	      tagID/0, tag/0, tag_generator/0, visited_tags/0,
+	      type_info/0, spec_info/0]).
 
 -type info()          :: 'anno' | 'attributes' | 'exports' | 'name'.
 -type compile_error() :: {'error', string()}.
@@ -39,16 +40,18 @@
 -type lineno() :: integer().
 -type name() :: atom().
 -type fa() :: {name(), arity()}.
--type cerl_attr() :: {#c_literal{val :: 'type'}, #c_literal{val :: cerl_attr_type()}}
-                   | {#c_literal{val :: spec | opaque}, #c_literal{val :: cerl_attr_spec()}}
-                   | {#c_literal{val :: export_type | behaviour}, cerl:c_literal()}.
+-type cerl_attr() :: {#c_literal{val :: 'type' | opaque}, #c_literal{val :: cerl_attr_type()}}
+                   | {#c_literal{val :: 'record'}, #c_literal{val :: cerl_recdef()}} % for OTP 19.x
+                   | {#c_literal{val :: 'spec'}, #c_literal{val :: cerl_attr_spec()}}
+                   | {#c_literal{val :: 'export_type' | 'behaviour'}, cerl:c_literal()}.
 -type cerl_attr_type() :: cerl_recdef() | cerl_typedef().
 -type cerl_attr_spec() :: cerl_specdef().
 
--type cerl_recdef() :: {{'record', name()}, [cerl_record_field()], []}.
+-type cerl_recdef() :: {name(), [cerl_record_field()]} % for OTP 19.x
+                     | {{'record', name()}, [cerl_record_field()], []}. % for OTP 18.x or earlier
 -type cerl_record_field() :: cerl_untyped_record_field() | cerl_typed_record_field().
--type cerl_untyped_record_field() :: {'record_field', lineno(), {atom, lineno(), name()}}
-                                   | {'record_field', lineno(), {atom, lineno(), name()}, any()}.
+-type cerl_untyped_record_field() :: {'record_field', lineno(), {'atom', lineno(), name()}}
+                                   | {'record_field', lineno(), {'atom', lineno(), name()}, any()}.
 -type cerl_typed_record_field() :: {'typed_record_field', cerl_untyped_record_field(), cerl_type()}.
 -type cerl_typedef() :: {name(), cerl_type(), [cerl_type_var()]}.
 
@@ -58,7 +61,7 @@
 
 -type cerl_bounded_func() :: {'type', lineno(), 'bounded_fun', [cerl_func() | cerl_constraint()]}.
 -type cerl_func() :: {'type', lineno(), 'fun', [cerl_product() | cerl_type()]}.
--type cerl_constraint() :: {'type', lineno(), 'constraint', [{atom, lineno(), 'is_subtype'} | [cerl_type_var() | cerl_type()]]}.
+-type cerl_constraint() :: {'type', lineno(), 'constraint', [{'atom', lineno(), 'is_subtype'} | [cerl_type_var() | cerl_type()]]}.
 -type cerl_product() :: {'type', lineno(), 'product', [cerl_type()]}.
 
 -type cerl_type() :: cerl_type_nil()
@@ -260,20 +263,36 @@ store_fun(Exps, M, {Fun, Def}, Cache, TagGen) ->
 %  io:format("~p~n", [AnnDef]),
   cuter_codeserver:insert_in_module_cache(MFA, {AnnDef, Exported}, Cache).
 
--spec classify_attributes([cerl_attr()]) -> {[cerl_attr_type()], [cerl_attr_spec()]}.
+-type type_info() :: {'type', cerl_typedef()}
+                   | {'record', cerl_recdef()}.
+-type spec_info() :: cerl_attr_spec().
+-type classify_attr_ret() :: {[type_info()], [spec_info()]}.
+
+-spec classify_attributes([cerl_attr()]) -> classify_attr_ret().
 classify_attributes(Attrs) ->
   classify_attributes(Attrs, [], []).
 
--spec classify_attributes([cerl_attr()], [cerl_attr_type()], [cerl_attr_spec()]) -> {[cerl_attr_type()], [cerl_attr_spec()]}.
+-spec classify_attributes([cerl_attr()], [type_info()], [spec_info()]) -> classify_attr_ret().
 classify_attributes([], Types, Specs) ->
   {lists:reverse(Types), lists:reverse(Specs)};
 classify_attributes([{What, #c_literal{val = Val}}|Attrs], Types, Specs) ->
-%  io:format("%% ~p~n", [What]),
   case cerl:atom_val(What) of
     Tp when Tp =:= type orelse Tp =:= opaque ->
-      classify_attributes(Attrs, [hd(Val)|Types], Specs);
-    spec -> classify_attributes(Attrs, Types, [hd(Val)|Specs]);
-    _Ignore -> classify_attributes(Attrs, Types, Specs)
+      [V] = Val,
+      case V of
+        {{record, Name}, Fields, []} -> % for OTP 18.x and earlier
+          classify_attributes(Attrs, [{record, {Name, Fields}}|Types], Specs);
+        _ ->
+          classify_attributes(Attrs, [{type, V}|Types], Specs)
+      end;
+    record -> % for OTP 19.x and newer
+      [V] = Val,
+      classify_attributes(Attrs, [{record, V}|Types], Specs);
+    spec ->
+      [V] = Val,
+      classify_attributes(Attrs, Types, [V|Specs]);
+    _Ignore ->
+      classify_attributes(Attrs, Types, Specs)
   end.
 
 %% ----------------------------------------------------------------------------

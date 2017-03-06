@@ -179,13 +179,13 @@
 %% ============================================================================
 
 %% Pre-processes the type & record declarations.
--spec retrieve_types([cuter_cerl:cerl_attr_type()]) -> stored_types().
+-spec retrieve_types([cuter_cerl:type_info()]) -> stored_types().
 retrieve_types(TypeAttrs) ->
   lists:foldl(fun process_type_attr/2, dict:new(), TypeAttrs).
 
--spec process_type_attr(cuter_cerl:cerl_recdef() | cuter_cerl:cerl_typedef(), stored_types()) -> stored_types().
+-spec process_type_attr(cuter_cerl:type_info(), stored_types()) -> stored_types().
 %% Processes the declaration of a record.
-process_type_attr({{record, Name}, Fields, []}, Processed) ->
+process_type_attr({record, {Name, Fields}}, Processed) ->
   % Process each field of the record.
   Fs = [t_field_from_form(Field) || Field <- Fields],
   % Construct the representation of the record.
@@ -193,7 +193,7 @@ process_type_attr({{record, Name}, Fields, []}, Processed) ->
   % Store the record in the proccessed dict.
   dict:store({record, Name}, Record, Processed);
 %% Processes the declaration of a type.
-process_type_attr({Name, Repr, Vars}, Processed) ->
+process_type_attr({type, {Name, Repr, Vars}}, Processed) ->
   % Process the type's representation.
   Type = safe_t_from_form(Repr),
   % Parse the type parameters.
@@ -683,11 +683,11 @@ unify_deps(Types) ->
 %% define an intermediate representation solely for specs.
 %% ============================================================================
 
--spec retrieve_specs([cuter_cerl:cerl_attr_spec()]) -> stored_specs().
+-spec retrieve_specs([cuter_cerl:spec_info()]) -> stored_specs().
 retrieve_specs(SpecAttrs) ->
   lists:foldl(fun process_spec_attr/2, dict:new(), SpecAttrs).
 
--spec process_spec_attr(cuter_cerl:cerl_attr_spec(), stored_specs()) -> stored_specs().
+-spec process_spec_attr(cuter_cerl:spec_info(), stored_specs()) -> stored_specs().
 process_spec_attr({FA, Specs}, Processed) ->
   Xs = [t_spec_from_form(Spec) || Spec <- Specs],
   dict:store(FA, Xs, Processed).
