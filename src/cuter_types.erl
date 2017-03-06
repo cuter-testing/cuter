@@ -817,7 +817,7 @@ normalize_type_deps([], _Seen, Acc) ->
   lists:reverse(Acc);
 normalize_type_deps([{TypeName, Type}|Types], Seen, Acc) ->
   {NormalizedType, MoreDeps} = normalize_single_type(Type, Seen, true),
-  Acc1 = lists:reverse(MoreDeps) ++ Acc,
+  Acc1 = lists:reverse(MoreDeps, Acc),
   normalize_type_deps(Types, Seen, [{TypeName, NormalizedType}|Acc1]).
 
 normalize_single_type(#t{kind = ?function_tag, rep = {Params, Ret, _}}=Type, Seen, IsTopLevel) ->
@@ -826,19 +826,10 @@ normalize_single_type(#t{kind = ?function_tag, rep = {Params, Ret, _}}=Type, See
       {Handle, []};
     [] ->
       Xs = [normalize_single_type(T, Seen, false) || T <- [Ret|Params]],
-      {Ts, Deps} = lists:unzip(Xs),
-      NormalizedType = Type#t{rep = {tl(Ts), hd(Ts), []}},
-      AllDeps = lists:flatten(lists:map(fun lists:reverse/1, Deps)),
-      case IsTopLevel of
-        true ->
-          {NormalizedType, AllDeps};
-        false ->
-          NewTypeName = generate_new_type(),
-          NewType = t_userdef(NewTypeName),
-          Dep = {NewTypeName, NormalizedType},
-          true = ets:insert(Seen, {NormalizedType, NewType}),
-          {NewType, [Dep|AllDeps]}
-      end
+      {[T|Ts], Deps} = lists:unzip(Xs),
+      NormalizedType = Type#t{rep = {Ts, T, []}},
+      AllDeps = lists:flatten([lists:reverse(D) || D <- Deps]),
+      insert_userdef_and_update_seen(Seen, IsTopLevel, NormalizedType, AllDeps)
   end;
 normalize_single_type(#t{kind = ?function_tag, rep = {Ret, _}}=Type, Seen, IsTopLevel) ->
   case ets:lookup(Seen, Type) of
@@ -847,16 +838,7 @@ normalize_single_type(#t{kind = ?function_tag, rep = {Ret, _}}=Type, Seen, IsTop
     [] ->
       {T, Deps} = normalize_single_type(Ret, Seen, false),
       NormalizedType = Type#t{rep = {T, []}},
-      case IsTopLevel of
-        true ->
-          {NormalizedType, Deps};
-        false ->
-          NewTypeName = generate_new_type(),
-          NewType = t_userdef(NewTypeName),
-          Dep = {NewTypeName, NormalizedType},
-          true = ets:insert(Seen, {NormalizedType, NewType}),
-          {NewType, [Dep|Deps]}
-      end
+      insert_userdef_and_update_seen(Seen, IsTopLevel, NormalizedType, Deps)
   end;
 %% list / nonempty_list
 normalize_single_type(#t{kind = Tag, rep = InnerType}=Type, Seen, IsTopLevel) when Tag =:= ?list_tag; Tag =:= ?nonempty_list_tag ->
@@ -866,16 +848,7 @@ normalize_single_type(#t{kind = Tag, rep = InnerType}=Type, Seen, IsTopLevel) wh
     [] ->
       {T, Deps} = normalize_single_type(InnerType, Seen, false),
       NormalizedType = Type#t{rep = T},
-      case IsTopLevel of
-        true ->
-          {NormalizedType, Deps};
-        false ->
-          NewTypeName = generate_new_type(),
-          NewType = t_userdef(NewTypeName),
-          Dep = {NewTypeName, NormalizedType},
-          true = ets:insert(Seen, {NormalizedType, NewType}),
-          {NewType, [Dep|Deps]}
-      end
+      insert_userdef_and_update_seen(Seen, IsTopLevel, NormalizedType, Deps)
   end;
 %% union or tuple
 normalize_single_type(#t{kind = Tag, rep = InnerTypes}=Type, Seen, IsTopLevel) when Tag =:= ?union_tag; Tag =:= ?tuple_tag ->
@@ -886,17 +859,8 @@ normalize_single_type(#t{kind = Tag, rep = InnerTypes}=Type, Seen, IsTopLevel) w
       Xs = [normalize_single_type(T, Seen, false) || T <- InnerTypes],
       {Ts, Deps} = lists:unzip(Xs),
       NormalizedType = Type#t{rep = Ts},
-      AllDeps = lists:flatten(lists:map(fun lists:reverse/1, Deps)),
-      case IsTopLevel of
-        true ->
-          {NormalizedType, AllDeps};
-        false ->
-          NewTypeName = generate_new_type(),
-          NewType = t_userdef(NewTypeName),
-          Dep = {NewTypeName, NormalizedType},
-          true = ets:insert(Seen, {NormalizedType, NewType}),
-          {NewType, [Dep|AllDeps]}
-      end
+      AllDeps = lists:flatten([lists:reverse(D) || D <- Deps]),
+      insert_userdef_and_update_seen(Seen, IsTopLevel, NormalizedType, AllDeps)
   end;
 %% all others
 normalize_single_type(Raw, _Seen, _IsTopLevel) ->
@@ -904,6 +868,18 @@ normalize_single_type(Raw, _Seen, _IsTopLevel) ->
 
 generate_new_type() ->
   "tp@" ++ erlang:ref_to_list(erlang:make_ref()) -- "#Ref<>".
+
+insert_userdef_and_update_seen(Seen, IsTopLevel, NormalizedType, Deps) ->
+  case IsTopLevel of
+    true ->
+      {NormalizedType, Deps};
+    false ->
+      NewTypeName = generate_new_type(),
+      NewType = t_userdef(NewTypeName),
+      Dep = {NewTypeName, NormalizedType},
+      true = ets:insert(Seen, {NormalizedType, NewType}),
+      {NewType, [Dep|Deps]}
+  end.
 
 %% ----------------------------------------------------------------------------
 %% Traverse a spec and substitute the local and remote types.

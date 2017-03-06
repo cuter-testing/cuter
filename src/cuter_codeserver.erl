@@ -211,7 +211,7 @@ handle_info(_Msg, State) ->
                .
 handle_call({load, M}, _From, State) ->
   {reply, try_load(M, State), State};
-handle_call({get_spec, {M, F, A}=MFA}, _From, State=#st{normalizeTypes = NormalizeTypes}) ->
+handle_call({get_spec, {M, F, A}=MFA}, _From, #st{normalizeTypes = NormalizeTypes}=State) ->
   case try_load(M, State) of
     {ok, MDb} ->
       case cuter_cerl:retrieve_spec(MDb, {F, A}) of
