@@ -181,10 +181,7 @@
 %% Pre-processes the type & record declarations.
 -spec retrieve_types([cuter_cerl:type_info()]) -> stored_types().
 retrieve_types(TypeAttrs) ->
-%  io:format("~p~n", [TypeAttrs]),
-  S = lists:foldl(fun process_type_attr/2, dict:new(), TypeAttrs),
-%  lists:foreach(fun({K,V}) -> io:format("~p => ~p~n", [K,V]) end, dict:to_list(S)),
-  S.
+  lists:foldl(fun process_type_attr/2, dict:new(), TypeAttrs).
 
 -spec process_type_attr(cuter_cerl:type_info(), stored_types()) -> stored_types().
 %% Processes the declaration of a record.

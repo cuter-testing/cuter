@@ -276,14 +276,21 @@ classify_attributes(Attrs) ->
 classify_attributes([], Types, Specs) ->
   {lists:reverse(Types), lists:reverse(Specs)};
 classify_attributes([{What, #c_literal{val = Val}}|Attrs], Types, Specs) ->
-%  io:format("%% ~p~n", [What]),
   case cerl:atom_val(What) of
     Tp when Tp =:= type orelse Tp =:= opaque ->
-      classify_attributes(Attrs, [{type, hd(Val)}|Types], Specs);
-    record ->
-      classify_attributes(Attrs, [{record, hd(Val)}|Types], Specs);
+      [V] = Val,
+      case V of
+        {{record, Name}, Fields, []} -> % for OTP 18.x and earlier
+          classify_attributes(Attrs, [{record, {Name, Fields}}|Types], Specs);
+        _ ->
+          classify_attributes(Attrs, [{type, V}|Types], Specs)
+      end;
+    record -> % for OTP 19.x and newer
+      [V] = Val,
+      classify_attributes(Attrs, [{record, V}|Types], Specs);
     spec ->
-      classify_attributes(Attrs, Types, [hd(Val)|Specs]);
+      [V] = Val,
+      classify_attributes(Attrs, Types, [V|Specs]);
     _Ignore ->
       classify_attributes(Attrs, Types, Specs)
   end.
