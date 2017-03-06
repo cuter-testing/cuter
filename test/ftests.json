@@ -1108,6 +1108,18 @@
                 "[[42,[ok],[17,ok,ok,[1,2]]]]"
             ],
             "skip": false
+        },
+        {
+            "module": "collection",
+            "function": "test_record",
+            "args": "[{msg,false}]",
+            "depth": "25",
+            "errors": true,
+            "arity": 1,
+            "solutions": [
+                "[{msg,true}]"
+            ],
+            "skip": false
         }
     ]
 }
