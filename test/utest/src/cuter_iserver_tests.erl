@@ -24,7 +24,7 @@ setup() ->
   process_flag(trap_exit, true),
   Dir = cuter_tests_lib:setup_dir(),
   ok = cuter_pp:start(cuter_pp:default_reporting_level()),
-  CodeServer = cuter_codeserver:start(self(), ?Pmatch, cuter_mock:empty_whitelist()),
+  CodeServer = cuter_codeserver:start(self(), ?Pmatch, cuter_mock:empty_whitelist(), true),
   Server = cuter_iserver:start(lists, reverse, [[42,17]], Dir, ?TRACE_DEPTH, CodeServer),
   {Dir, Server}.
 

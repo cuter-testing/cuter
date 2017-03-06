@@ -5,22 +5,22 @@
 -behaviour(gen_server).
 
 %% external exports
--export([start/3, start/5, stop/1, load/2, unsupported_mfa/2, retrieve_spec/2,
-	 get_feasible_tags/2, get_logs/1, get_whitelist/1, get_visited_tags/1,
-	 visit_tag/2, calculate_callgraph/2,
+-export([start/4, start/6, stop/1, load/2, unsupported_mfa/2, retrieve_spec/2,
+         get_feasible_tags/2, get_logs/1, get_whitelist/1, get_visited_tags/1,
+         visit_tag/2, calculate_callgraph/2,
          %% Work with module cache
          merge_dumped_cached_modules/2, modules_of_dumped_cache/1,
-	 lookup_in_module_cache/2, insert_in_module_cache/3,
-	 no_cached_modules/0,
+         lookup_in_module_cache/2, insert_in_module_cache/3,
+         no_cached_modules/0,
          %% Access logs
          cachedMods_of_logs/1, visitedTags_of_logs/1, tagsAddedNo_of_logs/1,
          unsupportedMfas_of_logs/1, loadedMods_of_logs/1]).
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3,
-	 handle_info/2, handle_call/3, handle_cast/2]).
+         handle_info/2, handle_call/3, handle_cast/2]).
 %% Counter of branches & Tag generator.
 -export([set_branch_counter/1, get_branch_counter/0, initial_branch_counter/0,
-	 generate_tag/0]).
+         generate_tag/0]).
 
 -include("include/cuter_macros.hrl").
 
@@ -90,7 +90,8 @@
   workers = []                 :: [pid()],
   unsupportedMfas = sets:new() :: sets:set(mfa()),
   whitelist                    :: cuter_mock:whitelist(),
-  callgraph                    :: cuter_callgraph:callgraph() | 'undefined'
+  callgraph                    :: cuter_callgraph:callgraph() | 'undefined',
+  normalizeTypes               :: boolean()
 }).
 -type state() :: #st{}.
 
@@ -99,15 +100,15 @@
 %% ----------------------------------------------------------------------------
 
 %% Starts a CodeServer in the local node.
--spec start(pid(), boolean(), cuter_mock:whitelist()) -> pid().
-start(Super, WithPmatch, Whitelist) ->
-  start(Super, no_cached_modules(), initial_branch_counter(), WithPmatch, Whitelist).
+-spec start(pid(), boolean(), cuter_mock:whitelist(), boolean()) -> pid().
+start(Super, WithPmatch, Whitelist, NormalizeTypes) ->
+  start(Super, no_cached_modules(), initial_branch_counter(), WithPmatch, Whitelist, NormalizeTypes).
 
 %% Starts a CodeServer in the local node with an initialized
 %% modules' cache and tag counter.
--spec start(pid(), cached_modules(), counter(), boolean(), cuter_mock:whitelist()) -> pid().
-start(Super, StoredMods, TagsN, WithPmatch, Whitelist) ->
-  case gen_server:start(?MODULE, [Super, StoredMods, TagsN, WithPmatch, Whitelist], []) of
+-spec start(pid(), cached_modules(), counter(), boolean(), cuter_mock:whitelist(), boolean()) -> pid().
+start(Super, StoredMods, TagsN, WithPmatch, Whitelist, NormalizeTypes) ->
+  case gen_server:start(?MODULE, [Super, StoredMods, TagsN, WithPmatch, Whitelist, NormalizeTypes], []) of
     {ok, CodeServer} -> CodeServer;
     {error, Reason}  -> exit({codeserver_start, Reason})
   end.
@@ -172,7 +173,7 @@ get_feasible_tags(CodeServer, NodeTypes) ->
 
 %% gen_server callback : init/1
 -spec init([pid() | cached_modules() | counter() | boolean() | cuter_mock:whitelist(), ...]) -> {ok, state()}.
-init([Super, CachedMods, TagsN, WithPmatch, Whitelist]) ->
+init([Super, CachedMods, TagsN, WithPmatch, Whitelist, NormalizeTypes]) ->
   link(Super),
   Db = ets:new(?MODULE, [ordered_set, protected]),
   add_cached_modules(Db, CachedMods),
@@ -180,7 +181,8 @@ init([Super, CachedMods, TagsN, WithPmatch, Whitelist]) ->
   {ok, #st{ db = Db
           , super = Super
           , withPmatch = WithPmatch
-          , whitelist = Whitelist}}.
+          , whitelist = Whitelist
+          , normalizeTypes = NormalizeTypes}}.
 
 %% gen_server callback : terminate/2
 -spec terminate(any(), state()) -> ok.
@@ -209,7 +211,7 @@ handle_info(_Msg, State) ->
                .
 handle_call({load, M}, _From, State) ->
   {reply, try_load(M, State), State};
-handle_call({get_spec, {M, F, A}=MFA}, _From, State) ->
+handle_call({get_spec, {M, F, A}=MFA}, _From, #st{normalizeTypes = NormalizeTypes}=State) ->
   case try_load(M, State) of
     {ok, MDb} ->
       case cuter_cerl:retrieve_spec(MDb, {F, A}) of
@@ -224,7 +226,7 @@ handle_call({get_spec, {M, F, A}=MFA}, _From, State) ->
               {Mod, StoredTypes}
             end,
           ManyStoredTypes = [Fn(Mod) || Mod <- DepMods],
-          Parsed = cuter_types:parse_spec(MFA, CerlSpec, ManyStoredTypes),
+          Parsed = cuter_types:parse_spec(MFA, CerlSpec, ManyStoredTypes, NormalizeTypes),
           cuter_pp:parsed_spec(Parsed),
           {reply, {ok, Parsed}, State}
       end;

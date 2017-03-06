@@ -2,7 +2,7 @@
 %%------------------------------------------------------------------------------
 -module(cuter_types).
 
--export([parse_spec/3, retrieve_types/1, retrieve_specs/1, find_spec/2, get_kind/1,
+-export([parse_spec/4, retrieve_types/1, retrieve_specs/1, find_spec/2, get_kind/1,
          find_remote_deps_of_type/2, find_remote_deps_of_spec/2]).
 
 -export([params_of_t_function_det/1, ret_of_t_function/1, atom_of_t_atom_lit/1, integer_of_t_integer_lit/1,
@@ -804,15 +804,100 @@ maybe_hash_args(Ps, Args) ->
   Ps ++ [integer_to_list(Arity), integer_to_list(erlang:phash2(Args))].
 
 %% ----------------------------------------------------------------------------
+%% Normalize parsed specs & type dependencies
+%% ----------------------------------------------------------------------------
+
+normalize_type_deps(Deps) ->
+  Seen = ets:new(?MODULE, [ordered_set, protected]),
+  NormalizedDeps = normalize_type_deps(Deps, Seen, []),
+  ets:delete(Seen),
+  NormalizedDeps.
+
+normalize_type_deps([], _Seen, Acc) ->
+  lists:reverse(Acc);
+normalize_type_deps([{TypeName, Type}|Types], Seen, Acc) ->
+  {NormalizedType, MoreDeps} = normalize_single_type(Type, Seen, true),
+  Acc1 = lists:reverse(MoreDeps, Acc),
+  normalize_type_deps(Types, Seen, [{TypeName, NormalizedType}|Acc1]).
+
+normalize_single_type(#t{kind = ?function_tag, rep = {Params, Ret, _}}=Type, Seen, IsTopLevel) ->
+  case ets:lookup(Seen, Type) of
+    [{Type, Handle}] ->
+      {Handle, []};
+    [] ->
+      Xs = [normalize_single_type(T, Seen, false) || T <- [Ret|Params]],
+      {[T|Ts], Deps} = lists:unzip(Xs),
+      NormalizedType = Type#t{rep = {Ts, T, []}},
+      AllDeps = lists:flatten([lists:reverse(D) || D <- Deps]),
+      insert_userdef_and_update_seen(Seen, IsTopLevel, NormalizedType, AllDeps)
+  end;
+normalize_single_type(#t{kind = ?function_tag, rep = {Ret, _}}=Type, Seen, IsTopLevel) ->
+  case ets:lookup(Seen, Type) of
+    [{Type, Handle}] ->
+      {Handle, []};
+    [] ->
+      {T, Deps} = normalize_single_type(Ret, Seen, false),
+      NormalizedType = Type#t{rep = {T, []}},
+      insert_userdef_and_update_seen(Seen, IsTopLevel, NormalizedType, Deps)
+  end;
+%% list / nonempty_list
+normalize_single_type(#t{kind = Tag, rep = InnerType}=Type, Seen, IsTopLevel) when Tag =:= ?list_tag; Tag =:= ?nonempty_list_tag ->
+  case ets:lookup(Seen, Type) of
+    [{Type, Handle}] ->
+      {Handle, []};
+    [] ->
+      {T, Deps} = normalize_single_type(InnerType, Seen, false),
+      NormalizedType = Type#t{rep = T},
+      insert_userdef_and_update_seen(Seen, IsTopLevel, NormalizedType, Deps)
+  end;
+%% union or tuple
+normalize_single_type(#t{kind = Tag, rep = InnerTypes}=Type, Seen, IsTopLevel) when Tag =:= ?union_tag; Tag =:= ?tuple_tag ->
+  case ets:lookup(Seen, Type) of
+    [{Type, Handle}] ->
+      {Handle, []};
+    [] ->
+      Xs = [normalize_single_type(T, Seen, false) || T <- InnerTypes],
+      {Ts, Deps} = lists:unzip(Xs),
+      NormalizedType = Type#t{rep = Ts},
+      AllDeps = lists:flatten([lists:reverse(D) || D <- Deps]),
+      insert_userdef_and_update_seen(Seen, IsTopLevel, NormalizedType, AllDeps)
+  end;
+%% all others
+normalize_single_type(Raw, _Seen, _IsTopLevel) ->
+  {Raw, []}.
+
+generate_new_type() ->
+  "tp@" ++ erlang:ref_to_list(erlang:make_ref()) -- "#Ref<>".
+
+insert_userdef_and_update_seen(Seen, IsTopLevel, NormalizedType, Deps) ->
+  case IsTopLevel of
+    true ->
+      {NormalizedType, Deps};
+    false ->
+      NewTypeName = generate_new_type(),
+      NewType = t_userdef(NewTypeName),
+      Dep = {NewTypeName, NormalizedType},
+      true = ets:insert(Seen, {NormalizedType, NewType}),
+      {NewType, [Dep|Deps]}
+  end.
+
+%% ----------------------------------------------------------------------------
 %% Traverse a spec and substitute the local and remote types.
 %% ----------------------------------------------------------------------------
 
--spec parse_spec(mfa(), stored_spec_value(), many_stored_types()) -> erl_spec().
-parse_spec(Mfa, Spec, ManyStoredTypes) ->
+-spec parse_spec(mfa(), stored_spec_value(), many_stored_types(), boolean()) -> erl_spec().
+parse_spec(Mfa, Spec, ManyStoredTypes, NormalizeTypes) ->
   Conf = mk_conf(Mfa, ManyStoredTypes),
-  Parsed = parse_spec_clauses(Spec, Conf, []),
+  {ParsedSpec, Deps} = parse_spec_clauses(Spec, Conf, []),
   true = cleanup_conf(Conf),
-  Parsed.
+  %% TODO Maybe also normalize the parsed spec.
+  case NormalizeTypes of
+    false ->
+      {ParsedSpec, Deps};
+    true ->
+      NormalizedDeps = normalize_type_deps(Deps),
+      {ParsedSpec, NormalizedDeps}
+  end.
 
 parse_spec_clauses([], Conf, Acc) ->
   {lists:reverse(Acc), parse_type_deps(Conf)};
