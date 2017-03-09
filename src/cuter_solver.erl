@@ -433,7 +433,7 @@ python_started(Event, Data) ->
 %% Send a trace file to the solver and load the generated axioms to a list
 python_started({load_trace_file, FileInfo}, _From, Data=#fsm_state{port = Port}) ->
   Cmd = cuter_serial:solver_command(load_trace_file, FileInfo),
-  cuter_pp:send_cmd(python_started, Cmd, "Load Trace File"),
+  cuter_pp:send_cmd(python_started, FileInfo, "Load Trace File"),
   Port ! {self(), {command, Cmd}},
   {reply, ok, trace_loaded, Data};
 python_started(Event, _From, Data) ->

@@ -1039,7 +1039,7 @@ fsm_started(Port) ->
 fsm_started(_Port) -> ok.
 -endif.
 
--spec send_cmd(cuter_solver:state(), binary(), string()) -> ok.
+-spec send_cmd(cuter_solver:state(), any(), string()) -> ok.
 -ifdef(VERBOSE_SOLVING).
 send_cmd(State, Cmd, Descr) ->
   io:format("[FSM] (~p) ~p~n  ~p~n", [State, Descr, Cmd]).
