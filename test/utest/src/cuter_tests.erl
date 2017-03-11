@@ -11,7 +11,7 @@
 %% Ensure it runs properly
 -spec run_test() -> ok.
 run_test() ->
-  R = cuter:run('lists', 'reverse', [[1]], 0),
+  [{{lists, reverse, 1}, R}] = cuter:run('lists', 'reverse', [[1]], 0, cuter_options()),
   ?assertEqual([], R).
 
 -spec bugs_test_() -> any().
@@ -23,7 +23,7 @@ bugs_test_() ->
   [{"Shallow - " ++ Descr, {timeout, 20000, {setup, fun() -> Data end, fun find_bugs/1}}} || {Descr, Data} <- Tests].
 
 find_bugs({Fn, Inp, Depth, Bugs}) ->
-  Found = cuter:run(?MODULE, Fn, Inp, Depth),
+  [{_Mfa, Found}] = cuter:run(?MODULE, Fn, Inp, Depth, cuter_options()),
   ToStr = fun(X) -> lists:flatten(io_lib:format("~w", [X])) end,
   case is_list(Bugs) of
     true ->
@@ -31,6 +31,28 @@ find_bugs({Fn, Inp, Depth, Bugs}) ->
     false ->
       [?_assertEqual(true, Bugs(Found))]
   end.
+
+-spec run_multiple_test() -> ok.
+run_multiple_test() ->
+  Seeds = [
+    {lists, nth, [3, [1,2,3]], 15},
+    {lists, nthtail, [3, [1,2,3]], 15}
+  ],
+  Errors = cuter:run(Seeds, cuter_options()),
+  Errors1 = filter_errors({lists, nth, 2}, Errors),
+  Errors2 = filter_errors({lists, nthtail, 2}, Errors),
+  LenChecks = [?assertEqual(2, length(Errors1)), ?assertEqual(2, length(Errors2))],
+  ValChecks = [?assert(N > length(L)) || [N, L] <- Errors1 ++ Errors2],
+  AllChecks = LenChecks ++ ValChecks,
+  {timeout, 20000, AllChecks}.
+
+filter_errors(Mfa, Errors) ->
+  case lists:keysearch(Mfa, 1, Errors) of
+    false -> [];
+    {value, {Mfa, Es}} -> Es
+  end.
+
+cuter_options() -> [{number_of_pollers, 1}, {number_of_solvers, 2}].
 
 %% ------------------------------------------------------------------
 %% Functions with bugs for testing

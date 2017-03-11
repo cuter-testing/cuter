@@ -4,7 +4,8 @@
 -behaviour(gen_server).
 
 %% External API.
--export([start/4, stop/1, request_input/1, store_execution/3, request_operation/1, solver_reply/2]).
+-export([start/3, stop/1, request_input/1, store_execution/3, set_depth/2,
+         request_operation/1, solver_reply/2, add_seed_input/2, clear_erroneous_inputs/1]).
 %% Get logs API.
 -export([get_visited_tags/1, get_erroneous_inputs/1, get_solved_models/1, get_not_solved_models/1]).
 %% gen_server callbacks.
@@ -38,7 +39,7 @@
 %%   The main CodeServer.
 %% depth :: cuter:depth()
 %%   Maximum number of branches to log per process.
-%% erroneous :: cuter:erroneous_inputs()
+%% erroneous :: [cuter:input()]
 %%   A list of all the inputs that led to a runtime error.
 %% firstOperation :: dict:dict(handle(), operationId())
 %%   The first operation that will be considered to be reversed
@@ -64,7 +65,7 @@
 -record(st, {
   codeServer      :: pid(),
   depth           :: cuter:depth(),
-  erroneous       :: cuter:erroneous_inputs(),
+  erroneous       :: [cuter:input()],
   firstOperation  :: dict:dict(handle(), operationId()),
   infoTab         :: execution_info_tab(),
   inputsQueue     :: inputs_queue(),
@@ -82,9 +83,9 @@
 %% ----------------------------------------------------------------------------
 
 %% Starts the Scheduler.
--spec start(file:filename(), integer(), cuter:input(), pid()) -> pid().
-start(Python, Depth, SeedInput, CodeServer) ->
-  case gen_server:start_link(?MODULE, [Python, Depth, SeedInput, CodeServer], []) of
+-spec start(file:filename(), integer(), pid()) -> pid().
+start(Python, DefaultDepth, CodeServer) ->
+  case gen_server:start_link(?MODULE, [Python, DefaultDepth, CodeServer], []) of
     {ok, Scheduler} -> Scheduler;
     {error, R} -> exit({scheduler_start, R})
   end.
@@ -112,6 +113,14 @@ request_operation(Scheduler) ->
 solver_reply(Scheduler, Result) ->
   gen_server:call(Scheduler, {solver_reply, Result}, infinity).
 
+-spec add_seed_input(pid(), cuter:input()) -> ok.
+add_seed_input(Scheduler, SeedInput) ->
+  gen_server:call(Scheduler, {add_seed_input, SeedInput}, infinity).
+
+-spec set_depth(pid(), pos_integer()) -> ok.
+set_depth(Scheduler, Depth) ->
+  gen_server:call(Scheduler, {set_depth, Depth}, infinity).
+
 %% ----------------------------------------------------------------------------
 %% Get logs API
 %% ----------------------------------------------------------------------------
@@ -120,9 +129,13 @@ solver_reply(Scheduler, Result) ->
 get_visited_tags(Scheduler) ->
   gen_server:call(Scheduler, get_visited_tags).
 
--spec get_erroneous_inputs(pid()) -> cuter:erroneous_inputs().
+-spec get_erroneous_inputs(pid()) -> [cuter:input()].
 get_erroneous_inputs(Scheduler) ->
   gen_server:call(Scheduler, get_erroneous_inputs).
+
+-spec clear_erroneous_inputs(pid()) -> ok.
+clear_erroneous_inputs(Scheduler) ->
+  gen_server:call(Scheduler, clear_erroneous_inputs).
 
 -spec get_solved_models(pid()) -> non_neg_integer().
 get_solved_models(Scheduler) ->
@@ -137,21 +150,20 @@ get_not_solved_models(Scheduler) ->
 %% ----------------------------------------------------------------------------
 
 %% init/1
--type init_arg() :: [file:filename() | integer() | cuter:input() | pid(), ...].
+-type init_arg() :: [file:filename() | integer() | pid(), ...].
 -spec init(init_arg()) -> {ok, state()}.
-init([Python, Depth, SeedInput, CodeServer]) ->
+init([Python, DefaultDepth, CodeServer]) ->
   _ = set_execution_counter(0),
   TagsQueue = cuter_minheap:new(fun erlang:'<'/2),
-  InpQueue = queue:in({1, SeedInput}, queue:new()),
   {ok, #st{ codeServer = CodeServer
           , infoTab = dict:new()
           , python = Python
-          , depth = Depth
+          , depth = DefaultDepth
           , visitedTags = gb_sets:new()
           , running = dict:new()
           , firstOperation = dict:new()
           , erroneous = []
-          , inputsQueue = InpQueue
+          , inputsQueue = queue:new()
           , solving = dict:new()
           , tagsQueue = TagsQueue}}.
 
@@ -179,9 +191,21 @@ handle_info(_Msg, State) ->
                ; (request_operation, from(), state()) -> {reply, cuter_solver:solver_input() | try_later, state()}
                ; (stop, from(), state()) -> {stop, normal, ok, state()}
                ; (get_visited_tags, from(), state()) -> {reply, cuter_cerl:visited_tags(), state()}
-               ; (get_erroneous_inputs, from(), state()) -> {reply, cuter:erroneous_inputs(), state()}
+               ; (get_erroneous_inputs, from(), state()) -> {reply, [cuter:input()], state()}
+               ; (clear_erroneous_inputs, from(), state()) -> {reply, ok, state()}
                ; (get_solved_models | get_not_solved_models, from(), state()) -> {reply, non_neg_integer(), state()}
+               ; ({add_seed_input, cuter:input()}, from(), state()) -> {reply, ok, state()}
+               ; ({set_depth, pos_integer()}, from(), state()) -> {reply, ok, state()}
                .
+
+%% Add a seed input.
+handle_call({add_seed_input, SeedInput}, _From, #st{inputsQueue = InputsQueue}=S) ->
+  InpQueue = queue:in({1, SeedInput}, InputsQueue),
+  {reply, ok, S#st{inputsQueue = InpQueue}};
+
+%% Set the depth limit.
+handle_call({set_depth, NewDepth}, _From, State) ->
+  {reply, ok, State#st{ depth = NewDepth }};
 
 %% Ask for a new input to execute.
 handle_call(request_input, _From, S=#st{running = Running, firstOperation = FirstOperation, inputsQueue = InputsQueue, tagsQueue = TagsQueue,
@@ -262,6 +286,10 @@ handle_call(get_visited_tags, _From, State=#st{visitedTags = VisitedTags}) ->
 %% Get the erroneous inputs.
 handle_call(get_erroneous_inputs, _From, State=#st{erroneous = Err}) ->
   {reply, lists:reverse(Err), State};
+
+%% Clear the erroneous inputs.
+handle_call(clear_erroneous_inputs, _From, State) ->
+  {reply, ok, State#st{erroneous = []}};
 
 %% Gets the number of solved models.
 handle_call(get_solved_models, _From, State=#st{solved = Solved}) ->
@@ -350,6 +378,6 @@ fresh_execution_handle() ->
 %% Erroneous inputs
 %% ----------------------------------------------------------------------------
 
--spec update_erroneous(boolean(), cuter:input(), cuter:erroneous_inputs()) -> cuter:erroneous_inputs().
+-spec update_erroneous(boolean(), cuter:input(), [cuter:input()]) -> [cuter:input()].
 update_erroneous(false, _Input, Erroneous) -> Erroneous;
 update_erroneous(true, Input, Erroneous) -> [Input | Erroneous].

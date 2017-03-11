@@ -157,10 +157,10 @@ get_logs(CodeServer) ->
 get_whitelist(CodeServer) ->
   gen_server:call(CodeServer, get_whitelist).
 
-%% Calculates the callgraph from an MFA.
--spec calculate_callgraph(pid(), mfa()) -> ok | error.
-calculate_callgraph(CodeServer, MFA) ->
-  gen_server:call(CodeServer, {calculate_callgraph, MFA}).
+%% Calculates the callgraph from some MFAs.
+-spec calculate_callgraph(pid(), [mfa()]) -> ok | error.
+calculate_callgraph(CodeServer, Mfas) ->
+  gen_server:call(CodeServer, {calculate_callgraph, Mfas}).
 
 %% Gets the feasible tags.
 -spec get_feasible_tags(pid(), cuter_cerl:node_types()) -> cuter_cerl:visited_tags().
@@ -207,7 +207,7 @@ handle_info(_Msg, State) ->
                ; (get_logs, from(), state()) -> {reply, logs(), state()}
                ; (get_whitelist, from(), state()) -> {reply, cuter_mock:whitelist(), state()}
                ; ({get_feasible_tags, cuter_cerl:node_types()}, from(), state()) -> {reply, cuter_cerl:visited_tags(), state()}
-               ; ({calculate_callgraph, mfa()}, from(), state()) -> {reply, ok, state()}
+               ; ({calculate_callgraph, [mfa()]}, from(), state()) -> {reply, ok, state()}
                .
 handle_call({load, M}, _From, State) ->
   {reply, try_load(M, State), State};
@@ -246,15 +246,15 @@ handle_call(get_whitelist, _From, State=#st{whitelist = Whitelist}) ->
 handle_call({get_feasible_tags, NodeTypes}, _From, State=#st{callgraph = Callgraph}) ->
   Tags = get_feasible_tags(Callgraph, NodeTypes, State),
   {reply, Tags, State};
-handle_call({calculate_callgraph, MFA}, _From, State=#st{whitelist = Whitelist}) ->
-  case cuter_callgraph:get_callgraph(MFA, Whitelist) of
+handle_call({calculate_callgraph, Mfas}, _From, State=#st{whitelist = Whitelist}) ->
+  case cuter_callgraph:get_callgraph(Mfas, Whitelist) of
     {error, _Reason} ->
       {reply, error, State};
     {ok, Callgraph} ->
       LoadFn = fun(M) ->
-		   cuter_pp:loading_visited_module(M),
-		   try_load(M, State)
-	       end,
+                  cuter_pp:loading_visited_module(M),
+                  try_load(M, State)
+                end,
       cuter_callgraph:foreachModule(LoadFn, Callgraph),
       {reply, ok, State#st{callgraph = Callgraph}}
   end.
@@ -314,7 +314,7 @@ load_all_deps([Remote={M, TypeName, Arity}|Rest], State, VisitedRemotes, DepMods
               Deps = cuter_types:find_remote_deps_of_type(Type, LocalTypesCache),
               %% Queue the ones that we haven't encountered yet.
               NewRemotes = [R || R <- Deps,
-				 not ordsets:is_element(R, VisitedRemotes1)],
+                not ordsets:is_element(R, VisitedRemotes1)],
               load_all_deps(NewRemotes ++ Rest, State, VisitedRemotes1, DepMods1)
           end;
         _Msg ->
