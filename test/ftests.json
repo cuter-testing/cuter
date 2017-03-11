@@ -1132,6 +1132,15 @@
                 "[{msg,true}]"
             ],
             "skip": false
+        },
+        {
+            "module": "collection",
+            "function": "free_tvar",
+            "args": "[[]]",
+            "depth": "25",
+            "errors": false,
+            "arity": 1,
+            "skip": false
         }
     ]
 }

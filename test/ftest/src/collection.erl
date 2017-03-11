@@ -1,7 +1,7 @@
 -module(collection).
 -export([f/1, g/1, g1/1, h/1, f1/1, eval_nif/1, trunc1/1, trunc2/1, l2i/1, l2in/1,
          to_upper/1, k/2, k2/3, p/1, a2l/1, test_alias/1, fclist/1, fweird/1,
-         test_record/1]).
+         test_record/1, free_tvar/1]).
 
 -type t() :: [complex_spec:int()].
 
@@ -178,3 +178,12 @@ fweird(X) ->
 -spec test_record(msg()) -> ok.
 test_record(#msg{f = true}) -> error(bug);
 test_record(_Msg) -> ok.
+
+%% The purpose of this test is to ensure that
+%% CutEr can hanle free type variables.
+-spec free_tvar(X) -> ok | X.
+free_tvar(X) ->
+  case X of
+    42 -> ok;
+    _ -> X
+  end.

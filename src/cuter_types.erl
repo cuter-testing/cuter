@@ -1055,7 +1055,10 @@ add_to_env(Key, Value, Env) ->
   dict:store(Key, Value, Env).
 
 lookup_in_env(Key, Env) ->
-  dict:fetch(Key, Env).
+  case dict:find(Key, Env) of
+    {ok, Value} -> Value;
+    error -> t_any() % An unbound type variable.
+  end.
 
 %% ============================================================================
 %% Traverse a pre-processed spec or type and find its remote dependencies, aka
