@@ -332,6 +332,14 @@ def mk_unsat():
     r.status = SolverResponse.UNSAT
     return r
 
+def is_unsat(r):
+    """
+    Parameters
+        r : SolverResponse
+    """
+    assert r.type == SolverResponse.MODEL_STATUS
+    return r.status == SolverResponse.UNSAT
+
 def mk_unknown():
     r = SolverResponse()
     r.type = SolverResponse.MODEL_STATUS
