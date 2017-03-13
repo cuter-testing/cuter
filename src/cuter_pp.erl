@@ -736,13 +736,7 @@ pp_input_fully_verbose(Input, _MFA) ->
 pp_arguments([]) ->
   "()";
 pp_arguments(Args) ->
-  string:join([pp_argument(A) || A <- Args], ", ").
-
-pp_argument(X) ->
-  case cuter_lib:is_lambda(X) of
-    true  -> pp_lambda(X);
-    false -> io_lib:format("~p", [cuter_lib:handle_unbound_var(X)])
-  end.
+  string:join([pp_lambda(A) || A <- Args], ", ").
 
 -spec pp_lambda(any()) -> string().
 pp_lambda(L) ->
@@ -759,7 +753,7 @@ pp_lambda(L) ->
       LL = tuple_to_list(L),
       lists:flatten(["{", string:join([pp_lambda(X) || X <- LL], ", "), "}"]);
     false ->
-      pp_argument(L)
+      io_lib:format("~p", [cuter_lib:handle_unbound_var(L)])
   end.
 
 pp_lambda_kvs(KVs) ->
