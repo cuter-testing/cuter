@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 # =================
 # struct -> smtlib: serialize
 # smtlib -> struct: unserialize
@@ -58,6 +56,11 @@ def unserialize(smt, cur = None):
 # convert from & to python
 # ------------------------
 
+def parse_bool(expr):
+	if expr == "true" or expr == "false":
+		return expr == "true"
+	assert False, "parse_bool({})".format(str(expr))
+
 def parse_int(expr):
 	if isinstance(expr, list):
 		if expr[0] == "-" and len(expr) == 2:
@@ -94,6 +97,9 @@ def expand_lets(expr, lets = {}):
 		return expand_lets(expr[2], lets_copy)
 	else:
 		return [expand_lets(item, lets) for item in expr]
+
+def build_bool(value):
+	return "true" if value else "false"
 
 def build_int(num):
 	if num < 0:
@@ -141,40 +147,6 @@ false = ["atom", build_ilist(map(ord, "false"))]
 
 true = ["atom", build_ilist(map(ord, "true"))]
 
-datatypes = [
-	[
-		"Term",
-		["int", ["iv", "Int"]],
-		["real", ["rv", "Real"]],
-		["list", ["lv", "TList"]],
-		["tuple", ["tv", "TList"]],
-		["atom", ["av", "IList"]],
-		["str", ["sv", "SList"]],
-		["fun", ["fv", "Int"]],
-	],
-	[
-		"TList",
-		["tn"],
-		["tc", ["th", "Term"], ["tt", "TList"]],
-	],
-	[
-		"IList",
-		["in"],
-		["ic", ["ih", "Int"], ["it", "IList"]],
-	],
-	[
-		"SList",
-		["sn"],
-		["sc", ["sh", "Bool"], ["st", "SList"]],
-	],
-	[
-		"FList",
-		["fn"],
-		["fc", ["fx", "TList"], ["fy", "Term"], ["ft", "FList"]],
-	],
-]
-
-
 # --------------------
 # simple SMTLIB macros
 # --------------------
@@ -189,6 +161,9 @@ def Or(*expr):
 	ret.extend(expr)
 	return ret
 
+def Ite(cond, expr_then, expr_else):
+	return ["ite", cond, expr_then, expr_else]
+
 def IsBool(expr):
 	return [
 		"or",
@@ -196,11 +171,23 @@ def IsBool(expr):
 		["=", expr, false],
 	]
 
+def IsInt(expr):
+	return ["is-int", expr]
+
+def IsReal(expr):
+	return ["is-real", expr]
+
+def IsNum(expr):
+	return Or(IsInt(expr), IsReal(expr))
+
 def BoolToAtom(expr):
-	return ["ite", expr, true, false]
+	return Ite(expr, true, false)
 
 def AtomToBool(expr):
 	return ["=", expr, true]
+
+def AtomToInt(expr):
+	return Ite(AtomToBool(expr), build_int(1), build_int(0))
 
 def NumBinOp(operator, t0, t1, t2):
 	"""
@@ -208,11 +195,11 @@ def NumBinOp(operator, t0, t1, t2):
 	"""
 	return [
 		"and",
-		["or", ["is-int", t1], ["is-real", t1]],
-		["or", ["is-int", t2], ["is-real", t2]],
+		IsNum(t1),
+		IsNum(t2),
 		[
 			"ite",
-			["and", ["is-int", t1], ["is-int", t2]],
+			And(IsInt(t1), IsInt(t2)),
 			["=", t0, ["int", [operator, ["iv", t1], ["iv", t2]]]],
 			[
 				"=",
@@ -221,149 +208,10 @@ def NumBinOp(operator, t0, t1, t2):
 					"real",
 					[
 						operator,
-						["ite", ["is-int", t1], ["to_real", ["iv", t1]], ["rv", t1]],
-						["ite", ["is-int", t2], ["to_real", ["iv", t2]], ["rv", t2]]
+						["ite", IsInt(t1), ["to_real", ["iv", t1]], ["rv", t1]],
+						["ite", IsInt(t2), ["to_real", ["iv", t2]], ["rv", t2]]
 					]
 				]
 			]
 		],
 	]
-
-
-# --------------------------
-# SMTLIB recursive functions
-# --------------------------
-
-def IntAnd(n, n1, n2, esmt = None):
-	"""
-	int-and returns whether n == n1 & n2
-	"""
-	if esmt is not None and "int-and" not in esmt.library:
-		esmt.library.append("int-and")
-		esmt.commands.append(["define-fun-rec", "int-and-rec", [["n", "Int"], ["n1", "Int"], ["n2", "Int"]], "Bool", [
-			"or",
-			["=", "n1", "n", "0"],
-			["=", "n2", "n", "0"],
-			["=", "n1", "n2", "n", ["-", "1"]],
-			[
-				"and",
-				["=", ["and", ["not", ["=", ["mod", "n1", "2"], "0"]], ["not", ["=", ["mod", "n2", "2"], "0"]]], ["not", ["=", ["mod", "n", "2"], "0"]]],
-				["int-and-rec", ["div", "n", "2"], ["div", "n1", "2"], ["div", "n2", "2"]],
-			],
-		]])
-		esmt.commands.append(["define-fun", "int-and", [["n", "Int"], ["n1", "Int"], ["n2", "Int"]], "Bool", [
-			"and",
-			["=>", [">=", "n1", "0"], ["<=", "0", "n", "n1"]],
-			["=>", [">=", "n2", "0"], ["<=", "0", "n", "n2"]],
-			["=>", ["and", ["<", "n1", "0"], ["<", "n2", "0"]], ["<", ["+", "n1", "n2"], "n", "0"]],
-			["=>", ["<", "n", "0"], ["and", ["<", "n1", "0"], ["<=", "n", "n1"], ["<", "n2", "0"], ["<=", "n", "n2"]]],
-			["int-and-rec", "n", "n1", "n2"],
-		]])
-	return ["int-and", n, n1, n2]
-
-def IntOr(n, n1, n2, esmt = None):
-	"""
-	int-or returns whether n == n1 | n2
-	"""
-	if esmt is not None and "int-or" not in esmt.library:
-		esmt.library.append("int-or")
-		esmt.commands.append(["define-fun-rec", "int-or-rec", [["n", "Int"], ["n1", "Int"], ["n2", "Int"]], "Bool", [
-			"or",
-			["=", "n1", "n", ["-", "1"]],
-			["=", "n2", "n", ["-", "1"]],
-			["=", "n1", "n2", "n", "0"],
-			[
-				"and",
-				["=", ["or", ["not", ["=", ["mod", "n1", "2"], "0"]], ["not", ["=", ["mod", "n2", "2"], "0"]]], ["not", ["=", ["mod", "n", "2"], "0"]]],
-				["int-or-rec", ["div", "n", "2"], ["div", "n1", "2"], ["div", "n2", "2"]],
-			],
-		]])
-		esmt.commands.append(["define-fun", "int-or", [["n", "Int"], ["n1", "Int"], ["n2", "Int"]], "Bool", [
-			"and",
-			["=>", ["<", "n1", "0"], ["and", ["<=", "n1", "n"], ["<", "n", "0"]]],
-			["=>", ["<", "n2", "0"], ["and", ["<=", "n2", "n"], ["<", "n", "0"]]],
-			["=>", ["and", [">=", "n1", "0"], [">=", "n2", "0"]], ["<=", "0", "n", ["+", "n1", "n2"]]],
-			["=>", [">=", "n", "0"], ["and", ["<=", "0", "n1", "n"], ["<=", "0", "n2", "n"]]],
-			["int-or-rec", "n", "n1", "n2"],
-		]])
-	return ["int-or", n, n1, n2]
-
-def IntXor(n, n1, n2, esmt = None):
-	"""
-	int-xor returns whether n == n1 ^ n2
-	"""
-	if esmt is not None and "int-xor" not in esmt.library:
-		esmt.library.append("int-xor")
-		esmt.commands.append(["define-fun-rec", "int-xor", [["n", "Int"], ["n1", "Int"], ["n2", "Int"]], "Bool", [
-			"or",
-			["and", ["=", "n", "0"], ["=", "n1", "n2"]],
-			["and", ["=", "n1", "0"], ["=", "n2", "n"]],
-			["and", ["=", "n2", "0"], ["=", "n", "n1"]],
-			["and", ["=", "n", ["-", "1"]], ["=", ["+", "n1", "n2"], ["-", "1"]]],
-			["and", ["=", "n1", ["-", "1"]], ["=", ["+", "n2", "n"], ["-", "1"]]],
-			["and", ["=", "n2", ["-", "1"]], ["=", ["+", "n", "n1"], ["-", "1"]]],
-			[
-				"and",
-				["=", ["not", ["=", ["mod", "n", "2"], "0"]], ["xor", ["not", ["=", ["mod", "n1", "2"], "0"]], ["not", ["=", ["mod", "n2", "2"], "0"]]]],
-				["int-xor", ["div", "n", "2"], ["div", "n1", "2"], ["div", "n2", "2"]],
-			],
-		]])
-	return ["int-xor", n, n1, n2]
-
-def RealPow(p, b, e, esmt = None):
-	"""
-	real-pow returns whether p == b ** e
-	"""
-	# real-pow isn't efficient when having to calculate the e-root of p or a large e-power of b.
-	if esmt is not None and "real-pow" not in esmt.library:
-		esmt.library.append("real-pow")
-		esmt.commands.append(["define-fun-rec", "real-pow", [["p", "Real"], ["b", "Real"], ["e", "Int"]], "Bool", [
-			"or",
-			["and", ["=", "b", "0"], ["not", ["=", "e", "0"]], ["=", "p", "0"]],
-			["and", ["=", "b", "1"], ["=", "p", "1"]],
-			["and", ["=", "b", ["-", "1"]], ["=", ["mod", "e", "2"], "0"], ["=", "p", "1"]],
-			["and", ["=", "b", ["-", "1"]], ["=", ["mod", "e", "2"], "1"], ["=", "p", ["-", "1"]]],
-			["and", [">", "e", "1"], ["<", "1", "b", "p"], ["real-pow", ["/", "p", "b"], "b", ["-", "e", "1"]]],
-			["and", [">", "e", "1"], ["<", "0", "p", "b", "1"], ["real-pow", ["/", "p", "b"], "b", ["-", "e", "1"]]],
-			["and", [">", "e", "1"], ["=", ["mod", "e", "2"], "0"], ["<", ["-", "1"], "b", "0", "p", ["-", "b"], "1"], ["real-pow", ["/", "p", "b"], "b", ["-", "e", "1"]]],
-			["and", [">", "e", "1"], ["=", ["mod", "e", "2"], "0"], ["<", "b", ["-", "1"], "1", ["-", "b"], "p"], ["real-pow", ["/", "p", "b"], "b", ["-", "e", "1"]]],
-			["and", [">", "e", "1"], ["=", ["mod", "e", "2"], "1"], ["<", ["-", "1"], "b", "p", "0"], ["real-pow", ["/", "p", "b"], "b", ["-", "e", "1"]]],
-			["and", [">", "e", "1"], ["=", ["mod", "e", "2"], "1"], ["<", "p", "b", ["-", "1"]], ["real-pow", ["/", "p", "b"], "b", ["-", "e", "1"]]],
-			["and", ["=", "e", "1"], ["=", "b", "p"]],
-			["and", ["=", "e", "0"], ["not", ["=", "b", "0"]], ["=", "p", "1"]],
-			["and", ["=", "e", ["-", "1"]], ["=", ["*", "b", "p"], "1"]],
-			["and", ["<", "e", ["-", "1"]], ["<", "0", "p", "1", "b"], ["real-pow", ["*", "p", "b"], "b", ["+", "e", "1"]]],
-			["and", ["<", "e", ["-", "1"]], ["<", "0", "b", "1", "p"], ["real-pow", ["*", "p", "b"], "b", ["+", "e", "1"]]],
-			["and", ["<", "e", ["-", "1"]], ["=", ["mod", "e", "2"], "0"], ["<", ["-", "1"], "b", "0", ["-", "b"], "1", "p"], ["real-pow", ["*", "p", "b"], "b", ["+", "e", "1"]]],
-			["and", ["<", "e", ["-", "1"]], ["=", ["mod", "e", "2"], "0"], ["<", "b", ["-", "1"], "0", "p", "1", ["-", "b"]], ["real-pow", ["*", "p", "b"], "b", ["+", "e", "1"]]],
-			["and", ["<", "e", ["-", "1"]], ["=", ["mod", "e", "2"], "1"], ["<", "p", ["-", "1"], "b", "0"], ["real-pow", ["*", "p", "b"], "b", ["+", "e", "1"]]],
-			["and", ["<", "e", ["-", "1"]], ["=", ["mod", "e", "2"], "1"], ["<", "b", ["-", "1"], "p", "0"], ["real-pow", ["*", "p", "b"], "b", ["+", "e", "1"]]],
-		]])
-	return ["real-pow", p, b, e]
-
-def SListSpec(l, n, esmt = None):
-	"""
-	slist-spec returns whether len(l) % n == r
-	"""
-	# slist-spec is efficient when n is a given integer constant
-	if esmt is not None and "slist-spec" not in esmt.library:
-		esmt.library.append("slist-spec")
-		esmt.commands.append(["define-fun-rec", "slist-spec", [["l", "SList"], ["n", "Int"], ["r", "Int"]], "Bool", [
-			"or",
-			["and", ["is-sn", "l"], ["=", "r", "0"]],
-			["and", ["is-sc", "l"], ["slist-spec", ["st", "l"], "n", ["-", ["ite", ["=", "r", "0"], "n", "r"], "1"]]],
-		]])
-	return ["slist-spec", l, n, "0"]
-
-def FListEquals(f, x, y, d, esmt):
-	"""
-	flist-equals return whether f(x) = y with depth at most d
-	"""
-	if esmt is not None and "flist-equals" not in esmt.library:
-		esmt.library.append("flist-equals")
-		esmt.commands.append(["define-fun-rec", "flist-equals", [["f", "FList"], ["x", "TList"], ["y", "Term"], ["d", "Int"]], "Bool", [
-			"or",
-			["and", [">=", "d", "0"], ["is-fc", "f"], ["=", ["fx", "f"], "x"], ["=", ["fy", "f"], "y"]],
-			["and", [">", "d", "0"], ["is-fc", "f"], ["not", ["=", ["fx", "f"], "x"]], ["flist-equals", ["ft", "f"], "x", "y", ["-", "d", "1"]]],
-		]])
-	return ["flist-equals", f, x, y, d]

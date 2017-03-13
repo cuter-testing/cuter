@@ -1,24 +1,56 @@
-# -*- coding: utf-8 -*-
-
-import cuter_generic_solver as cgs
+from cuter_generic_solver import AbstractErlangSolver
 import cuter_common as cc
 import cuter_logger as clg
-
-import cuter_smt_process
 from cuter_smt_library import *
 
 
-class ErlangSMT(cgs.AbstractErlangSolver):
+class Solver_SMT(AbstractErlangSolver):
+
+	datatypes = [
+		[
+			"Term",
+			["int", ["iv", "Int"]],
+			["real", ["rv", "Real"]],
+			["list", ["lv", "TList"]],
+			["tuple", ["tv", "TList"]],
+			["atom", ["av", "IList"]],
+			["str", ["sv", "SList"]],
+			["fun", ["fv", "Int"]],
+		],
+		[
+			"TList",
+			["tn"],
+			["tc", ["th", "Term"], ["tt", "TList"]],
+		],
+		[
+			"IList",
+			["in"],
+			["ic", ["ih", "Int"], ["it", "IList"]],
+		],
+		[
+			"SList",
+			["sn"],
+			["sc", ["sh", "Bool"], ["st", "SList"]],
+		],
+		[
+			"FList",
+			["fn"],
+			["fc", ["fx", "TList"], ["fy", "Term"], ["ft", "FList"]],
+		],
+	]
 
 	def __init__(self):
 		self.library = []
 		self.commands = []
 		self.commands.append(["set-option", ":produce-models", "true"])
-		self.commands.append(["declare-datatypes", [], datatypes])
+		self.commands.append(["declare-datatypes", [], self.datatypes])
 		self.commands.append(["declare-fun", "fa", ["Int"], "Int"])
 		self.commands.append(["declare-fun", "fm", ["Int"], "FList"])
-		self.solver = cuter_smt_process.SolverZ3()
 		self.define_funs_rec = []
+		self.process = None
+
+	def start_process(self):
+		raise NotImplementedError("Method 'start_process' is not implemented!")
 
 	# =========================================================================
 	# Public API.
@@ -35,17 +67,17 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		Add the axioms from memory to the solver.
 		"""
 		for command in self.commands:
-			self.solver.write(command)
+			self.process.write(command)
 
 	def solve(self):
 		"""
 		Solve a constraint set and returns the result.
 		"""
-		status = self.solver.check_sat()
+		status = self.process.check_sat()
 		if status == "sat":
 			return cc.mk_sat()
 		elif status == "unsat":
-			self.solver.exit()
+			self.process.exit()
 			return cc.mk_unsat()
 		elif status == "unknown":
 			return cc.mk_unknown()
@@ -60,7 +92,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		p = self.decode(p)
 		v = self.decode(v)
-		self.solver.write(["assert", ["=", p, v]])
+		self.process.write(["assert", ["=", p, v]]) # TODO why not self.commands.append()?
 
 	def encode_model(self):
 		"""
@@ -68,13 +100,13 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		entries = []
 		for var in self.vars:
-			val = self.solver.get_value(var)
+			val = self.process.get_value(var)
 			assert isinstance(val, list) and len(val) == 1
 			val = val[0]
 			assert isinstance(val, list) and len(val) == 2
 			val = self.encode(expand_lets(val[1]))
 			entries.append(cc.mk_model_entry(cc.mk_symb(var[1:-1]), val))
-		self.solver.exit()
+		self.process.exit()
 		return cc.mk_model_data(cc.mk_model(entries))
 
 	# =========================================================================
@@ -114,8 +146,17 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		clg.debug_info("decoding failed: " + str(data))
 		assert False
 
+	def encode_str(self, node):
+		ret = []
+		while node != "sn":
+			assert isinstance(node, list) and len(node) == 3 and node[0] == "sc"
+			ret.append(parse_bool(node[1]))
+			node = node[2]
+		return ret
+
 	def encode(self, data, funs = []):
 		# TODO description
+		assert isinstance(data, list) and len(data) == 2
 		if data[0] == "int":
 			return cc.mk_int(parse_int(data[1]))
 		elif data[0] == "real":
@@ -142,12 +183,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 				node = node[2]
 			return cc.mk_tuple(v)
 		elif data[0] == "str":
-			node = data[1]
-			v = []
-			while node != "sn":
-				v.append(node[1] == "true")
-				node = node[2]
-			return cc.mk_bitstring(v)
+			return cc.mk_bitstring(self.encode_str(data[1]))
 		elif data[0] == "fun":
 			# TODO function decoding and encoding
 			assert isinstance(data, list) and len(data) == 2
@@ -160,7 +196,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			funs.append(fv)
 			# get function info from solver
 			# TODO save function arity and entries to an array
-			val = self.solver.get_value(["fa", data[1]], ["fm", data[1]])
+			val = self.process.get_value(["fa", data[1]], ["fm", data[1]])
 			assert isinstance(val, list) and len(val) == 2
 			assert isinstance(val[0], list) and len(val[0]) == 2
 			arity = parse_int(expand_lets(val[0][1]))
@@ -365,7 +401,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			if n == 0:
 				axioms.append(["is-sn", slist])
 			elif n > 1:
-				axioms.append(SListSpec(slist, build_int(n), self))
+				axioms.append(self.SListSpec(slist, build_int(n)))
 			return axioms
 		elif cc.is_type_complete_fun(spec):
 			# TODO if a function is to be called with wrong arguments, program must crash
@@ -432,13 +468,12 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		assert isinstance(n, int) and n >= 0, "n must be a non-negative integer"
 		ret = []
 		while b > 0:
-			ret.append("true" if n % 2 != 0 else "false")
+			ret.append(build_bool(n % 2 != 0))
 			n /= 2
 			b -= 1
-		# assert n == 0, "n overflows b bits as an unsigned integer" # TODO erlang sends b = 0 and n = 42
+		#assert n == 0, "n overflows b bits as an unsigned integer" # TODO erlang sends b = 0 and n = 42
 		ret.reverse()
 		return ret
-
 
 	def var2bv(self, n, b):
 		assert isinstance(b, int) and b >= 0, "b must be a non-negative integer"
@@ -538,7 +573,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			"and",
 			["is-fun", fun],
 			["=", ["fa", ["fv", fun]], build_int(tlist_length)],
-			FListEquals(["fm", ["fv", fun]], tlist, ret, build_int(self.flist_depth), self),
+			self.FListEquals(["fm", ["fv", fun]], tlist, ret, build_int(self.flist_depth)),
 		]])
 
 	def erl_lambda_reversed(self, *args): # TODO not exactly reversed
@@ -995,7 +1030,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		self.commands.append(["assert", ["=", t0, BoolToAtom(["is-int", t1])]])
+		self.commands.append(["assert", ["=", t0, BoolToAtom(IsInt(t1))]])
 
 	def is_float(self, term0, term1):
 		"""
@@ -1003,7 +1038,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		self.commands.append(["assert", ["=", t0, BoolToAtom(["is-real", t1])]])
+		self.commands.append(["assert", ["=", t0, BoolToAtom(IsReal(t1))]])
 
 	def is_list(self, term0, term1):
 		"""
@@ -1065,7 +1100,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		self.commands.append(["assert", ["=", t0, BoolToAtom(["or", ["is-int", t1], ["is-real", t1]])]])
+		self.commands.append(["assert", ["=", t0, BoolToAtom(IsNum(t1))]])
 
 	### Arithmetic Operations.
 
@@ -1105,16 +1140,16 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t2 = self.decode(term2)
 		self.commands.append(["assert", [
 			"and",
-			["or", ["is-int", t1], ["is-real", t1]],
+			IsNum(t1),
 			[
 				"or",
-				["and", ["is-int", t2], ["not", ["=", ["iv", t2], "0"]]],
-				["and", ["is-real", t2], ["not", ["=", ["rv", t2], "0"]]],
+				["and", IsInt(t2), ["not", ["=", ["iv", t2], "0"]]],
+				["and", IsReal(t2), ["not", ["=", ["rv", t2], "0"]]],
 			],
 			["=", t0, ["real", [
 				"/",
-				["ite", ["is-int", t1], ["to_real", ["iv", t1]], ["rv", t1]],
-				["ite", ["is-int", t2], ["to_real", ["iv", t2]], ["rv", t2]]
+				["ite", IsInt(t1), ["to_real", ["iv", t1]], ["rv", t1]],
+				["ite", IsInt(t2), ["to_real", ["iv", t2]], ["rv", t2]]
 			]]],
 		]])
 		# solver returns unknown when there are no other constraints; nonlinear integer arithmetic is undecidable
@@ -1128,8 +1163,8 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t2 = self.decode(term2)
 		self.commands.append(["assert", [
 			"and",
-			["is-int", t1],
-			["is-int", t2],
+			IsInt(t1),
+			IsInt(t2),
 			[">=", ["iv", t1], "0"],
 			[">", ["iv", t2], "0"],
 			["=", t0, ["int", ["div", ["iv", t1], ["iv", t2]]]],
@@ -1144,8 +1179,8 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t2 = self.decode(term2)
 		self.commands.append(["assert", [
 			"and",
-			["is-int", t1],
-			["is-int", t2],
+			IsInt(t1),
+			IsInt(t2),
 			[">=", ["iv", t1], "0"],
 			[">", ["iv", t2], "0"],
 			["=", t0, ["int", ["mod", ["iv", t1], ["iv", t2]]]],
@@ -1159,10 +1194,10 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t1 = self.decode(term1)
 		self.commands.append(["assert", [
 			"and",
-			["or", ["is-int", t1], ["is-real", t1]],
+			IsNum(t1),
 			[
 				"ite",
-				["is-int", t1],
+				IsInt(t1),
 				["=", t0, ["int", ["-", ["iv", t1]]]],
 				["=", t0, ["real", ["-", ["rv", t1]]]]
 			],
@@ -1178,10 +1213,10 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t2 = self.decode(term2)
 		self.commands.append(["assert", [
 			"and",
-			["is-real", t0],
-			["or", ["is-int", t1], ["is-real", t1]],
-			["is-int", t2],
-			RealPow(["rv", t0], ["ite", ["is-int", t1], ["to_real", ["iv", t1]], ["rv", t1]], ["iv", t2], self),
+			IsReal(t0),
+			IsNum(t1),
+			IsInt(t2),
+			self.RealPow(["rv", t0], ["ite", IsInt(t1), ["to_real", ["iv", t1]], ["rv", t1]], ["iv", t2]),
 		]])
 
 	def trunc(self, term0, term1):
@@ -1192,13 +1227,13 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t1 = self.decode(term1)
 		self.commands.append(["assert", [
 			"and",
-			["or", ["is-int", t1], ["is-real", t1]],
+			IsNum(t1),
 			[
 				"=",
 				t0,
 				[
 					"ite",
-					["is-int", t1],
+					IsInt(t1),
 					t1,
 					[
 						"int",
@@ -1233,8 +1268,8 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t2 = self.decode(term2)
 		self.commands.append(["assert", [
 			"and",
-			["is-int", t1],
-			["is-int", t2],
+			IsInt(t1),
+			IsInt(t2),
 			["=", t0, BoolToAtom(["<", ["iv", t1], ["iv", t2]])],
 		]])
 
@@ -1247,8 +1282,8 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t2 = self.decode(term2)
 		self.commands.append(["assert", [
 			"and",
-			["is-real", t1],
-			["is-real", t2],
+			IsReal(t1),
+			IsReal(t2),
 			["=", t0, BoolToAtom(["<", ["rv", t1], ["rv", t2]])],
 		]])
 
@@ -1262,8 +1297,8 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t1 = self.decode(term1)
 		self.commands.append(["assert", [
 			"and",
-			["or", ["is-int", t1], ["is-real", t1]],
-			["=", t0, ["real", ["ite", ["is-int", t1], ["to_real", ["iv", t1]], ["rv", t1]]]],
+			IsNum(t1),
+			["=", t0, ["real", ["ite", IsInt(t1), ["to_real", ["iv", t1]], ["rv", t1]]]],
 		]])
 
 	def list_to_tuple(self, term0, term1):
@@ -1301,7 +1336,6 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		self.commands.append(["assert", ["=", t0, t1]])
 
 	### Bitwise Operations.
-	# no need to check again whether terms are integers
 
 	def band(self, term0, term1, term2):
 		"""
@@ -1310,7 +1344,8 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
 		t2 = self.decode(term2)
-		self.commands.append(["assert", IntAnd(["iv", t0], ["iv", t1], ["iv", t2], self)])
+		self.commands.append(["assert", And(IsInt(t0), IsInt(t1), IsInt(t2))])
+		self.commands.append(["assert", self.IntAnd(["iv", t0], ["iv", t1], ["iv", t2])])
 
 	def bxor(self, term0, term1, term2):
 		"""
@@ -1319,7 +1354,8 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
 		t2 = self.decode(term2)
-		self.commands.append(["assert", IntXor(["iv", t0], ["iv", t1], ["iv", t2], self)])
+		self.commands.append(["assert", And(IsInt(t0), IsInt(t1), IsInt(t2))])
+		self.commands.append(["assert", self.IntXor(["iv", t0], ["iv", t1], ["iv", t2])])
 
 	def bor(self, term0, term1, term2):
 		"""
@@ -1328,4 +1364,141 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
 		t2 = self.decode(term2)
-		self.commands.append(["assert", IntOr(["iv", t0], ["iv", t1], ["iv", t2], self)])
+		self.commands.append(["assert", And(IsInt(t0), IsInt(t1), IsInt(t2))])
+		self.commands.append(["assert", self.IntOr(["iv", t0], ["iv", t1], ["iv", t2])])
+
+	### SMTLIB recursive functions
+
+	def IntAnd(self, n, n1, n2):
+		"""
+		int-and returns whether n == n1 & n2
+		"""
+		if "int-and" not in self.library:
+			self.library.append("int-and")
+			self.commands.append(["define-fun-rec", "int-and-rec", [["n", "Int"], ["n1", "Int"], ["n2", "Int"]], "Bool", [
+				"or",
+				["=", "n1", "n", "0"],
+				["=", "n2", "n", "0"],
+				["=", "n1", "n2", "n", ["-", "1"]],
+				[
+					"and",
+					["=", ["and", ["not", ["=", ["mod", "n1", "2"], "0"]], ["not", ["=", ["mod", "n2", "2"], "0"]]], ["not", ["=", ["mod", "n", "2"], "0"]]],
+					["int-and-rec", ["div", "n", "2"], ["div", "n1", "2"], ["div", "n2", "2"]],
+				],
+			]])
+			self.commands.append(["define-fun", "int-and", [["n", "Int"], ["n1", "Int"], ["n2", "Int"]], "Bool", [
+				"and",
+				["=>", [">=", "n1", "0"], ["<=", "0", "n", "n1"]],
+				["=>", [">=", "n2", "0"], ["<=", "0", "n", "n2"]],
+				["=>", ["and", ["<", "n1", "0"], ["<", "n2", "0"]], ["<", ["+", "n1", "n2"], "n", "0"]],
+				["=>", ["<", "n", "0"], ["and", ["<", "n1", "0"], ["<=", "n", "n1"], ["<", "n2", "0"], ["<=", "n", "n2"]]],
+				["int-and-rec", "n", "n1", "n2"],
+			]])
+		return ["int-and", n, n1, n2]
+
+	def IntOr(self, n, n1, n2):
+		"""
+		int-or returns whether n == n1 | n2
+		"""
+		if "int-or" not in self.library:
+			self.library.append("int-or")
+			self.commands.append(["define-fun-rec", "int-or-rec", [["n", "Int"], ["n1", "Int"], ["n2", "Int"]], "Bool", [
+				"or",
+				["=", "n1", "n", ["-", "1"]],
+				["=", "n2", "n", ["-", "1"]],
+				["=", "n1", "n2", "n", "0"],
+				[
+					"and",
+					["=", ["or", ["not", ["=", ["mod", "n1", "2"], "0"]], ["not", ["=", ["mod", "n2", "2"], "0"]]], ["not", ["=", ["mod", "n", "2"], "0"]]],
+					["int-or-rec", ["div", "n", "2"], ["div", "n1", "2"], ["div", "n2", "2"]],
+				],
+			]])
+			self.commands.append(["define-fun", "int-or", [["n", "Int"], ["n1", "Int"], ["n2", "Int"]], "Bool", [
+				"and",
+				["=>", ["<", "n1", "0"], ["and", ["<=", "n1", "n"], ["<", "n", "0"]]],
+				["=>", ["<", "n2", "0"], ["and", ["<=", "n2", "n"], ["<", "n", "0"]]],
+				["=>", ["and", [">=", "n1", "0"], [">=", "n2", "0"]], ["<=", "0", "n", ["+", "n1", "n2"]]],
+				["=>", [">=", "n", "0"], ["and", ["<=", "0", "n1", "n"], ["<=", "0", "n2", "n"]]],
+				["int-or-rec", "n", "n1", "n2"],
+			]])
+		return ["int-or", n, n1, n2]
+
+	def IntXor(self, n, n1, n2):
+		"""
+		int-xor returns whether n == n1 ^ n2
+		"""
+		if "int-xor" not in self.library:
+			self.library.append("int-xor")
+			self.commands.append(["define-fun-rec", "int-xor", [["n", "Int"], ["n1", "Int"], ["n2", "Int"]], "Bool", [
+				"or",
+				["and", ["=", "n", "0"], ["=", "n1", "n2"]],
+				["and", ["=", "n1", "0"], ["=", "n2", "n"]],
+				["and", ["=", "n2", "0"], ["=", "n", "n1"]],
+				["and", ["=", "n", ["-", "1"]], ["=", ["+", "n1", "n2"], ["-", "1"]]],
+				["and", ["=", "n1", ["-", "1"]], ["=", ["+", "n2", "n"], ["-", "1"]]],
+				["and", ["=", "n2", ["-", "1"]], ["=", ["+", "n", "n1"], ["-", "1"]]],
+				[
+					"and",
+					["=", ["not", ["=", ["mod", "n", "2"], "0"]], ["xor", ["not", ["=", ["mod", "n1", "2"], "0"]], ["not", ["=", ["mod", "n2", "2"], "0"]]]],
+					["int-xor", ["div", "n", "2"], ["div", "n1", "2"], ["div", "n2", "2"]],
+				],
+			]])
+		return ["int-xor", n, n1, n2]
+
+	def RealPow(self, p, b, e):
+		"""
+		real-pow returns whether p == b ** e
+		"""
+		# real-pow isn't efficient when having to calculate the e-root of p or a large e-power of b.
+		if "real-pow" not in self.library:
+			self.library.append("real-pow")
+			self.commands.append(["define-fun-rec", "real-pow", [["p", "Real"], ["b", "Real"], ["e", "Int"]], "Bool", [
+				"or",
+				["and", ["=", "b", "0"], ["not", ["=", "e", "0"]], ["=", "p", "0"]],
+				["and", ["=", "b", "1"], ["=", "p", "1"]],
+				["and", ["=", "b", ["-", "1"]], ["=", ["mod", "e", "2"], "0"], ["=", "p", "1"]],
+				["and", ["=", "b", ["-", "1"]], ["=", ["mod", "e", "2"], "1"], ["=", "p", ["-", "1"]]],
+				["and", [">", "e", "1"], ["<", "1", "b", "p"], ["real-pow", ["/", "p", "b"], "b", ["-", "e", "1"]]],
+				["and", [">", "e", "1"], ["<", "0", "p", "b", "1"], ["real-pow", ["/", "p", "b"], "b", ["-", "e", "1"]]],
+				["and", [">", "e", "1"], ["=", ["mod", "e", "2"], "0"], ["<", ["-", "1"], "b", "0", "p", ["-", "b"], "1"], ["real-pow", ["/", "p", "b"], "b", ["-", "e", "1"]]],
+				["and", [">", "e", "1"], ["=", ["mod", "e", "2"], "0"], ["<", "b", ["-", "1"], "1", ["-", "b"], "p"], ["real-pow", ["/", "p", "b"], "b", ["-", "e", "1"]]],
+				["and", [">", "e", "1"], ["=", ["mod", "e", "2"], "1"], ["<", ["-", "1"], "b", "p", "0"], ["real-pow", ["/", "p", "b"], "b", ["-", "e", "1"]]],
+				["and", [">", "e", "1"], ["=", ["mod", "e", "2"], "1"], ["<", "p", "b", ["-", "1"]], ["real-pow", ["/", "p", "b"], "b", ["-", "e", "1"]]],
+				["and", ["=", "e", "1"], ["=", "b", "p"]],
+				["and", ["=", "e", "0"], ["not", ["=", "b", "0"]], ["=", "p", "1"]],
+				["and", ["=", "e", ["-", "1"]], ["=", ["*", "b", "p"], "1"]],
+				["and", ["<", "e", ["-", "1"]], ["<", "0", "p", "1", "b"], ["real-pow", ["*", "p", "b"], "b", ["+", "e", "1"]]],
+				["and", ["<", "e", ["-", "1"]], ["<", "0", "b", "1", "p"], ["real-pow", ["*", "p", "b"], "b", ["+", "e", "1"]]],
+				["and", ["<", "e", ["-", "1"]], ["=", ["mod", "e", "2"], "0"], ["<", ["-", "1"], "b", "0", ["-", "b"], "1", "p"], ["real-pow", ["*", "p", "b"], "b", ["+", "e", "1"]]],
+				["and", ["<", "e", ["-", "1"]], ["=", ["mod", "e", "2"], "0"], ["<", "b", ["-", "1"], "0", "p", "1", ["-", "b"]], ["real-pow", ["*", "p", "b"], "b", ["+", "e", "1"]]],
+				["and", ["<", "e", ["-", "1"]], ["=", ["mod", "e", "2"], "1"], ["<", "p", ["-", "1"], "b", "0"], ["real-pow", ["*", "p", "b"], "b", ["+", "e", "1"]]],
+				["and", ["<", "e", ["-", "1"]], ["=", ["mod", "e", "2"], "1"], ["<", "b", ["-", "1"], "p", "0"], ["real-pow", ["*", "p", "b"], "b", ["+", "e", "1"]]],
+			]])
+		return ["real-pow", p, b, e]
+
+	def SListSpec(self, l, n):
+		"""
+		slist-spec returns whether len(l) % n == r
+		"""
+		# slist-spec is efficient when n is a given integer constant
+		if "slist-spec" not in self.library:
+			self.library.append("slist-spec")
+			self.commands.append(["define-fun-rec", "slist-spec", [["l", "SList"], ["n", "Int"], ["r", "Int"]], "Bool", [
+				"or",
+				["and", ["is-sn", "l"], ["=", "r", "0"]],
+				["and", ["is-sc", "l"], ["slist-spec", ["st", "l"], "n", ["-", ["ite", ["=", "r", "0"], "n", "r"], "1"]]],
+			]])
+		return ["slist-spec", l, n, "0"]
+
+	def FListEquals(self, f, x, y, d):
+		"""
+		flist-equals return whether f(x) = y with depth at most d
+		"""
+		if "flist-equals" not in self.library:
+			self.library.append("flist-equals")
+			self.commands.append(["define-fun-rec", "flist-equals", [["f", "FList"], ["x", "TList"], ["y", "Term"], ["d", "Int"]], "Bool", [
+				"or",
+				["and", [">=", "d", "0"], ["is-fc", "f"], ["=", ["fx", "f"], "x"], ["=", ["fy", "f"], "y"]],
+				["and", [">", "d", "0"], ["is-fc", "f"], ["not", ["=", ["fx", "f"], "x"]], ["flist-equals", ["ft", "f"], "x", "y", ["-", "d", "1"]]],
+			]])
+		return ["flist-equals", f, x, y, d]

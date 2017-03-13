@@ -40,7 +40,7 @@ class ErlangPort:
               err.flush()
               err.close()
 
-def decode_command(erlport, erlSolver, data):
+def decode_command(erlport, coordinator, data):
     cmd = scmd.SolverCommand()
     cmd.ParseFromString(data)
     opts = {
@@ -52,54 +52,62 @@ def decode_command(erlport, erlSolver, data):
         scmd.SolverCommand.RESET_SOLVER: decode_reset_solver,
         scmd.SolverCommand.STOP: decode_stop,
     }
-    opts[cmd.type](erlport, erlSolver, cmd)
+    opts[cmd.type](erlport, coordinator, cmd)
 
-def decode_load_trace_file(erlport, erlSolver, cmd):
+def decode_load_trace_file(erlport, coordinator, cmd):
     """
     Loads a trace file.
     """
     r = cIO.JsonReader(cmd.filename, cmd.to_constraint)
     for entry, rev in r:
         if cc.is_interpretable(entry):
-            erlSolver.command_toSolver(entry, rev)
+            coordinator.command(entry, rev)
 
-def decode_solve(erlport, erlSolver, cmd):
+def decode_solve(erlport, coordinator, cmd):
     """
     Solves the model.
     """
-    slv = erlSolver.solve()
+    slv = coordinator.solve()
     erlport.send(slv.SerializeToString())
 
-def decode_get_model(erlport, erlSolver, cmd):
+def decode_get_model(erlport, coordinator, cmd):
     """
     Gets the model.
     """
-    enc = erlSolver.encode_model()
+    # TODO return model in decode_solve and remove this state from FSM
+    enc = coordinator.get_model()
 #    md = erlSolver.model
 #    erlport.send(str(md))
     erlport.send(enc.SerializeToString())
 
-def decode_add_axioms(erlport, erlSolver, cmd):
+def decode_add_axioms(erlport, coordinator, cmd):
     """
     Adds the axioms.
     """
-    erlSolver.add_axioms()
+    # TODO remove from FSM
+    pass
+    #erlSolver.add_axioms()
 
-def decode_fix_variable(erlport, erlSolver, cmd):
+def decode_fix_variable(erlport, coordinator, cmd):
     """
     Fixes a variable to a specific value.
     """
-    var, val = cmd.symbvar, cmd.symbvar_value
-    erlSolver.fix_parameter(var, val)
+    # TODO remove from FSM or propagate command to coordinator
+    pass
+    #var, val = cmd.symbvar, cmd.symbvar_value
+    #erlSolver.fix_parameter(var, val)
 
-def decode_reset_solver(erlport, erlSolver, cmd):
+def decode_reset_solver(erlport, coordinator, cmd):
     """
     Resets the solver.
     """
-    erlSolver.reset_solver()
+    # TODO remove from FSM
+    pass
+    #erlSolver.reset_solver()
 
-def decode_stop(erlport, erlSolver, cmd):
+def decode_stop(erlport, coordinator, cmd):
     """
     Stops the execution.
     """
+    # TODO shouldn't we also kill all running solver processes?
     cglb.__RUN__ = False

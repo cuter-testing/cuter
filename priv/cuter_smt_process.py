@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 import subprocess
 from cuter_smt_library import serialize, unserialize
 
@@ -72,16 +70,3 @@ class Solver:
 
 	def exit(self):
 		self.write(["exit"])
-
-
-#class SolverCVC4(Solver):
-#
-#	def __init__(self):
-#		Solver.__init__(self, ["cvc4", "--lang=smt2", "--tlimit={}".format(timeout * 1000), "--fmf-fun", "--incremental"])
-#		self.write(["set-logic", "UFDTLIRA"])
-
-
-class SolverZ3(Solver):
-
-	def __init__(self):
-		Solver.__init__(self, ["z3", "-smt2", "-T:{}".format(timeout), "-in"])
