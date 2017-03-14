@@ -51,8 +51,10 @@ def unserialize(smt, cur = None):
 			cur += 1
 			while True:
 				if smt[cur] == "\"":
-					cur += 2
-					if smt[cur] != "\"":
+					cur += 1
+					if smt[cur] == "\"":
+						cur += 1
+					else:
 						break;
 				else:
 					cur += 1
