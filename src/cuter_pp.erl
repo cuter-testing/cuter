@@ -734,7 +734,7 @@ pp_input_fully_verbose(Input, _MFA) ->
   io:format("~s~n", [pp_arguments(Input)]).
 
 pp_arguments([]) ->
-  "()";
+  "";
 pp_arguments(Args) ->
   string:join([pp_lambda(A) || A <- Args], ", ").
 
@@ -748,10 +748,10 @@ pp_lambda(L) ->
       ClauseList = pp_lambda_kvs(KVs) ++ [pp_lambda_default(Default, Arity)],
       lists:flatten(["fun", string:join(ClauseList, "; "), " end"]);
     false when is_list(L) ->
-      lists:flatten(["[", string:join([pp_lambda(X) || X <- L], ", "), "]"]);
+      NL = [pp_lambda(T) || T <- L],
+      io_lib:format("~p", [NL]);
     false when is_tuple(L) ->
-      LL = tuple_to_list(L),
-      lists:flatten(["{", string:join([pp_lambda(X) || X <- LL], ", "), "}"]);
+      pp_lambda(tuple_to_list(L));
     false ->
       io_lib:format("~p", [cuter_lib:handle_unbound_var(L)])
   end.
