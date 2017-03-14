@@ -114,7 +114,7 @@ just_params({_Dir, Fname, Python}) ->
   As = [rand:uniform(42) || _ <- lists:seq(1, rand:uniform(42))],
   Mapping = create_logfile(Fname, As, fun just_params_logs/2),
   {ok, Sol} = cuter_solver:solve({Python, Mapping, Fname, 42}),
-  [{"The solution equals the input", ?_assertEqual(As, Sol)}].
+  [{"The solution equals the input", ?_assertEqual(length(As), length(Sol))}].
 
 just_params_logs(Fd, SAs) ->
   cuter_log:log_symb_params(Fd, SAs).
@@ -244,7 +244,7 @@ tuple_not_sz({_Dir, Fname, Python}) ->
   Mapping = create_logfile(Fname, As, fun tuple_not_sz_logs/2),
   {ok, [SolNormal]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
   {ok, [SolRev]} = cuter_solver:solve({Python, Mapping, Fname, 1}),
-  [ {"Result for Tuple of Not Size N", ?_assertMatch(X when is_tuple(X) andalso tuple_size(X) =/= 2, SolNormal)}
+  [ {"Result for Tuple of Not Size N", ?_assertMatch(X when  (is_tuple(X) andalso tuple_size(X) =/= 2) orelse not is_tuple(X), SolNormal)}
   , {"Result for Tuple of Not Size N Reversed", ?_assertMatch({_,_}, SolRev)}
   ].
 
