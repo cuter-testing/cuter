@@ -47,8 +47,18 @@ def unserialize(smt, cur = None):
 		return (nodes, beg, end)
 	else:
 		beg = cur
-		while smt[cur] != ")" and not smt[cur].isspace():
+		if smt[cur] == "\"":
 			cur += 1
+			while True:
+				if smt[cur] == "\"":
+					cur += 2
+					if smt[cur] != "\"":
+						break;
+				else:
+					cur += 1
+		else:
+			while smt[cur] != ")" and not smt[cur].isspace():
+				cur += 1
 		end = cur
 		return (smt[beg:end], beg, end)
 

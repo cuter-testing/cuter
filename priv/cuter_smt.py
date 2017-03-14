@@ -80,11 +80,16 @@ class Solver_SMT(AbstractErlangSolver):
 			self.process.exit()
 			return cc.mk_unsat()
 		elif status == "unknown":
+			self.process.exit()
 			return cc.mk_unknown()
 		elif status == "timeout":
+			self.process.exit()
 			return cc.mk_timeout()
-		clg.debug_info("solve: " + str(status))
-		assert False
+		else:
+			# some error has occured
+			self.process.exit()
+			clg.debug_info("solve: " + str(status))
+			return cc.mk_unknown() # TODO normally, mk_error()
 
 	def fix_parameter(self, p, v):
 		"""
