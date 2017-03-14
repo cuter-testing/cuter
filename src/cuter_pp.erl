@@ -751,7 +751,8 @@ pp_lambda(L) ->
       NL = [pp_lambda(T) || T <- L],
       io_lib:format("~p", [NL]);
     false when is_tuple(L) ->
-      pp_lambda(tuple_to_list(L));
+      NL = tuple_to_list(L),
+      lists:flatten(["{", string:join([pp_lambda(X) || X <- NL], ","), "}"]);
     false ->
       io_lib:format("~p", [cuter_lib:handle_unbound_var(L)])
   end.
