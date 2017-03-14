@@ -749,7 +749,7 @@ pp_lambda(L) ->
       lists:flatten(["fun", string:join(ClauseList, "; "), " end"]);
     false when is_list(L) ->
       NL = [pp_lambda(T) || T <- L],
-      io_lib:format("~p", [NL]);
+      lists:flatten(io_lib:format("~p", [NL]));
     false when is_tuple(L) ->
       NL = tuple_to_list(L),
       lists:flatten(["{", string:join([pp_lambda(X) || X <- NL], ","), "}"]);
