@@ -1,68 +1,106 @@
 import cuter_common as cc
+from cuter_proto_log_entry_pb2 import LogEntry
 from cuter_smt_z3 import Solver_SMT_Z3
 from cuter_smt_cvc4 import Solver_SMT_CVC4
 
 
-# TODO start_process in cases like z3py
-# TODO design pattern
+# TODO start_process etc in non-smt solvers, like z3py
 
 
 class Solver_Coordinator:
+	"""
+	default; use only Z3
+	"""
 
 	def __init__(self):
-		self.solvers = []
 		self.solver_z3 = Solver_SMT_Z3()
-		assert self.solver_z3.check_process(), "z3 is not installed"
-		self.solvers.append(self.solver_z3)
+		assert self.solver_z3.check_process(), "Z3 is not installed"
 		self.solver_cvc4 = Solver_SMT_CVC4()
 		if not self.solver_cvc4.check_process():
-			self.solver_cvc4 = None
+			self.main_init_z3()
 		else:
-			self.solvers.append(self.solver_cvc4)
+			self.main_init()
 		self.model = None
 
 	def command(self, entry, rev):
+		self.prev_command(entry, rev)
 		for solver in self.solvers:
 			solver.command_toSolver(entry, rev)
 
 	def solve(self):
 		if self.solver_cvc4 is None:
-			return self.strategy_z3()
-		return self.strategy_priority()
+			return self.main_solve_z3()
+		else:
+			self.prev_solve()
+			return self.main_solve()
 
 	def get_model(self):
 		return self.model
 
-	def strategy_z3(self):
-		"""
-		use only Z3
-		"""
+	def main_init_z3(self):
+		self.solver_cvc4 = None
+		self.solvers = [self.solver_z3]
+
+	def main_solve_z3(self):
 		solver = self.solver_z3
 		solver.start_process()
 		solver.add_axioms()
 		status = solver.solve()
 		if cc.is_sat(status):
 			self.model = solver.encode_model()
-		# TODO z3 supports incremental solving; so we could fix a variable and repeat
+		# TODO Z3 supports incremental solving; so we could fix a variable and repeat
 		return status
 
-	def strategy_cvc4(self):
-		"""
-		use only CVC4
-		"""
+	def main_init(self):
+		self.main_init_z3()
+
+	def prev_command(self, entry, rev):
+		pass
+
+	def prev_solve(self):
+		pass
+
+	def main_solve(self):
+		return self.main_solve_z3()
+
+
+class Solver_Coordinator_Z3(Solver_Coordinator):
+	"""
+	use only Z3
+	"""
+
+	pass
+
+
+class Solver_Coordinator_CVC4(Solver_Coordinator):
+	"""
+	use only CVC4
+	"""
+
+	def main_init(self):
+		self.solver_z3 = None
+		self.solvers = [self.solver_cvc4]
+
+	def main_solve(self):
 		solver = self.solver_cvc4
 		solver.start_process()
 		solver.add_axioms()
 		status = solver.solve()
 		if cc.is_sat(status):
 			self.model = solver.encode_model()
-		# TODO cvc4 supports incremental solving if --incremental flag is on; so we could fix a variable and repeat
+		# TODO CVC4 supports incremental solving if --incremental flag is on; so we could fix a variable and repeat
 		return status
 
-	def strategy_priority(self):
-		"""
-		try Z3; if timeout or unknown, try CVC4
-		"""
+
+class Solver_Coordinator_Priority(Solver_Coordinator):
+	"""
+	try Z3; if timeout or unknown, try CVC4
+	"""
+
+	def main_init(self):
+		self.solvers = [self.solver_z3, self.solver_cvc4]
+
+	def main_solve(self):
 		for solver in self.solvers:
 			solver.start_process()
 			solver.add_axioms()
@@ -75,8 +113,35 @@ class Solver_Coordinator:
 			# TODO incremental solving strategy in case of timeout or unknown status
 		return status
 
-	def strategy_guess(self):
-		"""
-		select a solver according to the present constraint set
-		"""
-		assert False # TODO implement
+
+class Solver_Coordinator_Guess(Solver_Coordinator):
+	"""
+	select a solver according to the present constraint set
+	"""
+
+	def main_init(self):
+		self.solvers = [self.solver_z3, self.solver_cvc4]
+		self.typedefs = False
+
+	def prev_command(self, entry, rev):
+		if entry.type == LogEntry.OP_SPEC and not self.typedefs:
+			typedefs = cc.get_type_defs_of_spec(entry.spec)
+			if len(typedefs) > 0:
+				self.typedefs = True
+
+	def prev_solve(self):
+		if self.typedefs:
+			self.solvers.reverse()
+
+	def main_solve(self):
+		for solver in self.solvers:
+			solver.start_process()
+			solver.add_axioms()
+			status = solver.solve()
+			if cc.is_sat(status):
+				self.model = solver.encode_model()
+				break
+			elif cc.is_unsat(status):
+				break
+			# TODO incremental solving strategy in case of timeout or unknown status
+		return status

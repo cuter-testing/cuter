@@ -7,7 +7,7 @@ import cuter_port as cp
 import cuter_io as cIO
 import cuter_logger as clg
 import cuter_common as cc
-from cuter_coordinator import Solver_Coordinator
+import cuter_coordinator
 
 ## Parse the arguments.
 
@@ -22,7 +22,7 @@ cglb.init()
 # Initialize the communication with Erlang
 erlport = cp.ErlangPort()
 # Initialize the Solver interface
-coordinator = Solver_Coordinator();
+coordinator = cuter_coordinator.Solver_Coordinator_Guess();
 
 try:
     while cglb.__RUN__:
