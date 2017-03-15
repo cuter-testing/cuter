@@ -7,7 +7,7 @@
 -export([init/1, terminate/2, code_change/3, handle_info/2, handle_call/3, handle_cast/2]).
 -export([start/1, stop/0]).
 %% Report information about the concolic executions.
--export([mfa/1, input/2, error_retrieving_spec/2, execution_status/2, pp_lambda/1,
+-export([mfa/1, input/2, error_retrieving_spec/2, execution_status/2,
          execution_info/2, path_vertex/2, flush/1, errors_found/1,
          form_has_unsupported_type/1, invalid_ast_with_pmatch/2, code_logs/3]).
 %% Report information about solving.
@@ -27,6 +27,8 @@
          compilation_errors/2, non_existing_mfa/1]).
 %% Debug Verbose prints.
 -export([parsed_spec/1]).
+%% Used in unit tests.
+-export([pp_argument/1]).
 
 -export([ reversible_operations/1
         %% Execution info reporting level
@@ -734,44 +736,43 @@ pp_input_fully_verbose(Input, _MFA) ->
   io:format("~s~n", [pp_arguments(Input)]).
 
 pp_arguments([]) ->
-  "()";
+  "";
 pp_arguments(Args) ->
   string:join([pp_argument(A) || A <- Args], ", ").
 
-pp_argument(X) ->
-  case cuter_lib:is_lambda(X) of
-    true  -> pp_lambda(X);
-    false -> io_lib:format("~p", [cuter_lib:handle_unbound_var(X)])
-  end.
-
--spec pp_lambda(any()) -> string().
-pp_lambda(L) ->
-  case cuter_lib:is_lambda(L) of
+-spec pp_argument(term()) -> string().
+pp_argument(Arg) ->
+  case cuter_lib:is_lambda(Arg) of
     true ->
-      KVs = cuter_lib:lambda_kvs(L),
-      Default = cuter_lib:lambda_default(L),
-      Arity = cuter_lib:lambda_arity(L),
+      KVs = cuter_lib:lambda_kvs(Arg),
+      Default = cuter_lib:lambda_default(Arg),
+      Arity = cuter_lib:lambda_arity(Arg),
       ClauseList = pp_lambda_kvs(KVs) ++ [pp_lambda_default(Default, Arity)],
       lists:flatten(["fun", string:join(ClauseList, "; "), " end"]);
-    false when is_list(L) ->
-      lists:flatten(["[", string:join([pp_lambda(X) || X <- L], ", "), "]"]);
-    false when is_tuple(L) ->
-      LL = tuple_to_list(L),
-      lists:flatten(["{", string:join([pp_lambda(X) || X <- LL], ", "), "}"]);
+    false when is_list(Arg) ->
+      case io_lib:printable_list(Arg) of
+        true ->
+          io_lib:format("~p", [Arg]);
+        false ->
+          "[" ++ string:join([pp_argument(A) || A <- Arg], ",") ++ "]"
+      end;
+    false when is_tuple(Arg) ->
+      L = tuple_to_list(Arg),
+      "{" ++ string:join([pp_argument(A) || A <- L], ",") ++ "}";
     false ->
-      pp_argument(L)
+      io_lib:format("~p", [cuter_lib:handle_unbound_var(Arg)])
   end.
 
 pp_lambda_kvs(KVs) ->
   [pp_lambda_kv(KV) || KV <- KVs].
 
 pp_lambda_kv({Args, Val}) ->
-  StrArgs = ["(", string:join([pp_lambda(A) || A <- Args], ","), ")"],
-  lists:flatten([StrArgs, " -> ", pp_lambda(Val)]).
+  StrArgs = ["(", string:join([pp_argument(A) || A <- Args], ","), ")"],
+  lists:flatten([StrArgs, " -> ", pp_argument(Val)]).
 
 pp_lambda_default(X, Arity) ->
   Args = string:join(["_" || _ <- lists:seq(1, Arity)], ","),
-  lists:flatten(["(", Args, ") -> ", pp_lambda(X)]).
+  lists:flatten(["(", Args, ") -> ", pp_argument(X)]).
 
 %% ----------------------------------------------------------------------------
 %% Report the execution logs
