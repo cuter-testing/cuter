@@ -1,3 +1,4 @@
+import os
 import subprocess
 from cuter_smt_library import serialize, unserialize
 
@@ -6,7 +7,6 @@ debug = False
 
 
 if debug:
-	import os.path
 	filename = "solver.txt"
 	if os.path.isfile(filename):
 		clog = open(filename, "a")
@@ -21,6 +21,20 @@ def log(msg = ""):
 
 # time limit per solver process in seconds
 timeout = 2
+
+
+def check(arguments):
+	try:
+		subprocess.check_call(
+			arguments,
+			stdout=open(os.devnull, "w"),
+		)
+	except subprocess.CalledProcessError:
+		return False
+	except OSError:
+		return False
+	else:
+		return True
 
 
 class Solver:

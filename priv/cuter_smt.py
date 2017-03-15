@@ -52,6 +52,9 @@ class Solver_SMT(AbstractErlangSolver):
 	def start_process(self):
 		raise NotImplementedError("Method 'start_process' is not implemented!")
 
+	def check_process(self):
+		raise NotImplementedError("Method 'check_process' is not implemented!")
+
 	# =========================================================================
 	# Public API.
 	# =========================================================================
