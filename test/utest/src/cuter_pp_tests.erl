@@ -26,8 +26,8 @@ encdec_test_() ->
        "{fun(0) -> 42; (_) -> ok end,{{fun(0) -> 42; (_) -> ok end}}}"}
     ]},
     {"Higher order", [
-      {"HO I", cuter_lib:mk_lambda([{[0], cuter_lib:mk_lambda([{[0], 42}], ok, 1)}], ok, 1),
-        "fun(0) -> fun(0) -> 42; (_) -> ok end; (_) -> ok end"}
+      {"HO I", cuter_lib:mk_lambda([{[0], Fun1}], ok, 1),
+       "fun(0) -> fun(0) -> 42; (_) -> ok end; (_) -> ok end"}
     ]}
   ],
   Setup = fun(T) -> fun() -> T end end,
