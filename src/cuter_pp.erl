@@ -748,11 +748,15 @@ pp_lambda(L) ->
       ClauseList = pp_lambda_kvs(KVs) ++ [pp_lambda_default(Default, Arity)],
       lists:flatten(["fun", string:join(ClauseList, "; "), " end"]);
     false when is_list(L) ->
-      NL = [pp_lambda(T) || T <- L],
-      lists:flatten(io_lib:format("~p", [NL]));
+      case io_lib:printable_list(L) of
+        true ->
+          io_lib:format("~p", [L]);
+        false ->
+          "[" ++ string:join([pp_lambda(T) || T <- L], ",") ++ "]"
+      end;
     false when is_tuple(L) ->
       NL = tuple_to_list(L),
-      lists:flatten(["{", string:join([pp_lambda(X) || X <- NL], ","), "}"]);
+      "{" ++ string:join([pp_lambda(T) || T <- NL], ",") ++ "}";
     false ->
       io_lib:format("~p", [cuter_lib:handle_unbound_var(L)])
   end.
