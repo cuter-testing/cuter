@@ -102,7 +102,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			shared = cc.get_shared(data)
 			return ["list", build_tlist([self.decode(item, shared) for item in items])]
 		elif cc.is_tuple(data):
-			items = cc.get_list_subterms(data)
+			items = cc.get_tuple_subterms(data)
 			shared = cc.get_shared(data)
 			return ["tuple", build_tlist([self.decode(item, shared) for item in items])]
 		elif cc.is_bitstring(data):
