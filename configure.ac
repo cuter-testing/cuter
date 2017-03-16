@@ -18,7 +18,7 @@ AC_SUBST(ERLC)
 
 cat > test_erlc.erl <<EOF
 -module(test_erlc).
--compile(export_all).
+-export(@<:@foo/0@:>@).
 foo() -> ok.
 EOF
 
@@ -173,7 +173,7 @@ AC_SUBST(MECK)
 
 cat > test_meck.erl <<EOF
 -module(test_meck).
--compile(export_all).
+-export(@<:@foo/0@:>@).
 foo() ->
   case code:which(meck) of
     non_existing -> error(non_existing);
@@ -215,7 +215,7 @@ AC_SUBST(PROPER)
 
 cat > test_proper.erl <<EOF
 -module(test_proper).
--compile(export_all).
+-export(@<:@foo/0@:>@).
 foo() ->
   case code:which(proper) of
     non_existing -> error(non_existing);
