@@ -296,7 +296,7 @@ safe_rdiv(X, Y) -> X / Y.
 %% Find the absolute value of a number.
 %%
 
--spec abs(integer()) -> integer()
+-spec abs(integer()) -> non_neg_integer()
        ; (float()) -> float().
 abs(X) when is_integer(X) ->
   case lt_int(X, 0) of
@@ -515,7 +515,7 @@ safe_trunc(X) -> erlang:trunc(X).
 %% COMPARISONS
 %%
 %% The global term order is
-%% number < atom < reference < fun < port < pid < tuple < map < list < bit string
+%% number < atom < reference < fun < port < pid < tuple < map < list < bitstring
 %% ----------------------------------------------------------------------------
 
 -spec basic_eq(term(), term()) -> boolean().
@@ -542,7 +542,7 @@ basic_eq(X, Y) -> X =:= Y.
 %% Simulate erlang:'=='/2
 %%
 %% The difference of erlang:'=='/2 with erlang:'=:='/2 is when comparing
-%% an integer to a float.
+%% an integer with a float.
 %%
 %% e.g.
 %% 4 =:= 4.0 => false
@@ -564,7 +564,7 @@ basic_eq(X, Y) -> X =:= Y.
 %% Simulate erlang:'/='/2
 %%
 %% The difference of erlang:'/='/2 with erlang:'=/='/2 is when comparing
-%% an integer to a float.
+%% an integer with a float.
 %%
 %% e.g.
 %% 4 =/= 4.0 => true
@@ -928,7 +928,7 @@ keyfind(Key, N, [H|T]) when is_tuple(H) ->
 %% BINARY / BITSTRING OPERATIONS
 %% ----------------------------------------------------------------------------
 
--spec is_binary(any()) -> boolean().
+-spec is_binary(term()) -> boolean().
 is_binary(Bin) when is_bitstring(Bin) -> is_binary(Bin, 0);
 is_binary(_) -> false.
 
