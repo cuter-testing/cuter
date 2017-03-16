@@ -38,13 +38,13 @@ encdec_test_() ->
       {"Simple", {1,2,3}},
       {"With shared subterms", {1,2,{1,2},{3,1,2},{1,2}}}
     ]},
-    {"PIDs", [
-      {"Self", self()},
-      {"Group leader", erlang:group_leader()}
-    ]},
-    {"References", [
-      {"Make reference", erlang:make_ref()}
-    ]},
+    %% {"PIDs", [
+    %%   {"Self", self()},
+    %%   {"Group leader", erlang:group_leader()}
+    %% ]},
+    %% {"References", [
+    %%   {"Make reference", erlang:make_ref()}
+    %% ]},
     {"Bitstrings", [
       {"binary", <<42>>},
       {"bitstring", <<42:42>>}
@@ -74,7 +74,7 @@ encode_decode(Terms) ->
   [{Descr, ?_assertEqual(maybe(T), Dec(Enc(T)))} || {Descr, T} <- Terms].
 
 %% Special case for reference().
-maybe(Rf) when is_reference(Rf) -> erlang:ref_to_list(Rf);
+%% maybe(Rf) when is_reference(Rf) -> erlang:ref_to_list(Rf);
 maybe(T) -> T.
 
 %% Serializing unsupported terms tests.
@@ -94,7 +94,7 @@ enc_fail_test_() ->
 encdec_cmd_test_() ->
   Cs = [
     {"I", {'OP_PARAMS', [cuter_symbolic:fresh_symbolic_var(), cuter_symbolic:fresh_symbolic_var()]}},
-    {"II", {'OP_MATCH_EQUAL_FALSE', [cuter_symbolic:fresh_symbolic_var(), erlang:make_ref()]}},
+    {"II", {'OP_MATCH_EQUAL_FALSE', [cuter_symbolic:fresh_symbolic_var()]}},	%% , erlang:make_ref()]}},
     {"III", {'OP_PARAMS', [cuter_symbolic:fresh_symbolic_var(), 42]}},
     {"IV", {'OP_CONS', [cuter_symbolic:fresh_symbolic_var(), cuter_symbolic:fresh_symbolic_var(), [<<"false">>]]}}
   ],
