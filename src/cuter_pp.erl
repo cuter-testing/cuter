@@ -852,25 +852,26 @@ pp_code_logs_fully_verbose(Logs, Whitelist) ->
   io:format("CODE LOGS~n"),
   %% Cached modules.
   Cached = cuter_codeserver:cachedMods_of_logs(Logs),
-  io:format("      CACHED MODS~n"),
-  io:format("        ~p~n", [cuter_codeserver:modules_of_dumped_cache(Cached)]),
+  CMs = cuter_codeserver:modules_of_dumped_cache(Cached),
+  io:format("    CACHED MODS~n"),
+  io:format("      ~p~n", [lists:sort(CMs)]),
   %% Loaded modules.
-  Ms = cuter_codeserver:loadedMods_of_logs(Logs),
-  io:format("      LOADED MODS~n"),
-  io:format("        ~p~n", [Ms]),
+  LMs = cuter_codeserver:loadedMods_of_logs(Logs),
+  io:format("    LOADED MODS~n"),
+  io:format("      ~p~n", [lists:sort(LMs)]),
   %% Number of added tags.
   N = cuter_codeserver:tagsAddedNo_of_logs(Logs),
-  io:format("      NO OF ADDED TAGS~n"),
-  io:format("        ~p~n", [N]),
+  io:format("    NUMBER OF ADDED TAGS~n"),
+  io:format("      ~p~n", [N]),
   %% Visited tags.
   Tags = cuter_codeserver:visitedTags_of_logs(Logs),
-  io:format("      VISITED TAGS~n"),
-  io:format("        ~p~n", [gb_sets:to_list(Tags)]),
+  io:format("    VISITED TAGS~n"),
+  io:format("      ~p~n", [gb_sets:to_list(Tags)]),
   %% Unsupported MFAs.
-  Mfas = cuter_codeserver:unsupportedMfas_of_logs(Logs),
-  FilteredMfas = filter_non_reportable(Mfas, Whitelist),
-  io:format("      UNSUPPORTED MFAS~n"),
-  io:format("        ~p~n", [FilteredMfas]).
+  MFAs = cuter_codeserver:unsupportedMfas_of_logs(Logs),
+  FilteredMFAs = filter_non_reportable(MFAs, Whitelist),
+  io:format("    UNSUPPORTED MFAS~n"),
+  io:format("      ~p~n", [lists:sort(FilteredMFAs)]).
 
 %% Filters out the non-reportable mfas.
 %% These include
