@@ -185,12 +185,17 @@ encode_term(T, Seen) when is_tuple(T) ->
   Ts = tuple_to_list(T),
   Subterms = [encode_maybe_shared_term(X, Seen) || X <- Ts],
   #'ErlangTerm'{type='TUPLE', subterms=Subterms};
-%% pid
-encode_term(Pid, _Seen) when is_pid(Pid) ->
-  #'ErlangTerm'{type='PID', value=pid_to_list(Pid)};
-%% reference
-encode_term(Ref, _Seen) when is_reference(Ref) ->
-  #'ErlangTerm'{type='REFERENCE', value=erlang:ref_to_list(Ref)};
+%%%
+%%% TODO: Uncomment out these clauses when it is decided how to
+%%% properly handle pids and refs.  Also, make sure that the
+%%% corresponding unit tests are re-enabled.
+%%%
+%% %% pid
+%% encode_term(Pid, _Seen) when is_pid(Pid) ->
+%%   #'ErlangTerm'{type='PID', value=pid_to_list(Pid)};
+%% %% reference
+%% encode_term(Ref, _Seen) when is_reference(Ref) ->
+%%   #'ErlangTerm'{type='REFERENCE', value=erlang:ref_to_list(Ref)};
 %% bitstring & binary
 encode_term(Ref, _Seen) when is_bitstring(Ref) ->
   Bits = encode_bitstring(Ref),
@@ -208,7 +213,7 @@ encode_term(M, Seen) when is_map(M) ->
 encode_term(Term, _Seen) ->
   case cuter_lib:is_lambda(Term) of
     %% fun (cuter_lib:lambda())
-    %% TODO Use the same Seen set.
+    %% TODO: Use the same Seen set.
     true ->
       Points = cuter_lib:lambda_kvs(Term),
       Otherwise = cuter_lib:lambda_default(Term),
