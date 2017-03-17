@@ -1,7 +1,17 @@
 -module(bitstr).
--compile(export_all).
 
+-export([f11/1, f12/3, f13/3,
+	 f21/1, f22/2, f23/2, f24/2, f24a/2, f25/2, f26/2, f27/2,
+	 f31/2, f32/3, f33/4, f34/2, f35/1, f36/1, f37/1,
+	 fbit_sz/1, fbyte_sz/1,
+	 fbsl/2, fbsl_big/1, fbsr/2, fbsr_big/1, fbnot/1, fbnot_big/1,
+	 fband/2, fband2/2, fband_neg/2, fband3/2, fband2_neg/2,
+	 fbxor/2, fbxor2/2, fbxor3/2, fbxor_neg/2, fbxor2_neg/2, fbxor3_neg/2,
+	 fbor/2, fbor2/2, fbor3/2, fbor_neg/2, fbor2_neg/2]).
+
+%%---------------------------------
 %% Construct bitstrings.
+%%---------------------------------
 
 -spec f11(integer()) -> ok.
 f11(X) ->
@@ -26,7 +36,10 @@ f13(X, Y, Z) ->
     _ -> ok
   end.
 
+%%---------------------------------
 %% Match against a constant value.
+%%---------------------------------
+
 -spec f21(bitstring()) -> ok.
 f21(X) ->
   case X of
@@ -84,7 +97,9 @@ f27(X, Y) ->
     _ -> ok
   end.
 
+%%---------------------------------
 %% Match and binding variables.
+%%---------------------------------
 
 -spec f31(bitstring(), integer()) -> ok.
 f31(X, Y) ->
@@ -139,17 +154,25 @@ f37(X) ->
     _ -> ok
   end.
 
--spec byte_sz(bitstring()) -> ok.
-byte_sz(Bits) ->
+%%---------------------------------
+%% Bitstring size functions.
+%%---------------------------------
+
+-spec fbit_sz(bitstring()) -> ok.
+fbit_sz(Bits) ->
+  case bit_size(Bits) of
+    Sz when Sz < 4 -> ok
+  end.
+
+-spec fbyte_sz(bitstring()) -> ok.
+fbyte_sz(Bits) ->
   case byte_size(Bits) of
     Sz when Sz < 2 -> ok
   end.
 
--spec bit_sz(bitstring()) -> ok.
-bit_sz(Bits) ->
-  case bit_size(Bits) of
-    Sz when Sz < 4 -> ok
-  end.
+%%---------------------------------
+%% Binary operators.
+%%---------------------------------
 
 -spec fbsl(integer(), integer()) -> ok.
 fbsl(X, Y) ->
@@ -158,8 +181,8 @@ fbsl(X, Y) ->
     _ -> ok
   end.
 
--spec bsl_big(integer()) -> ok.
-bsl_big(X) ->
+-spec fbsl_big(integer()) -> ok.
+fbsl_big(X) ->
   M = 123456789012345,
   L = 123456789012345678901234567890,
   XL = 1234567890123456789012345678901234567890123456789012345678901234567890,
@@ -177,8 +200,8 @@ fbsr(X, Y) ->
     _ -> ok
   end.
 
--spec bsr_big(integer()) -> ok.
-bsr_big(X) ->
+-spec fbsr_big(integer()) -> ok.
+fbsr_big(X) ->
   M = 123456789012345,
   L = 123456789012345678901234567890,
   XL = 1234567890123456789012345678901234567890123456789012345678901234567890,
@@ -196,8 +219,8 @@ fbnot(X) ->
     _ -> ok
   end.
 
--spec bnot_big(integer()) -> ok.
-bnot_big(X) ->
+-spec fbnot_big(integer()) -> ok.
+fbnot_big(X) ->
   M = 123456789012345,
   L = 123456789012345678901234567890,
   XL = 1234567890123456789012345678901234567890123456789012345678901234567890,

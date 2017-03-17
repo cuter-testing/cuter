@@ -664,7 +664,7 @@
         },
         {
             "module": "bitstr",
-            "function": "bit_sz",
+            "function": "fbit_sz",
             "args": "[<<>>]",
             "depth": "15",
             "errors": true,
@@ -677,7 +677,7 @@
         },
         {
             "module": "bitstr",
-            "function": "byte_sz",
+            "function": "fbyte_sz",
             "args": "[<<>>]",
             "depth": "42",
             "errors": true,
@@ -692,7 +692,7 @@
             "module": "bitstr",
             "function": "fbsl",
             "args": "[1, 1]",
-            "depth": "25",
+            "depth": "35",
             "errors": true,
             "arity": 2,
             "solutions": [
@@ -702,7 +702,7 @@
         },
         {
             "module": "bitstr",
-            "function": "bsl_big",
+            "function": "fbsl_big",
             "args": "[1]",
             "depth": "100",
             "errors": true,
@@ -718,7 +718,7 @@
             "module": "bitstr",
             "function": "fbsr",
             "args": "[1, 1]",
-            "depth": "25",
+            "depth": "35",
             "errors": true,
             "arity": 2,
             "solutions": [
@@ -728,7 +728,7 @@
         },
         {
             "module": "bitstr",
-            "function": "bsr_big",
+            "function": "fbsr_big",
             "args": "[1]",
             "depth": "100",
             "errors": true,
@@ -754,7 +754,7 @@
         },
         {
             "module": "bitstr",
-            "function": "bnot_big",
+            "function": "fbnot_big",
             "args": "[1]",
             "depth": "50",
             "errors": true,
@@ -1004,7 +1004,7 @@
             "module": "collection",
             "function": "l2i",
             "args": "[[49]]",
-            "depth": "70",
+            "depth": "90",
             "errors": true,
             "arity": 1,
             "solutions": [
@@ -1016,7 +1016,7 @@
             "module": "collection",
             "function": "l2in",
             "args": "[[49, 48]]",
-            "depth": "80",
+            "depth": "90",
             "errors": true,
             "arity": 1,
             "whitelist": "collection-l2in-1",
