@@ -177,7 +177,7 @@ reify_size(SizeS, SizeC, Fd) ->
     false -> SizeS;
     true ->
       log_reify_size(SizeS, 0, SizeC, Fd),
-      SizeC
+      max(SizeC, 0)
   end.
 
 log_reify_size(SizeS, N, SizeC, Fd) when N < SizeC ->
@@ -186,6 +186,9 @@ log_reify_size(SizeS, N, SizeC, Fd) when N < SizeC ->
   log_reify_size(SizeS, N+1, SizeC, Fd);
 log_reify_size(SizeS, SizeC, SizeC, Fd) ->
   cuter_log:log_bitsize_equal(Fd, SizeS, SizeC),
+  cuter_log:reduce_constraint_counter();
+log_reify_size(SizeS, _N, SizeC, Fd) when SizeC < 0 ->
+  cuter_log:log_bitsize_not_equal(Fd, SizeS, 0),
   cuter_log:reduce_constraint_counter().
 
 %% Encode a symbolic term into a bitstring.

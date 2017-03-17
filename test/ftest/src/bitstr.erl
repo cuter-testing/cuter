@@ -55,6 +55,14 @@ f24(X, Y) ->
     _ -> ok
   end.
 
+-spec f24a(bitstring(), neg_integer()) -> ok.
+f24a(X, Y) ->
+  case X of
+    <<42>> when Y =:= -3 -> <<42:Y>>;
+    <<42:Y>> -> error(unreachable_bug);
+    _ -> ok
+  end.
+
 -spec f25(<<_:_*3>>, integer()) -> ok.
 f25(X, Y) ->
   case X of
