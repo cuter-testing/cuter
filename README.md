@@ -15,7 +15,7 @@ This is the source tree for CutEr, a concolic unit testing tool for Erlang.
 License
 -------
 
-Copyright 2014-2016 by Aggelos Giantsios, Nikolaos Papaspyrou and Kostis Sagonas.
+Copyright 2014-2017 by Aggelos Giantsios, Nikolaos Papaspyrou and Kostis Sagonas.
 
 This program is distributed under the GPL, version 3 or later. Please see the COPYING file for details.
 
