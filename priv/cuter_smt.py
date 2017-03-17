@@ -99,11 +99,13 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			return ["atom", build_ilist(cc.get_atom_chars(data))]
 		elif cc.is_list(data):
 			items = cc.get_list_subterms(data)
-			shared = cc.get_shared(data)
+			if shared is None:
+				shared = cc.get_shared(data)
 			return ["list", build_tlist([self.decode(item, shared) for item in items])]
 		elif cc.is_tuple(data):
 			items = cc.get_tuple_subterms(data)
-			shared = cc.get_shared(data)
+			if shared is None:
+				shared = cc.get_shared(data)
 			return ["tuple", build_tlist([self.decode(item, shared) for item in items])]
 		elif cc.is_bitstring(data):
 			return ["str", build_slist(cc.get_bits(data))]
