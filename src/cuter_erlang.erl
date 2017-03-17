@@ -972,7 +972,7 @@ byte_size(<<_:1, Bin/bitstring>>, N, Sz) ->
 %%
 %% Calculates the bitwise right shift of X by Y bits.
 -spec 'bsl'(integer(), integer()) -> integer().
-'bsl'(X, Y) when is_integer(X) andalso is_integer(Y) ->
+'bsl'(X, Y) when is_integer(X), is_integer(Y) ->
   case Y < 0 of
     true  -> bsr_h(X, -Y);
     false -> bsl_h(X, Y)
@@ -986,7 +986,7 @@ bsl_h(X, N) -> bsl_h(X + X, N - 1).
 %%
 %% Calculates the bitwise left shift of X by Y bits.
 -spec 'bsr'(integer(), integer()) -> integer().
-'bsr'(X, Y) when is_integer(X) andalso is_integer(Y) ->
+'bsr'(X, Y) when is_integer(X), is_integer(Y) ->
   case Y < 0 of
     true  -> bsl_h(X, -Y);
     false -> bsr_h(X, Y)

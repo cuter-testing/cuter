@@ -692,7 +692,7 @@
             "module": "bitstr",
             "function": "fbsl",
             "args": "[1, 1]",
-            "depth": "35",
+            "depth": "25",
             "errors": true,
             "arity": 2,
             "solutions": [
@@ -718,7 +718,7 @@
             "module": "bitstr",
             "function": "fbsr",
             "args": "[1, 1]",
-            "depth": "35",
+            "depth": "25",
             "errors": true,
             "arity": 2,
             "solutions": [
