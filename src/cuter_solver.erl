@@ -475,7 +475,7 @@ axioms_added(check_model, From, Data=#fsm_state{port = Port}) ->
 %% Fix a symbolic variable to a specific value
 axioms_added({fix_variable, Mapping}, _From, Data=#fsm_state{port = Port}) ->
   Cmd = cuter_serial:solver_command(fix_variable, Mapping),
-  cuter_pp:send_cmd(axioms_added, Cmd, "Fix a variable"),
+  cuter_pp:send_cmd(axioms_added, Mapping, "Fix a variable"),
   Port ! {self(), {command, Cmd}},
   {reply, ok, axioms_added, Data};
 axioms_added(Event, _From, Data) ->
