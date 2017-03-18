@@ -1135,7 +1135,7 @@
         },
         {
             "module": "collection",
-            "function": "free_tvar",
+            "function": "type_var",
             "args": "[[]]",
             "depth": "25",
             "errors": false,
