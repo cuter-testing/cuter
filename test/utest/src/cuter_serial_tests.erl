@@ -82,7 +82,7 @@ maybe(T) -> T.
 enc_fail_test_() ->
   Enc = fun cuter_serial:from_term/1,
   Ts = [
-    {"Fun", fun() -> ok end}
+   %% {"Fun", fun() -> ok end}
   ],
   {"Encoding Fail", [{Dsr, ?_assertThrow({unsupported_term, _}, Enc(T))} || {Dsr, T} <- Ts]}.
 

@@ -138,9 +138,11 @@ log_evaluated_closure(Fd, LambdaS, ArgsS, ResultS) ->
 %% Log Entry Point MFA's parameters & spec
 %% ------------------------------------------------------------------
 
--spec log_symb_params(file:io_device(), [cuter_symbolic:symbolic()]) -> ok.
+-spec log_symb_params(file:io_device(), [cuter_symbolic:mapping()]) -> ok.
 log_symb_params(_Fd, []) -> ok;
-log_symb_params(Fd, Ps)  -> log(Fd, 'OP_PARAMS', ?EMPTY_TAG_ID, Ps).
+log_symb_params(Fd, Ms) ->
+  {SXs, CXs} = lists:unzip(Ms),
+  log(Fd, 'OP_PARAMS', ?EMPTY_TAG_ID, SXs ++ CXs).
 
 -spec log_spec(file:io_device(), cuter_types:erl_spec()) -> ok.
 log_spec(Fd, Spec)  -> log(Fd, 'OP_SPEC', ?EMPTY_TAG_ID, [Spec]).

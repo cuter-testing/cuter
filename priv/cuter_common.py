@@ -135,6 +135,13 @@ def get_float(t):
     assert is_float(t)
     return float(t.value)
 
+def is_any(t):
+    """
+    Parameters
+        t : ErlangTerm
+    """
+    return t.type == ErlangTerm.ANY
+
 def mk_atom(chars):
     """
     Parameters

@@ -196,6 +196,12 @@ encode_term(T, Seen) when is_tuple(T) ->
 %% %% reference
 %% encode_term(Ref, _Seen) when is_reference(Ref) ->
 %%   #'ErlangTerm'{type='REFERENCE', value=erlang:ref_to_list(Ref)};
+%% function
+encode_term(Fn, _Seen) when is_function(Fn) ->
+  % Set no value.
+  % The use case is that funs that are parameters of the unit
+  % will be idntified by the solvers as funs and not tried to by fixed.
+  #'ErlangTerm'{type='ANY'};
 %% bitstring & binary
 encode_term(Ref, _Seen) when is_bitstring(Ref) ->
   Bits = encode_bitstring(Ref),
@@ -223,7 +229,7 @@ encode_term(Term, _Seen) ->
     false -> throw({unsupported_term, Term})
   end.
 
-encode_maybe_shared_term(T, Seen) when is_integer(T); is_float(T); is_atom(T); is_bitstring(T);
+encode_maybe_shared_term(T, Seen) when is_integer(T); is_float(T); is_atom(T); is_bitstring(T); is_function(T);
                                        is_list(T); is_tuple(T); is_pid(T); is_reference(T); is_map(T) ->
   case is_shared(T, Seen) of
     false -> encode_term(T, Seen);

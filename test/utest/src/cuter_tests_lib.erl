@@ -35,9 +35,9 @@ sample_trace_file(Fname) ->
   % Create the logfile
   {ok, Fd} = cuter_log:open_file(Fname, write),
   % Abstract the input
-  {[P1, P2]=SAs, _Mapping} = cuter_symbolic:abstract(As),
+  {[P1, P2], Mapping} = cuter_symbolic:abstract(As),
   % Log the commands.
-  cuter_log:log_symb_params(Fd, SAs),
+  cuter_log:log_symb_params(Fd, Mapping),
   cuter_log:log_equal(Fd, true, P1, 1, cuter_cerl:empty_tag()),
   cuter_log:log_equal(Fd, false, P2, 42, cuter_cerl:empty_tag()),
   X = cuter_symbolic:fresh_symbolic_var(),

@@ -151,6 +151,8 @@ class Solver_SMT(AbstractErlangSolver):
 			return ["str", build_slist(cc.get_bits(data))]
 		elif cc.is_alias(data):
 			return self.decode(shared[cc.get_alias(data)], shared)
+		elif cc.is_any(data):
+			return None # The solver should not try to fix this value.
 		clg.debug_info("decoding failed: " + str(data))
 		assert False
 
@@ -243,9 +245,13 @@ class Solver_SMT(AbstractErlangSolver):
 		"""
 		self.vars = []
 		self.aux_vars = []
-		for arg in args:
+		n = len(args) / 2
+		for arg in args[0:n]:
 			self.decode(arg)
 		self.vars = self.aux_vars
+		self.mapping = {}
+		for i in range(n):
+			self.mapping[self.vars[i]] = args[n + i]
 		self.aux_vars = []
 
 	def mfa_spec(self, spec):

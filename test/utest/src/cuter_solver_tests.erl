@@ -100,7 +100,7 @@ create_logfile(Fname, As, CreateLogs) ->
   ok = filelib:ensure_dir(Fname),
   {ok, Fd} = cuter_log:open_file(Fname, write),  % Create the logfile
   {SAs, Mapping} = cuter_symbolic:abstract(As),  % Abstract the input
-  ok = CreateLogs(Fd, SAs),                      % Add the logs
+  ok = CreateLogs(Fd, SAs, Mapping),                      % Add the logs
   cuter_log:close_file(Fd),                      % Close the logfile
   Mapping.                                       % Return the mapping
 
@@ -112,12 +112,12 @@ create_logfile(Fname, As, CreateLogs) ->
 just_params({_Dir, Fname, Python}) ->
   %% Create a random number of random integers to serve as the arguments
   As = [rand:uniform(42) || _ <- lists:seq(1, rand:uniform(42))],
-  Mapping = create_logfile(Fname, As, fun just_params_logs/2),
+  Mapping = create_logfile(Fname, As, fun just_params_logs/3),
   {ok, Sol} = cuter_solver:solve({Python, Mapping, Fname, 42}),
   [{"The solution equals the input", ?_assertEqual(length(As), length(Sol))}].
 
-just_params_logs(Fd, SAs) ->
-  cuter_log:log_symb_params(Fd, SAs).
+just_params_logs(Fd, _SAs, Mapping) ->
+  cuter_log:log_symb_params(Fd, Mapping).
 
 %% ----------------------------------------------------------------------------
 %% The Guard True and Guard False constraints
@@ -125,28 +125,28 @@ just_params_logs(Fd, SAs) ->
 
 guard_true({_Dir, Fname, Python}) ->
   As = [p1],  % One argument (the type is irrelevant)
-  Mapping = create_logfile(Fname, As, fun guard_true_logs/2),
+  Mapping = create_logfile(Fname, As, fun guard_true_logs/3),
   {ok, [SolNormal]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
   {ok, [SolRev]} = cuter_solver:solve({Python, Mapping, Fname, 1}),
   [ {"Result for Guard True", ?_assertEqual(true, SolNormal)}
   , {"Result for Guard True Reversed", ?_assertEqual(false, SolRev)}
   ].
 
-guard_true_logs(Fd, SAs=[P1]) ->
-  cuter_log:log_symb_params(Fd, SAs),
+guard_true_logs(Fd, [P1], Mapping) ->
+  cuter_log:log_symb_params(Fd, Mapping),
   cuter_log:log_guard(Fd, true, P1, cuter_cerl:empty_tag()).
 
 guard_false({_Dir, Fname, Python}) ->
   As = [p1],  % One argument (the type is irrelevant)
-  Mapping = create_logfile(Fname, As, fun guard_false_logs/2),
+  Mapping = create_logfile(Fname, As, fun guard_false_logs/3),
   {ok, [SolNormal]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
   {ok, [SolRev]} = cuter_solver:solve({Python, Mapping, Fname, 1}),
   [ {"Result for Guard False", ?_assertEqual(false, SolNormal)}
   , {"Result for Guard False Reversed", ?_assertEqual(true, SolRev)}
   ].
 
-guard_false_logs(Fd, SAs=[P1]) ->
-  cuter_log:log_symb_params(Fd, SAs),
+guard_false_logs(Fd, [P1], Mapping) ->
+  cuter_log:log_symb_params(Fd, Mapping),
   cuter_log:log_guard(Fd, false, P1, cuter_cerl:empty_tag()).
 
 %% ----------------------------------------------------------------------------
@@ -155,28 +155,28 @@ guard_false_logs(Fd, SAs=[P1]) ->
 
 match_equal({_Dir, Fname, Python}) ->
   As = [p1],  % One argument (the type is irrelevant)
-  Mapping = create_logfile(Fname, As, fun match_equal_logs/2),
+  Mapping = create_logfile(Fname, As, fun match_equal_logs/3),
   {ok, [SolNormal]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
   {ok, [SolRev]} = cuter_solver:solve({Python, Mapping, Fname, 1}),
   [ {"Result for Match Equal", ?_assertEqual(ok, SolNormal)}
   , {"Result for Match Equal Reversed", ?_assertNotEqual(ok, SolRev)}
   ].
 
-match_equal_logs(Fd, SAs=[P1]) ->
-  cuter_log:log_symb_params(Fd, SAs),
+match_equal_logs(Fd, [P1], Mapping) ->
+  cuter_log:log_symb_params(Fd, Mapping),
   cuter_log:log_equal(Fd, true, P1, ok, cuter_cerl:empty_tag()).
 
 match_not_equal({_Dir, Fname, Python}) ->
   As = [p1],  % One argument (the type is irrelevant)
-  Mapping = create_logfile(Fname, As, fun match_not_equal_logs/2),
+  Mapping = create_logfile(Fname, As, fun match_not_equal_logs/3),
   {ok, [SolNormal]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
   {ok, [SolRev]} = cuter_solver:solve({Python, Mapping, Fname, 1}),
   [ {"Result for Match Not Equal", ?_assertNotEqual(ok, SolNormal)}
   , {"Result for Match Not Equal Reversed", ?_assertEqual(ok, SolRev)}
   ].
 
-match_not_equal_logs(Fd, SAs=[P1]) ->
-  cuter_log:log_symb_params(Fd, SAs),
+match_not_equal_logs(Fd, [P1], Mapping) ->
+  cuter_log:log_symb_params(Fd, Mapping),
   cuter_log:log_equal(Fd, false, P1, ok, cuter_cerl:empty_tag()).
 
 %% ----------------------------------------------------------------------------
@@ -185,41 +185,41 @@ match_not_equal_logs(Fd, SAs=[P1]) ->
 
 nonempty_list({_Dir, Fname, Python}) ->
   As = [p1],  % One argument (the type is irrelevant)
-  Mapping = create_logfile(Fname, As, fun nonempty_list_logs/2),
+  Mapping = create_logfile(Fname, As, fun nonempty_list_logs/3),
   {ok, [SolNormal]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
   {ok, [SolRev]} = cuter_solver:solve({Python, Mapping, Fname, 1}),
   [ {"Result for NonEmpty List", ?_assertMatch([_|_], SolNormal)}
   , {"Result for NonEmpty List Reversed", ?_assertNotMatch([_|_], SolRev)}
   ].
 
-nonempty_list_logs(Fd, SAs=[P1]) ->
-  cuter_log:log_symb_params(Fd, SAs),
+nonempty_list_logs(Fd, [P1], Mapping) ->
+  cuter_log:log_symb_params(Fd, Mapping),
   cuter_log:log_list(Fd, nonempty, P1, cuter_cerl:empty_tag()).
 
 empty_list({_Dir, Fname, Python}) ->
   As = [p1],  % One argument (the type is irrelevant)
-  Mapping = create_logfile(Fname, As, fun empty_list_logs/2),
+  Mapping = create_logfile(Fname, As, fun empty_list_logs/3),
   {ok, [SolNormal]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
   {ok, [SolRev]} = cuter_solver:solve({Python, Mapping, Fname, 1}),
   [ {"Result for Empty List", ?_assertMatch([], SolNormal)}
   , {"Result for Empty List Reversed", ?_assertMatch([_|_], SolRev)}
   ].
 
-empty_list_logs(Fd, SAs=[P1]) ->
-  cuter_log:log_symb_params(Fd, SAs),
+empty_list_logs(Fd, [P1], Mapping) ->
+  cuter_log:log_symb_params(Fd, Mapping),
   cuter_log:log_list(Fd, empty, P1, cuter_cerl:empty_tag()).
 
 not_a_list({_Dir, Fname, Python}) ->
   As = [p1],  % One argument (the type is irrelevant)
-  Mapping = create_logfile(Fname, As, fun not_a_list_logs/2),
+  Mapping = create_logfile(Fname, As, fun not_a_list_logs/3),
   {ok, [SolNormal]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
   {ok, [SolRev]} = cuter_solver:solve({Python, Mapping, Fname, 1}),
   [ {"Result for Not a List", ?_assertNotMatch(X when is_list(X), SolNormal)}
   , {"Result for Not a List Reversed", ?_assertMatch([_|_], SolRev)}
   ].
 
-not_a_list_logs(Fd, SAs=[P1]) ->
-  cuter_log:log_symb_params(Fd, SAs),
+not_a_list_logs(Fd, [P1], Mapping) ->
+  cuter_log:log_symb_params(Fd, Mapping),
   cuter_log:log_list(Fd, not_lst, P1, cuter_cerl:empty_tag()).
 
 %% ----------------------------------------------------------------------------
@@ -228,41 +228,41 @@ not_a_list_logs(Fd, SAs=[P1]) ->
 
 tuple_sz({_Dir, Fname, Python}) ->
   As = [p1],  % One argument (the type is irrelevant)
-  Mapping = create_logfile(Fname, As, fun tuple_sz_logs/2),
+  Mapping = create_logfile(Fname, As, fun tuple_sz_logs/3),
   {ok, [SolNormal]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
   {ok, [SolRev]} = cuter_solver:solve({Python, Mapping, Fname, 1}),
   [ {"Result for Tuple of Size N", ?_assertMatch({_,_}, SolNormal)}
   , {"Result for Tuple of Size N Reversed", ?_assertNotMatch({_,_}, SolRev)}
   ].
 
-tuple_sz_logs(Fd, SAs=[P1]) ->
-  cuter_log:log_symb_params(Fd, SAs),
+tuple_sz_logs(Fd, [P1], Mapping) ->
+  cuter_log:log_symb_params(Fd, Mapping),
   cuter_log:log_tuple(Fd, sz, P1, 2, cuter_cerl:empty_tag()).
 
 tuple_not_sz({_Dir, Fname, Python}) ->
   As = [p1],  % One argument (the type is irrelevant)
-  Mapping = create_logfile(Fname, As, fun tuple_not_sz_logs/2),
+  Mapping = create_logfile(Fname, As, fun tuple_not_sz_logs/3),
   {ok, [SolNormal]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
   {ok, [SolRev]} = cuter_solver:solve({Python, Mapping, Fname, 1}),
   [ {"Result for Tuple of Not Size N", ?_assertMatch(X when  (is_tuple(X) andalso tuple_size(X) =/= 2) orelse not is_tuple(X), SolNormal)}
   , {"Result for Tuple of Not Size N Reversed", ?_assertMatch({_,_}, SolRev)}
   ].
 
-tuple_not_sz_logs(Fd, SAs=[P1]) ->
-  cuter_log:log_symb_params(Fd, SAs),
+tuple_not_sz_logs(Fd, [P1], Mapping) ->
+  cuter_log:log_symb_params(Fd, Mapping),
   cuter_log:log_tuple(Fd, not_sz, P1, 2, cuter_cerl:empty_tag()).
 
 not_a_tuple({_Dir, Fname, Python}) ->
   As = [p1],  % One argument (the type is irrelevant)
-  Mapping = create_logfile(Fname, As, fun not_a_tuple_logs/2),
+  Mapping = create_logfile(Fname, As, fun not_a_tuple_logs/3),
   {ok, [SolNormal]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
   {ok, [SolRev]} = cuter_solver:solve({Python, Mapping, Fname, 1}),
   [ {"Result for Not a Tuple", ?_assertNotMatch(X when is_tuple(X), SolNormal)}
   , {"Result for Not a Tuple Reversed", ?_assertMatch({_,_}, SolRev)}
   ].
 
-not_a_tuple_logs(Fd, SAs=[P1]) ->
-  cuter_log:log_symb_params(Fd, SAs),
+not_a_tuple_logs(Fd, [P1], Mapping) ->
+  cuter_log:log_symb_params(Fd, Mapping),
   cuter_log:log_tuple(Fd, not_tpl, P1, 2, cuter_cerl:empty_tag()).
 
 %% ----------------------------------------------------------------------------
@@ -271,23 +271,23 @@ not_a_tuple_logs(Fd, SAs=[P1]) ->
 
 unfold_tuple({_Dir, Fname, Python}) ->
   As = [p1],  % One argument (the type is irrelevant)
-  Mapping = create_logfile(Fname, As, fun unfold_tuple_logs/2),
+  Mapping = create_logfile(Fname, As, fun unfold_tuple_logs/3),
   {ok, [Sol]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
   [{"Just ensure it's a tuple", ?_assertMatch({_,_,_}, Sol)}].
 
-unfold_tuple_logs(Fd, SAs=[P1]) ->
-  cuter_log:log_symb_params(Fd, SAs),
+unfold_tuple_logs(Fd, [P1], Mapping) ->
+  cuter_log:log_symb_params(Fd, Mapping),
   Vs = [cuter_symbolic:fresh_symbolic_var() || _ <- lists:seq(1,3)],
   cuter_log:log_unfold_symbolic(Fd, break_tuple, P1, Vs).
 
 unfold_list({_Dir, Fname, Python}) ->
   As = [p1],  % One argument (the type is irrelevant)
-  Mapping = create_logfile(Fname, As, fun unfold_list_logs/2),
+  Mapping = create_logfile(Fname, As, fun unfold_list_logs/3),
   {ok, [Sol]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
   [{"Just ensure it's a list", ?_assertMatch([_,_,_], Sol)}].
 
-unfold_list_logs(Fd, SAs=[P1]) ->
-  cuter_log:log_symb_params(Fd, SAs),
+unfold_list_logs(Fd, [P1], Mapping) ->
+  cuter_log:log_symb_params(Fd, Mapping),
   Vs = [cuter_symbolic:fresh_symbolic_var() || _ <- lists:seq(1,3)],
   cuter_log:log_unfold_symbolic(Fd, break_list, P1, Vs).
 
@@ -299,12 +299,12 @@ unfold_list_logs(Fd, SAs=[P1]) ->
 
 erlang_hd({_Dir, Fname, Python}) ->
   As = [p1],  % One argument (the type is irrelevant)
-  Mapping = create_logfile(Fname, As, fun erlang_hd_logs/2),
+  Mapping = create_logfile(Fname, As, fun erlang_hd_logs/3),
   {ok, [SolNormal]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
   [{"It's a list with the proper head", ?_assertEqual([ok], SolNormal)}].
 
-erlang_hd_logs(Fd, SAs) ->
-  cuter_log:log_symb_params(Fd, SAs),
+erlang_hd_logs(Fd, SAs, Mapping) ->
+  cuter_log:log_symb_params(Fd, Mapping),
   X = cuter_symbolic:fresh_symbolic_var(),
   cuter_log:log_mfa(Fd, {cuter_erlang, safe_hd, 1}, SAs, X),
   cuter_log:log_equal(Fd, true, X, ok, cuter_cerl:empty_tag()).
@@ -313,12 +313,12 @@ erlang_hd_logs(Fd, SAs) ->
 
 erlang_tl({_Dir, Fname, Python}) ->
   As = [p1],  % One argument (the type is irrelevant)
-  Mapping = create_logfile(Fname, As, fun erlang_tl_logs/2),
+  Mapping = create_logfile(Fname, As, fun erlang_tl_logs/3),
   {ok, [SolNormal]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
   [{"It's a list with the proper tail", ?_assertMatch([_], SolNormal)}].
 
-erlang_tl_logs(Fd, SAs) ->
-  cuter_log:log_symb_params(Fd, SAs),
+erlang_tl_logs(Fd, SAs, Mapping) ->
+  cuter_log:log_symb_params(Fd, Mapping),
   X = cuter_symbolic:fresh_symbolic_var(),
   cuter_log:log_mfa(Fd, {cuter_erlang, safe_tl, 1}, SAs, X),
   cuter_log:log_equal(Fd, true, X, [], cuter_cerl:empty_tag()).
@@ -327,12 +327,12 @@ erlang_tl_logs(Fd, SAs) ->
 
 erlang_is_integer({_Dir, Fname, Python}) ->
   As = [p1],  % One argument (the type is irrelevant)
-  Mapping = create_logfile(Fname, As, fun erlang_is_integer_logs/2),
+  Mapping = create_logfile(Fname, As, fun erlang_is_integer_logs/3),
   {ok, [Sol]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
   [{"It's an integer", ?_assertMatch(X when is_integer(X), Sol)}].
 
-erlang_is_integer_logs(Fd, SAs) ->
-  cuter_log:log_symb_params(Fd, SAs),
+erlang_is_integer_logs(Fd, SAs, Mapping) ->
+  cuter_log:log_symb_params(Fd, Mapping),
   X = cuter_symbolic:fresh_symbolic_var(),
   cuter_log:log_mfa(Fd, {erlang, is_integer, 1}, SAs, X),
   cuter_log:log_equal(Fd, true, X, true, cuter_cerl:empty_tag()).
@@ -341,12 +341,12 @@ erlang_is_integer_logs(Fd, SAs) ->
 
 erlang_is_atom({_Dir, Fname, Python}) ->
   As = [p1],  % One argument (the type is irrelevant)
-  Mapping = create_logfile(Fname, As, fun erlang_is_atom_logs/2),
+  Mapping = create_logfile(Fname, As, fun erlang_is_atom_logs/3),
   {ok, [Sol]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
   [{"It's an atom", ?_assertMatch(X when is_atom(X), Sol)}].
 
-erlang_is_atom_logs(Fd, SAs) ->
-  cuter_log:log_symb_params(Fd, SAs),
+erlang_is_atom_logs(Fd, SAs, Mapping) ->
+  cuter_log:log_symb_params(Fd, Mapping),
   X = cuter_symbolic:fresh_symbolic_var(),
   cuter_log:log_mfa(Fd, {erlang, is_atom, 1}, SAs, X),
   cuter_log:log_equal(Fd, true, X, true, cuter_cerl:empty_tag()).
@@ -355,12 +355,12 @@ erlang_is_atom_logs(Fd, SAs) ->
 
 erlang_is_float({_Dir, Fname, Python}) ->
   As = [p1],  % One argument (the type is irrelevant)
-  Mapping = create_logfile(Fname, As, fun erlang_is_float_logs/2),
+  Mapping = create_logfile(Fname, As, fun erlang_is_float_logs/3),
   {ok, [Sol]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
   [{"It's a float", ?_assertMatch(X when is_float(X), Sol)}].
 
-erlang_is_float_logs(Fd, SAs) ->
-  cuter_log:log_symb_params(Fd, SAs),
+erlang_is_float_logs(Fd, SAs, Mapping) ->
+  cuter_log:log_symb_params(Fd, Mapping),
   X = cuter_symbolic:fresh_symbolic_var(),
   cuter_log:log_mfa(Fd, {erlang, is_float, 1}, SAs, X),
   cuter_log:log_equal(Fd, true, X, true, cuter_cerl:empty_tag()).
@@ -369,12 +369,12 @@ erlang_is_float_logs(Fd, SAs) ->
 
 erlang_is_list({_Dir, Fname, Python}) ->
   As = [p1],  % One argument (the type is irrelevant)
-  Mapping = create_logfile(Fname, As, fun erlang_is_list_logs/2),
+  Mapping = create_logfile(Fname, As, fun erlang_is_list_logs/3),
   {ok, [Sol]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
   [{"It's a list", ?_assertMatch(X when is_list(X), Sol)}].
 
-erlang_is_list_logs(Fd, SAs) ->
-  cuter_log:log_symb_params(Fd, SAs),
+erlang_is_list_logs(Fd, SAs, Mapping) ->
+  cuter_log:log_symb_params(Fd, Mapping),
   X = cuter_symbolic:fresh_symbolic_var(),
   cuter_log:log_mfa(Fd, {erlang, is_list, 1}, SAs, X),
   cuter_log:log_equal(Fd, true, X, true, cuter_cerl:empty_tag()).
@@ -383,12 +383,12 @@ erlang_is_list_logs(Fd, SAs) ->
 
 erlang_is_tuple({_Dir, Fname, Python}) ->
   As = [p1],  % One argument (the type is irrelevant)
-  Mapping = create_logfile(Fname, As, fun erlang_is_tuple_logs/2),
+  Mapping = create_logfile(Fname, As, fun erlang_is_tuple_logs/3),
   {ok, [Sol]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
   [{"It's a tuple", ?_assertMatch(X when is_tuple(X), Sol)}].
 
-erlang_is_tuple_logs(Fd, SAs) ->
-  cuter_log:log_symb_params(Fd, SAs),
+erlang_is_tuple_logs(Fd, SAs, Mapping) ->
+  cuter_log:log_symb_params(Fd, Mapping),
   X = cuter_symbolic:fresh_symbolic_var(),
   cuter_log:log_mfa(Fd, {erlang, is_tuple, 1}, SAs, X),
   cuter_log:log_equal(Fd, true, X, true, cuter_cerl:empty_tag()).
@@ -397,12 +397,12 @@ erlang_is_tuple_logs(Fd, SAs) ->
 
 erlang_is_boolean({_Dir, Fname, Python}) ->
   As = [p1],  % One argument (the type is irrelevant)
-  Mapping = create_logfile(Fname, As, fun erlang_is_boolean_logs/2),
+  Mapping = create_logfile(Fname, As, fun erlang_is_boolean_logs/3),
   {ok, [Sol]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
   [{"It's a boolean", ?_assertMatch(X when is_boolean(X), Sol)}].
 
-erlang_is_boolean_logs(Fd, SAs) ->
-  cuter_log:log_symb_params(Fd, SAs),
+erlang_is_boolean_logs(Fd, SAs, Mapping) ->
+  cuter_log:log_symb_params(Fd, Mapping),
   X = cuter_symbolic:fresh_symbolic_var(),
   cuter_log:log_mfa(Fd, {erlang, is_boolean, 1}, SAs, X),
   cuter_log:log_equal(Fd, true, X, true, cuter_cerl:empty_tag()).
@@ -411,12 +411,12 @@ erlang_is_boolean_logs(Fd, SAs) ->
 
 erlang_is_number({_Dir, Fname, Python}) ->
   As = [p1],  % One argument (the type is irrelevant)
-  Mapping = create_logfile(Fname, As, fun erlang_is_number_logs/2),
+  Mapping = create_logfile(Fname, As, fun erlang_is_number_logs/3),
   {ok, [Sol]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
   [{"It's a number", ?_assertMatch(X when is_number(X), Sol)}].
 
-erlang_is_number_logs(Fd, SAs) ->
-  cuter_log:log_symb_params(Fd, SAs),
+erlang_is_number_logs(Fd, SAs, Mapping) ->
+  cuter_log:log_symb_params(Fd, Mapping),
   X = cuter_symbolic:fresh_symbolic_var(),
   cuter_log:log_mfa(Fd, {erlang, is_number, 1}, SAs, X),
   cuter_log:log_equal(Fd, true, X, true, cuter_cerl:empty_tag()).
@@ -425,14 +425,14 @@ erlang_is_number_logs(Fd, SAs) ->
 
 erlang_plus({_Dir, Fname, Python}) ->
   As = [0, 0.0],  % Two arguments (int and float)
-  Mapping = create_logfile(Fname, As, fun erlang_plus_logs/2),
+  Mapping = create_logfile(Fname, As, fun erlang_plus_logs/3),
   {ok, [P1, P2]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
   [ {"Adding integers", ?_assertEqual(3, P1)}
   , {"Adding integers and floats", ?_assertEqual(0.14, P2)}
   ].
 
-erlang_plus_logs(Fd, SAs=[P1, P2]) ->
-  cuter_log:log_symb_params(Fd, SAs),
+erlang_plus_logs(Fd, [P1, P2], Mapping) ->
+  cuter_log:log_symb_params(Fd, Mapping),
   X = cuter_symbolic:fresh_symbolic_var(),
   Y = cuter_symbolic:fresh_symbolic_var(),
   cuter_log:log_mfa(Fd, {cuter_erlang, safe_plus, 2}, [P1, 42], X),
@@ -444,14 +444,14 @@ erlang_plus_logs(Fd, SAs=[P1, P2]) ->
 
 erlang_minus({_Dir, Fname, Python}) ->
   As = [0, 0.0],  % Two arguments (int and float)
-  Mapping = create_logfile(Fname, As, fun erlang_minus_logs/2),
+  Mapping = create_logfile(Fname, As, fun erlang_minus_logs/3),
   {ok, [P1, P2]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
   [ {"Subtracting integers", ?_assertEqual(2, P1)}
   , {"Subtracting integers and floats", ?_assertEqual(1.75, P2)}
   ].
 
-erlang_minus_logs(Fd, SAs=[P1, P2]) ->
-  cuter_log:log_symb_params(Fd, SAs),
+erlang_minus_logs(Fd, [P1, P2], Mapping) ->
+  cuter_log:log_symb_params(Fd, Mapping),
   X = cuter_symbolic:fresh_symbolic_var(),
   Y = cuter_symbolic:fresh_symbolic_var(),
   cuter_log:log_mfa(Fd, {cuter_erlang, safe_minus, 2}, [P1, 42], X),
@@ -463,14 +463,14 @@ erlang_minus_logs(Fd, SAs=[P1, P2]) ->
 
 erlang_times({_Dir, Fname, Python}) ->
   As = [0, 0.0],  % Two arguments (int and float)
-  Mapping = create_logfile(Fname, As, fun erlang_times_logs/2),
+  Mapping = create_logfile(Fname, As, fun erlang_times_logs/3),
   {ok, [P1, P2]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
   [ {"Multiplting integers", ?_assertEqual(20, P1)}
   , {"Multiplting integers and floats", ?_assertEqual(2.22, P2)}
   ].
 
-erlang_times_logs(Fd, SAs=[P1, P2]) ->
-  cuter_log:log_symb_params(Fd, SAs),
+erlang_times_logs(Fd, [P1, P2], Mapping) ->
+  cuter_log:log_symb_params(Fd, Mapping),
   X = cuter_symbolic:fresh_symbolic_var(),
   Y = cuter_symbolic:fresh_symbolic_var(),
   cuter_log:log_mfa(Fd, {cuter_erlang, safe_times, 2}, [P1, 2], X),
@@ -482,14 +482,14 @@ erlang_times_logs(Fd, SAs=[P1, P2]) ->
 
 erlang_rdiv({_Dir, Fname, Python}) ->
   As = [0, 0.0],  % Two arguments (int and float)
-  Mapping = create_logfile(Fname, As, fun erlang_rdiv_logs/2),
+  Mapping = create_logfile(Fname, As, fun erlang_rdiv_logs/3),
   {ok, [P1, P2]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
   [ {"Dividing integers", ?_assertEqual(80.0, P1)}
   , {"Dividing integers and floats", ?_assertEqual(2.5, P2)}
   ].
 
-erlang_rdiv_logs(Fd, SAs=[P1, P2]) ->
-  cuter_log:log_symb_params(Fd, SAs),
+erlang_rdiv_logs(Fd, [P1, P2], Mapping) ->
+  cuter_log:log_symb_params(Fd, Mapping),
   X = cuter_symbolic:fresh_symbolic_var(),
   Y = cuter_symbolic:fresh_symbolic_var(),
   cuter_log:log_mfa(Fd, {cuter_erlang, safe_rdiv, 2}, [P1, 2], X),
@@ -501,14 +501,14 @@ erlang_rdiv_logs(Fd, SAs=[P1, P2]) ->
 
 erlang_posdiv({_Dir, Fname, Python}) ->
   As = [0, 0],  % Two arguments (ints)
-  Mapping = create_logfile(Fname, As, fun erlang_posdiv_logs/2),
+  Mapping = create_logfile(Fname, As, fun erlang_posdiv_logs/3),
   {ok, [P1, P2]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
   [ {"Integer division with natural numbers I", ?_assertMatch(X when is_integer(X) andalso X >= 8 andalso X < 12, P1)}
   , {"Integer division with natural numbers II", ?_assertMatch(X when is_integer(X) andalso X div P1 =:= 3, P2)}
   ].
 
-erlang_posdiv_logs(Fd, SAs=[P1, P2]) ->
-  cuter_log:log_symb_params(Fd, SAs),
+erlang_posdiv_logs(Fd, [P1, P2], Mapping) ->
+  cuter_log:log_symb_params(Fd, Mapping),
   X = cuter_symbolic:fresh_symbolic_var(),
   Y = cuter_symbolic:fresh_symbolic_var(),
   cuter_log:log_mfa(Fd, {cuter_erlang, safe_pos_div, 2}, [P1, 4], X),
@@ -520,14 +520,14 @@ erlang_posdiv_logs(Fd, SAs=[P1, P2]) ->
 
 erlang_posrem({_Dir, Fname, Python}) ->
   As = [0, 0],  % Two arguments (ints)
-  Mapping = create_logfile(Fname, As, fun erlang_posrem_logs/2),
+  Mapping = create_logfile(Fname, As, fun erlang_posrem_logs/3),
   {ok, [P1, P2]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
   [ {"Remainder of integer division with natural numbers I", ?_assertMatch(X when is_integer(X) andalso X rem 4 =:= 2, P1)}
   , {"Remainder of integer division with natural numbers II", ?_assertMatch(X when is_integer(X) andalso X rem P1 =:= 3, P2)}
   ].
 
-erlang_posrem_logs(Fd, SAs=[P1, P2]) ->
-  cuter_log:log_symb_params(Fd, SAs),
+erlang_posrem_logs(Fd, [P1, P2], Mapping) ->
+  cuter_log:log_symb_params(Fd, Mapping),
   X = cuter_symbolic:fresh_symbolic_var(),
   Y = cuter_symbolic:fresh_symbolic_var(),
   cuter_log:log_mfa(Fd, {cuter_erlang, safe_pos_rem, 2}, [P1, 4], X),
@@ -539,14 +539,14 @@ erlang_posrem_logs(Fd, SAs=[P1, P2]) ->
 
 erlang_unary({_Dir, Fname, Python}) ->
   As = [0, 0.0],  % Two arguments (int and float)
-  Mapping = create_logfile(Fname, As, fun erlang_unary_logs/2),
+  Mapping = create_logfile(Fname, As, fun erlang_unary_logs/3),
   {ok, [P1, P2]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
   [ {"Unary operation on integers", ?_assertEqual(-2, P1)}
   , {"Unary operation on floats", ?_assertEqual(3.14, P2)}
   ].
 
-erlang_unary_logs(Fd, SAs=[P1, P2]) ->
-  cuter_log:log_symb_params(Fd, SAs),
+erlang_unary_logs(Fd, [P1, P2], Mapping) ->
+  cuter_log:log_symb_params(Fd, Mapping),
   X = cuter_symbolic:fresh_symbolic_var(),
   Y = cuter_symbolic:fresh_symbolic_var(),
   cuter_log:log_mfa(Fd, {erlang, '-', 1}, [P1], X),
@@ -558,15 +558,15 @@ erlang_unary_logs(Fd, SAs=[P1, P2]) ->
 
 erlang_equal({_Dir, Fname, Python}) ->
   As = [0, 0.0, 0],  % Two arguments
-  Mapping = create_logfile(Fname, As, fun erlang_equal_logs/2),
+  Mapping = create_logfile(Fname, As, fun erlang_equal_logs/3),
   {ok, [P1, P2, P3]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
   [ {"Equality of terms I", ?_assertEqual(42, P1)}
   , {"Equality of terms II", ?_assertEqual(ok, P2)}
   , {"Inequality of integers and floats", ?_assertMatch(X when is_integer(X), P3)}
   ].
 
-erlang_equal_logs(Fd, SAs=[P1, P2, P3]) ->
-  cuter_log:log_symb_params(Fd, SAs),
+erlang_equal_logs(Fd, [P1, P2, P3], Mapping) ->
+  cuter_log:log_symb_params(Fd, Mapping),
   X = cuter_symbolic:fresh_symbolic_var(),
   Y = cuter_symbolic:fresh_symbolic_var(),
   Z = cuter_symbolic:fresh_symbolic_var(),
@@ -583,7 +583,7 @@ erlang_equal_logs(Fd, SAs=[P1, P2, P3]) ->
 
 %erlang_unequal({_Dir, Fname, Python}) ->
 %  As = [0, 0.0, 0],  % Two arguments
-%  Mapping = create_logfile(Fname, As, fun erlang_unequal_logs/2),
+%  Mapping = create_logfile(Fname, As, fun erlang_unequal_logs/3),
 %  {ok, [P1, P2, P3]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
 %  [ {"Inequality of terms I", ?_assertEqual(42, P1)}
 %  , {"Inequality of terms II", ?_assertEqual(ok, P2)}
@@ -591,7 +591,7 @@ erlang_equal_logs(Fd, SAs=[P1, P2, P3]) ->
 %  ].
 
 %erlang_unequal_logs(Fd, SAs=[P1, P2, P3]) ->
-%  cuter_log:log_symb_params(Fd, SAs),
+%  cuter_log:log_symb_params(Fd, Mapping),
 %  X = cuter_symbolic:fresh_symbolic_var(),
 %  Y = cuter_symbolic:fresh_symbolic_var(),
 %  Z = cuter_symbolic:fresh_symbolic_var(),
@@ -608,14 +608,14 @@ erlang_equal_logs(Fd, SAs=[P1, P2, P3]) ->
 
 erlang_float({_Dir, Fname, Python}) ->
   As = [0, 0.0],  % Two arguments
-  Mapping = create_logfile(Fname, As, fun erlang_float_logs/2),
+  Mapping = create_logfile(Fname, As, fun erlang_float_logs/3),
   {ok, [P1, P2]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
   [ {"Convert integer to float", ?_assertEqual(42, P1)}
   , {"Convert float to float", ?_assertEqual(3.14, P2)}
   ].
 
-erlang_float_logs(Fd, SAs=[P1, P2]) ->
-  cuter_log:log_symb_params(Fd, SAs),
+erlang_float_logs(Fd, [P1, P2], Mapping) ->
+  cuter_log:log_symb_params(Fd, Mapping),
   X = cuter_symbolic:fresh_symbolic_var(),
   Y = cuter_symbolic:fresh_symbolic_var(),
   Z = cuter_symbolic:fresh_symbolic_var(),
@@ -630,13 +630,13 @@ erlang_float_logs(Fd, SAs=[P1, P2]) ->
 
 bogus_identity({_Dir, Fname, Python}) ->
   As = [0],
-  Mapping = create_logfile(Fname, As, fun bogus_identity_logs/2),
+  Mapping = create_logfile(Fname, As, fun bogus_identity_logs/3),
   {ok, [P1]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
   [ {"In simulating atom_to_list/1", ?_assertEqual(42, P1)}
   ].
 
-bogus_identity_logs(Fd, SAs=[P1]) ->
-  cuter_log:log_symb_params(Fd, SAs),
+bogus_identity_logs(Fd, [P1], Mapping) ->
+  cuter_log:log_symb_params(Fd, Mapping),
   X = cuter_symbolic:fresh_symbolic_var(),
   cuter_log:log_mfa(Fd, {cuter_erlang, atom_to_list_bogus, 1}, [P1], X),
   cuter_log:log_equal(Fd, true, X, 42, cuter_cerl:empty_tag()).
@@ -645,14 +645,14 @@ bogus_identity_logs(Fd, SAs=[P1]) ->
 
 atom_nil({_Dir, Fname, Python}) ->
   As = [0, 0],
-  Mapping = create_logfile(Fname, As, fun atom_nil_logs/2),
+  Mapping = create_logfile(Fname, As, fun atom_nil_logs/3),
   {ok, [P1, P2]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
   [ {"It's an empty atom", ?_assertEqual('', P1)}
   , {"It's not an empty atom", ?_assertNotEqual('', P2)}
   ].
 
-atom_nil_logs(Fd, SAs=[P1, P2]) ->
-  cuter_log:log_symb_params(Fd, SAs),
+atom_nil_logs(Fd, [P1, P2], Mapping) ->
+  cuter_log:log_symb_params(Fd, Mapping),
   X = cuter_symbolic:fresh_symbolic_var(),
   Y = cuter_symbolic:fresh_symbolic_var(),
   cuter_log:log_mfa(Fd, {cuter_erlang, is_atom_nil, 1}, [P1], X),
@@ -664,13 +664,13 @@ atom_nil_logs(Fd, SAs=[P1, P2]) ->
 
 atom_head({_Dir, Fname, Python}) ->
   As = [0],
-  Mapping = create_logfile(Fname, As, fun atom_head_logs/2),
+  Mapping = create_logfile(Fname, As, fun atom_head_logs/3),
   {ok, [P1]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
   [ {"Correct 1st letter of an atom", ?_assertEqual(z, list_to_atom([hd(atom_to_list(P1))]))}
   ].
 
-atom_head_logs(Fd, SAs=[P1]) ->
-  cuter_log:log_symb_params(Fd, SAs),
+atom_head_logs(Fd, [P1], Mapping) ->
+  cuter_log:log_symb_params(Fd, Mapping),
   X = cuter_symbolic:fresh_symbolic_var(),
   cuter_log:log_mfa(Fd, {cuter_erlang, safe_atom_head, 1}, [P1], X),
   cuter_log:log_equal(Fd, true, X, $z, cuter_cerl:empty_tag()).
@@ -679,13 +679,13 @@ atom_head_logs(Fd, SAs=[P1]) ->
 
 atom_tail({_Dir, Fname, Python}) ->
   As = [0],
-  Mapping = create_logfile(Fname, As, fun atom_tail_logs/2),
+  Mapping = create_logfile(Fname, As, fun atom_tail_logs/3),
   {ok, [P1]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
   [ {"Remove the first letter from an atom", ?_assertEqual(ok, list_to_atom(tl(atom_to_list(P1))))}
   ].
 
-atom_tail_logs(Fd, SAs=[P1]) ->
-  cuter_log:log_symb_params(Fd, SAs),
+atom_tail_logs(Fd, [P1], Mapping) ->
+  cuter_log:log_symb_params(Fd, Mapping),
   X = cuter_symbolic:fresh_symbolic_var(),
   cuter_log:log_mfa(Fd, {cuter_erlang, safe_atom_tail, 1}, [P1], X),
   cuter_log:log_equal(Fd, true, X, ok, cuter_cerl:empty_tag()).
@@ -694,13 +694,13 @@ atom_tail_logs(Fd, SAs=[P1]) ->
 
 lst_to_tpl({_Dir, Fname, Python}) ->
   As = [0],
-  Mapping = create_logfile(Fname, As, fun lst_to_tpl_logs/2),
+  Mapping = create_logfile(Fname, As, fun lst_to_tpl_logs/3),
   {ok, [P1]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
   [ {"Convert a list to tuple", ?_assertEqual([ok, 42], P1)}
   ].
 
-lst_to_tpl_logs(Fd, SAs=[P1]) ->
-  cuter_log:log_symb_params(Fd, SAs),
+lst_to_tpl_logs(Fd, [P1], Mapping) ->
+  cuter_log:log_symb_params(Fd, Mapping),
   X = cuter_symbolic:fresh_symbolic_var(),
   cuter_log:log_mfa(Fd, {cuter_erlang, safe_list_to_tuple, 1}, [P1], X),
   cuter_log:log_equal(Fd, true, X, {ok, 42}, cuter_cerl:empty_tag()).
@@ -709,13 +709,13 @@ lst_to_tpl_logs(Fd, SAs=[P1]) ->
 
 tpl_to_lst({_Dir, Fname, Python}) ->
   As = [0],
-  Mapping = create_logfile(Fname, As, fun tpl_to_lst_logs/2),
+  Mapping = create_logfile(Fname, As, fun tpl_to_lst_logs/3),
   {ok, [P1]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
   [ {"Convert a tuple to list", ?_assertEqual({ok, 42}, P1)}
   ].
 
-tpl_to_lst_logs(Fd, SAs=[P1]) ->
-  cuter_log:log_symb_params(Fd, SAs),
+tpl_to_lst_logs(Fd, [P1], Mapping) ->
+  cuter_log:log_symb_params(Fd, Mapping),
   X = cuter_symbolic:fresh_symbolic_var(),
   cuter_log:log_mfa(Fd, {cuter_erlang, safe_tuple_to_list, 1}, [P1], X),
   cuter_log:log_equal(Fd, true, X, [ok, 42], cuter_cerl:empty_tag()).
@@ -724,12 +724,12 @@ tpl_to_lst_logs(Fd, SAs=[P1]) ->
 
 erlang_lt_int({_Dir, Fname, Python}) ->
   As = [0, 0],
-  Mapping = create_logfile(Fname, As, fun erlang_lt_int_logs/2),
+  Mapping = create_logfile(Fname, As, fun erlang_lt_int_logs/3),
   {ok, [P1, P2]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
   [ {"Compare integers (<)", ?_assertEqual(true, P1 < P2 andalso is_integer(P1) andalso is_integer(P2))} ].
 
-erlang_lt_int_logs(Fd, SAs=[P1, P2]) ->
-  cuter_log:log_symb_params(Fd, SAs),
+erlang_lt_int_logs(Fd, [P1, P2], Mapping) ->
+  cuter_log:log_symb_params(Fd, Mapping),
   X = cuter_symbolic:fresh_symbolic_var(),
   cuter_log:log_mfa(Fd, {cuter_erlang, lt_int, 2}, [P1, P2], X),
   cuter_log:log_equal(Fd, true, X, true, cuter_cerl:empty_tag()).
@@ -738,12 +738,12 @@ erlang_lt_int_logs(Fd, SAs=[P1, P2]) ->
 
 erlang_lt_float({_Dir, Fname, Python}) ->
   As = [0, 0],
-  Mapping = create_logfile(Fname, As, fun erlang_lt_float_logs/2),
+  Mapping = create_logfile(Fname, As, fun erlang_lt_float_logs/3),
   {ok, [P1, P2]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
   [ {"Compare floats (<)", ?_assertEqual(true, P1 < P2 andalso is_float(P1) andalso is_float(P2))} ].
 
-erlang_lt_float_logs(Fd, SAs=[P1, P2]) ->
-  cuter_log:log_symb_params(Fd, SAs),
+erlang_lt_float_logs(Fd, [P1, P2], Mapping) ->
+  cuter_log:log_symb_params(Fd, Mapping),
   X = cuter_symbolic:fresh_symbolic_var(),
   cuter_log:log_mfa(Fd, {cuter_erlang, lt_float, 2}, [P1, P2], X),
   cuter_log:log_equal(Fd, true, X, true, cuter_cerl:empty_tag()).

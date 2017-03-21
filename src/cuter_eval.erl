@@ -89,7 +89,7 @@ i(M, F, As, Servers) ->
     fun() ->
       {SymbAs, Mapping} = cuter_symbolic:abstract(As),
       {ok, Fd} = cuter_monitor:subscribe(Servers#svs.monitor, Root),
-      cuter_log:log_symb_params(Fd, SymbAs),
+      cuter_log:log_symb_params(Fd, Mapping),
       %% Log the spec of the MFA
       MFA = {M, F, length(As)},
       log_mfa_spec(Fd, Servers#svs.code, MFA),
