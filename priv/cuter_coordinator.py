@@ -1,4 +1,5 @@
 import cuter_common as cc
+#import cuter_logger as clg
 from cuter_proto_log_entry_pb2 import LogEntry
 from cuter_smt_z3 import Solver_SMT_Z3
 from cuter_smt_cvc4 import Solver_SMT_CVC4
@@ -25,6 +26,12 @@ class Solver_Coordinator:
 
 	def command(self, entry, rev):
 		self.prev_command(entry, rev)
+		if entry.type == LogEntry.OP_PARAMS:
+			n = len(entry.arguments) / 2
+			self.mapping = []
+			for i in range(n):
+				self.mapping.append((entry.arguments[i], entry.arguments[n + i]))
+			# TODO do not pass second half of entry.arguments
 		for solver in self.solvers:
 			solver.command_toSolver(entry, rev)
 
@@ -44,10 +51,24 @@ class Solver_Coordinator:
 
 	def main_solve_z3(self):
 		solver = self.solver_z3
+		solver.reset()
 		status = solver.solve()
+		#clg.debug_info("initial solve\n{}".format(status))
 		if cc.is_sat(status):
 			self.model = solver.get_model()
-		# TODO Z3 supports incremental solving; so we could fix a variable and repeat
+		elif cc.is_unsat(status):
+			pass
+		else:
+			for arg in self.mapping:
+				solver.reset()
+				solver.fix_parameter(arg[0], arg[1])
+				status = solver.solve()
+				#clg.debug_info("fix parameter\n{} @ {}\n{}".format(arg[0], arg[1], status))
+				if cc.is_sat(status):
+					self.model = solver.get_model()
+					break
+				elif cc.is_unsat(status):
+					break
 		return status
 
 	def main_init(self):

@@ -17,11 +17,11 @@ class AbstractErlangSolver:
     # Public API.
     # =========================================================================
 
-    def reset_solver(self):
+    def reset(self):
         """
         Resets the solver.
         """
-        raise NotImplementedError("Method 'reset_solver' is not implemented!")
+        raise NotImplementedError("Method 'reset' is not implemented!")
 
     def fix_parameter(self, parameter, value):
         """

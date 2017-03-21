@@ -43,7 +43,6 @@ class Solver_SMT(AbstractErlangSolver):
 		self.state_temp_commands = False
 		self.library = []
 		self.commands = []
-		self.reset_solver()
 		self.commands.append(["set-option", ":produce-models", "true"])
 		self.commands.append(["declare-datatypes", [], self.datatypes])
 		self.commands.append(["declare-fun", "fa", ["Int"], "Int"])
@@ -67,7 +66,7 @@ class Solver_SMT(AbstractErlangSolver):
 	# Public API.
 	# =========================================================================
 
-	def reset_solver(self):
+	def reset(self):
 		"""
 		Reset the solver.
 		"""
@@ -81,7 +80,6 @@ class Solver_SMT(AbstractErlangSolver):
 		p = self.decode(p)
 		v = self.decode(v)
 		self.temp_commands.append(["assert", ["=", p, v]])
-		# TODO get value from self.mapping
 
 	def solve(self):
 		"""
@@ -269,9 +267,6 @@ class Solver_SMT(AbstractErlangSolver):
 		n = len(args) / 2
 		for arg in args[0:n]:
 			self.decode(arg)
-		self.mapping = {}
-		for i in range(n):
-			self.mapping[self.vars[i]] = args[n + i]
 		self.state_aux_vars = True
 
 	def mfa_spec(self, spec):
