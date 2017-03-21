@@ -44,11 +44,9 @@ class Solver_Coordinator:
 
 	def main_solve_z3(self):
 		solver = self.solver_z3
-		solver.start_process()
-		solver.add_axioms()
 		status = solver.solve()
 		if cc.is_sat(status):
-			self.model = solver.encode_model()
+			self.model = solver.get_model()
 		# TODO Z3 supports incremental solving; so we could fix a variable and repeat
 		return status
 
@@ -84,11 +82,9 @@ class Solver_Coordinator_CVC4(Solver_Coordinator):
 
 	def main_solve(self):
 		solver = self.solver_cvc4
-		solver.start_process()
-		solver.add_axioms()
 		status = solver.solve()
 		if cc.is_sat(status):
-			self.model = solver.encode_model()
+			self.model = solver.get_model()
 		# TODO CVC4 supports incremental solving if --incremental flag is on; so we could fix a variable and repeat
 		return status
 
@@ -103,11 +99,9 @@ class Solver_Coordinator_Priority(Solver_Coordinator):
 
 	def main_solve(self):
 		for solver in self.solvers:
-			solver.start_process()
-			solver.add_axioms()
 			status = solver.solve()
 			if cc.is_sat(status):
-				self.model = solver.encode_model()
+				self.model = solver.get_model()
 				break
 			elif cc.is_unsat(status):
 				break
@@ -136,11 +130,9 @@ class Solver_Coordinator_Guess(Solver_Coordinator):
 
 	def main_solve(self):
 		for solver in self.solvers:
-			solver.start_process()
-			solver.add_axioms()
 			status = solver.solve()
 			if cc.is_sat(status):
-				self.model = solver.encode_model()
+				self.model = solver.get_model()
 				break
 			elif cc.is_unsat(status):
 				break

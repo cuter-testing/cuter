@@ -40,8 +40,10 @@ class Solver_SMT(AbstractErlangSolver):
 	]
 
 	def __init__(self):
+		self.state_temp_commands = False
 		self.library = []
 		self.commands = []
+		self.reset_solver()
 		self.commands.append(["set-option", ":produce-models", "true"])
 		self.commands.append(["declare-datatypes", [], self.datatypes])
 		self.commands.append(["declare-fun", "fa", ["Int"], "Int"])
@@ -69,19 +71,27 @@ class Solver_SMT(AbstractErlangSolver):
 		"""
 		Reset the solver.
 		"""
-		self.commands = []
+		self.temp_commands = []
 
-	def add_axioms(self):
+	def fix_parameter(self, p, v):
 		"""
-		Add the axioms from memory to the solver.
+		Fix a symbolic variable to a specific value.
 		"""
-		for command in self.commands:
-			self.process.write(command)
+		self.state_temp_commands = True
+		p = self.decode(p)
+		v = self.decode(v)
+		self.temp_commands.append(["assert", ["=", p, v]])
+		# TODO get value from self.mapping
 
 	def solve(self):
 		"""
 		Solve a constraint set and returns the result.
 		"""
+		self.start_process()
+		for command in self.commands:
+			self.process.write(command)
+		for command in self.temp_commands:
+			self.process.write(command)
 		status = self.process.check_sat()
 		if status == "sat":
 			return cc.mk_sat()
@@ -100,17 +110,9 @@ class Solver_SMT(AbstractErlangSolver):
 			clg.debug_info("solve: " + str(status))
 			return cc.mk_unknown() # TODO normally, mk_error()
 
-	def fix_parameter(self, p, v):
+	def get_model(self):
 		"""
-		Fix a symbolic variable to a specific value.
-		"""
-		p = self.decode(p)
-		v = self.decode(v)
-		self.process.write(["assert", ["=", p, v]]) # TODO why not self.commands.append()?
-
-	def encode_model(self):
-		"""
-		Encode the resulting model.
+		Return the resulting model.
 		"""
 		entries = []
 		for var in self.vars:
@@ -140,8 +142,14 @@ class Solver_SMT(AbstractErlangSolver):
 		if cc.is_symb(data):
 			s = "|{}|".format(cc.get_symb(data))
 			if s not in self.vars and s not in self.aux_vars:
-				self.aux_vars.append(s)
-				self.commands.append(["declare-const", s, "Term"])
+				if self.state_aux_vars:
+					self.aux_vars.append(s)
+				else:
+					self.vars.append(s)
+				if self.state_temp_commands:
+					self.temp_commands.append(["declare-const", s, "Term"])
+				else:
+					self.commands.append(["declare-const", s, "Term"])
 			return s
 		elif cc.is_int(data):
 			return ["int", build_int(cc.get_int(data))]
@@ -257,14 +265,14 @@ class Solver_SMT(AbstractErlangSolver):
 		"""
 		self.vars = []
 		self.aux_vars = []
+		self.state_aux_vars = False
 		n = len(args) / 2
 		for arg in args[0:n]:
 			self.decode(arg)
-		self.vars = self.aux_vars
 		self.mapping = {}
 		for i in range(n):
 			self.mapping[self.vars[i]] = args[n + i]
-		self.aux_vars = []
+		self.state_aux_vars = True
 
 	def mfa_spec(self, spec):
 		"""

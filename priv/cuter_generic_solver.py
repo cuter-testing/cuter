@@ -17,17 +17,17 @@ class AbstractErlangSolver:
     # Public API.
     # =========================================================================
 
+    def reset_solver(self):
+        """
+        Resets the solver.
+        """
+        raise NotImplementedError("Method 'reset_solver' is not implemented!")
+
     def fix_parameter(self, parameter, value):
         """
         Fixes a symbolic variable to a specific value.
         """
         raise NotImplementedError("Method 'fix_parameter' is not implemented!")
-
-    def add_axioms(self):
-        """
-        Adds the axioms from memory to the solver.
-        """
-        raise NotImplementedError("Method 'add_axioms' is not implemented!")
 
     def solve(self):
         """
@@ -35,17 +35,11 @@ class AbstractErlangSolver:
         """
         raise NotImplementedError("Method 'solve' is not implemented!")
 
-    def reset_solver(self):
+    def get_model(self):
         """
-        Resets the solver.
+        Return the resulting model.
         """
-        raise NotImplementedError("Method 'reset_solver' is not implemented!")
-
-    def encode_model(self):
-        """
-        Encodes the resulting model to JSON.
-        """
-        raise NotImplementedError("Method 'encode_model' is not implemented!")
+        raise NotImplementedError("Method 'get_model' is not implemented!")
 
     def command_toSolver(self, log_entry, rev):
         """
