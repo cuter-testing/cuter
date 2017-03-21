@@ -121,6 +121,12 @@ class Solver_SMT(AbstractErlangSolver):
 	# Private Methods.
 	# =========================================================================
 
+	def build_slist(self, items):
+		slist = "sn"
+		for item in reversed(items):
+			slist = ["sc", build_bool(item), slist]
+		return slist
+
 	def decode(self, data, shared = None):
 		"""
 		Decode a term to its SMT representation.
@@ -148,7 +154,7 @@ class Solver_SMT(AbstractErlangSolver):
 				shared = cc.get_shared(data)
 			return ["tuple", build_tlist([self.decode(item, shared) for item in items])]
 		elif cc.is_bitstring(data):
-			return ["str", build_slist(cc.get_bits(data))]
+			return ["str", self.build_slist(cc.get_bits(data))]
 		elif cc.is_alias(data):
 			return self.decode(shared[cc.get_alias(data)], shared)
 		elif cc.is_any(data):

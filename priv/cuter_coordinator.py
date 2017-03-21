@@ -5,6 +5,7 @@ from cuter_smt_cvc4 import Solver_SMT_CVC4
 
 
 # TODO start_process etc in non-smt solvers, like z3py
+# TODO incremental support
 
 
 class Solver_Coordinator:

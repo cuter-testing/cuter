@@ -92,7 +92,7 @@ def decode_fix_variable(erlport, coordinator, cmd):
     """
     Fixes a variable to a specific value.
     """
-    # TODO remove from FSM or propagate command to coordinator
+    # TODO remove from FSM
     pass
     #var, val = cmd.symbvar, cmd.symbvar_value
     #erlSolver.fix_parameter(var, val)

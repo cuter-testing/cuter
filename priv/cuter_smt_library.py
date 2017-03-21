@@ -137,11 +137,7 @@ def build_ilist(items):
 		ilist = ["ic", build_int(item), ilist]
 	return ilist
 
-def build_slist(items):
-	slist = "sn"
-	for item in reversed(items):
-		slist = ["sc", "true" if item else "false", slist]
-	return slist
+# build_slist is implemented in class Solver_SMT
 
 
 # ------------------------

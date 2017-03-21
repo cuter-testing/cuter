@@ -50,6 +50,12 @@ class Solver_SMT_CVC4(cuter_smt.Solver_SMT):
 		arguments = ["cvc4", "--version"]
 		return cuter_smt_process.check(arguments)
 
+	def build_slist(self, items):
+		slist = "sn"
+		for item in reversed(items):
+			slist = ["sc", build_int(1 if item else 0), slist]
+		return slist
+
 	def encode_str(self, node):
 		ret = []
 		while node != "sn":
