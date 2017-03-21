@@ -1,12 +1,11 @@
 import cuter_common as cc
-#import cuter_logger as clg
+import cuter_logger as clg
 from cuter_proto_log_entry_pb2 import LogEntry
 from cuter_smt_z3 import Solver_SMT_Z3
 from cuter_smt_cvc4 import Solver_SMT_CVC4
 
 
 # TODO start_process etc in non-smt solvers, like z3py
-# TODO incremental support
 
 
 class Solver_Coordinator:
@@ -50,25 +49,22 @@ class Solver_Coordinator:
 		self.solvers = [self.solver_z3]
 
 	def main_solve_z3(self):
-		solver = self.solver_z3
-		solver.reset()
-		status = solver.solve()
-		#clg.debug_info("initial solve\n{}".format(status))
-		if cc.is_sat(status):
-			self.model = solver.get_model()
-		elif cc.is_unsat(status):
-			pass
-		else:
-			for arg in self.mapping:
+		for arg in [None] + self.mapping:
+			for solver in self.solvers:
 				solver.reset()
-				solver.fix_parameter(arg[0], arg[1])
+				if arg is not None:
+					solver.fix_parameter(arg[0], arg[1])
 				status = solver.solve()
-				#clg.debug_info("fix parameter\n{} @ {}\n{}".format(arg[0], arg[1], status))
+				if arg is not None:
+					clg.debug_info("{}\nfix parameter\n{}@\n{}\n{}".format(solver.__class__.__name__, arg[0], arg[1], status))
+				else:
+					#clg.debug_info("{}\ninitial call\n{}".format(solver.__class__.__name__, status))
+					pass
 				if cc.is_sat(status):
 					self.model = solver.get_model()
-					break
+					return status
 				elif cc.is_unsat(status):
-					break
+					return status
 		return status
 
 	def main_init(self):
@@ -101,14 +97,6 @@ class Solver_Coordinator_CVC4(Solver_Coordinator):
 		self.solver_z3 = None
 		self.solvers = [self.solver_cvc4]
 
-	def main_solve(self):
-		solver = self.solver_cvc4
-		status = solver.solve()
-		if cc.is_sat(status):
-			self.model = solver.get_model()
-		# TODO CVC4 supports incremental solving if --incremental flag is on; so we could fix a variable and repeat
-		return status
-
 
 class Solver_Coordinator_Priority(Solver_Coordinator):
 	"""
@@ -117,17 +105,6 @@ class Solver_Coordinator_Priority(Solver_Coordinator):
 
 	def main_init(self):
 		self.solvers = [self.solver_z3, self.solver_cvc4]
-
-	def main_solve(self):
-		for solver in self.solvers:
-			status = solver.solve()
-			if cc.is_sat(status):
-				self.model = solver.get_model()
-				break
-			elif cc.is_unsat(status):
-				break
-			# TODO incremental solving strategy in case of timeout or unknown status
-		return status
 
 
 class Solver_Coordinator_Guess(Solver_Coordinator):
@@ -148,14 +125,3 @@ class Solver_Coordinator_Guess(Solver_Coordinator):
 	def prev_solve(self):
 		if self.typedefs:
 			self.solvers.reverse()
-
-	def main_solve(self):
-		for solver in self.solvers:
-			status = solver.solve()
-			if cc.is_sat(status):
-				self.model = solver.get_model()
-				break
-			elif cc.is_unsat(status):
-				break
-			# TODO incremental solving strategy in case of timeout or unknown status
-		return status
