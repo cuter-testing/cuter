@@ -1141,6 +1141,19 @@
         },
         {
             "module": "collection",
+            "function": "fctree",
+            "args": "[nil]",
+            "depth": "10",
+            "errors": true,
+            "arity": 1,
+            "opts": "--no-type-normalization",
+            "solutions": [
+                "[{42,{17,nil,nil},nil}]"
+            ],
+            "skip": false
+        },
+        {
+            "module": "collection",
             "function": "fweird",
             "args": "[ok]",
             "depth": "25",

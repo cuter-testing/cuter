@@ -1,6 +1,6 @@
 -module(collection).
 -export([f/1, g/1, g1/1, h/1, f1/1, eval_nif/1, trunc1/1, trunc2/1, l2i/1, l2in/1,
-         to_upper/1, k/2, k2/3, p/1, a2l/1, test_alias/1, fclist/1, fweird/1,
+         to_upper/1, k/2, k2/3, p/1, a2l/1, test_alias/1, fclist/1, fweird/1, fctree/1,
          test_record/1, type_var/1]).
 
 -type t() :: [complex_spec:int()].
@@ -159,6 +159,16 @@ fclist(X) ->
   case X of
     1 -> error(unreachable_bug);
     {42, {17, nil}} -> error(bug);
+    _ -> ok
+  end.
+
+-type ctree() :: nil | {integer(), ctree(), ctree()}.
+
+-spec fctree(ctree()) -> ok.
+fctree(X) ->
+  case X of
+    1 -> error(unreachable_bug);
+    {42, {17, nil, nil}, nil} -> error(bug);
     _ -> ok
   end.
 
