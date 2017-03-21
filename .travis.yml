@@ -12,8 +12,8 @@ before_install:
   - pip install parsimonious==0.7.0
   - mkdir -p cvc4
   - cd cvc4
-  - wget http://cvc4.cs.stanford.edu/downloads/builds/x86_64-linux-opt/unstable/cvc4-latest-x86_64-linux-opt
-  - mv cvc4-latest-x86_64-linux-opt cvc4
+  - wget http://cvc4.cs.stanford.edu/downloads/builds/x86_64-linux-opt/unstable/cvc4-2017-03-20-x86_64-linux-opt
+  - mv cvc4-2017-03-20-x86_64-linux-opt cvc4
   - chmod +x cvc4
   - cd ..
   - export PATH=$PWD/cvc4:$PATH
