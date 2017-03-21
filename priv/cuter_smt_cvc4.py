@@ -40,7 +40,9 @@ class Solver_SMT_CVC4(cuter_smt.Solver_SMT):
 
 	def start_process(self):
 		timeout = cuter_smt_process.timeout
-		arguments = ["cvc4", "--lang=smt2.5", "--tlimit={}".format(timeout * 1000), "--fmf-fun"]
+		arguments = ["cvc4", "--lang=smt2.5", "--tlimit={}".format(timeout * 1000)]
+		if "define-fun-rec" in self.library:
+			arguments.append("--fmf-fun")
 		# TODO "--incremental" - if enabled, solver returns unknown while testing collection:f/1
 		# TODO "--rewrite-divk" - still solver outputs an error while testing collection:k2/3
 		self.process = cuter_smt_process.Solver(arguments)

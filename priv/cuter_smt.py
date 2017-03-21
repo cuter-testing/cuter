@@ -49,6 +49,12 @@ class Solver_SMT(AbstractErlangSolver):
 		self.define_funs_rec = []
 		self.process = None
 
+	def append_to_library(self, key):
+		if key in self.library:
+			return False
+		self.library.append(key)
+		return True
+
 	def start_process(self):
 		raise NotImplementedError("Method 'start_process' is not implemented!")
 
@@ -280,6 +286,7 @@ class Solver_SMT(AbstractErlangSolver):
 
 	def assert_typedef_funs(self):
 		if len(self.define_funs_rec) > 0:
+			self.append_to_library("define-fun-rec")
 			[names, args, bodies] = zip(*self.define_funs_rec)
 			n = len(names)
 			self.commands.append(["define-funs-rec", map(list, zip(names, args, ["Bool"]*n)), list(bodies)])
@@ -303,6 +310,7 @@ class Solver_SMT(AbstractErlangSolver):
 		if self.define_funs_rec is not None:
 			self.define_funs_rec.append((name, [["t", "Term"]], body))
 		else:
+			self.append_to_library("define-fun-rec")
 			self.commands.append(["define-fun-rec", name, [["t", "Term"]], "Bool", body]) # TODO define-fun doesn't work
 		return name
 
@@ -324,6 +332,7 @@ class Solver_SMT(AbstractErlangSolver):
 		if self.define_funs_rec is not None:
 			self.define_funs_rec.append((name, args, body))
 		else:
+			self.append_to_library("define-fun-rec")
 			self.commands.append(["define-fun-rec", name, args, "Bool", body])
 		return name
 
@@ -354,6 +363,7 @@ class Solver_SMT(AbstractErlangSolver):
 		if self.define_funs_rec is not None:
 			self.define_funs_rec.append((name, args, body))
 		else:
+			self.append_to_library("define-fun-rec")
 			self.commands.append(["define-fun-rec", name, args, "Bool", body])
 		return name
 
@@ -1393,8 +1403,8 @@ class Solver_SMT(AbstractErlangSolver):
 		"""
 		int-and returns whether n == n1 & n2
 		"""
-		if "int-and" not in self.library:
-			self.library.append("int-and")
+		if self.append_to_library("int-and"):
+			self.append_to_library("define-fun-rec")
 			self.commands.append(["define-fun-rec", "int-and-rec", [["n", "Int"], ["n1", "Int"], ["n2", "Int"]], "Bool", [
 				"or",
 				["=", "n1", "n", "0"],
@@ -1420,8 +1430,8 @@ class Solver_SMT(AbstractErlangSolver):
 		"""
 		int-or returns whether n == n1 | n2
 		"""
-		if "int-or" not in self.library:
-			self.library.append("int-or")
+		if self.append_to_library("int-or"):
+			self.append_to_library("define-fun-rec")
 			self.commands.append(["define-fun-rec", "int-or-rec", [["n", "Int"], ["n1", "Int"], ["n2", "Int"]], "Bool", [
 				"or",
 				["=", "n1", "n", ["-", "1"]],
@@ -1447,8 +1457,8 @@ class Solver_SMT(AbstractErlangSolver):
 		"""
 		int-xor returns whether n == n1 ^ n2
 		"""
-		if "int-xor" not in self.library:
-			self.library.append("int-xor")
+		if self.append_to_library("int-xor"):
+			self.append_to_library("define-fun-rec")
 			self.commands.append(["define-fun-rec", "int-xor", [["n", "Int"], ["n1", "Int"], ["n2", "Int"]], "Bool", [
 				"or",
 				["and", ["=", "n", "0"], ["=", "n1", "n2"]],
@@ -1470,8 +1480,8 @@ class Solver_SMT(AbstractErlangSolver):
 		real-pow returns whether p == b ** e
 		"""
 		# real-pow isn't efficient when having to calculate the e-root of p or a large e-power of b.
-		if "real-pow" not in self.library:
-			self.library.append("real-pow")
+		if self.append_to_library("real-pow"):
+			self.append_to_library("define-fun-rec")
 			self.commands.append(["define-fun-rec", "real-pow", [["p", "Real"], ["b", "Real"], ["e", "Int"]], "Bool", [
 				"or",
 				["and", ["=", "b", "0"], ["not", ["=", "e", "0"]], ["=", "p", "0"]],
@@ -1501,8 +1511,8 @@ class Solver_SMT(AbstractErlangSolver):
 		slist-spec returns whether len(l) % n == r
 		"""
 		# slist-spec is efficient when n is a given integer constant
-		if "slist-spec" not in self.library:
-			self.library.append("slist-spec")
+		if self.append_to_library("slist-spec"):
+			self.append_to_library("define-fun-rec")
 			self.commands.append(["define-fun-rec", "slist-spec", [["l", "SList"], ["n", "Int"], ["r", "Int"]], "Bool", [
 				"or",
 				["and", ["is-sn", "l"], ["=", "r", "0"]],
@@ -1514,8 +1524,8 @@ class Solver_SMT(AbstractErlangSolver):
 		"""
 		flist-equals return whether f(x) = y with depth at most d
 		"""
-		if "flist-equals" not in self.library:
-			self.library.append("flist-equals")
+		if self.append_to_library("flist-equals"):
+			self.append_to_library("define-fun-rec")
 			self.commands.append(["define-fun-rec", "flist-equals", [["f", "FList"], ["x", "TList"], ["y", "Term"], ["d", "Int"]], "Bool", [
 				"or",
 				["and", [">=", "d", "0"], ["is-fc", "f"], ["=", ["fx", "f"], "x"], ["=", ["fy", "f"], "y"]],
