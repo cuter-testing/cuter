@@ -12,8 +12,10 @@
 -type visited_mfas() :: gb_sets:set(mfa()).
 -type visited_modules() :: sets:set(cuter:mod()).
 
--record(callgraph, {visited_modules :: visited_modules(),
-		    visited_mfas    :: visited_mfas()}).
+-record(callgraph, {
+  visited_modules :: visited_modules(),
+  visited_mfas    :: visited_mfas()
+}).
 -opaque callgraph() :: #callgraph{}.
 
 -record(conf, {whitelist :: cuter_mock:whitelist()}).
@@ -46,12 +48,12 @@ mk_conf(Whitelist) ->
 %% Callgraph calculation.
 %% ----------------------------------------------------------------------------
 
--spec get_callgraph(mfa(), cuter_mock:whitelist()) -> {ok, callgraph()} | {error, string()}.
-get_callgraph(MFA, Whitelist) ->
+-spec get_callgraph([mfa()], cuter_mock:whitelist()) -> {ok, callgraph()} | {error, string()}.
+get_callgraph(Mfas, Whitelist) ->
   try
-    cuter_pp:callgraph_calculation_started(MFA),
+    cuter_pp:callgraph_calculation_started(Mfas),
     Conf = mk_conf(Whitelist),
-    {VisitedMfas, _} = get_callgraph(MFA, gb_sets:empty(), dict:new(), Conf),
+    {VisitedMfas, _} = get_callgraph_all(Mfas, gb_sets:empty(), dict:new(), Conf),
     VisitedMods = visited_modules(VisitedMfas),
     cuter_pp:callgraph_calculation_succeeded(),
     {ok, #callgraph{visited_modules = VisitedMods, visited_mfas = VisitedMfas}}
@@ -66,7 +68,13 @@ visited_modules(Visited) ->
   Fn = fun({M,_,_}, Acc) -> sets:add_element(M, Acc) end,
   gb_sets:fold(Fn, sets:new(), Visited).
 
-get_callgraph({M,F,A}=OrigMfa, Visited, ModuleCache, Conf) ->
+get_callgraph_all([], Visited, Modules, _Conf) ->
+  {Visited, Modules};
+get_callgraph_all([Mfa|Rest], Visited, Modules, Conf) ->
+  {Visited1, Modules1} = get_callgraph_one(Mfa, Visited, Modules, Conf),
+  get_callgraph_all(Rest, Visited1, Modules1, Conf).
+
+get_callgraph_one({M,F,A}=OrigMfa, Visited, ModuleCache, Conf) ->
   case cuter_mock:simulate_behaviour(M, F, A) of
     bif ->
       UpdatedVisited = gb_sets:add_element(OrigMfa, Visited),
@@ -104,7 +112,7 @@ expand(M, Tree, Visited, ModuleCache, LetrecFuns, Conf) ->
             false ->
               {NewV, NewM} = expand_all(M, Args, Visited, ModuleCache, LetrecFuns, Conf),
               Mfa = {M, F, A},
-              get_callgraph(Mfa, NewV, NewM, Conf)
+              get_callgraph_one(Mfa, NewV, NewM, Conf)
           end;
         false ->
           Trees = [Op | Args],
@@ -130,7 +138,7 @@ expand(M, Tree, Visited, ModuleCache, LetrecFuns, Conf) ->
         true ->
           Mfa = {cerl:concrete(Mod), cerl:concrete(F), A},
           {NewV, NewM} = expand_all(M, Args, Visited, ModuleCache, LetrecFuns, Conf),
-          get_callgraph(Mfa, NewV, NewM, Conf);
+          get_callgraph_one(Mfa, NewV, NewM, Conf);
         false ->
           Trees = [Mod, F] ++ Args,
           expand_all(M, Trees, Visited, ModuleCache, LetrecFuns, Conf)
@@ -194,7 +202,7 @@ expand(M, Tree, Visited, ModuleCache, LetrecFuns, Conf) ->
     var ->
       case cerl:var_name(Tree) of
         {F,A} when is_atom(F), is_integer(A) ->
-          get_callgraph({M,F,A}, Visited, ModuleCache, Conf);
+          get_callgraph_one({M,F,A}, Visited, ModuleCache, Conf);
         _ -> {Visited, ModuleCache}
       end;
     %% c_alias

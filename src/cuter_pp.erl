@@ -113,9 +113,9 @@
               | solving_failed_unsat
               | solving_failed_timeout
               | solving_failed_unknown
-              | {errors_found, cuter:erroneous_inputs()}
+              | {errors_found, cuter:erroneous_inputs_with_mfas()}
               | {code_logs, cuter_codeserver:logs(), cuter_mock:whitelist(), boolean()}
-              | {callgraph_calculation_started, mfa()}
+              | {callgraph_calculation_started, [mfa()]}
               | {callgraph_calculation_failed, string()}
               | callgraph_calculation_succeeded
               | {loading_visited_module, cuter:mod()}
@@ -233,7 +233,7 @@ solving_failed_unknown() ->
   gen_server:call(?PRETTY_PRINTER, solving_failed_unknown).
 
 %% Print the erroneous input that were found.
--spec errors_found(cuter:erroneous_inputs()) -> ok.
+-spec errors_found(cuter:erroneous_inputs_with_mfas()) -> ok.
 errors_found(Errors) ->
   gen_server:call(?PRETTY_PRINTER, {errors_found, Errors}).
 
@@ -315,9 +315,9 @@ condition_outcome_coverage_nocomp(Visited, All, Coverage) ->
 %% Callgraph related info.
 %% ----------------------------------------------------------------------------
 
--spec callgraph_calculation_started(mfa()) -> ok.
-callgraph_calculation_started(Mfa) ->
-  gen_server:call(?PRETTY_PRINTER, {callgraph_calculation_started, Mfa}).
+-spec callgraph_calculation_started([mfa()]) -> ok.
+callgraph_calculation_started(Mfas) ->
+  gen_server:call(?PRETTY_PRINTER, {callgraph_calculation_started, Mfas}).
 
 -spec callgraph_calculation_failed(string()) -> ok.
 callgraph_calculation_failed(Reason) ->
@@ -460,11 +460,15 @@ handle_call({whitelist_error, File, Error}, _From, State=#st{pplevel = PpLevel})
 
 %% Callgraph related info.
 
-handle_call({callgraph_calculation_started, Mfa}, _From, State=#st{pplevel = PpLevel}) ->
-  case PpLevel#pp_level.execInfo of
-    ?MINIMAL -> io:format(standard_error, "Calculating the callgraph of ~p...  ", [Mfa]);
-    _ -> io:format("Calculating the callgraph of ~p...  ", [Mfa])
-  end,
+handle_call({callgraph_calculation_started, Mfas}, _From, State=#st{pplevel = PpLevel}) ->
+  IoDevice =
+    case PpLevel#pp_level.execInfo of
+      ?MINIMAL -> standard_error;
+      _ -> standard_io
+    end,
+  io:format(IoDevice, "Calculating the callgraph of~n", []),
+  Fn = fun({M, F, A}) -> io:format(IoDevice, "  - ~p:~p/:~w~n", [M, F, A]) end,
+  lists:foreach(Fn, Mfas),
   {reply, ok, State};
 handle_call({callgraph_calculation_failed, Reason}, _From, State=#st{pplevel = PpLevel}) ->
   case PpLevel#pp_level.execInfo of
@@ -562,8 +566,8 @@ handle_call(SlvFail, _From, State=#st{pplevel = PpLevel}) when SlvFail =:= solvi
   pp_solving_failure(SlvFail, PpLevel#pp_level.execInfo),
   {reply, ok, State#st{nl = true}};
 %% Report the errors that were found.
-handle_call({errors_found, Errors}, _From, State=#st{mfa = MFA, pplevel = PpLevel}) ->
-  pp_erroneous_inputs(Errors, MFA, PpLevel#pp_level.execInfo),
+handle_call({errors_found, Errors}, _From, State=#st{pplevel = PpLevel}) ->
+  pp_erroneous_inputs(Errors, PpLevel#pp_level.execInfo),
   {reply, ok, State#st{nl = false}};
 %% Prints the logs of a CodeServer.
 handle_call({code_logs, CodeLogs, Whitelist, SuppressUnsupported}, _From, State=#st{pplevel = PpLevel}) ->
@@ -899,20 +903,31 @@ pp_path_vertex_fully_verbose(Vertex) ->
 %% Report the erroneous inputs
 %% ----------------------------------------------------------------------------
 
--spec pp_erroneous_inputs(cuter:erroneous_inputs(), mfa(), level()) -> ok.
-pp_erroneous_inputs([], _MFA, Level) ->
-  pp_nl(true, Level =:= ?MINIMAL),
-  io:format("No Runtime Errors Occured~n");
-pp_erroneous_inputs(Errors, MFA, Level) ->
-  pp_nl(true, Level =:= ?MINIMAL),
-  io:format("=== Inputs That Lead to Runtime Errors ==="),
-  pp_erroneous_inputs_h(Errors, MFA, 1).
+has_errors(Errors) ->
+  [] =/= lists:flatten([Es || {_Mfa, Es} <- Errors]).
 
-pp_erroneous_inputs_h([], _MFA, _N) ->
+-spec pp_erroneous_inputs(cuter:erroneous_inputs(), level()) -> ok.
+pp_erroneous_inputs(Errors, Level) ->
+  pp_nl(true, Level =:= ?MINIMAL),
+  case has_errors(Errors) of
+    false ->
+      io:format("No Runtime Errors Occured~n");
+    true ->
+      io:format("=== Inputs That Lead to Runtime Errors ==="),
+      pp_erroneous_inputs_h(Errors, 1)
+  end.
+
+pp_erroneous_inputs_h([], _N) ->
   io:format("~n");
-pp_erroneous_inputs_h([I|Is], {M, F, _}=MFA, N) ->
+pp_erroneous_inputs_h([{Mfa, Errors}|Rest], N) ->
+  N1 = pp_erroneous_inputs_mfa(Errors, Mfa, N),
+  pp_erroneous_inputs_h(Rest, N1).
+
+pp_erroneous_inputs_mfa([], _MFA, N) ->
+  N;
+pp_erroneous_inputs_mfa([I|Is], {M, F, _}=MFA, N) ->
   io:format("~n#~w \033[00;31m~p:~p(~s)\033[00m", [N, M, F, pp_arguments(I)]),
-  pp_erroneous_inputs_h(Is, MFA, N + 1).
+  pp_erroneous_inputs_mfa(Is, MFA, N + 1).
 
 %% ----------------------------------------------------------------------------
 %% Format errors.

@@ -2,7 +2,7 @@
 %%------------------------------------------------------------------------------
 -module(cuter).
 
--export([run/3, run/4, run/5]).
+-export([run/2, run/3, run/4, run/5, run_from_file/2]).
 
 -export_type([mod/0, input/0, erroneous_inputs/0, depth/0]).
 
@@ -11,7 +11,8 @@
 -type mod() :: atom().  % a subtype of module()
 -type input() :: [any()].
 -type depth() :: pos_integer().
--type erroneous_inputs() :: [input()].
+-type erroneous_inputs() :: [{mfa(), [input()]}].
+-type seed() :: {module(), atom(), input(), depth()}.
 
 -define(ONE, 1).
 -define(DEFAULT_DEPTH, 25).
@@ -19,19 +20,20 @@
 %% The configuration of the tool.
 -record(conf, {
   codeServer          :: pid(),
-  mod                 :: mod(),
-  func                :: atom(),
   dataDir             :: file:filename(),
-  depth               :: depth(),
   scheduler           :: pid(),
   calculateCoverage   :: boolean(),
   sortErrors          :: boolean(),
   whitelist           :: cuter_mock:whitelist(),
-  suppressUnsupported :: boolean()
+  suppressUnsupported :: boolean(),
+  seeds = []          :: [seed()],
+  nPollers            :: pos_integer(),
+  nSolvers            :: pos_integer(),
+  errors = []         :: erroneous_inputs()
 }).
 -type configuration() :: #conf{}.
 
-%% Runtime Options
+%% Runtime Options.
 -define(FULLY_VERBOSE_EXEC_INFO, fully_verbose_execution_info).
 -define(VERBOSE_EXEC_INFO, verbose_execution_info).
 -define(DISABLE_PMATCH, disable_pmatch).
@@ -76,22 +78,45 @@ run(M, F, As, Depth) ->
 
 -spec run(mod(), atom(), input(), depth(), [option()]) -> erroneous_inputs().
 run(M, F, As, Depth, Options) ->
-  Conf = initialize_app(M, F, As, Depth, Options),
-  Mfa = {M, F, length(As)},
-  case pre_run_checks(Mfa) of
-    error -> stop(Conf);
+  Seeds = [{M, F, As, Depth}],
+  run(Seeds, Options).
+
+-spec run([seed()], [option()]) -> erroneous_inputs().
+%% Runs CutEr on multiple units.
+run(Seeds, Options) ->
+  Conf = initialize_app(Options),
+  ConfWithSeeds = add_seeds(Conf, Seeds),
+  Mfas = [{M, F, length(As)} || {M, F, As, _} <- Seeds],
+  case pre_run_checks(Mfas) of
+    error ->
+      stop(ConfWithSeeds);
     ok ->
-      case preprocess(Conf, Mfa) of 
-        false -> stop(Conf);
-        true  -> start(Conf, number_of_pollers(Options), number_of_solvers(Options))
+      case preprocess(ConfWithSeeds, Mfas) of
+        false -> stop(ConfWithSeeds);
+        true  -> start(ConfWithSeeds)
       end
+  end.
+
+-spec run_from_file(file:name(), [option()]) -> erroneous_inputs().
+%% Loads the seeds from a file and runs CutEr on all of them.
+%% The terms in the file needs to be in form:
+%%   {M :: module(), F :: atom(), SeedInput :: [input()], Depth :: pos_integer()}.
+run_from_file(File, Options) ->
+  case file:consult(File) of
+    {ok, Seeds} ->
+      run(Seeds, Options);
+    Error ->
+      throw({error_loading_file, Error})
   end.
 
 %% ----------------------------------------------------------------------------
 %% Pre-run checks
 %% ----------------------------------------------------------------------------
 
-pre_run_checks({M, F, A}) ->
+-spec pre_run_checks([mfa()]) -> ok | error.
+pre_run_checks([]) ->
+  ok;
+pre_run_checks([{M, F, A}|Rest]) ->
   case code:which(M) of
     non_existing ->
       cuter_pp:module_non_existing(M),
@@ -99,7 +124,8 @@ pre_run_checks({M, F, A}) ->
     _ ->
       Exports = M:module_info(exports),
       case lists:member({F, A}, Exports) of
-        true -> ok;
+        true ->
+          pre_run_checks(Rest);
         false ->
           cuter_pp:mfa_non_existing(M, F, A),
           error
@@ -110,34 +136,51 @@ pre_run_checks({M, F, A}) ->
 %% Preprocessing
 %% ----------------------------------------------------------------------------
 
--spec preprocess(configuration(), mfa()) -> boolean().
-preprocess(Conf, Mfa) ->
-  preprocess_coverage(Conf, Mfa, Conf#conf.calculateCoverage).
+-spec preprocess(configuration(), [mfa()]) -> boolean().
+preprocess(Conf, Mfas) ->
+  preprocess_coverage(Conf, Mfas, Conf#conf.calculateCoverage).
 
--spec preprocess_coverage(configuration(), mfa(), boolean()) -> boolean().
-preprocess_coverage(_Conf, _Mfa, false) -> true;
-preprocess_coverage(Conf, Mfa, true) ->
-  ok == cuter_codeserver:calculate_callgraph(Conf#conf.codeServer, Mfa).
+-spec preprocess_coverage(configuration(), [mfa()], boolean()) -> boolean().
+preprocess_coverage(_Conf, _Mfas, false) -> true;
+preprocess_coverage(Conf, Mfas, true) ->
+  ok =:= cuter_codeserver:calculate_callgraph(Conf#conf.codeServer, Mfas).
 
 %% ----------------------------------------------------------------------------
 %% Manage the concolic executions
 %% ----------------------------------------------------------------------------
 
--spec start(configuration(), pos_integer(), pos_integer()) -> erroneous_inputs().
-start(Conf, N_Pollers, N_Solvers) ->
+-spec start(configuration()) -> erroneous_inputs().
+start(Conf) ->
+  start(Conf#conf.seeds, Conf).
+
+-spec start([seed()], configuration()) -> erroneous_inputs().
+start([], Conf) ->
+  stop_and_report(Conf);
+start([{M, F, As, Depth}|Seeds], Conf) ->
   CodeServer = Conf#conf.codeServer,
   Scheduler = Conf#conf.scheduler,
-  M = Conf#conf.mod,
-  F = Conf#conf.func,
   Dir = Conf#conf.dataDir,
-  Depth = Conf#conf.depth,
+  N_Pollers = Conf#conf.nPollers,
+  N_Solvers = Conf#conf.nSolvers,
+  Errors = start_one(M, F, As, Depth, CodeServer, Scheduler, Dir, N_Pollers, N_Solvers),
+  NewErrors = [{{M, F, length(As)}, Errors}|Conf#conf.errors],
+  Conf1 = Conf#conf{errors = NewErrors},
+  io:nl(),
+  start(Seeds, Conf1).
+
+start_one(M, F, As, Depth, CodeServer, Scheduler, Dir, N_Pollers, N_Solvers) ->
+  cuter_pp:mfa({M, F, length(As)}),
+  ok = cuter_scheduler_maxcover:add_seed_input(Scheduler, As),
+  ok = cuter_scheduler_maxcover:set_depth(Scheduler, Depth),
   Pollers = [cuter_poller:start(CodeServer, Scheduler, M, F, Dir, Depth) || _ <- lists:seq(1, N_Pollers)],
   Solvers = [cuter_solver:start(Scheduler) || _ <- lists:seq(1, N_Solvers)],
   ok = wait_for_processes(Pollers, fun cuter_poller:send_stop_message/1),
   LiveSolvers = lists:filter(fun is_process_alive/1, Solvers),
   lists:foreach(fun cuter_solver:send_stop_message/1, LiveSolvers),
   ok = wait_for_processes(LiveSolvers, fun cuter_solver:send_stop_message/1),
-  stop_and_report(Conf).
+  ErroneousInputs = cuter_scheduler_maxcover:get_erroneous_inputs(Scheduler),
+  ok = cuter_scheduler_maxcover:clear_erroneous_inputs(Scheduler),
+  ErroneousInputs.
 
 -spec wait_for_processes([pid()], fun((pid()) -> ok)) -> ok.
 wait_for_processes([], _StopFn) ->
@@ -164,7 +207,7 @@ stop_and_report(Conf) ->
   VisitedTags = cuter_scheduler_maxcover:get_visited_tags(Conf#conf.scheduler),
   cuter_analyzer:calculate_coverage(Conf#conf.calculateCoverage, Conf#conf.codeServer, VisitedTags),
   %% Report the erroneous inputs.
-  ErroneousInputs = cuter_scheduler_maxcover:get_erroneous_inputs(Conf#conf.scheduler),
+  ErroneousInputs = lists:reverse(Conf#conf.errors),
   ErroneousInputs1 = maybe_sort_errors(Conf#conf.sortErrors, ErroneousInputs),
   cuter_pp:errors_found(ErroneousInputs1),
   %% Report the code logs.
@@ -172,10 +215,11 @@ stop_and_report(Conf) ->
   cuter_pp:code_logs(CodeLogs, Conf#conf.whitelist, Conf#conf.suppressUnsupported),
   stop(Conf, ErroneousInputs1).
 
+-spec maybe_sort_errors(boolean(), erroneous_inputs()) -> erroneous_inputs().
 maybe_sort_errors(false, ErroneousInputs) ->
   ErroneousInputs;
 maybe_sort_errors(true, ErroneousInputs) ->
-  lists:sort(ErroneousInputs).
+  [{Mfa, lists:sort(Errors)} || {Mfa, Errors} <- ErroneousInputs].
 
 -spec stop(configuration()) -> erroneous_inputs().
 stop(Conf) ->
@@ -193,8 +237,8 @@ stop(Conf, ErroneousInputs) ->
 %% Initializations
 %% ----------------------------------------------------------------------------
 
--spec initialize_app(mod(), atom(), input(), depth(), [option()]) -> configuration().
-initialize_app(M, F, As, Depth, Options) ->
+-spec initialize_app([option()]) -> configuration().
+initialize_app(Options) ->
   BaseDir = set_basedir(Options),
   process_flag(trap_exit, true),
   error_logger:tty(false),  %% disable error_logger
@@ -204,18 +248,19 @@ initialize_app(M, F, As, Depth, Options) ->
   Whitelist = get_whitelist(Options),
   NormalizeTypes = type_normalization(Options),
   CodeServer = cuter_codeserver:start(self(), WithPmatch, Whitelist, NormalizeTypes),
-  SchedPid = cuter_scheduler_maxcover:start(SolverBackend, Depth, As, CodeServer),
-  cuter_pp:mfa({M, F, length(As)}),
-  #conf{ codeServer = CodeServer
-       , mod = M
-       , func = F
-       , depth = Depth
+  SchedPid = cuter_scheduler_maxcover:start(SolverBackend, ?DEFAULT_DEPTH, CodeServer),
+  #conf{ calculateCoverage = calculate_coverage(Options)
+       , codeServer = CodeServer
        , dataDir = cuter_lib:get_tmp_dir(BaseDir)
+       , nPollers = number_of_pollers(Options)
+       , nSolvers = number_of_solvers(Options)
        , scheduler = SchedPid
-       , calculateCoverage = calculate_coverage(Options)
        , sortErrors = sort_errors(Options)
-       , whitelist = Whitelist
-       , suppressUnsupported = suppress_unsupported_mfas(Options)}.
+       , suppressUnsupported = suppress_unsupported_mfas(Options)
+       , whitelist = Whitelist }.
+
+add_seeds(Conf, Seeds) ->
+  Conf#conf{ seeds = Seeds }.
 
 %% ----------------------------------------------------------------------------
 %% Set app parameters
