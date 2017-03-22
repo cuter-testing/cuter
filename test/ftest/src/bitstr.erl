@@ -1,6 +1,6 @@
 -module(bitstr).
 
--export([f11/1, f12/3, f13/3,
+-export([f11/1, f12/3, f13/3, f13a/3,
 	 f21/1, f22/2, f23/2, f24/2, f24a/2, f25/2, f26/2, f27/2,
 	 f31/2, f32/3, f33/4, f34/2, f35/1, f36/1, f37/1,
 	 fbit_sz/1, fbyte_sz/1,
@@ -28,9 +28,20 @@ f12(X, Y, Z) ->
   end.
 
 %% This one takes some time (just to demonstrate the scalability problem
-%% with the current implementation).
+%% with the current implementation).  This one should fail in (at least)
+%% three different ways: at the error point, with a negative Y and with
+%% a negative Z value.
 -spec f13(integer(), integer(), integer()) -> ok.
 f13(X, Y, Z) ->
+  case <<5:3, X:Y, 2:Z>> of
+    <<186>> -> error(not_ok);
+    _ -> ok
+  end.
+
+%% Variation of the above where the two size arguments have appropriate
+%% (correct) declarations and hence it fails only at the error point.
+-spec f13a(integer(), non_neg_integer(), non_neg_integer()) -> ok.
+f13a(X, Y, Z) ->
   case <<5:3, X:Y, 2:Z>> of
     <<186>> -> error(not_ok);
     _ -> ok
