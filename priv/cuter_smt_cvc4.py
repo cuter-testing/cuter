@@ -5,6 +5,8 @@ from cuter_smt_library import *
 
 class Solver_SMT_CVC4(cuter_smt.Solver_SMT):
 
+	name = "CVC4"
+
 	datatypes = [
 		[
 			"Term",

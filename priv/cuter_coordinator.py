@@ -4,6 +4,8 @@ from cuter_proto_log_entry_pb2 import LogEntry
 from cuter_smt_z3 import Solver_SMT_Z3
 from cuter_smt_cvc4 import Solver_SMT_CVC4
 
+from multiprocessing import Process, Queue, Pipe
+
 
 # TODO start_process etc in non-smt solvers, like z3py
 
@@ -125,3 +127,80 @@ class Solver_Coordinator_Guess(Solver_Coordinator):
 	def prev_solve(self):
 		if self.typedefs:
 			self.solvers.reverse()
+
+
+def solver_handler(i, solver, queue, pipe):
+	while True:
+		command = pipe.recv()
+		if command == "reset":
+			solver.reset()
+		elif command == "fix":
+			arg = pipe.recv()
+			solver.fix_parameter(arg[0], arg[1])
+		elif command == "solve":
+			status = solver.solve()
+			if cc.is_sat(status):
+				model = solver.get_model()
+				queue.put((i, status, model,))
+			else:
+				queue.put((i, status,))
+		else:
+			break
+	queue.close()
+	pipe.close()
+
+
+class Solver_Coordinator_Race(Solver_Coordinator):
+	"""
+	fire all solvers and accept the first sat/unsat answer
+	"""
+
+	def main_init(self):
+		self.solvers = [self.solver_z3, self.solver_cvc4]
+
+	def main_solve(self):
+		queue = Queue()
+		ps = []
+		n = len(self.solvers)
+		clg.debug_info("firing {} solvers:".format(n))
+		for i in range(n):
+			solver = self.solvers[i]
+			clg.debug_info("#{}: {}".format(i, solver.name))
+			conn_read, conn_write = Pipe(False)
+			# TODO do not duplicate solver instance
+			proc = Process(target=solver_handler, args=(i, solver, queue, conn_read,))
+			ps.append((proc, conn_write,))
+			proc.start()
+		solved = False
+		for arg in [None] + self.mapping:
+			if arg is None:
+				clg.debug_info("initial call")
+			else:
+				clg.debug_info("fix parameter\n{}@\n{}".format(arg[0], arg[1]))
+			for p in ps:
+				p[1].send("reset")
+				if arg is not None:
+					p[1].send("fix")
+					p[1].send(arg)
+				p[1].send("solve")
+			for j in range(n):
+				# TODO some solver processes maybe still running
+				data = queue.get()
+				i, status = data[0:2]
+				clg.debug_info("solver #{} sent\n{}".format(i, status))
+				if cc.is_sat(status):
+					self.model = data[2]
+					solved = True
+					break
+				elif cc.is_unsat(status):
+					solved = True
+					break
+			if solved:
+				break
+		queue.close()
+		for p in ps:
+			p[1].send("exit")
+			p[1].close()
+			p[0].terminate()
+			p[0].join()
+		return status
