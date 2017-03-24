@@ -6,6 +6,10 @@ class Solver_SMT_Z3(cuter_smt.Solver_SMT):
 
 	name = "Z3"
 
+	# =========================================================================
+	# Public API.
+	# =========================================================================
+
 	def start_process(self):
 		timeout = cuter_smt_process.timeout
 		arguments = ["z3", "-smt2", "-T:{}".format(timeout), "-in"]

@@ -1,6 +1,5 @@
 import cuter_smt
 import cuter_smt_process
-from cuter_smt_library import *
 
 
 class Solver_SMT_CVC4(cuter_smt.Solver_SMT):
@@ -40,6 +39,10 @@ class Solver_SMT_CVC4(cuter_smt.Solver_SMT):
 		],
 	]
 
+	# =========================================================================
+	# Public API.
+	# =========================================================================
+
 	def start_process(self):
 		timeout = cuter_smt_process.timeout
 		arguments = ["cvc4", "--lang=smt2.5", "--tlimit={}".format(timeout * 1000)]
@@ -54,26 +57,42 @@ class Solver_SMT_CVC4(cuter_smt.Solver_SMT):
 		arguments = ["cvc4", "--version"]
 		return cuter_smt_process.check(arguments)
 
+	# =========================================================================
+	# Private Methods.
+	# =========================================================================
+
+	# ------------------------
+	# convert from & to python
+	# ------------------------
+
 	def build_slist(self, items):
 		slist = "sn"
 		for item in reversed(items):
-			slist = ["sc", build_int(1 if item else 0), slist]
+			slist = ["sc", self.build_int(1 if item else 0), slist]
 		return slist
+
+	# ------------------------
+	# convert from & to erlang
+	# ------------------------
 
 	def encode_str(self, node):
 		ret = []
 		while node != "sn":
 			assert isinstance(node, list) and len(node) == 3 and node[0] == "sc"
-			ret.append(parse_int(node[1]) != 0)
+			ret.append(self.parse_int(node[1]) != 0)
 			node = node[2]
 		return ret
+
+	# -------------------------------------------------------------------------
+	# Parse internal commands.
+	# -------------------------------------------------------------------------
 
 	def int2bv(self, n, b):
 		assert isinstance(b, int) and b >= 0, "b must be a non-negative integer"
 		assert isinstance(n, int) and n >= 0, "n must be a non-negative integer"
 		ret = []
 		while b > 0:
-			ret.append(build_int(n % 2))
+			ret.append(self.build_int(n % 2))
 			n /= 2
 			b -= 1
 		#assert n == 0, "n overflows b bits as an unsigned integer" # TODO erlang sends b = 0 and n = 42
@@ -112,8 +131,8 @@ class Solver_SMT_CVC4(cuter_smt.Solver_SMT):
 		]
 		for term in reversed(terms[2:]):
 			b = self.decode(term)
-			conj.append(IsBool(b))
-			v = ["sc", AtomToInt(b), v]
+			conj.append(self.IsBool(b))
+			v = ["sc", self.AtomToInt(b), v]
 		conj.append(["=", ["sv", t], v])
 		self.commands.append(["assert", conj])
 
@@ -128,8 +147,8 @@ class Solver_SMT_CVC4(cuter_smt.Solver_SMT):
 			"and",
 			["is-str", t],
 			["is-sc", ["sv", t]],
-			IsBool(t1),
-			["=", AtomToInt(t1), ["sh", ["sv", t]]],
+			self.IsBool(t1),
+			["=", self.AtomToInt(t1), ["sh", ["sv", t]]],
 			["is-str", t2],
 			["=", ["sv", t2], ["st", ["sv", t]]],
 		]])

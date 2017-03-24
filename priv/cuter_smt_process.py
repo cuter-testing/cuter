@@ -1,6 +1,6 @@
 import os
 import subprocess
-from cuter_smt_library import serialize, unserialize
+from cuter_smt import serialize, unserialize
 
 
 debug = False

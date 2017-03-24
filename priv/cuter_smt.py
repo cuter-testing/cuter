@@ -1,7 +1,92 @@
 from cuter_generic_solver import AbstractErlangSolver
 import cuter_common as cc
 import cuter_logger as clg
-from cuter_smt_library import *
+
+
+# =================
+# struct -> smtlib: serialize
+# smtlib -> struct: unserialize
+# -----------------
+# struct -> python: parse
+# python -> struct: build
+# -----------------
+# struct -> erlang: encode
+# erlang -> struct: decode
+# =================
+
+
+def expand_lets(expr, lets = {}):
+	if not isinstance(expr, list):
+		if expr in lets:
+			return lets[expr]
+		else:
+			return expr
+	elif not expr:
+		return []
+	elif expr[0] == "let":
+		assert len(expr) == 3, "expand_lets({})".format(str(expr))
+		lets_copy = lets.copy()
+		for var in expr[1]:
+			assert len(var) == 2 and not isinstance(var[0], list), "expand_lets({})".format(str(expr))
+			lets_copy[var[0]] = expand_lets(var[1], lets)
+		return expand_lets(expr[2], lets_copy)
+	else:
+		return [expand_lets(item, lets) for item in expr]
+
+
+# ------------------------
+# convert from & to smtlib
+# ------------------------
+
+def serialize(expr):
+	"""
+	Serialize a structured list to an SMTLIB string.
+	"""
+	if isinstance(expr, list):
+		return "(" + " ".join(map(serialize, expr)) + ")"
+	else:
+		return expr
+
+def unserialize(smt, cur = None):
+	"""
+	Unserialize an SMTLIB string to a structured list.
+	"""
+	if cur is None:
+		return unserialize(smt, 0)[0]
+	while smt[cur].isspace():
+		cur += 1
+	if smt[cur] == "(":
+		nodes = []
+		beg = cur
+		cur += 1
+		while True:
+			while smt[cur].isspace():
+				cur += 1
+			if smt[cur] == ")":
+				break
+			node = unserialize(smt, cur)
+			nodes.append(node[0])
+			cur = node[2]
+		end = cur + 1
+		return (nodes, beg, end)
+	else:
+		beg = cur
+		if smt[cur] == "\"":
+			cur += 1
+			while True:
+				if smt[cur] == "\"":
+					cur += 1
+					if smt[cur] == "\"":
+						cur += 1
+					else:
+						break;
+				else:
+					cur += 1
+		else:
+			while smt[cur] != ")" and not smt[cur].isspace():
+				cur += 1
+		end = cur
+		return (smt[beg:end], beg, end)
 
 
 class Solver_SMT(AbstractErlangSolver):
@@ -39,6 +124,10 @@ class Solver_SMT(AbstractErlangSolver):
 		],
 	]
 
+	# =========================================================================
+	# Public API.
+	# =========================================================================
+
 	def __init__(self):
 		self.state_temp_commands = False
 		self.library = []
@@ -47,24 +136,15 @@ class Solver_SMT(AbstractErlangSolver):
 		self.commands.append(["declare-datatypes", [], self.datatypes])
 		self.commands.append(["declare-fun", "fa", ["Int"], "Int"])
 		self.commands.append(["declare-fun", "fm", ["Int"], "FList"])
-		self.define_funs_rec = []
-		self.process = None
-
-	def append_to_library(self, key):
-		if key in self.library:
-			return False
-		self.library.append(key)
-		return True
+		# useful constants
+		self.false = ["atom", self.build_ilist(map(ord, "false"))]
+		self.true = ["atom", self.build_ilist(map(ord, "true"))]
 
 	def start_process(self):
 		raise NotImplementedError("Method 'start_process' is not implemented!")
 
 	def check_process(self):
 		raise NotImplementedError("Method 'check_process' is not implemented!")
-
-	# =========================================================================
-	# Public API.
-	# =========================================================================
 
 	def reset(self):
 		"""
@@ -127,16 +207,128 @@ class Solver_SMT(AbstractErlangSolver):
 	# Private Methods.
 	# =========================================================================
 
+	def append_to_library(self, key):
+		if key in self.library:
+			return False
+		self.library.append(key)
+		return True
+
+	# --------------------
+	# simple SMTLIB macros
+	# --------------------
+
+	def IsBool(self, expr):
+		return [
+			"or",
+			["=", expr, self.true],
+			["=", expr, self.false],
+		]
+
+	def IsNum(self, expr):
+		return ["or", ["is-int", expr], ["is-real", expr]]
+
+	def BoolToAtom(self, expr):
+		return ["ite", expr, self.true, self.false]
+
+	def AtomToBool(self, expr):
+		return ["=", expr, self.true]
+
+	def AtomToInt(self, expr):
+		return ["ite", self.AtomToBool(expr), self.build_int(1), self.build_int(0)]
+
+	def NumBinOp(self, operator, t0, t1, t2):
+		"""
+		Return whether t0 == t1 <op> t2.
+		"""
+		return [
+			"and",
+			self.IsNum(t1),
+			self.IsNum(t2),
+			[
+				"ite",
+				["and", ["is-int", t1], ["is-int", t2]],
+				["=", t0, ["int", [operator, ["iv", t1], ["iv", t2]]]],
+				[
+					"=",
+					t0,
+					[
+						"real",
+						[
+							operator,
+							["ite", ["is-int", t1], ["to_real", ["iv", t1]], ["rv", t1]],
+							["ite", ["is-int", t2], ["to_real", ["iv", t2]], ["rv", t2]]
+						]
+					]
+				]
+			],
+		]
+
+	# ------------------------
+	# convert from & to python
+	# ------------------------
+
+	def parse_bool(self, expr):
+		if expr == "true" or expr == "false":
+			return expr == "true"
+		assert False, "parse_bool({})".format(str(expr))
+
+	def parse_int(self, expr):
+		if isinstance(expr, list):
+			if expr[0] == "-" and len(expr) == 2:
+				return -self.parse_int(expr[1])
+		else:
+			return int(expr)
+		assert False, "parse_int({})".format(str(expr))
+
+	def parse_real(self, expr):
+		if isinstance(expr, list):
+			if expr[0] == "-" and len(expr) == 2:
+				return -self.parse_real(expr[1])
+			elif expr[0] == "/" and len(expr) == 3:
+				return self.parse_real(expr[1]) / self.parse_real(expr[2])
+		else:
+			return float(expr)
+		clg.debug_info()
+		assert False, "parse_real({})".format(str(expr))
+
+	def build_bool(self, value):
+		return "true" if value else "false"
+
+	def build_int(self, value):
+		if value < 0:
+			return ["-", str(-value)]
+		else:
+			return str(value)
+
+	def build_real(self, value):
+		if value < 0:
+			return ["-", str(-value)]
+		else:
+			return str(value)
+
+	def build_tlist(self, items):
+		tlist = "tn"
+		for item in reversed(items):
+			tlist = ["tc", item, tlist]
+		return tlist
+
+	def build_ilist(self, items):
+		ilist = "in"
+		for item in reversed(items):
+			ilist = ["ic", self.build_int(item), ilist]
+		return ilist
+
 	def build_slist(self, items):
 		slist = "sn"
 		for item in reversed(items):
-			slist = ["sc", build_bool(item), slist]
+			slist = ["sc", self.build_bool(item), slist]
 		return slist
 
+	# ------------------------
+	# convert from & to erlang
+	# ------------------------
+
 	def decode(self, data, shared = None):
-		"""
-		Decode a term to its SMT representation.
-		"""
 		if cc.is_symb(data):
 			s = "|{}|".format(cc.get_symb(data))
 			if s not in self.vars and s not in self.aux_vars:
@@ -150,21 +342,21 @@ class Solver_SMT(AbstractErlangSolver):
 					self.commands.append(["declare-const", s, "Term"])
 			return s
 		elif cc.is_int(data):
-			return ["int", build_int(cc.get_int(data))]
+			return ["int", self.build_int(cc.get_int(data))]
 		elif cc.is_float(data):
-			return ["real", build_real(cc.get_float(data))]
+			return ["real", self.build_real(cc.get_float(data))]
 		elif cc.is_atom(data):
-			return ["atom", build_ilist(cc.get_atom_chars(data))]
+			return ["atom", self.build_ilist(cc.get_atom_chars(data))]
 		elif cc.is_list(data):
 			items = cc.get_list_subterms(data)
 			if shared is None:
 				shared = cc.get_shared(data)
-			return ["list", build_tlist([self.decode(item, shared) for item in items])]
+			return ["list", self.build_tlist([self.decode(item, shared) for item in items])]
 		elif cc.is_tuple(data):
 			items = cc.get_tuple_subterms(data)
 			if shared is None:
 				shared = cc.get_shared(data)
-			return ["tuple", build_tlist([self.decode(item, shared) for item in items])]
+			return ["tuple", self.build_tlist([self.decode(item, shared) for item in items])]
 		elif cc.is_bitstring(data):
 			return ["str", self.build_slist(cc.get_bits(data))]
 		elif cc.is_alias(data):
@@ -174,48 +366,39 @@ class Solver_SMT(AbstractErlangSolver):
 		clg.debug_info("decoding failed: " + str(data))
 		assert False
 
-	def encode_str(self, node):
-		ret = []
-		while node != "sn":
-			assert isinstance(node, list) and len(node) == 3 and node[0] == "sc"
-			ret.append(parse_bool(node[1]))
-			node = node[2]
-		return ret
-
 	def encode(self, data, funs = []):
-		# TODO description
 		assert isinstance(data, list) and len(data) == 2
 		if data[0] == "int":
-			return cc.mk_int(parse_int(data[1]))
+			return cc.mk_int(self.parse_int(data[1]))
 		elif data[0] == "real":
-			return cc.mk_float(parse_real(data[1]))
+			return cc.mk_float(self.parse_real(data[1]))
 		elif data[0] == "atom":
 			node = data[1]
-			v = []
+			items = []
 			while node != "in":
-				v.append(parse_int(node[1]))
+				items.append(self.parse_int(node[1]))
 				node = node[2]
-			return cc.mk_atom(v)
+			return cc.mk_atom(items)
 		elif data[0] == "list":
 			node = data[1]
-			v = []
+			items = []
 			while node != "tn":
-				v.append(self.encode(node[1], funs))
+				items.append(self.encode(node[1], funs))
 				node = node[2]
-			return cc.mk_list(v)
+			return cc.mk_list(items)
 		elif data[0] == "tuple":
 			node = data[1]
-			v = []
+			items = []
 			while node != "tn":
-				v.append(self.encode(node[1], funs))
+				items.append(self.encode(node[1], funs))
 				node = node[2]
-			return cc.mk_tuple(v)
+			return cc.mk_tuple(items)
 		elif data[0] == "str":
 			return cc.mk_bitstring(self.encode_str(data[1]))
 		elif data[0] == "fun":
 			# TODO function decoding and encoding
 			assert isinstance(data, list) and len(data) == 2
-			fv = parse_int(data[1])
+			fv = self.parse_int(data[1])
 			# if a cycle (a function calling itself recursively) is found,
 			# it is obvious that the solver has selected an arbitrary term as a value
 			if fv in funs:
@@ -227,7 +410,7 @@ class Solver_SMT(AbstractErlangSolver):
 			val = self.process.get_value(["fa", data[1]], ["fm", data[1]])
 			assert isinstance(val, list) and len(val) == 2
 			assert isinstance(val[0], list) and len(val[0]) == 2
-			arity = parse_int(expand_lets(val[0][1]))
+			arity = self.parse_int(expand_lets(val[0][1]))
 			# if arity is less than or greater than 255, we assume it is an arbitrary value selected by the solver
 			# because there is no constraint limiting the function's arity; thus, we set it to zero
 			if arity < 0 or arity > 255:
@@ -253,6 +436,14 @@ class Solver_SMT(AbstractErlangSolver):
 		clg.debug_info("encoding failed: " + str(data))
 		assert False
 
+	def encode_str(self, node):
+		ret = []
+		while node != "sn":
+			assert isinstance(node, list) and len(node) == 3 and node[0] == "sc"
+			ret.append(self.parse_bool(node[1]))
+			node = node[2]
+		return ret
+
 	# -------------------------------------------------------------------------
 	# Parse internal commands.
 	# -------------------------------------------------------------------------
@@ -273,6 +464,7 @@ class Solver_SMT(AbstractErlangSolver):
 		"""
 		Store the spec of the entry point MFA.
 		"""
+		self.define_funs_rec = []
 		typedefs = cc.get_type_defs_of_spec(spec)
 		if len(typedefs) > 0:
 			for tdf in typedefs:
@@ -281,19 +473,17 @@ class Solver_SMT(AbstractErlangSolver):
 				body = self.build_spec(tdefinition, "t")
 				self.define_funs_rec.append(("|{}|".format(tname), [["t", "Term"]], body))
 		# Build the define-funs-rec definition for the type definitions, if needed.
-		self.assert_typedef_funs()
-		p = cc.get_spec_clauses(spec)[0]
-		pms = cc.get_parameters_from_complete_funsig(p)
-		for item in zip(self.vars, pms):
-			self.commands.append(["assert", self.build_spec(item[1], item[0])])
-
-	def assert_typedef_funs(self):
 		if len(self.define_funs_rec) > 0:
 			self.append_to_library("define-fun-rec")
 			[names, args, bodies] = zip(*self.define_funs_rec)
 			n = len(names)
 			self.commands.append(["define-funs-rec", map(list, zip(names, args, ["Bool"]*n)), list(bodies)])
 		self.define_funs_rec = None
+		# build spec for each parameter
+		p = cc.get_spec_clauses(spec)[0]
+		pms = cc.get_parameters_from_complete_funsig(p)
+		for item in zip(self.vars, pms):
+			self.commands.append(["assert", self.build_spec(item[1], item[0])])
 
 	def fun_rec_name(self):
 		if hasattr(self, "fun_rec_cnt"):
@@ -414,9 +604,9 @@ class Solver_SMT(AbstractErlangSolver):
 			ret = ["and", ["is-int", var]]
 			limits = cc.get_range_bounds_from_range(spec)
 			if cc.has_lower_bound(limits):
-				ret.append([">=", ["iv", var], build_int(cc.get_lower_bound(limits))])
+				ret.append([">=", ["iv", var], self.build_int(cc.get_lower_bound(limits))])
 			if cc.has_upper_bound(limits):
-				ret.append(["<=", ["iv", var], build_int(cc.get_upper_bound(limits))])
+				ret.append(["<=", ["iv", var], self.build_int(cc.get_upper_bound(limits))])
 			return ret
 		elif cc.is_type_atom(spec):
 			return ["is-atom", var]
@@ -434,14 +624,14 @@ class Solver_SMT(AbstractErlangSolver):
 			if n == 0:
 				axioms.append(["is-sn", slist])
 			elif n > 1:
-				axioms.append(self.SListSpec(slist, build_int(n)))
+				axioms.append(self.SListSpec(slist, self.build_int(n)))
 			return axioms
 		elif cc.is_type_complete_fun(spec):
 			# TODO if a function is to be called with wrong arguments, program must crash
 			par_spec = cc.get_parameters_from_complete_fun(spec)
 			ret_spec = cc.get_rettype_from_fun(spec)
 			name = self.fun_rec_flist(par_spec, ret_spec)
-			return ["and", ["is-fun", var], ["=", ["fa", ["fv", var]], build_int(len(par_spec))], [name, ["fm", ["fv", var]]]]
+			return ["and", ["is-fun", var], ["=", ["fa", ["fv", var]], self.build_int(len(par_spec))], [name, ["fm", ["fv", var]]]]
 		elif cc.is_type_generic_fun(spec):
 			par_spec = None
 			ret_spec = cc.get_rettype_from_fun(spec)
@@ -501,7 +691,7 @@ class Solver_SMT(AbstractErlangSolver):
 		assert isinstance(n, int) and n >= 0, "n must be a non-negative integer"
 		ret = []
 		while b > 0:
-			ret.append(build_bool(n % 2 != 0))
+			ret.append(self.build_bool(n % 2 != 0))
 			n /= 2
 			b -= 1
 		#assert n == 0, "n overflows b bits as an unsigned integer" # TODO erlang sends b = 0 and n = 42
@@ -559,8 +749,8 @@ class Solver_SMT(AbstractErlangSolver):
 		]
 		for term in reversed(terms[2:]):
 			b = self.decode(term)
-			conj.append(IsBool(b))
-			v = ["sc", AtomToBool(b), v]
+			conj.append(self.IsBool(b))
+			v = ["sc", self.AtomToBool(b), v]
 		conj.append(["=", ["sv", t], v])
 		self.commands.append(["assert", conj])
 
@@ -605,8 +795,8 @@ class Solver_SMT(AbstractErlangSolver):
 		self.commands.append(["assert", [
 			"and",
 			["is-fun", fun],
-			["=", ["fa", ["fv", fun]], build_int(tlist_length)],
-			self.FListEquals(["fm", ["fv", fun]], tlist, ret, build_int(self.flist_depth)),
+			["=", ["fa", ["fv", fun]], self.build_int(tlist_length)],
+			self.FListEquals(["fm", ["fv", fun]], tlist, ret, self.build_int(self.flist_depth)),
 		]])
 
 	def erl_lambda_reversed(self, *args): # TODO not exactly reversed
@@ -621,7 +811,7 @@ class Solver_SMT(AbstractErlangSolver):
 		Assert the predicate: term == true
 		"""
 		t = self.decode(term)
-		self.commands.append(["assert", ["=", t, true]])
+		self.commands.append(["assert", ["=", t, self.true]])
 
 	def guard_true_reversed(self, term): # TODO not exactly reversed
 		"""
@@ -634,7 +824,7 @@ class Solver_SMT(AbstractErlangSolver):
 		Assert the predicate: term == false
 		"""
 		t = self.decode(term)
-		self.commands.append(["assert", ["=", t, false]])
+		self.commands.append(["assert", ["=", t, self.false]])
 
 	def guard_false_reversed(self, term): # TODO not exactly reversed
 		"""
@@ -799,8 +989,8 @@ class Solver_SMT(AbstractErlangSolver):
 			"and",
 			["is-str", t],
 			["is-sc", ["sv", t]],
-			IsBool(t1),
-			["=", AtomToBool(t1), ["sh", ["sv", t]]],
+			self.IsBool(t1),
+			["=", self.AtomToBool(t1), ["sh", ["sv", t]]],
 			["is-str", t2],
 			["=", ["sv", t2], ["st", ["sv", t]]],
 		]])
@@ -1006,7 +1196,7 @@ class Solver_SMT(AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		self.commands.append(["assert", ["=", t0, BoolToAtom(["=", t1, ["atom", "in"]])]])
+		self.commands.append(["assert", ["=", t0, self.BoolToAtom(["=", t1, ["atom", "in"]])]])
 
 	def atom_head(self, term0, term1):
 		"""
@@ -1055,7 +1245,7 @@ class Solver_SMT(AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		self.commands.append(["assert", ["=", t0, BoolToAtom(IsBool(t1))]])
+		self.commands.append(["assert", ["=", t0, self.BoolToAtom(["is-bool", t1])]])
 
 	def is_integer(self, term0, term1):
 		"""
@@ -1063,7 +1253,7 @@ class Solver_SMT(AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		self.commands.append(["assert", ["=", t0, BoolToAtom(IsInt(t1))]])
+		self.commands.append(["assert", ["=", t0, self.BoolToAtom(["is-int", t1])]])
 
 	def is_float(self, term0, term1):
 		"""
@@ -1071,7 +1261,7 @@ class Solver_SMT(AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		self.commands.append(["assert", ["=", t0, BoolToAtom(IsReal(t1))]])
+		self.commands.append(["assert", ["=", t0, self.BoolToAtom(["is-real", t1])]])
 
 	def is_list(self, term0, term1):
 		"""
@@ -1079,7 +1269,7 @@ class Solver_SMT(AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		self.commands.append(["assert", ["=", t0, BoolToAtom(["is-list", t1])]])
+		self.commands.append(["assert", ["=", t0, self.BoolToAtom(["is-list", t1])]])
 
 	def is_tuple(self, term0, term1):
 		"""
@@ -1087,7 +1277,7 @@ class Solver_SMT(AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		self.commands.append(["assert", ["=", t0, BoolToAtom(["is-tuple", t1])]])
+		self.commands.append(["assert", ["=", t0, self.BoolToAtom(["is-tuple", t1])]])
 
 	def is_atom(self, term0, term1):
 		"""
@@ -1095,7 +1285,7 @@ class Solver_SMT(AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		self.commands.append(["assert", ["=", t0, BoolToAtom(["is-atom", t1])]])
+		self.commands.append(["assert", ["=", t0, self.BoolToAtom(["is-atom", t1])]])
 
 	def is_bitstring(self, term0, term1):
 		"""
@@ -1103,7 +1293,7 @@ class Solver_SMT(AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		self.commands.append(["assert", ["=", t0, BoolToAtom(["is-str", t1])]])
+		self.commands.append(["assert", ["=", t0, self.BoolToAtom(["is-str", t1])]])
 
 	def is_fun(self, term0, term1):
 		"""
@@ -1111,7 +1301,7 @@ class Solver_SMT(AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		self.commands.append(["assert", ["=", t0, BoolToAtom(["is-fun", t1])]])
+		self.commands.append(["assert", ["=", t0, self.BoolToAtom(["is-fun", t1])]])
 
 	def is_fun_with_arity(self, r, t, a):
 		"""
@@ -1120,7 +1310,7 @@ class Solver_SMT(AbstractErlangSolver):
 		r = self.decode(r)
 		t = self.decode(t)
 		a = self.decode(a)
-		self.commands.append(["assert", ["=", r, BoolToAtom([
+		self.commands.append(["assert", ["=", r, self.BoolToAtom([
 			"and",
 			["is-fun", t],
 			["is-int", a],
@@ -1133,7 +1323,7 @@ class Solver_SMT(AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		self.commands.append(["assert", ["=", t0, BoolToAtom(IsNum(t1))]])
+		self.commands.append(["assert", ["=", t0, self.BoolToAtom(self.IsNum(t1))]])
 
 	### Arithmetic Operations.
 
@@ -1144,7 +1334,7 @@ class Solver_SMT(AbstractErlangSolver):
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
 		t2 = self.decode(term2)
-		self.commands.append(["assert", NumBinOp("+", t0, t1, t2)])
+		self.commands.append(["assert", self.NumBinOp("+", t0, t1, t2)])
 
 	def minus(self, term0, term1, term2):
 		"""
@@ -1153,7 +1343,7 @@ class Solver_SMT(AbstractErlangSolver):
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
 		t2 = self.decode(term2)
-		self.commands.append(["assert", NumBinOp("-", t0, t1, t2)])
+		self.commands.append(["assert", self.NumBinOp("-", t0, t1, t2)])
 
 	def times(self, term0, term1, term2):
 		"""
@@ -1162,7 +1352,7 @@ class Solver_SMT(AbstractErlangSolver):
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
 		t2 = self.decode(term2)
-		self.commands.append(["assert", NumBinOp("*", t0, t1, t2)])
+		self.commands.append(["assert", self.NumBinOp("*", t0, t1, t2)])
 
 	def rdiv(self, term0, term1, term2):
 		"""
@@ -1173,16 +1363,16 @@ class Solver_SMT(AbstractErlangSolver):
 		t2 = self.decode(term2)
 		self.commands.append(["assert", [
 			"and",
-			IsNum(t1),
+			self.IsNum(t1),
 			[
 				"or",
-				["and", IsInt(t2), ["not", ["=", ["iv", t2], "0"]]],
-				["and", IsReal(t2), ["not", ["=", ["rv", t2], "0"]]],
+				["and", ["is-int", t2], ["not", ["=", ["iv", t2], "0"]]],
+				["and", ["is-real", t2], ["not", ["=", ["rv", t2], "0"]]],
 			],
 			["=", t0, ["real", [
 				"/",
-				["ite", IsInt(t1), ["to_real", ["iv", t1]], ["rv", t1]],
-				["ite", IsInt(t2), ["to_real", ["iv", t2]], ["rv", t2]]
+				["ite", ["is-int", t1], ["to_real", ["iv", t1]], ["rv", t1]],
+				["ite", ["is-int", t2], ["to_real", ["iv", t2]], ["rv", t2]]
 			]]],
 		]])
 		# solver returns unknown when there are no other constraints; nonlinear integer arithmetic is undecidable
@@ -1196,8 +1386,8 @@ class Solver_SMT(AbstractErlangSolver):
 		t2 = self.decode(term2)
 		self.commands.append(["assert", [
 			"and",
-			IsInt(t1),
-			IsInt(t2),
+			["is-int", t1],
+			["is-int", t2],
 			[">=", ["iv", t1], "0"],
 			[">", ["iv", t2], "0"],
 			["=", t0, ["int", ["div", ["iv", t1], ["iv", t2]]]],
@@ -1212,8 +1402,8 @@ class Solver_SMT(AbstractErlangSolver):
 		t2 = self.decode(term2)
 		self.commands.append(["assert", [
 			"and",
-			IsInt(t1),
-			IsInt(t2),
+			["is-int", t1],
+			["is-int", t2],
 			[">=", ["iv", t1], "0"],
 			[">", ["iv", t2], "0"],
 			["=", t0, ["int", ["mod", ["iv", t1], ["iv", t2]]]],
@@ -1227,10 +1417,10 @@ class Solver_SMT(AbstractErlangSolver):
 		t1 = self.decode(term1)
 		self.commands.append(["assert", [
 			"and",
-			IsNum(t1),
+			self.IsNum(t1),
 			[
 				"ite",
-				IsInt(t1),
+				["is-int", t1],
 				["=", t0, ["int", ["-", ["iv", t1]]]],
 				["=", t0, ["real", ["-", ["rv", t1]]]]
 			],
@@ -1246,10 +1436,10 @@ class Solver_SMT(AbstractErlangSolver):
 		t2 = self.decode(term2)
 		self.commands.append(["assert", [
 			"and",
-			IsReal(t0),
-			IsNum(t1),
-			IsInt(t2),
-			self.RealPow(["rv", t0], ["ite", IsInt(t1), ["to_real", ["iv", t1]], ["rv", t1]], ["iv", t2]),
+			["is-real", t0],
+			self.IsNum(t1),
+			["is-int", t2],
+			self.RealPow(["rv", t0], ["ite", ["is-int", t1], ["to_real", ["iv", t1]], ["rv", t1]], ["iv", t2]),
 		]])
 
 	def trunc(self, term0, term1):
@@ -1260,13 +1450,13 @@ class Solver_SMT(AbstractErlangSolver):
 		t1 = self.decode(term1)
 		self.commands.append(["assert", [
 			"and",
-			IsNum(t1),
+			self.IsNum(t1),
 			[
 				"=",
 				t0,
 				[
 					"ite",
-					IsInt(t1),
+					["is-int", t1],
 					t1,
 					[
 						"int",
@@ -1290,7 +1480,7 @@ class Solver_SMT(AbstractErlangSolver):
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
 		t2 = self.decode(term2)
-		self.commands.append(["assert", ["=", t0, BoolToAtom(["=", t1, t2])]])
+		self.commands.append(["assert", ["=", t0, self.BoolToAtom(["=", t1, t2])]])
 
 	def lt_integers(self, term0, term1, term2):
 		"""
@@ -1301,9 +1491,9 @@ class Solver_SMT(AbstractErlangSolver):
 		t2 = self.decode(term2)
 		self.commands.append(["assert", [
 			"and",
-			IsInt(t1),
-			IsInt(t2),
-			["=", t0, BoolToAtom(["<", ["iv", t1], ["iv", t2]])],
+			["is-int", t1],
+			["is-int", t2],
+			["=", t0, self.BoolToAtom(["<", ["iv", t1], ["iv", t2]])],
 		]])
 
 	def lt_floats(self, term0, term1, term2):
@@ -1315,9 +1505,9 @@ class Solver_SMT(AbstractErlangSolver):
 		t2 = self.decode(term2)
 		self.commands.append(["assert", [
 			"and",
-			IsReal(t1),
-			IsReal(t2),
-			["=", t0, BoolToAtom(["<", ["rv", t1], ["rv", t2]])],
+			["is-real", t1],
+			["is-real", t2],
+			["=", t0, self.BoolToAtom(["<", ["rv", t1], ["rv", t2]])],
 		]])
 
 	### Type conversions.
@@ -1330,8 +1520,8 @@ class Solver_SMT(AbstractErlangSolver):
 		t1 = self.decode(term1)
 		self.commands.append(["assert", [
 			"and",
-			IsNum(t1),
-			["=", t0, ["real", ["ite", IsInt(t1), ["to_real", ["iv", t1]], ["rv", t1]]]],
+			self.IsNum(t1),
+			["=", t0, ["real", ["ite", ["is-int", t1], ["to_real", ["iv", t1]], ["rv", t1]]]],
 		]])
 
 	def list_to_tuple(self, term0, term1):
@@ -1377,7 +1567,7 @@ class Solver_SMT(AbstractErlangSolver):
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
 		t2 = self.decode(term2)
-		self.commands.append(["assert", And(IsInt(t0), IsInt(t1), IsInt(t2))])
+		self.commands.append(["assert", ["and", ["is-int", t0], ["is-int", t1], ["is-int", t2]]])
 		self.commands.append(["assert", self.IntAnd(["iv", t0], ["iv", t1], ["iv", t2])])
 
 	def bxor(self, term0, term1, term2):
@@ -1387,7 +1577,7 @@ class Solver_SMT(AbstractErlangSolver):
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
 		t2 = self.decode(term2)
-		self.commands.append(["assert", And(IsInt(t0), IsInt(t1), IsInt(t2))])
+		self.commands.append(["assert", ["and", ["is-int", t0], ["is-int", t1], ["is-int", t2]]])
 		self.commands.append(["assert", self.IntXor(["iv", t0], ["iv", t1], ["iv", t2])])
 
 	def bor(self, term0, term1, term2):
@@ -1397,7 +1587,7 @@ class Solver_SMT(AbstractErlangSolver):
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
 		t2 = self.decode(term2)
-		self.commands.append(["assert", And(IsInt(t0), IsInt(t1), IsInt(t2))])
+		self.commands.append(["assert", ["and", ["is-int", t0], ["is-int", t1], ["is-int", t2]]])
 		self.commands.append(["assert", self.IntOr(["iv", t0], ["iv", t1], ["iv", t2])])
 
 	### SMTLIB recursive functions
