@@ -95,7 +95,7 @@ class Solver_SMT_CVC4(cuter_smt.Solver_SMT):
 			ret.append(self.build_int(n % 2))
 			n /= 2
 			b -= 1
-		#assert n == 0, "n overflows b bits as an unsigned integer" # TODO erlang sends b = 0 and n = 42
+		#assert n == 0, "n overflows b bits as an unsigned integer" # TODO erlang sends <<42:0>> in bitstr:f22/2
 		ret.reverse()
 		return ret
 

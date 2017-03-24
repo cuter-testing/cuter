@@ -694,7 +694,7 @@ class Solver_SMT(AbstractErlangSolver):
 			ret.append(self.build_bool(n % 2 != 0))
 			n /= 2
 			b -= 1
-		#assert n == 0, "n overflows b bits as an unsigned integer" # TODO erlang sends b = 0 and n = 42
+		#assert n == 0, "n overflows b bits as an unsigned integer" # TODO erlang sends <<42:0>> in bitstr:f22/2
 		ret.reverse()
 		return ret
 
@@ -1245,7 +1245,7 @@ class Solver_SMT(AbstractErlangSolver):
 		"""
 		t0 = self.decode(term0)
 		t1 = self.decode(term1)
-		self.commands.append(["assert", ["=", t0, self.BoolToAtom(["is-bool", t1])]])
+		self.commands.append(["assert", ["=", t0, self.BoolToAtom(self.IsBool(t1))]])
 
 	def is_integer(self, term0, term1):
 		"""
