@@ -74,7 +74,7 @@ def get_tests(testDir):
 def get_options(test, testDir):
     # Set the base options.
     nCores = multiprocessing.cpu_count()
-    defaultOpts = "-p {} -s {}".format(nCores, nCores * 2)
+    defaultOpts = "-p {} -s {}".format(min(nCores, 2), nCores * 2)
     opts = test["opts"] if "opts" in test else defaultOpts
     # Add the extra paths.
     ftestEbin = os.path.join(testDir, "ftest", "ebin")
