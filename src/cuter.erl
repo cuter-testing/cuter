@@ -44,7 +44,6 @@
 -define(SORTED_ERRORS, sorted_errors).
 -define(SUPPRESS_UNSUPPORTED_MFAS, suppress_unsupported).
 -define(NO_TYPE_NORMALIZATION, no_type_normalization).
--define(Z3PY, z3py).
 
 -type default_option() :: {?POLLERS_NO, ?ONE}
                         .
@@ -61,7 +60,6 @@
                 | ?SORTED_ERRORS
                 | ?SUPPRESS_UNSUPPORTED_MFAS
                 | ?NO_TYPE_NORMALIZATION
-                | ?Z3PY
                 .
 
 %% ----------------------------------------------------------------------------
@@ -244,11 +242,10 @@ initialize_app(Options) ->
   error_logger:tty(false),  %% disable error_logger
   ok = cuter_pp:start(reporting_level(Options)),
   WithPmatch = with_pmatch(Options),
-  SolverBackend = get_solver_backend(Options),
   Whitelist = get_whitelist(Options),
   NormalizeTypes = type_normalization(Options),
   CodeServer = cuter_codeserver:start(self(), WithPmatch, Whitelist, NormalizeTypes),
-  SchedPid = cuter_scheduler_maxcover:start(SolverBackend, ?DEFAULT_DEPTH, CodeServer),
+  SchedPid = cuter_scheduler_maxcover:start(?PYTHON_CALL, ?DEFAULT_DEPTH, CodeServer),
   #conf{ calculateCoverage = calculate_coverage(Options)
        , codeServer = CodeServer
        , dataDir = cuter_lib:get_tmp_dir(BaseDir)
@@ -287,13 +284,6 @@ number_of_solvers([_|Rest]) -> number_of_solvers(Rest).
 
 -spec with_pmatch([option()]) -> boolean().
 with_pmatch(Options) -> not lists:member(?DISABLE_PMATCH, Options).
-
--spec get_solver_backend([option()]) -> string().
-get_solver_backend(Options) ->
-  case lists:member(?Z3PY, Options) of
-      true -> ?PYTHON_CALL;
-      false -> ?PYTHON_CALL ++ " --smt"
-  end.
 
 -spec get_whitelist([option()]) -> cuter_mock:whitelist().
 get_whitelist([]) ->

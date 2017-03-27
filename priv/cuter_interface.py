@@ -9,13 +9,6 @@ import cuter_logger as clg
 import cuter_common as cc
 import cuter_coordinator
 
-## Parse the arguments.
-
-# TODO remove command line argument --smt
-#parser = argparse.ArgumentParser(description="Run the Solver Component.")
-#parser.add_argument("-s", "--smt", action='store_true', help="use the SMTv2 backend")
-#args = parser.parse_args()
-
 ## Main Program
 
 cglb.init()
