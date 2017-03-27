@@ -538,18 +538,25 @@ eval_expr({c_binary, _Anno, Segments}, M, Cenv, Senv, Servers, Fd) ->
 eval_expr({c_bitstr, _Anno, Val, Size, Unit, Type, Flags}, M, Cenv, Senv, Servers, Fd) ->
   % Evaluate the value and the encoding.
   Val_ev = eval_expr(Val, M, Cenv, Senv, Servers, Fd),
+  Val_c = get_concrete(Val_ev),
+  Val_s = get_symbolic(Val_ev),
   Size_ev = eval_expr(Size, M, Cenv, Senv, Servers, Fd),
   Unit_ev = eval_expr(Unit, M, Cenv, Senv, Servers, Fd),
   Type_ev = eval_expr(Type, M, Cenv, Senv, Servers, Fd),
   Flags_ev = eval_expr(Flags, M, Cenv, Senv, Servers, Fd),
   Size_c = get_concrete(Size_ev),
+  Size_s = get_symbolic(Size_ev),
+  % Log constraints on type mismatch before construction.
+  log_bistr_type_mismatch(Val_c, Val_s, Type, Fd), % Type is always a literal.
+  % Log constraints on negative sizes before construction.
+  log_bitstr_neg_size(Size_c, Size_s, Fd),
   % Generate the concrete value.
-  Bin_c = cuter_binlib:make_bitstring(get_concrete(Val_ev), Size_c,
+  Bin_c = cuter_binlib:make_bitstring(Val_c, Size_c,
     get_concrete(Unit_ev), get_concrete(Type_ev), get_concrete(Flags_ev)),
   % Generate the symbolic value.
   Encoding_s = {get_symbolic(Size_ev), get_symbolic(Unit_ev),
     get_symbolic(Type_ev), get_symbolic(Flags_ev)},
-  Bin_s = cuter_symbolic:make_bitstring(get_symbolic(Val_ev), Encoding_s, Bin_c, Size_c, Fd),
+  Bin_s = cuter_symbolic:make_bitstring(Val_s, Encoding_s, Bin_c, Size_c, Fd),
   % Return the result.
   mk_result(Bin_c, Bin_s);
 
@@ -1195,8 +1202,11 @@ bit_pattern_match(BinAnno, [{c_bitstr, Anno, {c_literal, _, LVal}, Sz, Unit, Tp,
   Type_ev = eval_expr(Tp, M, Cenv, Senv, Svs, Fd),
   Flags_ev = eval_expr(Fgs, M, Cenv, Senv, Svs, Fd),
   Size_c = get_concrete(Size_ev),
-  Enc_s = {get_symbolic(Size_ev), get_symbolic(Unit_ev), get_symbolic(Type_ev), get_symbolic(Flags_ev)},
+  Size_s = get_symbolic(Size_ev),
+  Enc_s = {Size_s, get_symbolic(Unit_ev), get_symbolic(Type_ev), get_symbolic(Flags_ev)},
   Tags = cuter_cerl:get_tags(Anno),
+  % Log constraints on negative sizes before matching.
+  log_bitstr_neg_size(Size_c, Size_s, Fd),
   try cuter_binlib:match_bitstring_const(LVal, Size_c, get_concrete(Unit_ev), get_concrete(Type_ev), get_concrete(Flags_ev), Cv) of
     Rest_c ->
       visit_tag(Svs#svs.code, Tags#tags.this),
@@ -1215,8 +1225,11 @@ bit_pattern_match(BinAnno, [{c_bitstr, Anno, {c_var, _, VarName}, Sz, Unit, Tp, 
   Type_ev = eval_expr(Tp, M, Cenv, Senv, Svs, Fd),
   Flags_ev = eval_expr(Fgs, M, Cenv, Senv, Svs, Fd),
   Size_c = get_concrete(Size_ev),
-  Enc_s = {get_symbolic(Size_ev), get_symbolic(Unit_ev), get_symbolic(Type_ev), get_symbolic(Flags_ev)},
+  Size_s = get_symbolic(Size_ev),
+  Enc_s = {Size_s, get_symbolic(Unit_ev), get_symbolic(Type_ev), get_symbolic(Flags_ev)},
   Tags = cuter_cerl:get_tags(Anno),
+  % Log constraints on negative sizes before matching.
+  log_bitstr_neg_size(Size_c, Size_s, Fd),
   try cuter_binlib:match_bitstring_var(Size_c, get_concrete(Unit_ev), get_concrete(Type_ev), get_concrete(Flags_ev), Cv) of
     {X_c, Rest_c} ->
       visit_tag(Svs#svs.code, Tags#tags.this),
@@ -1878,4 +1891,36 @@ add_to_created_closure(SymbVar) ->
       put(?CLOSURE_SYMBOLIC, gb_sets:from_list([SymbVar]));
     Symbs ->
       put(?CLOSURE_SYMBOLIC, gb_sets:add_element(SymbVar, Symbs))
+  end.
+
+log_bitstr_neg_size(Size_c, Size_s, Fd) ->
+  case cuter_symbolic:is_symbolic(Size_s) of
+    false ->
+      ok;
+    true ->
+      X = cuter_symbolic:fresh_symbolic_var(),
+      cuter_log:log_mfa(Fd, {cuter_erlang, lt_int, 2}, [Size_s, 0], X),
+      cuter_log:log_guard(Fd, Size_c < 0, X, cuter_cerl:empty_tag()),
+      cuter_log:reduce_constraint_counter()
+  end.
+
+log_bistr_type_mismatch(Cv, Sv, Type, Fd) ->
+  case cuter_symbolic:is_symbolic(Sv) of
+    false ->
+      ok;
+    true ->
+      X = cuter_symbolic:fresh_symbolic_var(),
+      case cerl:concrete(Type) of
+        integer ->
+          cuter_log:log_mfa(Fd, {erlang, is_integer, 1}, [Sv], X),
+          cuter_log:log_guard(Fd, is_integer(Cv), X, cuter_cerl:empty_tag());
+        float ->
+          cuter_log:log_mfa(Fd, {erlang, is_float, 1}, [Sv], X),
+          cuter_log:log_guard(Fd, is_float(Cv), X, cuter_cerl:empty_tag());
+        binary ->
+          cuter_log:log_mfa(Fd, {erlang, is_bitstring, 1}, [Sv], X),
+          cuter_log:log_guard(Fd, is_bitstring(Cv), X, cuter_cerl:empty_tag());
+        _ ->
+          throw({unknown_bitstr_type, Type})
+      end
   end.

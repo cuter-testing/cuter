@@ -1,13 +1,14 @@
 -module(bitstr).
 
 -export([f11/1, f12/3, f13/3, f13a/3,
-	 f21/1, f22/2, f23/2, f24/2, f24a/2, f25/2, f26/2, f27/2,
-	 f31/2, f32/3, f33/4, f34/2, f35/1, f36/1, f37/1,
-	 fbit_sz/1, fbyte_sz/1,
-	 fbsl/2, fbsl_big/1, fbsr/2, fbsr_big/1, fbnot/1, fbnot_big/1,
-	 fband/2, fband2/2, fband_neg/2, fband3/2, fband2_neg/2,
-	 fbxor/2, fbxor2/2, fbxor3/2, fbxor_neg/2, fbxor2_neg/2, fbxor3_neg/2,
-	 fbor/2, fbor2/2, fbor3/2, fbor_neg/2, fbor2_neg/2]).
+         f21/1, f22/2, f23/2, f24/2, f24a/2, f25/2, f26/2, f27/2,
+         f31/2, f32/3, f33/4, f34/2, f35/1, f36/1, f37/1,
+         fbit_sz/1, fbyte_sz/1,
+         fbsl/2, fbsl_big/1, fbsr/2, fbsr_big/1, fbnot/1, fbnot_big/1,
+         fband/2, fband2/2, fband_neg/2, fband3/2, fband2_neg/2,
+         fbxor/2, fbxor2/2, fbxor3/2, fbxor_neg/2, fbxor2_neg/2, fbxor3_neg/2,
+         fbor/2, fbor2/2, fbor3/2, fbor_neg/2, fbor2_neg/2,
+         enc_type_mismatch/2]).
 
 %%---------------------------------
 %% Construct bitstrings.
@@ -162,6 +163,13 @@ f36(X) ->
 f37(X) ->
   case X of
     <<_:42>> -> error(not_ok);
+    _ -> ok
+  end.
+
+-spec enc_type_mismatch(any(), integer()) -> ok.
+enc_type_mismatch(V, Sz) ->
+  case <<V:Sz>> of
+    <<42>> -> error(bug);
     _ -> ok
   end.
 
