@@ -163,7 +163,7 @@ class Solver_SMT(AbstractErlangSolver):
 
 	def solve(self):
 		"""
-		Solve a constraint set and returns the result.
+		Solve a constraint set and return the result.
 		"""
 		# TODO incremental solving
 		self.start_process()

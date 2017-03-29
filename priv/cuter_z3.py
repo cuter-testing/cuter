@@ -1,6 +1,4 @@
-# -*- coding: utf-8 -*-
-
-import json
+from cuter_generic_solver import AbstractErlangSolver
 from z3 import *
 import cuter_global as cglb
 import cuter_logger as clg
@@ -8,24 +6,24 @@ import cuter_common as cc
 import cuter_env as cenv
 import cuter_types as ctp
 import cuter_representation as crp
-import cuter_generic_solver as cgs
+
 
 # Set Z3Py params.
 set_param(max_lines=1, max_width=1000000, max_depth=10000000, max_visited=1000000)
 set_param('smt.bv.enable_int2bv', True)
 
-class ErlangZ3(cgs.AbstractErlangSolver):
+
+# TODO start, check & stop z3 process
+
+
+class Solver_Z3(AbstractErlangSolver):
+
+    name = "z3py"
+
     def __init__(self):
         self.erl = crp.Erlang()
         self.env = cenv.Env()
         self.axs = []
-        self.slv = Solver()
-        self.slv.set(timeout=10000)
-        if cglb.__LISTS_INTERP__ == cglb.LISTS_FORALL_PATS:
-            self.slv.set(mbqi=False)
-        else:
-            self.slv.set(mbqi=True)
-        self.slv.set(auto_config=False)
 
         self.check = None
         self.model = None
@@ -37,28 +35,43 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         self.max_pos = BitVecVal(2**(self.int2bvSize - 1) - 1, self.int2bvSize)
         self.max_uint = 2**self.int2bvSize - 1
 
+    def check_process(self):
+        return True
+
     # =========================================================================
     # Public API.
     # =========================================================================
 
-    def reset_solver(self):
+    def reset(self):
         """
-        Resets the solver.
+        Reset the solver.
         """
         self.slv = Solver()
+        # TODO z3types.Z3Exception: unknown parameter 'timeout'
+        #self.slv.set(timeout=10000)
+        if cglb.__LISTS_INTERP__ == cglb.LISTS_FORALL_PATS:
+            self.slv.set(mbqi=False)
+        else:
+            self.slv.set(mbqi=True)
+        self.slv.set(auto_config=False)
 
-    def add_axioms(self):
+    def fix_parameter(self, p, v):
         """
-        Adds the axioms from memory to the solver.
+        Fix a symbolic variable to a specific value.
         """
-        spec_axs = self.generateSpecAxioms()
-        self.slv.add(simplify(spec_axs))
-        self.slv.add(simplify(And(*self.axs)))
+        x = self.decode_term(p)
+        t = self.decode_term(v)
+        self.slv.add(x == t)
 
     def solve(self):
         """
-        Solves a constraint set and returns the result.
+        Solve a constraint set and return the result.
         """
+        # add axioms
+        spec_axs = self.generateSpecAxioms()
+        self.slv.add(simplify(spec_axs))
+        self.slv.add(simplify(And(*self.axs)))
+        # check
         self.check = self.slv.check()
         if self.check == sat:
             self.model = self.slv.model()
@@ -69,17 +82,9 @@ class ErlangZ3(cgs.AbstractErlangSolver):
             clg.model_unknown(And(*self.axs))
             return cc.mk_unknown()
 
-    def fix_parameter(self, p, v):
+    def get_model(self):
         """
-        Fixes a symbolic variable to a specific value.
-        """
-        x = self.decode_term(p)
-        t = self.decode_term(v)
-        self.slv.add(x == t)
-
-    def encode_model(self):
-        """
-        Encodes the resulting model to a SolverResponse message.
+        Encode the resulting model to a SolverResponse message.
         """
         m = cc.mk_model([self.encode_parameter(p) for p in self.env.params])
         return cc.mk_model_data(m)
@@ -118,8 +123,9 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         Stores the entry point MFA's symbolic parameters.
         """
         e = self.env
+        n = len(args) / 2
         pms = []
-        for x in args:
+        for x in args[0:n]:
             s = x.value
             p = e.freshVar(s, self.erl.Term)
             pms.append(p)
@@ -131,6 +137,7 @@ class ErlangZ3(cgs.AbstractErlangSolver):
         Stores the spec of the entry point MFA.
         """
         # FIXME Assume that there is only one clause.
+        clg.debug_info(spec)
         clauses = cc.get_spec_clauses(spec)
         self.parseSpecClause(clauses[0])
 
@@ -1741,12 +1748,14 @@ class ErlangZ3(cgs.AbstractErlangSolver):
             axs.append(Exists(sArgs, fmap(T.fval(sFun))[sArgs] == sRet))
         return axs
 
+
 # #############################################################################
 # Unit Tests
 # #############################################################################
 
+
 def test_model():
-    erlz3 = ErlangZ3()
+    erlz3 = Solver_Z3()
     T, L, A, B = erlz3.erl.Term, erlz3.erl.List, erlz3.erl.Atom, erlz3.erl.BitStr
     s1, s2, s3, s4 = "0.0.0.39316", "0.0.0.39317", "0.0.0.39318", "0.0.0.39319"
     expected = {
@@ -1755,21 +1764,22 @@ def test_model():
         s3: cc.mk_list([cc.mk_bitstring([]), cc.mk_int(2)]),
         s4: cc.mk_any()
     }
-    [p1, p2, p3, p4] = erlz3.mfa_params(cc.mk_symb(s1), cc.mk_symb(s2), cc.mk_symb(s3), cc.mk_symb(s4))
+    [p1, p2, p3, p4] = erlz3.mfa_params(cc.mk_symb(s1), cc.mk_symb(s2), cc.mk_symb(s3), cc.mk_symb(s4), None, None, None, None)
     erlz3.axs.extend([
         p1 == T.int(42),
         p2 == T.atm(A.acons(111,A.acons(107,A.anil))),
         p3 == T.lst(L.cons(T.bin(0, B.bnil),L.cons(T.int(2),L.nil)))
     ])
-    erlz3.add_axioms()
+    erlz3.reset()
     assert cc.is_sat(erlz3.solve()), "Model in unsatisfiable"
-    model = erlz3.encode_model()
+    model = erlz3.get_model()
     for entry in cc.get_model_entries(model):
         symb = entry.var
         assert cc.is_symb(symb)
         s = cc.get_symb(symb)
         v = entry.value
         assert expected[s] == v, "{} is {} instead of {}".format(s, expected[s], v)
+
 
 def test_commands():
     from cuter_proto_log_entry_pb2 import LogEntry
@@ -1864,13 +1874,13 @@ def test_commands():
         cc.get_symb(ss[33]): cc.mk_list([cc.mk_int(2), cc.mk_list([])]),
         cc.get_symb(ss[38]): cc.mk_int(5)
     }
-    erlz3 = ErlangZ3()
-    erlz3.mfa_params(ss[0], ss[1], ss[8], ss[15], ss[20], ss[27], ss[33], ss[38])
+    erlz3 = Solver_Z3()
+    erlz3.mfa_params(ss[0], ss[1], ss[8], ss[15], ss[20], ss[27], ss[33], ss[38], None, None, None, None, None, None, None, None)
     for cmd, rvs in cmds:
         erlz3.command_toSolver(cmd, rvs)
-    erlz3.add_axioms()
+    erlz3.reset()
     assert cc.is_sat(erlz3.solve()), "Model in unsatisfiable"
-    model = erlz3.encode_model()
+    model = erlz3.get_model()
     for entry in cc.get_model_entries(model):
         smb = entry.var
         assert cc.is_symb(smb), "Expected symbolic var but found value"
@@ -1878,8 +1888,8 @@ def test_commands():
         v = entry.value
         assert v == expected[s], "{} is {} instead of {}".format(s, v, expected[s])
 
+
 if __name__ == '__main__':
-    import json
     from copy import deepcopy
     cglb.init()
     test_model()

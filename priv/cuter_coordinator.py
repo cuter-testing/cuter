@@ -2,12 +2,9 @@ import cuter_common as cc
 import cuter_logger as clg
 from cuter_proto_log_entry_pb2 import LogEntry
 from cuter_smt_z3 import Solver_SMT_Z3
+from cuter_z3 import Solver_Z3
 from cuter_smt_cvc4 import Solver_SMT_CVC4
-
 from multiprocessing import Process, Queue, Pipe
-
-
-# TODO start_process etc in non-smt solvers, like z3py
 
 
 class Solver_Coordinator:
@@ -88,6 +85,19 @@ class Solver_Coordinator_Z3(Solver_Coordinator):
 	"""
 
 	pass
+
+
+class Solver_Coordinator_Z3Py(Solver_Coordinator):
+	"""
+	use only Z3Py
+	"""
+
+	def main_init(self):
+		self.solver_z3 = None
+		self.solver_cvc4 = None
+		self.solver_z3py = Solver_Z3()
+		assert self.solver_z3py.check_process(), "Z3Py is not installed"
+		self.solvers = [self.solver_z3py]
 
 
 class Solver_Coordinator_CVC4(Solver_Coordinator):
