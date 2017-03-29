@@ -90,6 +90,9 @@ def get_options(test, testDir):
     if "whitelist" in test:
         whitelist = os.path.join(testDir, "ftest", "whitelist", test["whitelist"] + ".txt")
         opts += " -w {}".format(whitelist)
+    # Add extra options.
+    if "xopts" in test:
+        opts += " {}".format(test["xopts"])
     return opts
 
 def get_basedir(testDir):
