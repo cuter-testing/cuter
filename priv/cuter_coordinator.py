@@ -52,16 +52,16 @@ class Solver_Coordinator:
 
 	def main_solve_z3(self):
 		for arg in [None] + self.mapping:
+			if arg is None:
+				pass #clg.debug_info("initial call")
+			else:
+				pass #clg.debug_info("fix parameter\n{}@\n{}".format(arg[0], arg[1]))
 			for solver in self.solvers:
 				solver.reset()
 				if arg is not None:
 					solver.fix_parameter(arg[0], arg[1])
 				status = solver.solve()
-				if arg is not None:
-					clg.debug_info("{}\nfix parameter\n{}@\n{}\n{}".format(solver.__class__.__name__, arg[0], arg[1], status))
-				else:
-					#clg.debug_info("{}\ninitial call\n{}".format(solver.__class__.__name__, status))
-					pass
+				#clg.debug_info("solver {} sent\n{}".format(solver.name, status))
 				if cc.is_sat(status):
 					self.model = solver.get_model()
 					return status

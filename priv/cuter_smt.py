@@ -165,6 +165,7 @@ class Solver_SMT(AbstractErlangSolver):
 		"""
 		Solve a constraint set and returns the result.
 		"""
+		# TODO incremental solving
 		self.start_process()
 		for command in self.commands:
 			self.process.write(command)
@@ -396,7 +397,6 @@ class Solver_SMT(AbstractErlangSolver):
 		elif data[0] == "str":
 			return cc.mk_bitstring(self.encode_str(data[1]))
 		elif data[0] == "fun":
-			# TODO function decoding and encoding
 			assert isinstance(data, list) and len(data) == 2
 			fv = self.parse_int(data[1])
 			# if a cycle (a function calling itself recursively) is found,
@@ -406,7 +406,6 @@ class Solver_SMT(AbstractErlangSolver):
 			funs = funs[:]
 			funs.append(fv)
 			# get function info from solver
-			# TODO save function arity and entries to an array
 			val = self.process.get_value(["fa", data[1]], ["fm", data[1]])
 			assert isinstance(val, list) and len(val) == 2
 			assert isinstance(val[0], list) and len(val[0]) == 2
@@ -684,8 +683,6 @@ class Solver_SMT(AbstractErlangSolver):
 		conj.append(["is-tn", tlist])
 		self.commands.append(["assert", conj])
 
-	# TODO when constructing bitstrings, size must have a concrete non-negative integer value
-
 	def int2bv(self, n, b):
 		assert isinstance(b, int) and b >= 0, "b must be a non-negative integer"
 		assert isinstance(n, int) and n >= 0, "n must be a non-negative integer"
@@ -694,7 +691,7 @@ class Solver_SMT(AbstractErlangSolver):
 			ret.append(self.build_bool(n % 2 != 0))
 			n /= 2
 			b -= 1
-		#assert n == 0, "n overflows b bits as an unsigned integer" # TODO erlang sends <<42:0>> in bitstr:f22/2
+		# no need to check whether n == 0; erlang ignores overflow bits when constructing bitstrings
 		ret.reverse()
 		return ret
 
@@ -711,6 +708,7 @@ class Solver_SMT(AbstractErlangSolver):
 			ret.append(["not", ["=", ["mod", n, "2"], "0"]])
 			n = ["div", n, "2"]
 			b -= 1
+		# check whether n == 0; erlang doesn't ignore overflow bits when matching bitstrings
 		conj.append(["=", n, "0"])
 		ret.reverse()
 		self.commands.append(["assert", conj])
