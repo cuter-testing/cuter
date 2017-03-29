@@ -1133,7 +1133,7 @@
             "depth": "10",
             "errors": true,
             "arity": 1,
-            "opts": "--no-type-normalization",
+            "xopts": "--no-type-normalization",
             "solutions": [
                 "[{42,{17,nil}}]"
             ],
@@ -1146,7 +1146,7 @@
             "depth": "10",
             "errors": true,
             "arity": 1,
-            "opts": "--no-type-normalization",
+            "xopts": "--no-type-normalization",
             "solutions": [
                 "[{42,{17,nil,nil},nil}]"
             ],
