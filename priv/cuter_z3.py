@@ -18,7 +18,7 @@ set_param('smt.bv.enable_int2bv', True)
 
 class Solver_Z3(AbstractErlangSolver):
 
-    name = "z3py"
+    name = "Z3Py"
 
     def __init__(self):
         self.erl = crp.Erlang()
