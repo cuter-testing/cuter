@@ -17,7 +17,7 @@ import cuter_global as cglb
 def solve(fname, n, printConstraints, withSmt, withPrint):
     # Do the initializations.
     cglb.init()
-    erlSolver = cz3.ErlangZ3() if not withSmt else cSMT.ErlangSMT()
+    erlSolver = cz3.Solver_Z3() if not withSmt else cSMT.ErlangSMT()
     # Load the trace.
     r = cIO.JsonReader(fname, n)
     for entry, rev in r:
@@ -25,8 +25,6 @@ def solve(fname, n, printConstraints, withSmt, withPrint):
             cpt.print_cmd(entry, rev)
         if cc.is_interpretable(entry):
             erlSolver.command_toSolver(entry, rev)
-    # Load the axioms to the solver.
-    erlSolver.add_axioms()
     # Solve the model.
     if withPrint: print "Solving the model ...",
     slv = erlSolver.solve()
