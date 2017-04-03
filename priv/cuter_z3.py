@@ -69,6 +69,7 @@ class Solver_Z3(AbstractErlangSolver):
         """
         # add axioms
         spec_axs = self.generateSpecAxioms()
+        self.slv = Solver()
         self.slv.add(simplify(spec_axs))
         self.slv.add(simplify(And(*self.axs)))
         # check

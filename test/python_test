@@ -57,7 +57,8 @@ def usage():
   print "	Mods				A list of space-separated modules."
   print "OPTIONS"
   print "	-p Dir, --path=Dir		The directory Dir of CutEr's priv."
-  print "	-u Dir, --utest-ebin=Dir		The directory Dir of CutEr's priv."
+  print "	-u Dir, --utest-ebin=Dir	The directory Dir of CutEr's utest ebin."
+  print "	-e Dir, --ebin=Dir		The directory Dir of CutEr's ebin."
   print "	--help				Display this information."
 
 if __name__ == "__main__":
