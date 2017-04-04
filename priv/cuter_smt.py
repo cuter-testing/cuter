@@ -377,7 +377,13 @@ class Solver_SMT(AbstractErlangSolver):
 			node = data[1]
 			items = []
 			while node != "in":
-				items.append(self.parse_int(node[1]))
+				assert isinstance(node, list) and len(node) == 3 and node[0] == "ic"
+				item = self.parse_int(node[1])
+				# TODO normally, IList should contain only non-negative integers
+				# and less than or equal to 1114111 (!)
+				if item < 0:
+					item = 0
+				items.append(item)
 				node = node[2]
 			return cc.mk_atom(items)
 		elif data[0] == "list":
