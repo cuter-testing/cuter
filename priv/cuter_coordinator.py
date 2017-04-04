@@ -5,9 +5,10 @@ from cuter_smt_z3 import Solver_SMT_Z3
 from cuter_z3 import Solver_Z3
 from cuter_smt_cvc4 import Solver_SMT_CVC4
 from multiprocessing import Process, Queue, Pipe
-
-
 import sys
+
+
+debug = False
 
 
 class Solver_Coordinator:
@@ -19,10 +20,11 @@ class Solver_Coordinator:
 		self.solver_z3 = Solver_SMT_Z3()
 		assert self.solver_z3.check_process(), "Z3 is not installed"
 		self.solver_cvc4 = Solver_SMT_CVC4()
-		if not self.solver_cvc4.check_process():
-			self.main_init_z3()
-		else:
+		self.check_cvc4 = self.solver_cvc4.check_process()
+		if self.check_cvc4:
 			self.main_init()
+		else:
+			self.main_init_z3()
 		self.model = None
 
 	def command(self, entry, rev):
@@ -37,31 +39,32 @@ class Solver_Coordinator:
 			solver.command_toSolver(entry, rev)
 
 	def solve(self):
-		if self.solver_cvc4 is None:
-			return self.main_solve_z3()
-		else:
-			self.prev_solve()
+		self.prev_solve()
+		if self.check_cvc4:
 			return self.main_solve()
+		else:
+			return self.main_solve_z3()
 
 	def get_model(self):
 		return self.model
 
 	def main_init_z3(self):
-		self.solver_cvc4 = None
 		self.solvers = [self.solver_z3]
 
 	def main_solve_z3(self):
 		for arg in [None] + self.mapping:
-			if arg is None:
-				pass #clg.debug_info("initial call")
-			else:
-				pass #clg.debug_info("fix parameter\n{}@\n{}".format(arg[0], arg[1]))
+			if debug:
+				if arg is None:
+					clg.debug_info("initial call")
+				else:
+					clg.debug_info("fix parameter\n{}@\n{}".format(arg[0], arg[1]))
 			for solver in self.solvers:
 				solver.reset()
 				if arg is not None:
 					solver.fix_parameter(arg[0], arg[1])
 				status = solver.solve()
-				#clg.debug_info("solver {} sent\n{}".format(solver.name, status))
+				if debug:
+					clg.debug_info("solver {} sent\n{}".format(solver.name, status))
 				if cc.is_sat(status):
 					self.model = solver.get_model()
 					return status
@@ -98,8 +101,6 @@ class Solver_Coordinator_Z3Py(Solver_Coordinator):
 	"""
 
 	def main_init(self):
-		self.solver_z3 = None
-		self.solver_cvc4 = None
 		self.solver_z3py = Solver_Z3()
 		assert self.solver_z3py.check_process(), "Z3Py is not installed"
 		self.solvers = [self.solver_z3py]
@@ -111,7 +112,6 @@ class Solver_Coordinator_CVC4(Solver_Coordinator):
 	"""
 
 	def main_init(self):
-		self.solver_z3 = None
 		self.solvers = [self.solver_cvc4]
 
 
@@ -177,10 +177,12 @@ class Solver_Coordinator_Race(Solver_Coordinator):
 		queue = Queue()
 		ps = []
 		n = len(self.solvers)
-		clg.debug_info("firing {} solvers:".format(n))
+		if debug:
+			clg.debug_info("firing {} solvers:".format(n))
 		for i in range(n):
 			solver = self.solvers[i]
-			clg.debug_info("#{}: {}".format(i, solver.name))
+			if debug:
+				clg.debug_info("#{}: {}".format(i, solver.name))
 			conn_read, conn_write = Pipe(False)
 			# TODO do not duplicate solver instance
 			proc = Process(target=solver_handler, args=(i, solver, queue, conn_read,))
@@ -188,10 +190,11 @@ class Solver_Coordinator_Race(Solver_Coordinator):
 			proc.start()
 		solved = False
 		for arg in [None] + self.mapping:
-			if arg is None:
-				clg.debug_info("initial call")
-			else:
-				clg.debug_info("fix parameter\n{}@\n{}".format(arg[0], arg[1]))
+			if debug:
+				if arg is None:
+					clg.debug_info("initial call")
+				else:
+					clg.debug_info("fix parameter\n{}@\n{}".format(arg[0], arg[1]))
 			for p in ps:
 				p[1].send("reset")
 				if arg is not None:
@@ -202,7 +205,8 @@ class Solver_Coordinator_Race(Solver_Coordinator):
 				# TODO some solver processes maybe still running
 				data = queue.get()
 				i, status = data[0:2]
-				clg.debug_info("solver #{} sent\n{}".format(i, status))
+				if debug:
+					clg.debug_info("solver #{} sent\n{}".format(i, status))
 				if cc.is_sat(status):
 					self.model = data[2]
 					solved = True
@@ -221,3 +225,22 @@ class Solver_Coordinator_Race(Solver_Coordinator):
 			p[0].terminate()
 			p[0].join()
 		return status
+
+
+class Solver_Coordinator_Magic(Solver_Coordinator_Race):
+	"""
+	fire all solvers that support the present command set
+	"""
+
+	def main_init(self):
+		self.solvers = [self.solver_z3, self.solver_cvc4]
+		self.run_cvc4 = True
+
+	def prev_command(self, entry, rev):
+		if entry.type in [LogEntry.OP_BAND, LogEntry.OP_BXOR, LogEntry.OP_BOR]:
+			self.run_cvc4 = False
+
+	def prev_solve(self):
+		if not self.run_cvc4:
+			self.solver_cvc4 = None
+			self.solvers = [self.solver_z3]
