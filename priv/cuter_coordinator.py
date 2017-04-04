@@ -7,6 +7,9 @@ from cuter_smt_cvc4 import Solver_SMT_CVC4
 from multiprocessing import Process, Queue, Pipe
 
 
+import sys
+
+
 class Solver_Coordinator:
 	"""
 	default; use only Z3
@@ -64,6 +67,8 @@ class Solver_Coordinator:
 					return status
 				elif cc.is_unsat(status):
 					return status
+				else:
+					sys.stderr.write("?")
 		return status
 
 	def main_init(self):
@@ -205,6 +210,8 @@ class Solver_Coordinator_Race(Solver_Coordinator):
 				elif cc.is_unsat(status):
 					solved = True
 					break
+				else:
+					sys.stderr.write("?")
 			if solved:
 				break
 		queue.close()
