@@ -202,7 +202,7 @@
             "arity": 4,
             "nondeterministic": true,
             "solutions": [
-                "$1[2:] == bin($3 % (1 << $2))[2:].zfill($2) if $2 > 0 else \"\" + $4[2:]"
+                "$1[2:] == (bin($3 % (1 << $2))[2:].zfill($2) if $2 > 0 else \"\") + $4[2:]"
             ],
             "skip": false
         },
