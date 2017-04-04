@@ -34,6 +34,9 @@ def expand_lets(expr, lets = {}):
 		return [expand_lets(item, lets) for item in expr]
 
 
+unicode_range = 256
+
+
 # ------------------------
 # convert from & to smtlib
 # ------------------------
@@ -378,18 +381,14 @@ class Solver_SMT(AbstractErlangSolver):
 			items = []
 			while node != "in":
 				assert isinstance(node, list) and len(node) == 3 and node[0] == "ic"
-				item = self.parse_int(node[1])
-				# TODO normally, IList should contain only non-negative integers
-				# and less than or equal to 1114111 (!)
-				if item < 0:
-					item = 0
-				items.append(item)
+				items.append(self.parse_int(node[1]))
 				node = node[2]
 			return cc.mk_atom(items)
 		elif data[0] == "list":
 			node = data[1]
 			items = []
 			while node != "tn":
+				assert isinstance(node, list) and len(node) == 3 and node[0] == "tc"
 				items.append(self.encode(node[1], funs))
 				node = node[2]
 			return cc.mk_list(items)
@@ -397,6 +396,7 @@ class Solver_SMT(AbstractErlangSolver):
 			node = data[1]
 			items = []
 			while node != "tn":
+				assert isinstance(node, list) and len(node) == 3 and node[0] == "tc"
 				items.append(self.encode(node[1], funs))
 				node = node[2]
 			return cc.mk_tuple(items)
@@ -614,7 +614,8 @@ class Solver_SMT(AbstractErlangSolver):
 				ret.append(["<=", ["iv", var], self.build_int(cc.get_upper_bound(limits))])
 			return ret
 		elif cc.is_type_atom(spec):
-			return ["is-atom", var]
+			# TODO normally, IListSpec should be applied to every IList present in the model
+			return ["and", ["is-atom", var], self.IListSpec(["av", var])]
 		elif cc.is_type_bitstring(spec):
 			segment_size = cc.get_segment_size_from_bitstring(spec)
 			m = int(segment_size.m)
@@ -1702,6 +1703,22 @@ class Solver_SMT(AbstractErlangSolver):
 				["and", ["<", "e", ["-", "1"]], ["=", ["mod", "e", "2"], "1"], ["<", "b", ["-", "1"], "p", "0"], ["real-pow", ["*", "p", "b"], "b", ["+", "e", "1"]]],
 			]])
 		return ["real-pow", p, b, e]
+
+	def IListSpec(self, ilist):
+		"""
+		ilist-spec returns whether an IList contains only valid unicode character codes
+		"""
+		if self.append_to_library("ilist-spec"):
+			self.append_to_library("define-fun-rec")
+			lower = self.build_int(0)
+			upper = self.build_int(unicode_range - 1)
+			crit = ["<=", lower, ["ih", "l"], upper]
+			self.commands.append(["define-fun-rec", "ilist-spec", [["l", "IList"]], "Bool", [
+				"or",
+				["is-in", "l"],
+				["and", ["is-ic", "l"], crit, ["ilist-spec", ["it", "l"]]],
+			]])
+		return ["ilist-spec", ilist]
 
 	def SListSpec(self, l, n):
 		"""
