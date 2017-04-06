@@ -401,7 +401,13 @@ class Solver_SMT(AbstractErlangSolver):
 				node = node[2]
 			return cc.mk_tuple(items)
 		elif data[0] == "str":
-			return cc.mk_bitstring(self.encode_str(data[1]))
+			node = data[1]
+			items = []
+			while node != "sn":
+				assert isinstance(node, list) and len(node) == 3 and node[0] == "sc"
+				items.append(self.parse_bool(node[1]))
+				node = node[2]
+			return cc.mk_bitstring(items)
 		elif data[0] == "fun":
 			assert isinstance(data, list) and len(data) == 2
 			fv = self.parse_int(data[1])
@@ -440,14 +446,6 @@ class Solver_SMT(AbstractErlangSolver):
 			return cc.mk_fun(arity, entries, otherwise)
 		clg.debug_info("encoding failed: " + str(data))
 		assert False
-
-	def encode_str(self, node):
-		ret = []
-		while node != "sn":
-			assert isinstance(node, list) and len(node) == 3 and node[0] == "sc"
-			ret.append(self.parse_bool(node[1]))
-			node = node[2]
-		return ret
 
 	# -------------------------------------------------------------------------
 	# Parse internal commands.

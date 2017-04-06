@@ -1,8 +1,8 @@
-import cuter_smt
+from cuter_smt import Solver_SMT
 import cuter_smt_process
 
 
-class Solver_SMT_Z3(cuter_smt.Solver_SMT):
+class Solver_SMT_Z3(Solver_SMT):
 
 	name = "Z3"
 
