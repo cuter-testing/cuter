@@ -791,15 +791,11 @@ class Solver_SMT(AbstractErlangSolver):
 		for arg in reversed(args[2:]):
 			tlist = ["tc", self.decode(arg), tlist]
 			tlist_length += 1
-		if hasattr(self, "flist_depth"):
-			self.flist_depth += 1
-		else:
-			self.flist_depth = 0
 		self.commands.append(["assert", [
 			"and",
 			["is-fun", fun],
 			["=", ["fa", ["fv", fun]], self.build_int(tlist_length)],
-			self.FListEquals(["fm", ["fv", fun]], tlist, ret, self.build_int(self.flist_depth)),
+			self.FListEquals(["fm", ["fv", fun]], tlist, ret),
 		]])
 
 	def erl_lambda_reversed(self, *args): # TODO not exactly reversed
@@ -1593,7 +1589,9 @@ class Solver_SMT(AbstractErlangSolver):
 		self.commands.append(["assert", ["and", ["is-int", t0], ["is-int", t1], ["is-int", t2]]])
 		self.commands.append(["assert", self.IntOr(["iv", t0], ["iv", t1], ["iv", t2])])
 
-	### SMTLIB recursive functions
+	# -------------------------------------------------------------------------
+	# SMTLIB recursive functions
+	# -------------------------------------------------------------------------
 
 	def IntAnd(self, n, n1, n2):
 		"""
@@ -1732,15 +1730,15 @@ class Solver_SMT(AbstractErlangSolver):
 			]])
 		return ["slist-spec", l, n, "0"]
 
-	def FListEquals(self, f, x, y, d):
+	def FListEquals(self, f, x, y):
 		"""
-		flist-equals return whether f(x) = y with depth at most d
+		flist-equals return whether f(x) = y
 		"""
 		if self.append_to_library("flist-equals"):
 			self.append_to_library("define-fun-rec")
-			self.commands.append(["define-fun-rec", "flist-equals", [["f", "FList"], ["x", "TList"], ["y", "Term"], ["d", "Int"]], "Bool", [
+			self.commands.append(["define-fun-rec", "flist-equals", [["f", "FList"], ["x", "TList"], ["y", "Term"]], "Bool", [
 				"or",
-				["and", [">=", "d", "0"], ["is-fc", "f"], ["=", ["fx", "f"], "x"], ["=", ["fy", "f"], "y"]],
-				["and", [">", "d", "0"], ["is-fc", "f"], ["not", ["=", ["fx", "f"], "x"]], ["flist-equals", ["ft", "f"], "x", "y", ["-", "d", "1"]]],
+				["and", ["is-fc", "f"], ["=", ["fx", "f"], "x"], ["=", ["fy", "f"], "y"]],
+				["and", ["is-fc", "f"], ["not", ["=", ["fx", "f"], "x"]], ["flist-equals", ["ft", "f"], "x", "y"]],
 			]])
-		return ["flist-equals", f, x, y, d]
+		return ["flist-equals", f, x, y]
