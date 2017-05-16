@@ -113,7 +113,7 @@
               | solving_failed_unsat
               | solving_failed_timeout
               | solving_failed_unknown
-              | {errors_found, cuter:erroneous_inputs_with_mfas()}
+              | {errors_found, cuter:erroneous_inputs()}
               | {code_logs, cuter_codeserver:logs(), cuter_mock:whitelist(), boolean()}
               | {callgraph_calculation_started, [mfa()]}
               | {callgraph_calculation_failed, string()}
@@ -233,7 +233,7 @@ solving_failed_unknown() ->
   gen_server:call(?PRETTY_PRINTER, solving_failed_unknown).
 
 %% Print the erroneous input that were found.
--spec errors_found(cuter:erroneous_inputs_with_mfas()) -> ok.
+-spec errors_found(cuter:erroneous_inputs()) -> ok.
 errors_found(Errors) ->
   gen_server:call(?PRETTY_PRINTER, {errors_found, Errors}).
 
