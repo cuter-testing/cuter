@@ -495,21 +495,6 @@ class Solver_SMT(AbstractErlangSolver):
 			self.fun_rec_cnt = 0
 		return "fun-rec-" + str(self.fun_rec_cnt)
 
-	def fun_rec(self, body):
-		body_smt = serialize(body)
-		if not hasattr(self, "fun_recs"):
-			self.fun_recs = {}
-		elif body_smt in self.fun_recs:
-			return self.fun_recs[body_smt]
-		name = self.fun_rec_name()
-		self.fun_recs[body_smt] = name
-		if self.define_funs_rec is not None:
-			self.define_funs_rec.append((name, [["t", "Term"]], body))
-		else:
-			self.append_to_library("define-fun-rec")
-			self.commands.append(["define-fun-rec", name, [["t", "Term"]], "Bool", body]) # TODO define-fun doesn't work
-		return name
-
 	def fun_rec_tlist(self, spec):
 		spec = self.build_spec(spec, ["th", "l"])
 		spec_smt = serialize(spec)
