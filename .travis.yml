@@ -20,6 +20,7 @@ script:
   - make depend
   - make all
 otp_release:
+  - 20.0
   - 19.3
   - 19.0
   - 18.3
