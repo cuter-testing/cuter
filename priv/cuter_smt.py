@@ -292,7 +292,6 @@ class Solver_SMT(AbstractErlangSolver):
 				return self.parse_real(expr[1]) / self.parse_real(expr[2])
 		else:
 			return float(expr)
-		clg.debug_info()
 		assert False, "parse_real({})".format(str(expr))
 
 	def build_bool(self, value):

@@ -15,7 +15,7 @@ cglb.init()
 # Initialize the communication with Erlang
 erlport = cp.ErlangPort()
 # Initialize the Solver interface
-coordinator = cuter_coordinator.Solver_Coordinator_Magic()
+coordinator = cuter_coordinator.Solver_Coordinator_Guess()
 
 try:
     while cglb.__RUN__:

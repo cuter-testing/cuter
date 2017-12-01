@@ -138,7 +138,6 @@ class Solver_Z3(AbstractErlangSolver):
         Stores the spec of the entry point MFA.
         """
         # FIXME Assume that there is only one clause.
-        clg.debug_info(spec)
         clauses = cc.get_spec_clauses(spec)
         self.parseSpecClause(clauses[0])
 

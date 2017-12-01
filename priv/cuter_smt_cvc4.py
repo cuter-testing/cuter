@@ -13,10 +13,10 @@ class Solver_SMT_CVC4(Solver_SMT):
 	def start_process(self):
 		timeout = cuter_smt_process.timeout
 		arguments = ["cvc4", "--lang=smt2.5", "--tlimit={}".format(timeout * 1000)]
-		if "define-fun-rec" in self.library:
-			arguments.append("--fmf-fun")
 		self.process = cuter_smt_process.Solver(arguments)
 		self.process.write(["set-logic", "UFDTLIRA"])
+		if "define-fun-rec" in self.library:
+			self.process.write(["set-option", ":fmf-fun", "true"])
 
 	def check_process(self):
 		arguments = ["cvc4", "--version"]
