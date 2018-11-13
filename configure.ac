@@ -34,6 +34,14 @@ if test "$HAS_ERLC" = "0"; then
    AC_MSG_ERROR([You need the Erlang Compiler. Please download Erlang at http://www.erlang.org/])
 fi
 
+AT_LEAST_21=
+ERL=`which erl`
+if $ERL -noshell -eval "X=erlang:system_info(otp_release) >= \"21\",X=true" -s init stop &> /dev/null; then
+  AT_LEAST_21="-DAT_LEAST_21"
+fi
+
+AC_SUBST(AT_LEAST_21)
+
 ###############################################
 #
 # Testing python
