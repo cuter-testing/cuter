@@ -1,9 +1,11 @@
+[![Travis][travis badge]][travis]
+[![Erlang Versions][erlang versions badge]][erlang]
+[![Last Commit][commit badge]][commit]
+
 CutEr
 =====
 
 This is the source tree for CutEr, a concolic unit testing tool for Erlang.
-
-[![Build Status](https://travis-ci.org/aggelgian/cuter.svg?branch=master)](https://travis-ci.org/aggelgian/cuter)
 
 ***CAUTION: This tool is still under heavy development***
 
@@ -15,7 +17,7 @@ This is the source tree for CutEr, a concolic unit testing tool for Erlang.
 License
 -------
 
-Copyright 2014-2017 by Aggelos Giantsios, Nikolaos Papaspyrou and Kostis Sagonas.
+Copyright 2014-2018 by Aggelos Giantsios, Nikolaos Papaspyrou and Kostis Sagonas.
 
 This program is distributed under the GPL, version 3 or later. Please see the COPYING file for details.
 
@@ -184,3 +186,14 @@ find out about them by the command:
 and by browsing the source code of CutEr.
 
 Have fun with the tool!
+
+
+<!-- Badges (alphabetically) -->
+[commit badge]: https://img.shields.io/github/last-commit/aggelgian/cuter.svg?style=flat-square
+[erlang versions badge]: https://img.shields.io/badge/erlang-19.0%20to%2021.1-blue.svg?style=flat-square
+[travis badge]: https://img.shields.io/travis/aggelgian/cuter.svg?branch=master?style=flat-square
+
+<!-- Links (alphabetically) -->
+[commit]: https://github.com/aggelgian/cuter/commit/HEAD
+[erlang]: http://www.erlang.org
+[travis]: https://travis-ci.org/aggelgian/cuter
