@@ -16,7 +16,6 @@ FTEST_SRC = $(TEST)/ftest/src
 FTEST_EBIN = $(TEST)/ftest/ebin
 LIB = $(PWD)/lib
 ERLC = @ERLC@
-MECK = $(realpath @MECK@)
 PROPER = $(realpath @PROPER@)
 GPB = $(realpath @GPB@)
 PROTOC-ERL = $(GPB)/bin/protoc-erl
@@ -27,7 +26,7 @@ PROTOC=@PROTOC_PATH@
 ### Set Environment Variables
 ###----------------------------------------------------------------------
 
-export ERL_LIBS := $(PROPER):$(MECK):$(GPB):$$ERL_LIBS
+export ERL_LIBS := $(PROPER):$(GPB):$$ERL_LIBS
 
 ###----------------------------------------------------------------------
 ### Flags
