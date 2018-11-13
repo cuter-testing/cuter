@@ -54,6 +54,16 @@
 }).
 -type lambda_app() :: #?LAMBDA_APP{}.
 
+%% Access the stacktrace.
+-ifdef(AT_LEAST_21).
+-define(STACKTRACE(ErrorType, Error, ErrorStackTrace),
+        ErrorType:Error:ErrorStackTrace ->).
+-else.
+-define(STACKTRACE(ErrorType, Error, ErrorStackTrace),
+        ErrorType:Error ->
+            ErrorStackTrace = erlang:get_stacktrace(),).
+-endif.
+
 %% -------------------------------------------------------------------
 %% API functions for result().
 %% -------------------------------------------------------------------
@@ -608,14 +618,13 @@ eval_expr({c_catch, _Anno, Body}, M, Cenv, Senv, Servers, Fd) ->
       Cv = {'EXIT', get_concrete(Exit1)},
       Sv = {'EXIT', get_symbolic(Exit1)},
       mk_result(Cv, Sv);
-    error:Error ->
+    ?STACKTRACE(error, Error, Stacktrace)
       %% CAUTION! Stacktrace info is not valid
       %% It refers to the interpreter process's stacktrace
       %% Used for internal debugging
       Error1 = unzip_one(Error),
       Error1_c = get_concrete(Error1),
       check_if_lambda_app(Fd, Error1_c),
-      Stacktrace = erlang:get_stacktrace(),
       Cv = {'EXIT', {Error1_c, Stacktrace}},
       Sv = {'EXIT', {get_symbolic(Error1), Stacktrace}},
       mk_result(Cv, Sv)
