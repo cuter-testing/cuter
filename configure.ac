@@ -157,48 +157,6 @@ fi
 
 ###############################################
 #
-# Testing meck
-#
-###############################################
-AC_ARG_WITH(meck,
-[AS_HELP_STRING([--with-meck=MECK],
-		[specify the location of meck.])])
-
-MECK="lib/meck"
-if test "x$with_meck" != x; then
-  MECK="$with_meck"
-fi
-
-AC_SUBST(MECK)
-
-cat > test_meck.erl <<EOF
--module(test_meck).
--export(@<:@foo/0@:>@).
-foo() ->
-  case code:which(meck) of
-    non_existing -> error(non_existing);
-    _ -> ok
-  end.
-EOF
-
-ERL=`which erl`
-if $ERLC test_meck.erl && $ERL -noshell -pa $MECK/ebin -eval "test_meck:foo()" -s init stop &> /dev/null; then
-  HAS_MECK="1"
-  HAS_MECK_MSG="yes"
-else
-  HAS_MECK="0"
-  HAS_MECK_MSG="no"
-  rm -f erl_crash.dump
-fi
-rm -f test_meck.erl test_meck.beam
-
-if test "$HAS_MECK" = "0"; then
-  MECK=
-  AC_MSG_NOTICE([Meck is missing. You will not be able to run the tests. Download it at https://github.com/eproxus/meck.])
-fi
-
-###############################################
-#
 # Testing PropEr
 #
 ###############################################
@@ -298,7 +256,6 @@ Python:             $PYTHON_PATH
 protoc:             $PROTOC_PATH
 Z3Py:               $HAS_Z3_MSG
 protobuf (Python):  $HAS_PROTOBUF_MSG
-Meck:               $HAS_MECK_MSG
 PropEr:             $HAS_PROPER_MSG
 GPB:                $HAS_GPB_MSG
 
