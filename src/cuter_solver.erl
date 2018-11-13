@@ -1,7 +1,7 @@
 %% -*- erlang-indent-level: 2 -*-
 %%------------------------------------------------------------------------------
 -module(cuter_solver).
--behaviour(gen_fsm).
+-behaviour(gen_statem).
 
 -include("include/cuter_macros.hrl").
 
@@ -13,30 +13,20 @@
   , send_stop_message/1
   , solve/1
   %% gen_fsm callbacks
+  , callback_mode/0
   , init/1
-  , handle_event/3
-  , handle_sync_event/4
-  , handle_info/3
   , terminate/3
   , code_change/4
   %% FSM states
-  , idle/2
   , idle/3
-  , python_started/2
   , python_started/3
-  , trace_loaded/2
   , trace_loaded/3
-  , axioms_added/2
   , axioms_added/3
-  , solved/2
   , solved/3
-  , generating_model/2
+  , solving/3
   , generating_model/3
-  , model_received/2
   , model_received/3
-  , finished/2
   , finished/3
-  , failed/2
   , failed/3
 ]).
 
@@ -58,7 +48,8 @@
                    | finished.
 -type from()      :: {pid(), reference()}.
 -type err_async() :: {stop, {unexpected_event, any()}, fsm_state()}.
--type err_sync()  :: {stop, {unexpected_event, any()}, ok, fsm_state()}.
+-type err_sync()  :: {stop_and_reply, {unexpected_event, any()}, {reply, from(), ok}, fsm_state()}.
+-type ok_reply()  :: {reply, from(), ok}.
 -type model()     :: #{cuter_symbolic:symbolic() => any()}.
 -type simplifier_conf() :: bitstring().
 
@@ -255,7 +246,7 @@ load_setting(<<F:1, Rest/bitstring>>, [M|Ms], FSM) ->
 %% Start the FSM
 -spec start_fsm(solver_input()) -> pid() | {error, term()}.
 start_fsm(Args) ->
-  case gen_fsm:start_link(?MODULE, [self(), Args], []) of
+  case gen_statem:start_link(?MODULE, [self(), Args], []) of
     {ok, Pid} -> Pid;
     {error, _Reason} = R -> R
   end.
@@ -264,42 +255,46 @@ start_fsm(Args) ->
 %% In this case, it will be a Python program.
 -spec exec(pid(), string()) -> ok.
 exec(Pid, Python) ->
-  gen_fsm:sync_send_event(Pid, {exec, Python}).
+  gen_statem:call(Pid, {exec, Python}).
 
 %% Load the trace file
 -spec load_trace_file(pid(), {file:name(), integer()}) -> ok.
 load_trace_file(Pid, FileInfo) ->
-  gen_fsm:sync_send_event(Pid, {load_trace_file, FileInfo}, 10000).
+  gen_statem:call(Pid, {load_trace_file, FileInfo}, 10000).
 
 %% Add the generated axioms to the solver
 -spec add_axioms(pid()) -> ok.
 add_axioms(Pid) ->
-  gen_fsm:sync_send_event(Pid, add_axioms).
+  gen_statem:call(Pid, add_axioms).
 
 %% Fix a variable to a specific value
 -spec fix_variable(pid(), cuter_symbolic:mapping()) -> ok.
 fix_variable(Pid, Mapping) ->
-  gen_fsm:sync_send_event(Pid, {fix_variable, Mapping}).
+  gen_statem:call(Pid, {fix_variable, Mapping}).
 
 %% Check the model for satisfiability
 -spec check_model(pid()) -> solver_status().
 check_model(Pid) ->
-  gen_fsm:sync_send_event(Pid, check_model, 500000).
+  gen_statem:call(Pid, check_model, 500000).
 
 %% Get the instance of the sat model
 -spec get_model(pid()) -> mappings().
 get_model(Pid) ->
-  gen_fsm:sync_send_event(Pid, get_model, 500000).
+  gen_statem:call(Pid, get_model, 500000).
 
 %% Remove all the axioms from the solver
 -spec reset_solver(pid()) -> ok.
 reset_solver(Pid) ->
-  gen_fsm:sync_send_event(Pid, reset_solver).
+  gen_statem:call(Pid, reset_solver).
 
 %% Stop the FSM
 -spec stop_exec(pid()) -> ok.
 stop_exec(Pid) ->
-  gen_fsm:sync_send_event(Pid, stop_exec).
+  gen_statem:call(Pid, stop_exec).
+
+-spec callback_mode() -> state_functions.
+callback_mode() ->
+    state_functions.
 
 %% ----------------------------------------------------------------------------
 %% gen_fsm callbacks
@@ -328,16 +323,6 @@ terminate(Reason, State, #fsm_state{port = Port}) ->
 code_change(_OldVsn, StateName, Data, _Extra) ->
   {ok, StateName, Data}.
 
-%% handle_event/3
--spec handle_event(any(), state(), fsm_state()) -> err_async().
-handle_event(Event, _StateName, Data) ->
-  {stop, {unexpected_event, Event}, Data}.
-
-%% handle_sync_event/4
--spec handle_sync_event(any(), from(), state(), fsm_state()) -> err_sync().
-handle_sync_event(Event, _From, _StateName, Data) ->
-  {stop, {unexpected_event, Event}, ok, Data}.
-
 %% handle_info/3
 %% Useful to handle messages from the port
 -spec handle_info({port(), {data, binary()}}, state(), fsm_state()) -> {next_state, state(), fsm_state()}
@@ -351,7 +336,7 @@ handle_info({Port, {data, Resp}}, State=solving, Data=#fsm_state{from = From, po
   try cuter_serial:from_solver_response(Resp) of
     {'status', Status} ->
       pp_solver_status(Status),
-      gen_fsm:reply(From, Status),
+      gen_statem:reply(From, Status),
       case Status of
         'SAT' ->
           {next_state, solved, Data#fsm_state{from = null}};
@@ -376,7 +361,7 @@ handle_info({Port, {data, Resp}}, State=generating_model, Data=#fsm_state{from =
           ok
         end,
       maps:fold(Fn, ok, Model),
-      gen_fsm:reply(From, Model),
+      gen_statem:reply(From, Model),
       {next_state, model_received, Data#fsm_state{from = null, sol = #{}}};
     {'status', Status} ->
       {stop, {expecting_model_got_status, Status}, Data}
@@ -408,162 +393,206 @@ handle_info(Info, _State, Data) ->
 %% idle
 %%
 
--spec idle(any(), fsm_state()) -> err_async().
-idle(Event, Data) ->
-  {stop, {unexpected_event, Event}, Data}.
+-spec idle(cast, any(), fsm_state()) -> err_async();
+          ({call, from()}, any(), fsm_state()) -> {next_state, python_started, fsm_state(), [ok_reply()]} | err_sync();
+          (info, any(), fsm_state()) -> {next_state, state(), fsm_state()} | err_async().
 
--spec idle(any(), from(), fsm_state()) -> {reply, ok, python_started, fsm_state()} | err_sync().
+idle(cast, Event, Data) ->
+  {stop, {unexpected_event, Event}, Data};
 %% Open a port by executing an external program
-idle({exec, Command}, _From, Data) ->
+idle({call, From}, {exec, Command}, Data) ->
   Port = open_port({spawn, Command}, [{packet, 4}, binary, hide]),
   cuter_pp:fsm_started(Port),
-  {reply, ok, python_started, Data#fsm_state{port = Port}};
-idle(Event, _From, Data) ->
-  {stop, {unexpected_event, Event}, ok, Data}.
+  {next_state, python_started, Data#fsm_state{port = Port}, [{reply, From, ok}]};
+idle({call, From}, Event, Data) ->
+  {stop_and_reply, {unexpected_event, Event}, {reply, From, ok}, Data};
+idle(info, Msg, Data) ->
+  handle_info(Msg, idle, Data).
 
 %%
 %% python_started
 %%
 
--spec python_started(any(), fsm_state()) -> err_async().
-python_started(Event, Data) ->
-  {stop, {unexpected_event, Event}, Data}.
+-spec python_started(cast, any(), fsm_state()) -> err_async();
+                    ({call, from()}, any(), fsm_state()) -> {next_state, trace_loaded, fsm_state(), [ok_reply()]} | err_sync();
+                    (info, any(), fsm_state()) -> {next_state, state(), fsm_state()} | err_async().
 
--spec python_started(any(), from(), fsm_state()) -> {reply, ok, trace_loaded, fsm_state()} | err_sync().
+python_started(cast, Event, Data) ->
+  {stop, {unexpected_event, Event}, Data};
 %% Send a trace file to the solver and load the generated axioms to a list
-python_started({load_trace_file, FileInfo}, _From, Data=#fsm_state{port = Port}) ->
+python_started({call, From}, {load_trace_file, FileInfo}, Data=#fsm_state{port = Port}) ->
   Cmd = cuter_serial:solver_command(load_trace_file, FileInfo),
   cuter_pp:send_cmd(python_started, FileInfo, "Load Trace File"),
   Port ! {self(), {command, Cmd}},
-  {reply, ok, trace_loaded, Data};
-python_started(Event, _From, Data) ->
-  {stop, {unexpected_event, Event}, ok, Data}.
+  {next_state, trace_loaded, Data, [{reply, From, ok}]};
+python_started({call, From}, Event, Data) ->
+  {stop_and_reply, {unexpected_event, Event}, {reply, From, ok}, Data};
+python_started(info, Msg, Data) ->
+  handle_info(Msg, python_started, Data).
 
 %%
 %% trace_loaded
 %%
 
--spec trace_loaded(any(), fsm_state()) -> err_async().
-trace_loaded(Event, Data) ->
-  {stop, {unexpected_event, Event}, Data}.
+-spec trace_loaded(cast, any(), fsm_state()) -> err_async();
+                  ({call, from()}, any(), fsm_state()) -> {next_state, axioms_added, fsm_state(), [ok_reply()]} | err_sync();
+                  (info, any(), fsm_state()) -> {next_state, state(), fsm_state()} | err_async().
 
--spec trace_loaded(any(), from(), fsm_state()) -> {reply, ok, axioms_added, fsm_state()} | err_sync().
+trace_loaded(cast, Event, Data) ->
+  {stop, {unexpected_event, Event}, Data};
 %% Add the loaded axioms from the trace file to the solver
-trace_loaded(add_axioms, _From, Data=#fsm_state{port = Port}) ->
+trace_loaded({call, From}, add_axioms, Data=#fsm_state{port = Port}) ->
   Cmd = cuter_serial:solver_command(add_axioms),
   cuter_pp:send_cmd(trace_loaded, Cmd, "Load axioms"),
   Port ! {self(), {command, Cmd}},
-  {reply, ok, axioms_added, Data};
-trace_loaded(Event, _From, Data) ->
-  {stop, {unexpected_event, Event}, ok, Data}.
+  {next_state, axioms_added, Data, [{reply, From, ok}]};
+trace_loaded({call, From}, Event, Data) ->
+  {stop_and_reply, {unexpected_event, Event}, {reply, From, ok}, Data};
+trace_loaded(info, Msg, Data) ->
+  handle_info(Msg, trace_loaded, Data).
 
 %%
 %% axioms_added
 %%
 
--spec axioms_added(any(), fsm_state()) -> err_async().
-axioms_added(Event, Data) ->
-  {stop, {unexpected_event, Event}, Data}.
+-spec axioms_added(cast, any(), fsm_state()) -> err_async();
+                  ({call, from()}, any(), fsm_state()) -> {next_state, solving, fsm_state()} |
+                                                          {next_state, axioms_added, fsm_state(), [ok_reply()]} | err_sync();
+                  (info, any(), fsm_state()) -> {next_state, state(), fsm_state()} | err_async().
 
--spec axioms_added(any(), from(), fsm_state()) -> {next_state, solving, fsm_state()} | err_sync().
+axioms_added(cast, Event, Data) ->
+  {stop, {unexpected_event, Event}, Data};
 %% Query the solver for the satisfiability of the model
-axioms_added(check_model, From, Data=#fsm_state{port = Port}) ->
+axioms_added({call, From}, check_model, Data=#fsm_state{port = Port}) ->
   Cmd = cuter_serial:solver_command(solve),
   cuter_pp:send_cmd(axioms_added, Cmd, "Check the model"),
   Port ! {self(), {command, Cmd}},
   {next_state, solving, Data#fsm_state{from = From}};
 %% Fix a symbolic variable to a specific value
-axioms_added({fix_variable, Mapping}, _From, Data=#fsm_state{port = Port}) ->
+axioms_added({call, From}, {fix_variable, Mapping}, Data=#fsm_state{port = Port}) ->
   Cmd = cuter_serial:solver_command(fix_variable, Mapping),
   cuter_pp:send_cmd(axioms_added, Mapping, "Fix a variable"),
   Port ! {self(), {command, Cmd}},
-  {reply, ok, axioms_added, Data};
-axioms_added(Event, _From, Data) ->
-  {stop, {unexpected_event, Event}, ok, Data}.
-
+  {next_state, axioms_added, Data, [{reply, From, ok}]};
+axioms_added({call, From}, Event, Data) ->
+  {stop_and_reply, {unexpected_event, Event}, {reply, From, ok}, Data};
+axioms_added(info, Msg, Data) ->
+  handle_info(Msg, axioms_added, Data).
+  
 %%
 %% failed
 %%
 
--spec failed(any(), fsm_state()) -> err_async().
-failed(Event, Data) ->
-  {stop, {unexpected_event, Event}, Data}.
+-spec failed(cast, any(), fsm_state()) -> err_async();
+            ({call, from()}, any(), fsm_state()) -> {next_state, trace_loaded | finished, fsm_state(), [ok_reply()]} | err_sync();
+            (info, any(), fsm_state()) -> {next_state, state(), fsm_state()} | err_async().
 
--spec failed(any(), from(), fsm_state()) -> {reply, ok, finished, fsm_state()} | err_sync().
+failed(cast, Event, Data) ->
+  {stop, {unexpected_event, Event}, Data};
 %% Reset the solver by unloading all the axioms
-failed(reset_solver, _From, Data=#fsm_state{port = Port}) ->
+failed({call, From}, reset_solver, Data=#fsm_state{port = Port}) ->
   Cmd = cuter_serial:solver_command(reset_solver),
   cuter_pp:send_cmd(failed, Cmd, "Reset the solver"),
   Port ! {self(), {command, Cmd}},
-  {reply, ok, trace_loaded, Data};
+  {next_state, trace_loaded, Data, [{reply, From, ok}]};
 %% Terminate the solver
-failed(stop_exec, _From, Data=#fsm_state{port = Port}) ->
+failed({call, From}, stop_exec, Data=#fsm_state{port = Port}) ->
   Cmd = cuter_serial:solver_command(stop),
   cuter_pp:send_cmd(failed, Cmd, "Stop the execution"),
   Port ! {self(), {command, Cmd}},
-  {reply, ok, finished, Data};
-failed(Event, _From, Data) ->
-  {stop, {unexpected_event, Event}, ok, Data}.
+  {next_state, finished, Data, [{reply, From, ok}]};
+failed({call, From}, Event, Data) ->
+  {stop_and_reply, {unexpected_event, Event}, {reply, From, ok}, Data};
+failed(info, Msg, Data) ->
+  handle_info(Msg, failed, Data).
+
+%%
+%% solving
+%%
+
+-spec solving(cast, any(), fsm_state()) -> err_async();
+             ({call, from()}, any(), fsm_state()) -> err_sync();
+             (info, any(), fsm_state()) -> {next_state, state(), fsm_state()} | err_async().
+
+solving(cast, Event, Data) ->
+  {stop, {unexpected_event, Event}, Data};
+%% Request the solution from the solver
+solving({call, From}, Event, Data) ->
+  {stop_and_reply, {unexpected_event, Event}, {reply, From, ok}, Data};
+solving(info, Msg, Data) ->
+  handle_info(Msg, solving, Data).
 
 %%
 %% solved
 %%
 
--spec solved(any(), fsm_state()) -> err_async().
-solved(Event, Data) ->
-  {stop, {unexpected_event, Event}, Data}.
+-spec solved(cast, any(), fsm_state()) -> err_async();
+            ({call, from()}, any(), fsm_state()) -> {next_state, generating_model, fsm_state()} | err_sync();
+            (info, any(), fsm_state()) -> {next_state, state(), fsm_state()} | err_async().
 
--spec solved(any(), from(), fsm_state()) -> {next_state, generating_model, fsm_state()} | err_sync().
+solved(cast, Event, Data) ->
+  {stop, {unexpected_event, Event}, Data};
 %% Request the solution from the solver
-solved(get_model, From, Data=#fsm_state{port = Port}) ->
+solved({call, From}, get_model, Data=#fsm_state{port = Port}) ->
   Cmd = cuter_serial:solver_command(get_model),
   cuter_pp:send_cmd(solved, Cmd, "Get the model"),
   Port ! {self(), {command, Cmd}},
   {next_state, generating_model, Data#fsm_state{from = From}};
-solved(Event, _From, Data) ->
-  {stop, {unexpected_event, Event}, ok, Data}.
+solved({call, From}, Event, Data) ->
+  {stop_and_reply, {unexpected_event, Event}, {reply, From, ok}, Data};
+solved(info, Msg, Data) ->
+  handle_info(Msg, solved, Data).
 
 %%
 %% generating_model
 %%
--spec generating_model(any(), fsm_state()) -> err_async().
-generating_model(Event, Data) ->
-  {stop, {unexpected_event, Event}, Data}.
 
--spec generating_model(any(), from(), fsm_state()) -> err_sync().
-generating_model(Event, _From, Data) ->
-  {stop, {unexpected_event, Event}, ok, Data}.
+-spec generating_model(cast, any(), fsm_state()) -> err_async();
+                      ({call, from()}, any(), fsm_state()) -> err_sync();
+                      (info, any(), fsm_state()) -> {next_state, state(), fsm_state()} | err_async().
+
+generating_model(cast, Event, Data) ->
+  {stop, {unexpected_event, Event}, Data};
+generating_model({call, From}, Event, Data) ->
+  {stop_and_reply, {unexpected_event, Event}, {reply, From, ok}, Data};
+generating_model(info, Msg, Data) ->
+  handle_info(Msg, generating_model, Data).
 
 %%
 %% model_received
 %%
 
--spec model_received(any(), fsm_state()) -> err_async().
-model_received(Event, Data) ->
-  {stop, {unexpected_event, Event}, Data}.
+-spec model_received(cast, any(), fsm_state()) -> err_async();
+                    ({call, from()}, any(), fsm_state()) -> {next_state, finished, fsm_state(), [ok_reply()]} | err_sync();
+                    (info, any(), fsm_state()) -> {next_state, state(), fsm_state()} | err_async().
 
--spec model_received(any(), from(), fsm_state()) -> {reply, ok, finished, fsm_state()} | err_sync().
+model_received(cast, Event, Data) ->
+  {stop, {unexpected_event, Event}, Data};
 %% Stop the solver
-model_received(stop_exec, _From, Data=#fsm_state{port = Port}) ->
+model_received({call, From}, stop_exec, Data=#fsm_state{port = Port}) ->
   Cmd = cuter_serial:solver_command(stop),
   cuter_pp:send_cmd(model_received, Cmd, "Stop the execution"),
   Port ! {self(), {command, Cmd}},
-  {reply, ok, finished, Data};
-model_received(Event, _From, Data) ->
-  {stop, {unexpected_event, Event}, ok, Data}.
+  {next_state, finished, Data, [{reply, From, ok}]};
+model_received({call, From}, Event, Data) ->
+  {stop_and_reply, {unexpected_event, Event}, {reply, From, ok}, Data};
+model_received(info, Msg, Data) ->
+  handle_info(Msg, model_received, Data).
 
 %%
 %% finished
 %%
 
--spec finished(any(), fsm_state()) -> err_async().
-finished(Event, Data) ->
-  {stop, {unexpected_event, Event}, Data}.
+-spec finished(cast, any(), fsm_state()) -> err_async();
+              ({call, from()}, any(), fsm_state()) -> err_sync();
+              (info, any(), fsm_state()) -> {next_state, state(), fsm_state()} | err_async().
 
--spec finished(any(), from(), fsm_state()) -> err_sync().
-finished(Event, _From, Data) ->
-  {stop, {unexpected_event, Event}, ok, Data}.
-
+finished(cast, Event, Data) ->
+  {stop, {unexpected_event, Event}, Data};
+finished({call, From}, Event, Data) ->
+  {stop_and_reply, {unexpected_event, Event}, {reply, From, ok}, Data};
+finished(info, Msg, Data) ->
+  handle_info(Msg, finished, Data).
 
 %% Dispatcher for pretty printing the status of the solver.
 pp_solver_status('SAT') -> ok;
