@@ -18,6 +18,8 @@
                   | {letrec_func, {atom(), atom(), cerl:c_fun(), function()}}.
 -type value()    :: any().
 
+-type fun_decl() :: {cerl:c_fun(), boolean()}.
+
 %% The result of the concolic execution.
 -define(RESULT, '__cresult').
 
@@ -672,8 +674,19 @@ eval_expr({c_letrec, _Anno, Defs, Body}, M, Cenv, Senv, Servers, Fd) ->
   eval_expr(Body, M, NCe, NSe, Servers, Fd);
 
 %% c_literal
-eval_expr({c_literal, _Anno, V}, _M, _Cenv, _Senv, _Servers, _Fd) ->
-  mk_result(V, V);
+eval_expr({c_literal, _Anno, V}, _M, _Cenv, _Senv, _Servers, Fd) ->
+  case erlang:is_function(V) of
+    false -> mk_result(V, V);
+    true ->
+      Info = erlang:fun_info(V),
+      case proplists:get_value(arity, Info) of
+        undefined -> mk_result(V, V);
+        Arity ->
+          LambdaS = cuter_symbolic:fresh_lambda(Arity, Fd),
+          add_to_created_closure(LambdaS),
+          mk_result(V, LambdaS)
+      end
+  end;
 
 %% c_primop
 eval_expr({c_primop, _Anno, Name, Args}, M, Cenv, Senv, Servers, Fd) ->
@@ -842,7 +855,7 @@ evaluate_bif_concrete({M, F, _A}=MFA, As) ->
 %% --------------------------------------------------------
 %% Try to retrieve the code of an MFA
 %% --------------------------------------------------------
--spec access_mfa_code(mfa(), servers()) -> {cerl:c_fun(), boolean()} | error.
+-spec access_mfa_code(mfa(), servers()) -> {module(), fun_decl()} | error.
 access_mfa_code({Mod, Fun, Arity} = MFA, Servers) ->
   Whitelist = get_whitelist(Servers#svs.code),
   case cuter_mock:is_whitelisted(MFA, Whitelist) of
@@ -904,7 +917,7 @@ get_module_cache(M, CodeServer) ->
 %% definition is stored in the process dictionary for 
 %% subsequent lookups
 %% --------------------------------------------------------
--spec retrieve_function_code(mfa(), cuter_codeserver:module_cache()) -> {cerl:c_fun(), boolean()}.
+-spec retrieve_function_code(mfa(), cuter_codeserver:module_cache()) -> fun_decl().
 retrieve_function_code(MFA, Cache) ->
   What = {?CONCOLIC_PREFIX_PDICT, MFA},
   case get(What) of
