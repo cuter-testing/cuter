@@ -29,7 +29,8 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		Reset the solver.
 		"""
-		self.commands = []
+		self.solver.kill()
+		self.solver = self.setSolver()
 
 	def add_axioms(self):
 		"""

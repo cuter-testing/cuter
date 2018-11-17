@@ -36,6 +36,9 @@ class Solver:
 		)
 		log("; " + " ".join(arguments))
 
+	def kill(self):
+		self.process.kill()
+
 	def write(self, stmt):
 		line = serialize(stmt)
 		self.process.stdin.write(line + "\n")
