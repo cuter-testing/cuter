@@ -21,10 +21,6 @@ def log(msg = ""):
 		clog.write(msg + "\n")
 
 
-# time limit per solver process in seconds
-timeout = 2
-
-
 class Solver:
 
 	def __init__(self, arguments):
@@ -83,5 +79,5 @@ class Solver:
 
 class SolverZ3(Solver):
 
-	def __init__(self):
+	def __init__(self, timeout):
 		Solver.__init__(self, ["z3", "-smt2", "-T:{}".format(timeout), "-in"])

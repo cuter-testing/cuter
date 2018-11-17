@@ -15,6 +15,7 @@
 -type seed() :: {module(), atom(), input(), depth()}.
 
 -define(ONE, 1).
+-define(TWO, 2).
 -define(DEFAULT_DEPTH, 25).
 
 %% The configuration of the tool.
@@ -45,6 +46,7 @@
 -define(SUPPRESS_UNSUPPORTED_MFAS, suppress_unsupported).
 -define(NO_TYPE_NORMALIZATION, no_type_normalization).
 -define(Z3PY, z3py).
+-define(Z3_TIMEOUT, z3_timeout).
 
 -type default_option() :: {?POLLERS_NO, ?ONE}
                         .
@@ -62,6 +64,7 @@
                 | ?SUPPRESS_UNSUPPORTED_MFAS
                 | ?NO_TYPE_NORMALIZATION
                 | ?Z3PY
+                | {?Z3_TIMEOUT, pos_integer()}
                 .
 
 %% ----------------------------------------------------------------------------
@@ -288,11 +291,18 @@ number_of_solvers([_|Rest]) -> number_of_solvers(Rest).
 -spec with_pmatch([option()]) -> boolean().
 with_pmatch(Options) -> not lists:member(?DISABLE_PMATCH, Options).
 
+-spec z3_timeout([option()]) -> pos_integer().
+z3_timeout([]) -> ?TWO;
+z3_timeout([{?Z3_TIMEOUT, N}|_Rest]) -> N;
+z3_timeout([_|Rest]) -> z3_timeout(Rest).
+
 -spec get_solver_backend([option()]) -> string().
 get_solver_backend(Options) ->
+  T = z3_timeout(Options),
+  Cmd = ?PYTHON_CALL ++ " --timeout " ++ integer_to_list(T),
   case lists:member(?Z3PY, Options) of
-      true -> ?PYTHON_CALL;
-      false -> ?PYTHON_CALL ++ " --smt"
+      true -> Cmd;
+      false -> Cmd ++ " --smt"
   end.
 
 -spec get_whitelist([option()]) -> cuter_mock:whitelist().
