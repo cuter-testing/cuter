@@ -10,14 +10,15 @@ from cuter_smt_library import *
 
 class ErlangSMT(cgs.AbstractErlangSolver):
 
-	def __init__(self):
+	def __init__(self, timeout):
 		self.library = []
 		self.commands = []
 		self.commands.append(["set-option", ":produce-models", "true"])
 		self.commands.append(["declare-datatypes", [], datatypes])
 		self.commands.append(["declare-fun", "fa", ["Int"], "Int"])
 		self.commands.append(["declare-fun", "fm", ["Int"], "FList"])
-		self.solver = cuter_smt_process.SolverZ3()
+		self.setSolver = lambda: cuter_smt_process.SolverZ3(timeout)
+		self.solver = self.setSolver()
 		self.define_funs_rec = []
 
 	# =========================================================================

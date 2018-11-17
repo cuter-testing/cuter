@@ -14,6 +14,8 @@ import cuter_common as cc
 
 parser = argparse.ArgumentParser(description="Run the Solver Component.")
 parser.add_argument("-s", "--smt", action='store_true', help="use the SMTv2 backend")
+parser.add_argument("-t", "--timeout", metavar="N", type=int, default=2,
+    help="set the timeout N for the SMT solver (default: %(default)s)")
 args = parser.parse_args()
 
 ## Main Program
@@ -22,7 +24,7 @@ cglb.init()
 # Initialize the communication with Erlang
 erlport = cp.ErlangPort()
 # Initialize the Solver interface
-erlSolver = cz3.ErlangZ3() if not args.smt else cSMT.ErlangSMT()
+erlSolver = cz3.ErlangZ3() if not args.smt else cSMT.ErlangSMT(args.timeout)
 
 try:
     while cglb.__RUN__:
