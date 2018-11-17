@@ -44,7 +44,7 @@ run_multiple_test() ->
   LenChecks = [?assertEqual(2, length(Errors1)), ?assertEqual(2, length(Errors2))],
   ValChecks = [?assert(N > length(L)) || [N, L] <- Errors1 ++ Errors2],
   AllChecks = LenChecks ++ ValChecks,
-  {timeout, 20000, AllChecks}.
+  {timeout, 40000, AllChecks}.
 
 filter_errors(Mfa, Errors) ->
   case lists:keysearch(Mfa, 1, Errors) of
