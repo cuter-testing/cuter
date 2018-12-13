@@ -10,6 +10,8 @@ import cuter_global as cglb
 import cuter_logger as clg
 from cuter_proto_erlang_term_pb2 import ErlangTerm
 
+z3.set_param('model_compress', False)
+
 class Erlang:
     """
     Erlang's Type System.
@@ -557,9 +559,9 @@ def fun_scenario2():
     x_sol, y_sol, f_sol = [encoder.encode(m[v]) for v in [x, y, f]]
     # Create the result
     f_exp = cc.mk_fun(1, [
-        cc.mk_fun_entry([x_sol], cc.mk_int(42)),
-        cc.mk_fun_entry([y_sol], cc.mk_int(10))
-    ], cc.mk_int(42))
+        cc.mk_fun_entry([y_sol], cc.mk_int(10)),
+        cc.mk_fun_entry([x_sol], cc.mk_int(42))
+    ], cc.mk_int(10))
     compare_solutions(f_exp, f_sol)
 
 def fun_scenario3():
@@ -611,11 +613,11 @@ def fun_scenario3():
     x_sol, y_sol, f_sol = [encoder.encode(m[v]) for v in [x, y, f]]
     # Create the result
     f_exp = cc.mk_fun(1, [
-        cc.mk_fun_entry([x_sol],        cc.mk_int(4)),
         cc.mk_fun_entry([cc.mk_int(5)], cc.mk_int(17)),
         cc.mk_fun_entry([cc.mk_int(4)], cc.mk_int(42)),
-        cc.mk_fun_entry([y_sol],        cc.mk_int(5))
-    ], cc.mk_int(4))
+        cc.mk_fun_entry([y_sol],        cc.mk_int(5)),
+        cc.mk_fun_entry([x_sol],        cc.mk_int(4))
+    ], cc.mk_int(17))
     compare_solutions(f_exp, f_sol)
 
 def fun_scenario4():
@@ -712,9 +714,9 @@ def fun_scenario5():
     x_sol, y_sol, z_sol, f_sol = [encoder.encode(m[v]) for v in [x, y, z, f]]
     # Create the result
     f_exp = cc.mk_fun(3, [
-        cc.mk_fun_entry([z_sol, y_sol, x_sol], cc.mk_int(17)),
-        cc.mk_fun_entry([x_sol, y_sol, z_sol], cc.mk_int(42))
-    ], cc.mk_int(17))
+        cc.mk_fun_entry([x_sol, y_sol, z_sol], cc.mk_int(42)),
+        cc.mk_fun_entry([z_sol, y_sol, x_sol], cc.mk_int(17))
+    ], cc.mk_int(42))
     compare_solutions(f_exp, f_sol)
 
 def fun_scenario6():
@@ -823,9 +825,9 @@ def fun_scenario7():
     l_sol, f_sol = [encoder.encode(m[v]) for v in [l, f]]
     # Create the result
     f_exp = cc.mk_fun(2, [
-        cc.mk_fun_entry([l_sol.subterms[0], cc.mk_int(0)], cc.mk_int(4)),
-        cc.mk_fun_entry([l_sol.subterms[1], cc.mk_int(4)], cc.mk_int(42))
-    ], cc.mk_int(4))
+        cc.mk_fun_entry([l_sol.subterms[1], cc.mk_int(4)], cc.mk_int(42)),
+        cc.mk_fun_entry([l_sol.subterms[0], cc.mk_int(0)], cc.mk_int(4))
+    ], cc.mk_int(42))
     compare_solutions(f_exp, f_sol)
 
 def fun_scenario8():
@@ -877,8 +879,8 @@ def fun_scenario8():
     l_sol, f_sol = [encoder.encode(m[v]) for v in [l, f]]
     # Create the result
     f_exp = cc.mk_fun(1, [
-        cc.mk_fun_entry([l_sol.subterms[1]], encoder.encode(atmFalse)),
-        cc.mk_fun_entry([l_sol.subterms[0]], encoder.encode(atmFalse))
+        cc.mk_fun_entry([l_sol.subterms[0]], encoder.encode(atmFalse)),
+        cc.mk_fun_entry([l_sol.subterms[1]], encoder.encode(atmFalse))
     ], encoder.encode(atmFalse))
     compare_solutions(f_exp, f_sol)
 
