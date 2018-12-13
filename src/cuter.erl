@@ -15,6 +15,7 @@
 -type seed() :: {module(), atom(), input(), depth()}.
 
 -define(ONE, 1).
+-define(TWO, 2).
 -define(DEFAULT_DEPTH, 25).
 
 %% The configuration of the tool.
@@ -44,6 +45,7 @@
 -define(SORTED_ERRORS, sorted_errors).
 -define(SUPPRESS_UNSUPPORTED_MFAS, suppress_unsupported).
 -define(NO_TYPE_NORMALIZATION, no_type_normalization).
+-define(Z3_TIMEOUT, z3_timeout).
 
 -type default_option() :: {?POLLERS_NO, ?ONE}
                         .
@@ -60,6 +62,7 @@
                 | ?SORTED_ERRORS
                 | ?SUPPRESS_UNSUPPORTED_MFAS
                 | ?NO_TYPE_NORMALIZATION
+                | {?Z3_TIMEOUT, pos_integer()}
                 .
 
 %% ----------------------------------------------------------------------------
@@ -242,10 +245,11 @@ initialize_app(Options) ->
   error_logger:tty(false),  %% disable error_logger
   ok = cuter_pp:start(reporting_level(Options)),
   WithPmatch = with_pmatch(Options),
+  SolverBackend = get_solver_backend(Options),
   Whitelist = get_whitelist(Options),
   NormalizeTypes = type_normalization(Options),
   CodeServer = cuter_codeserver:start(self(), WithPmatch, Whitelist, NormalizeTypes),
-  SchedPid = cuter_scheduler_maxcover:start(?PYTHON_CALL, ?DEFAULT_DEPTH, CodeServer),
+  SchedPid = cuter_scheduler_maxcover:start(SolverBackend, ?DEFAULT_DEPTH, CodeServer),
   #conf{ calculateCoverage = calculate_coverage(Options)
        , codeServer = CodeServer
        , dataDir = cuter_lib:get_tmp_dir(BaseDir)
@@ -284,6 +288,16 @@ number_of_solvers([_|Rest]) -> number_of_solvers(Rest).
 
 -spec with_pmatch([option()]) -> boolean().
 with_pmatch(Options) -> not lists:member(?DISABLE_PMATCH, Options).
+
+-spec z3_timeout([option()]) -> pos_integer().
+z3_timeout([]) -> ?TWO;
+z3_timeout([{?Z3_TIMEOUT, N}|_Rest]) -> N;
+z3_timeout([_|Rest]) -> z3_timeout(Rest).
+
+-spec get_solver_backend([option()]) -> string().
+get_solver_backend(Options) ->
+  T = z3_timeout(Options),
+  ?PYTHON_CALL ++ " --timeout " ++ integer_to_list(T).
 
 -spec get_whitelist([option()]) -> cuter_mock:whitelist().
 get_whitelist([]) ->

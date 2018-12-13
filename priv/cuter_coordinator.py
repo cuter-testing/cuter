@@ -16,10 +16,10 @@ class Solver_Coordinator:
 	default; use only Z3
 	"""
 
-	def __init__(self):
-		self.solver_z3 = Solver_SMT_Z3()
+	def __init__(self, timeout):
+		self.solver_z3 = Solver_SMT_Z3(timeout)
 		assert self.solver_z3.check_process(), "Z3 is not installed"
-		self.solver_cvc4 = Solver_SMT_CVC4()
+		self.solver_cvc4 = Solver_SMT_CVC4(timeout)
 		self.check_cvc4 = self.solver_cvc4.check_process()
 		if self.check_cvc4:
 			self.main_init()

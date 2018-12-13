@@ -52,6 +52,9 @@ class Solver:
 		)
 		log("; " + " ".join(arguments))
 
+	def kill(self):
+		self.process.kill()
+
 	def write(self, stmt):
 		line = serialize(stmt)
 		self.process.stdin.write(line + "\n")
@@ -84,3 +87,15 @@ class Solver:
 
 	def exit(self):
 		self.write(["exit"])
+
+#class SolverCVC4(Solver):
+#
+#	def __init__(self):
+#		Solver.__init__(self, ["cvc4", "--lang=smt2", "--tlimit={}".format(timeout * 1000), "--fmf-fun", "--incremental"])
+#		self.write(["set-logic", "UFDTLIRA"])
+
+
+class SolverZ3(Solver):
+
+	def __init__(self, timeout):
+		Solver.__init__(self, ["z3", "-smt2", "-T:{}".format(timeout), "-in"])

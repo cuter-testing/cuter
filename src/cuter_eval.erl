@@ -18,6 +18,8 @@
                   | {letrec_func, {atom(), atom(), cerl:c_fun(), function()}}.
 -type value()    :: any().
 
+-type fun_decl() :: {cerl:c_fun(), boolean()}.
+
 %% The result of the concolic execution.
 -define(RESULT, '__cresult').
 
@@ -51,6 +53,16 @@
   tag   :: cuter_cerl:tag()
 }).
 -type lambda_app() :: #?LAMBDA_APP{}.
+
+%% Access the stacktrace.
+-ifdef(AT_LEAST_21).
+-define(STACKTRACE(ErrorType, Error, ErrorStackTrace),
+        ErrorType:Error:ErrorStackTrace ->).
+-else.
+-define(STACKTRACE(ErrorType, Error, ErrorStackTrace),
+        ErrorType:Error ->
+            ErrorStackTrace = erlang:get_stacktrace(),).
+-endif.
 
 %% -------------------------------------------------------------------
 %% API functions for result().
@@ -606,14 +618,13 @@ eval_expr({c_catch, _Anno, Body}, M, Cenv, Senv, Servers, Fd) ->
       Cv = {'EXIT', get_concrete(Exit1)},
       Sv = {'EXIT', get_symbolic(Exit1)},
       mk_result(Cv, Sv);
-    error:Error ->
+    ?STACKTRACE(error, Error, Stacktrace)
       %% CAUTION! Stacktrace info is not valid
       %% It refers to the interpreter process's stacktrace
       %% Used for internal debugging
       Error1 = unzip_one(Error),
       Error1_c = get_concrete(Error1),
       check_if_lambda_app(Fd, Error1_c),
-      Stacktrace = erlang:get_stacktrace(),
       Cv = {'EXIT', {Error1_c, Stacktrace}},
       Sv = {'EXIT', {get_symbolic(Error1), Stacktrace}},
       mk_result(Cv, Sv)
@@ -672,8 +683,19 @@ eval_expr({c_letrec, _Anno, Defs, Body}, M, Cenv, Senv, Servers, Fd) ->
   eval_expr(Body, M, NCe, NSe, Servers, Fd);
 
 %% c_literal
-eval_expr({c_literal, _Anno, V}, _M, _Cenv, _Senv, _Servers, _Fd) ->
-  mk_result(V, V);
+eval_expr({c_literal, _Anno, V}, _M, _Cenv, _Senv, _Servers, Fd) ->
+  case erlang:is_function(V) of
+    false -> mk_result(V, V);
+    true ->
+      Info = erlang:fun_info(V),
+      case proplists:get_value(arity, Info) of
+        undefined -> mk_result(V, V);
+        Arity ->
+          LambdaS = cuter_symbolic:fresh_lambda(Arity, Fd),
+          add_to_created_closure(LambdaS),
+          mk_result(V, LambdaS)
+      end
+  end;
 
 %% c_primop
 eval_expr({c_primop, _Anno, Name, Args}, M, Cenv, Senv, Servers, Fd) ->
@@ -842,7 +864,7 @@ evaluate_bif_concrete({M, F, _A}=MFA, As) ->
 %% --------------------------------------------------------
 %% Try to retrieve the code of an MFA
 %% --------------------------------------------------------
--spec access_mfa_code(mfa(), servers()) -> {cerl:c_fun(), boolean()} | error.
+-spec access_mfa_code(mfa(), servers()) -> {module(), fun_decl()} | error.
 access_mfa_code({Mod, Fun, Arity} = MFA, Servers) ->
   Whitelist = get_whitelist(Servers#svs.code),
   case cuter_mock:is_whitelisted(MFA, Whitelist) of
@@ -904,7 +926,7 @@ get_module_cache(M, CodeServer) ->
 %% definition is stored in the process dictionary for 
 %% subsequent lookups
 %% --------------------------------------------------------
--spec retrieve_function_code(mfa(), cuter_codeserver:module_cache()) -> {cerl:c_fun(), boolean()}.
+-spec retrieve_function_code(mfa(), cuter_codeserver:module_cache()) -> fun_decl().
 retrieve_function_code(MFA, Cache) ->
   What = {?CONCOLIC_PREFIX_PDICT, MFA},
   case get(What) of

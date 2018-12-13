@@ -8,8 +8,8 @@ before_install:
   - export PYTHONPATH=$PWD/z3-4.5.0-x64-ubuntu-14.04/bin/python:$PYTHONPATH
   - export C_INCLUDE_PATH=$PWD/z3-4.5.0-x64-ubuntu-14.04/include/:$C_INCLUDE_PATH
   - export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD/z3-4.5.0-x64-ubuntu-14.04/bin
-  - pip install protobuf==3.2.0
-  - pip install parsimonious==0.7.0
+  - sudo pip install protobuf==3.2.0
+  - sudo pip install parsimonious==0.7.0
   - mkdir -p cvc4
   - cd cvc4
   - DAY=`date -d 'yesterday' '+%y-%m-%d'`
@@ -28,10 +28,11 @@ script:
   - make depend
   - make all
 otp_release:
-  - 19.2
-  - 19.0
-  - 18.3
-  - 18.1	# 18.0 has a problem in dialyzer
+  - 21.0
+  - 20.1
+  - 20.0
+  - 19.3
+  - 19.1
 
 cache:
   directories:

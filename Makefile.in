@@ -16,7 +16,6 @@ FTEST_SRC = $(TEST)/ftest/src
 FTEST_EBIN = $(TEST)/ftest/ebin
 LIB = $(PWD)/lib
 ERLC = @ERLC@
-MECK = $(realpath @MECK@)
 PROPER = $(realpath @PROPER@)
 GPB = $(realpath @GPB@)
 PROTOC-ERL = $(GPB)/bin/protoc-erl
@@ -27,7 +26,7 @@ PROTOC=@PROTOC_PATH@
 ### Set Environment Variables
 ###----------------------------------------------------------------------
 
-export ERL_LIBS := $(PROPER):$(MECK):$(GPB):$$ERL_LIBS
+export ERL_LIBS := $(PROPER):$(GPB):$$ERL_LIBS
 
 ###----------------------------------------------------------------------
 ### Flags
@@ -43,7 +42,7 @@ ERLC_FLAGS = +debug_info $(WARNS) -Werror
 ERLC_FLAGS_PROTOBUFS = +debug_info $(WARNS_FTEST) -Werror
 ERLC_FLAGS_FTEST = +debug_info $(WARNS_FTEST) -Werror
 ERLC_FLAGS_NO_DBG = $(WARNS) -Werror
-ERLC_MACROS = -DEBIN=\"$(PWD)/$(EBIN)\" -DPYTHON_PATH=\"@PYTHON_PATH@\" -DPRIV=\"$(PRIV)\"
+ERLC_MACROS = -DEBIN=\"$(PWD)/$(EBIN)\" -DPYTHON_PATH=\"@PYTHON_PATH@\" -DPRIV=\"$(PRIV)\" @AT_LEAST_21@
 
 HRL_FILES = \
 	cuter_macros \

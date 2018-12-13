@@ -131,7 +131,7 @@ class Solver_SMT(AbstractErlangSolver):
 	# Public API.
 	# =========================================================================
 
-	def __init__(self):
+	def __init__(self, timeout):
 		self.state_temp_commands = False
 		self.library = []
 		self.commands = []
@@ -142,6 +142,7 @@ class Solver_SMT(AbstractErlangSolver):
 		# useful constants
 		self.false = ["atom", self.build_ilist(map(ord, "false"))]
 		self.true = ["atom", self.build_ilist(map(ord, "true"))]
+		self.define_funs_rec = []
 
 	def start_process(self):
 		raise NotImplementedError("Method 'start_process' is not implemented!")

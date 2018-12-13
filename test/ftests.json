@@ -1182,6 +1182,16 @@
             "errors": false,
             "arity": 1,
             "skip": false
+        },
+        {
+            "module": "complex_spec",
+            "function": "g",
+            "args": "[[]]",
+            "depth": "10",
+            "errors": false,
+            "arity": 1,
+            "xopts": "--z3-timeout 1",
+            "skip": false
         }
     ]
 }

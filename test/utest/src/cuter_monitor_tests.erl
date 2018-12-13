@@ -47,19 +47,10 @@ validate_subscriber(MonitorServer, Parent) ->
   receive {Parent, stop} -> ok end.
 
 setup() ->
-  Me = self(),
-  meck:new(?ISERVER),
-  meck:expect(?ISERVER, monitor_logs, fun(_, _) -> Me ! mock_ok, ok end),
   Dir = cuter_tests_lib:setup_dir(),
   MonitorServer = cuter_monitor:start(Dir, self(), ?TRACE_DEPTH, ?EXEC_PREFIX),
   {Dir, MonitorServer}.
 
 cleanup({Dir, MonitorServer}) ->
   ok = cuter_monitor:stop(MonitorServer),
-  receive
-    mock_ok -> ok
-  after
-    5000 -> ok
-  end,
-  meck:unload(?ISERVER),
   cuter_lib:clear_and_delete_dir(Dir).
