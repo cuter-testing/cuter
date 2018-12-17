@@ -1,6 +1,6 @@
 [submodule "lib/proper"]
 	path = lib/proper
-	url = https://github.com/manopapad/proper.git
+	url = https://github.com/proper-testing/proper.git
 [submodule "lib/gpb"]
 	path = lib/gpb
 	url = https://github.com/tomas-abrahamsson/gpb
