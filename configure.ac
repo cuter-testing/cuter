@@ -170,7 +170,7 @@ fi
 ###############################################
 AC_ARG_WITH(proper,
 [AS_HELP_STRING([--with-proper=PROPER],
-		[specify the location of proper.])])
+		[specify the location of PropEr.])])
 
 PROPER="lib/proper"
 if test "x$with_proper" != x; then
@@ -202,7 +202,7 @@ rm -f test_proper.erl test_proper.beam
 
 if test "$HAS_PROPER" = "0"; then
   PROPER=
-  AC_MSG_ERROR([PropEr is missing. You will not be able to run the tests. Download it at https://github.com/manopapad/proper and follow the instructions.])
+  AC_MSG_NOTICE([PropEr is missing. You will not be able to run the tests. Download it at https://github.com/proper-testing/proper and follow the instructions.])
 fi
 
 ###############################################

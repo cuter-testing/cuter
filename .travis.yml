@@ -2,12 +2,13 @@ sudo: required
 dist: trusty
 language: erlang
 before_install:
-  - wget https://github.com/Z3Prover/z3/releases/download/z3-4.5.0/z3-4.5.0-x64-ubuntu-14.04.zip
-  - unzip z3-4.5.0-x64-ubuntu-14.04.zip
-  - export PATH=$PWD/z3-4.5.0-x64-ubuntu-14.04/bin:$PATH
-  - export PYTHONPATH=$PWD/z3-4.5.0-x64-ubuntu-14.04/bin/python:$PYTHONPATH
-  - export C_INCLUDE_PATH=$PWD/z3-4.5.0-x64-ubuntu-14.04/include/:$C_INCLUDE_PATH
-  - export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD/z3-4.5.0-x64-ubuntu-14.04/bin
+  - wget https://github.com/Z3Prover/z3/releases/download/z3-4.8.3/z3-4.8.3.7f5d66c3c299-x64-ubuntu-14.04.zip
+  - unzip z3-4.8.3.7f5d66c3c299-x64-ubuntu-14.04.zip
+  - mv z3-4.8.3.7f5d66c3c299-x64-ubuntu-14.04 z3
+  - export PATH=$PWD/z3/bin:$PATH
+  - export PYTHONPATH=$PWD/z3/bin/python:$PYTHONPATH
+  - export C_INCLUDE_PATH=$PWD/z3/include/:$C_INCLUDE_PATH
+  - export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD/z3/bin
   - sudo pip install protobuf==3.2.0
   - sudo pip install parsimonious==0.7.0
   - mkdir -p cvc4
@@ -28,8 +29,9 @@ script:
   - make depend
   - make all
 otp_release:
+  - 21.2
   - 21.0
-  - 20.1
+  - 20.3
   - 20.0
   - 19.3
   - 19.1

@@ -58,12 +58,12 @@ In order to use CutEr, you need the following programs:
 
 3. **Z3 Theorem Prover**
 
-  Download the v4.5.0 [Z3 release](https://github.com/Z3Prover/z3/releases/tag/z3-4.5.0)
-  or clone the `z3-4.5.0` tag of Z3 from its git repository:
+  Download the [v4.8.3 Z3 release](https://github.com/Z3Prover/z3/releases/tag/z3-4.8.3)
+  or clone the `z3-4.8.3` tag of Z3 from its git repository with the following command:
 
-        git clone -b z3-4.5.0 --depth 1 https://github.com/Z3Prover/z3.git
+        git clone -b z3-4.8.3 --depth 1 https://github.com/Z3Prover/z3.git
 
-  For your convenience, we include here a list of commands to build from source and install the v4.5.0 Z3 release:
+  For your convenience, we include here a list of commands to build from source and install the above release of Z3:
 
         cd z3 ; python scripts/mk_make.py --python
         cd build ; make
@@ -88,7 +88,7 @@ Installation
 
         git clone https://github.com/aggelgian/cuter.git
 
-* **[Optional]** If you want to run the full test suite of CutEr, you will also need [PropEr](https://github.com/manopapad/proper). You can install it independently or go to CutEr's base directory and run:
+* **[Optional]** If you want to run the full test suite of CutEr, you will also need [PropEr](https://github.com/proper-testing/proper). You can install it independently or go to CutEr's base directory and run:
 
         git submodule init && git submodule update
         git submodule foreach make
@@ -190,7 +190,7 @@ Have fun with the tool!
 
 <!-- Badges (alphabetically) -->
 [commit badge]: https://img.shields.io/github/last-commit/aggelgian/cuter.svg?style=flat-square
-[erlang versions badge]: https://img.shields.io/badge/erlang-19.0%20to%2021.1-blue.svg?style=flat-square
+[erlang versions badge]: https://img.shields.io/badge/erlang-19.0%20to%2021.2-blue.svg?style=flat-square
 [travis badge]: https://img.shields.io/travis/aggelgian/cuter.svg?branch=master?style=flat-square
 
 <!-- Links (alphabetically) -->
