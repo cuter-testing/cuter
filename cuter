@@ -34,7 +34,7 @@ def main():
   parser.add_argument("--no-type-normalization", action='store_true', help="disable the normalization specifications & types")
   parser.add_argument("--z3-timeout", metavar="N", type=int, default=2,
     help="set the timeout N for the solvers (default: %(default)s)")
-  parser.add_argument("--solver", type=Coordinator, choices=list(Coordinator), default=Coordinator.guess,
+  parser.add_argument("--solver", type=Coordinator, choices=list(Coordinator), default=Coordinator.cvc4,
     help="set the solvers")
 
   # Parse the arguments

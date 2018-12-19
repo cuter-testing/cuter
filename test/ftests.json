@@ -244,7 +244,7 @@
             "solutions": [
                 "len($1[2:]) == 42"
             ],
-            "skip": false
+            "skip": true
         },
         {
             "module": "otp_int",
@@ -307,7 +307,7 @@
             "solutions": [
                 "[[{[1,2],[{[[1],[2]],[3.14]},2]}]]"
             ],
-            "skip": false
+            "skip": true
         },
         {
             "module": "collection",
@@ -476,7 +476,7 @@
                 "$1((0,))((0,))((0,))((0,))((0,)) == 42",
                 "$1((0,))((0,))((0,))((0,))((0,))((0,)) == 42"
             ],
-            "skip": false
+            "skip": true
         },
         {
             "module": "funs",
@@ -857,7 +857,7 @@
             "solutions": [
                 "$1 & $2 == 1267650600228229401496703205376"
             ],
-            "skip": false
+            "skip": true
         },
         {
             "module": "bitstr",
@@ -989,7 +989,7 @@
             "solutions": [
                 "$1 | $2 == 654654621354008904"
             ],
-            "skip": false
+            "skip": true
         },
         {
             "module": "bitstr",
@@ -1002,7 +1002,7 @@
             "solutions": [
                 "$1 | $2 == 132167806349873198573065468706546708964"
             ],
-            "skip": false
+            "skip": true
         },
         {
             "module": "bitstr",
@@ -1028,7 +1028,7 @@
             "solutions": [
                 "$1 | $2 == -2581098572349081592347598712638"
             ],
-            "skip": false
+            "skip": true
         },
         {
             "module": "collection",
@@ -1088,7 +1088,7 @@
                 "$2 * 0.7 == $1",
                 "$3 % $2 == 3"
             ],
-            "skip": false
+            "skip": true
         },
         {
             "module": "collection",
@@ -1100,7 +1100,7 @@
             "solutions": [
                 "[8]"
             ],
-            "skip": false
+            "skip": true
         },
         {
             "module": "collection",
@@ -1162,7 +1162,7 @@
             "solutions": [
                 "[[42,[ok],[17,ok,ok,[1,2]]]]"
             ],
-            "skip": false
+            "skip": true
         },
         {
             "module": "collection",

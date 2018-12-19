@@ -17,7 +17,7 @@
 -define(ONE, 1).
 -define(TWO, 2).
 -define(DEFAULT_DEPTH, 25).
--define(DEFAULT_SOLVER, guess).
+-define(DEFAULT_SOLVER, cvc4).
 
 %% The configuration of the tool.
 -record(conf, {
