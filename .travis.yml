@@ -14,9 +14,8 @@ before_install:
   - sudo pip install enum34
   - mkdir -p cvc4
   - cd cvc4
-  - DAY=`date -d 'yesterday' '+%y-%m-%d'`
-  - wget http://cvc4.cs.stanford.edu/downloads/builds/x86_64-linux-opt/unstable/cvc4-20$DAY-x86_64-linux-opt
-  - mv cvc4-20$DAY-x86_64-linux-opt cvc4
+  - wget https://cvc4.cs.stanford.edu/downloads/builds/x86_64-linux-opt/cvc4-1.6-x86_64-linux-opt
+  - mv cvc4-1.6-x86_64-linux-opt cvc4
   - chmod +x cvc4
   - cd ..
   - export PATH=$PWD/cvc4:$PATH
