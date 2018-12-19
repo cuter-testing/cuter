@@ -17,6 +17,7 @@
 -define(ONE, 1).
 -define(TWO, 2).
 -define(DEFAULT_DEPTH, 25).
+-define(Z3, z3).
 
 %% The configuration of the tool.
 -record(conf, {
@@ -293,7 +294,7 @@ number_of_solvers([_|Rest]) -> number_of_solvers(Rest).
 with_pmatch(Options) -> not lists:member(?DISABLE_PMATCH, Options).
 
 -spec get_solver([option()]) -> solver().
-get_solver([]) -> ?TWO;
+get_solver([]) -> ?Z3;
 get_solver([{?SOLVER, S}|_Rest]) -> S;
 get_solver([_|Rest]) -> get_solver(Rest).
 

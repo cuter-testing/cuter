@@ -32,8 +32,8 @@ find_bugs({Fn, Inp, Depth, Bugs}) ->
       [?_assertEqual(true, Bugs(Found))]
   end.
 
--spec run_multiple_test() -> ok.
-run_multiple_test() ->
+-spec run_multiple_test_() -> ok.
+run_multiple_test_() ->
   Seeds = [
     {lists, nth, [3, [1,2,3]], 15},
     {lists, nthtail, [3, [1,2,3]], 15}
@@ -41,8 +41,8 @@ run_multiple_test() ->
   Errors = cuter:run(Seeds, cuter_options()),
   Errors1 = filter_errors({lists, nth, 2}, Errors),
   Errors2 = filter_errors({lists, nthtail, 2}, Errors),
-  LenChecks = [?assertEqual(2, length(Errors1)), ?assertEqual(2, length(Errors2))],
-  ValChecks = [?assert(N > length(L)) || [N, L] <- Errors1 ++ Errors2],
+  LenChecks = [?_assertEqual(2, length(Errors1)), ?_assertEqual(2, length(Errors2))],
+  ValChecks = [?_assert(N > length(L)) || [N, L] <- Errors1 ++ Errors2],
   AllChecks = LenChecks ++ ValChecks,
   {timeout, 40000, AllChecks}.
 
