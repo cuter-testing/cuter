@@ -11,6 +11,7 @@ before_install:
   - export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD/z3/bin
   - sudo pip install protobuf==3.2.0
   - sudo pip install parsimonious==0.7.0
+  - sudo pip install enum34
   - mkdir -p cvc4
   - cd cvc4
   - DAY=`date -d 'yesterday' '+%y-%m-%d'`
