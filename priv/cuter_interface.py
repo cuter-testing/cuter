@@ -14,6 +14,10 @@ import cuter_coordinator
 parser = argparse.ArgumentParser(description="Run the Solver Component.")
 parser.add_argument("-t", "--timeout", metavar="N", type=int, default=2,
     help="set the timeout N for the SMT solver (default: %(default)s)")
+parser.add_argument("--solver", type=cuter_coordinator.Coordinator,
+    choices=list(cuter_coordinator.Coordinator),
+    default=cuter_coordinator.Coordinator.z3,
+    help="set the solvers")
 args = parser.parse_args()
 
 ## Main Program
@@ -22,7 +26,8 @@ cglb.init()
 # Initialize the communication with Erlang
 erlport = cp.ErlangPort()
 # Initialize the Solver interface
-coordinator = cuter_coordinator.Solver_Coordinator_Z3(args.timeout)
+CoordinatorClass = cuter_coordinator.Coordinator.getCoordinator(args.solver)
+coordinator = CoordinatorClass(args.timeout)
 
 try:
     while cglb.__RUN__:

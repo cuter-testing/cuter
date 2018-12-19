@@ -6,10 +6,38 @@ from cuter_z3 import Solver_Z3
 from cuter_smt_cvc4 import Solver_SMT_CVC4
 from multiprocessing import Process, Queue, Pipe
 import sys
-
+from enum import Enum
 
 debug = False
 
+class Coordinator(Enum):
+  z3 = 'z3'
+  z3py = 'z3py'
+  cvc4 = 'cvc4'
+  priority = 'priority'
+  guess = 'guess'
+  race = 'race'
+  magic = 'magic'
+
+  @classmethod
+  def getCoordinator(cls, t):
+    if t == cls.z3:
+      return Solver_Coordinator_Z3
+    elif t == cls.z3py:
+      return Solver_Coordinator_Z3Py
+    elif t == cls.cvc4:
+      return Solver_Coordinator_CVC4
+    elif t == cls.priority:
+      return Solver_Coordinator_Priority
+    elif t == cls.guess:
+      return Solver_Coordinator_Guess
+    elif t == cls.race:
+      return Solver_Coordinator_Race
+    elif t == cls.magic:
+      return Solver_Coordinator_Magic
+
+  def __str__(self):
+    return self.value
 
 class Solver_Coordinator:
 	"""

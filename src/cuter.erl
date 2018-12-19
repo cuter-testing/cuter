@@ -33,6 +33,7 @@
   errors = []         :: erroneous_inputs()
 }).
 -type configuration() :: #conf{}.
+-type solver() :: z3 | z3py | cvc4 | priority | guess | race | magic.
 
 %% Runtime Options.
 -define(FULLY_VERBOSE_EXEC_INFO, fully_verbose_execution_info).
@@ -46,6 +47,7 @@
 -define(SUPPRESS_UNSUPPORTED_MFAS, suppress_unsupported).
 -define(NO_TYPE_NORMALIZATION, no_type_normalization).
 -define(Z3_TIMEOUT, z3_timeout).
+-define(SOLVER, solver).
 
 -type default_option() :: {?POLLERS_NO, ?ONE}
                         .
@@ -63,6 +65,7 @@
                 | ?SUPPRESS_UNSUPPORTED_MFAS
                 | ?NO_TYPE_NORMALIZATION
                 | {?Z3_TIMEOUT, pos_integer()}
+                | {?SOLVER, solver()}
                 .
 
 %% ----------------------------------------------------------------------------
@@ -289,6 +292,11 @@ number_of_solvers([_|Rest]) -> number_of_solvers(Rest).
 -spec with_pmatch([option()]) -> boolean().
 with_pmatch(Options) -> not lists:member(?DISABLE_PMATCH, Options).
 
+-spec get_solver([option()]) -> solver().
+get_solver([]) -> ?TWO;
+get_solver([{?SOLVER, S}|_Rest]) -> S;
+get_solver([_|Rest]) -> get_solver(Rest).
+
 -spec z3_timeout([option()]) -> pos_integer().
 z3_timeout([]) -> ?TWO;
 z3_timeout([{?Z3_TIMEOUT, N}|_Rest]) -> N;
@@ -296,8 +304,9 @@ z3_timeout([_|Rest]) -> z3_timeout(Rest).
 
 -spec get_solver_backend([option()]) -> string().
 get_solver_backend(Options) ->
+  S = get_solver(Options),
   T = z3_timeout(Options),
-  ?PYTHON_CALL ++ " --timeout " ++ integer_to_list(T).
+  string:join([?PYTHON_CALL, "--solver", atom_to_list(S), "--timeout", integer_to_list(T)], " ").
 
 -spec get_whitelist([option()]) -> cuter_mock:whitelist().
 get_whitelist([]) ->

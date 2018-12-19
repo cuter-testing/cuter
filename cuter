@@ -4,6 +4,10 @@
 import sys, argparse, os
 import subprocess as subp
 
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'priv')))
+
+from cuter_coordinator import Coordinator
+
 def main():
   parser = argparse.ArgumentParser(description="Run the CutEr tool.")
   # Add positional arguments.
@@ -29,7 +33,9 @@ def main():
   parser.add_argument("--suppress-unsupported", action='store_true', help="suppresses the reporting of unsupported MFAs")
   parser.add_argument("--no-type-normalization", action='store_true', help="disable the normalization specifications & types")
   parser.add_argument("--z3-timeout", metavar="N", type=int, default=2,
-    help="set the timeout N for the Z3 SMT solver (default: %(default)s)")
+    help="set the timeout N for the solvers (default: %(default)s)")
+  parser.add_argument("--solver", type=Coordinator, choices=list(Coordinator), default=Coordinator.z3,
+    help="set the solvers")
 
   # Parse the arguments
   args = parser.parse_args()
@@ -75,6 +81,7 @@ def main():
   opts.append("{{number_of_pollers, {}}}".format(args.pollers))
   opts.append("{{number_of_solvers, {}}}".format(args.solvers))
   opts.append("{{z3_timeout, {}}}".format(args.z3_timeout))
+  opts.append("{{solver, {}}}".format(args.solver))
   if args.verbose:
     opts.append("verbose_execution_info")
   if args.coverage:
