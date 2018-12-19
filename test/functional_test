@@ -3,28 +3,29 @@
 import json, multiprocessing, os, re, sys, math
 from subprocess import Popen, PIPE
 from pprint import pprint
+import argparse
 from types import *
 import terms
 
-def run(testDir, z3py, n):
+def run(testDir, arguments):
     baseDir = get_basedir(testDir)
     cuterScript = os.path.join(baseDir, "cuter")
     separator = "=== Inputs That Lead to Runtime Errors ==="
     bifSeparator = "=== BIFs Currently without Symbolic Interpretation ==="
 
     for i, test in enumerate(get_tests(testDir)):
-        if n is not None and n != i + 1:
+        no = arguments.no
+        if no and no != i + 1:
             continue
         # Set the default values for optional parameters.
         for param in ["withUtestBin", "validate", "withProper"]:
             if not param in test:
                 test[param] = False
         # Get the runtime options.
-        opts = get_options(test, testDir)
+        opts = get_options(test, testDir, arguments)
         # Run the test.
-        withZ3py = "--z3py" if z3py else ""
-        cmd = "{} {} {} '{}' -d {} {} --sorted-errors {}".format(
-          cuterScript, test["module"], test["function"], test["args"], test["depth"], opts, withZ3py
+        cmd = "{} {} {} '{}' -d {} {}".format(
+          cuterScript, test["module"], test["function"], test["args"], test["depth"], opts
         )
         print "\n\033[00;34m[Test #{}]\033[00m\n{}".format(i + 1, cmd)
         if "skip" in test and test["skip"]:
@@ -71,7 +72,7 @@ def get_tests(testDir):
     with open(testsJson) as fd:
         return json.load(fd)["tests"]
 
-def get_options(test, testDir):
+def get_options(test, testDir, arguments):
     # Set the base options.
     nCores = multiprocessing.cpu_count()
     defaultOpts = "-p {} -s {}".format(min(nCores, 2), nCores * 2)
@@ -93,6 +94,9 @@ def get_options(test, testDir):
     # Add extra options.
     if "xopts" in test:
         opts += " {}".format(test["xopts"])
+    # Add the solver options.
+    if arguments.solver:
+        opts += " --solver={}".format(arguments.solver)
     return opts
 
 def get_basedir(testDir):
@@ -144,10 +148,11 @@ def printOutputAndExit(out):
     sys.exit(1)
 
 if __name__ == "__main__":
-    z3py = "--z3py" in sys.argv
-    xs = map(int, filter(None,
-        filter(lambda x: x.startswith("--no="), sys.argv)[0].split("--no=")))
-    n = xs[0] if len(xs) > 0 else None
+    parser = argparse.ArgumentParser(description="Run the functional tests.")
+    parser.add_argument("--no", metavar="N", type=int, default=0,
+        help="select the specific test to run by its cardinality")
+    parser.add_argument("--solver", metavar="S", type=str, help="select the solver")
+    args = parser.parse_args()
     testDir = os.path.dirname(os.path.realpath(__file__))
-    run(testDir, z3py, n)
+    run(testDir, args)
     sys.exit(0)

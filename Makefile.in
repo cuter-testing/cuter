@@ -188,11 +188,9 @@ utest: $(TARGETS)
 	@(./$(TEST)/python_test -p $(PRIV) -e $(EBIN) -u $(UTEST_EBIN) -- $(PRIV_MODULES))
 	@(python $(TEST)/terms.py)
 
+no ?= 0
 ftest: $(TARGETS)
-	@(./$(TEST)/functional_test --no=$(no))
-
-z3py-ftest: $(TARGETS)
-	@(./$(TEST)/functional_test --no=$(no) --z3py)
+	@(./$(TEST)/functional_test --no=$(no) --solver=$(solver))
 
 dialyzer: .plt/.cuter_plt cuter_target
 	dialyzer --plt $< $(DIALYZER_FLAGS) $(EBIN)/*.beam
