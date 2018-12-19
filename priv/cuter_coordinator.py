@@ -49,10 +49,7 @@ class Solver_Coordinator:
 		assert self.solver_z3.check_process(), "Z3 is not installed"
 		self.solver_cvc4 = Solver_SMT_CVC4(timeout)
 		self.check_cvc4 = self.solver_cvc4.check_process()
-		if self.check_cvc4:
-			self.main_init()
-		else:
-			self.main_init_z3()
+		self.main_init()
 		self.model = None
 
 	def command(self, entry, rev):
@@ -75,9 +72,6 @@ class Solver_Coordinator:
 
 	def get_model(self):
 		return self.model
-
-	def main_init_z3(self):
-		self.solvers = [self.solver_z3]
 
 	def main_solve_z3(self):
 		for arg in [None] + self.mapping:
@@ -103,7 +97,7 @@ class Solver_Coordinator:
 		return status
 
 	def main_init(self):
-		self.main_init_z3()
+		pass
 
 	def prev_command(self, entry, rev):
 		pass
@@ -120,7 +114,9 @@ class Solver_Coordinator_Z3(Solver_Coordinator):
 	use only Z3
 	"""
 
-	pass
+
+	def main_init(self):
+		self.solvers = [self.solver_z3]
 
 
 class Solver_Coordinator_Z3Py(Solver_Coordinator):
