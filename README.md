@@ -28,7 +28,8 @@ In order to use CutEr, you need the following programs:
 
 1. **Erlang/OTP**
 
-  We support releases Erlang/OTP 17.x or later.
+  Although CutEr may still be working with older Erlang/OTP releases,
+  we only support Erlang/OTP releases 19.x or later.
   Note that using a pre-built package or binaries will not suffice if
   the library modules have not been compiled with debug information.
   In that case, you will need to build and install Erlang/OTP from source.
