@@ -17,7 +17,7 @@ This is the source tree for CutEr, a concolic unit testing tool for Erlang.
 License
 -------
 
-Copyright 2014-2018 by Aggelos Giantsios, Nikolaos Papaspyrou and Kostis Sagonas.
+Copyright 2014-2019 by Aggelos Giantsios, Nikolaos Papaspyrou and Kostis Sagonas.
 
 This program is distributed under the GPL, version 3 or later. Please see the COPYING file for details.
 
@@ -58,10 +58,10 @@ In order to use CutEr, you need the following programs:
 
 3. **Z3 Theorem Prover**
 
-  Download the [v4.8.3 Z3 release](https://github.com/Z3Prover/z3/releases/tag/z3-4.8.3)
-  or clone the `z3-4.8.3` tag of Z3 from its git repository with the following command:
+  Download the [v4.8.4 Z3 release](https://github.com/Z3Prover/z3/releases/tag/z3-4.8.4)
+  or clone the `z3-4.8.4` tag of Z3 from its git repository with the following command:
 
-        git clone -b z3-4.8.3 --depth 1 https://github.com/Z3Prover/z3.git
+        git clone -b z3-4.8.4 --depth 1 https://github.com/Z3Prover/z3.git
 
   For your convenience, we include here a list of commands to build from source and install the above release of Z3:
 
