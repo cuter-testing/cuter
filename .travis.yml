@@ -2,9 +2,9 @@ sudo: required
 dist: trusty
 language: erlang
 before_install:
-  - wget https://github.com/Z3Prover/z3/releases/download/z3-4.8.3/z3-4.8.3.7f5d66c3c299-x64-ubuntu-14.04.zip
-  - unzip z3-4.8.3.7f5d66c3c299-x64-ubuntu-14.04.zip
-  - mv z3-4.8.3.7f5d66c3c299-x64-ubuntu-14.04 z3
+  - wget https://github.com/Z3Prover/z3/releases/download/z3-4.8.4/z3-4.8.4.d6df51951f4c-x64-ubuntu-14.04.zip
+  - unzip z3-4.8.4.d6df51951f4c-x64-ubuntu-14.04.zip
+  - mv z3-4.8.4.d6df51951f4c-x64-ubuntu-14.04 z3
   - export PATH=$PWD/z3/bin:$PATH
   - export PYTHONPATH=$PWD/z3/bin/python:$PYTHONPATH
   - export C_INCLUDE_PATH=$PWD/z3/include/:$C_INCLUDE_PATH
