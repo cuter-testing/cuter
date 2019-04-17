@@ -87,7 +87,7 @@ Installation
 
 * Download CutEr's sources or clone this repository:
 
-        git clone https://github.com/aggelgian/cuter.git
+        git clone https://github.com/cuter-testing/cuter.git
 
 * **[Optional]** If you want to run the full test suite of CutEr, you will also need [PropEr](https://github.com/proper-testing/proper). You can install it independently or go to CutEr's base directory and run:
 
@@ -190,11 +190,11 @@ Have fun with the tool!
 
 
 <!-- Badges (alphabetically) -->
-[commit badge]: https://img.shields.io/github/last-commit/aggelgian/cuter.svg?style=flat-square
+[commit badge]: https://img.shields.io/github/last-commit/cuter-testing/cuter.svg?style=flat-square
 [erlang versions badge]: https://img.shields.io/badge/erlang-19.0%20to%2021.3-blue.svg?style=flat-square
-[travis badge]: https://img.shields.io/travis/aggelgian/cuter.svg?branch=master?style=flat-square
+[travis badge]: https://img.shields.io/travis/cuter-testing/cuter.svg?branch=master?style=flat-square
 
 <!-- Links (alphabetically) -->
-[commit]: https://github.com/aggelgian/cuter/commit/HEAD
+[commit]: https://github.com/cuter-testing/cuter/commit/HEAD
 [erlang]: http://www.erlang.org
-[travis]: https://travis-ci.org/aggelgian/cuter
+[travis]: https://travis-ci.org/cuter-testing/cuter
