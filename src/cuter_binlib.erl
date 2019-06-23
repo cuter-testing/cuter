@@ -13,24 +13,27 @@
 -type bsize() :: non_neg_integer() | 'all'.
 -type btype() :: 'binary' | 'float' | 'integer'.
 -type bunit() :: 1..256.
+-type bval()  :: bitstring() | float() | integer().
+
+-type flags() :: [bflag(), ...].
 
 %% Returns the type of signedness from a list of options
--spec get_signedness([bflag(), ...]) -> bsign().
+-spec get_signedness(flags()) -> bsign().
 
 get_signedness([unsigned | _Fls]) -> unsigned;
 get_signedness([signed | _Fls]) -> signed;
 get_signedness([_Fl | Fls]) -> get_signedness(Fls).
 
 %% Returns the type of endianess from a list of options
--spec get_endianess([bflag(), ...]) -> bend().
+-spec get_endianess(flags()) -> bend().
   
 get_endianess([big | _Fls]) -> big;
 get_endianess([little | _Fls]) -> little;
 get_endianess([native | _Fls]) -> native;
 get_endianess([_Fl | Fls]) -> get_endianess(Fls).
 
-%% Encodes an erlang term to a bitstring with the specified encoding
--spec make_bitstring(term(), bsize(), bunit(), btype(), [bflag()]) -> bitstring().
+%% Encodes a bitstring segment value to a bitstring with the specified encoding
+-spec make_bitstring(bval(), bsize(), bunit(), btype(), flags()) -> bitstring().
 
 make_bitstring(Val, Size, Unit, Type, Flags) ->
   Sign = get_signedness(Flags),
@@ -12328,7 +12331,7 @@ make_bitstring(Val, Size, Unit, Type, Flags) ->
   
 %% Pattern matches a bitstring with a literal encoded as bitstring
 %% and returns the rest of the bitstring
--spec match_bitstring_const(term(), bsize(), bunit(), btype(), [bflag()], bitstring()) -> bitstring().
+-spec match_bitstring_const(term(), bsize(), bunit(), btype(), flags(), bitstring()) -> bitstring().
   
 match_bitstring_const(Val, Size, Unit, Type, Flags, MatchVal) ->
   Sign = get_signedness(Flags),
@@ -30770,7 +30773,7 @@ match_bitstring_const(Val, Size, Unit, Type, Flags, MatchVal) ->
   
 %% Pattern matches a bitstring and returns
 %% the matched value and the rest of the binary
--spec match_bitstring_var(bsize(), bunit(), btype(), [bflag()], bitstring()) -> {bitstring(), bitstring()}.
+-spec match_bitstring_var(bsize(), bunit(), btype(), flags(), bitstring()) -> {bitstring(), bitstring()}.
   
 match_bitstring_var(Size, Unit, Type, Flags, MatchVal) ->
   Sign = get_signedness(Flags),
