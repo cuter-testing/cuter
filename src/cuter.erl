@@ -296,7 +296,7 @@ z3_timeout([]) -> ?TWO;
 z3_timeout([{?Z3_TIMEOUT, N}|_Rest]) -> N;
 z3_timeout([_|Rest]) -> z3_timeout(Rest).
 
--spec get_solver_backend([option()]) -> string().
+-spec get_solver_backend([option()]) -> nonempty_string().
 get_solver_backend(Options) ->
   T = z3_timeout(Options),
   Cmd = ?PYTHON_CALL ++ " --timeout " ++ integer_to_list(T),
@@ -334,13 +334,17 @@ reporting_level(Options) ->
   end.
 
 -spec calculate_coverage([option()]) -> boolean().
-calculate_coverage(Options) -> lists:member(?CALCULATE_COVERAGE, Options).
+calculate_coverage(Options) ->
+  lists:member(?CALCULATE_COVERAGE, Options).
 
 -spec sort_errors([option()]) -> boolean().
-sort_errors(Options) -> lists:member(?SORTED_ERRORS, Options).
+sort_errors(Options) ->
+  lists:member(?SORTED_ERRORS, Options).
 
 -spec suppress_unsupported_mfas([option()]) -> boolean().
-suppress_unsupported_mfas(Options) -> lists:member(?SUPPRESS_UNSUPPORTED_MFAS, Options).
+suppress_unsupported_mfas(Options) ->
+  lists:member(?SUPPRESS_UNSUPPORTED_MFAS, Options).
 
 -spec type_normalization([option()]) -> boolean().
-type_normalization(Options) -> not lists:member(?NO_TYPE_NORMALIZATION, Options).
+type_normalization(Options) ->
+  not lists:member(?NO_TYPE_NORMALIZATION, Options).
