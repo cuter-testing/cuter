@@ -9,7 +9,7 @@ before_install:
   - export PYTHONPATH=$PWD/z3/bin/python:$PYTHONPATH
   - export C_INCLUDE_PATH=$PWD/z3/include/:$C_INCLUDE_PATH
   - export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD/z3/bin
-  - sudo pip install protobuf==3.2.0
+  - sudo pip install protobuf==3.8.0
   - sudo pip install parsimonious==0.7.0
 script:
   - git submodule update
@@ -17,7 +17,7 @@ script:
   - export ERL_LIBS=$PWD/lib/proper:$ERL_LIBS
   - ./fetch_protoc.sh
   - autoconf
-  - ./configure --with-protoc=$PWD/lib/protoc-3.2.0/bin/protoc
+  - ./configure --with-protoc=$PWD/lib/protoc-3.8.0/bin/protoc
   - make depend
   - make all
 otp_release:
