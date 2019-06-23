@@ -15,7 +15,8 @@
 
 -export_type([mapping/0, symbolic/0]).
 
--type symbolic() :: {?SYMBOLIC_PREFIX, nonempty_string()}.  %% Symbolic Variable
+%% Symbolic Variable
+-type symbolic() :: {?SYMBOLIC_PREFIX, cuter_lib:unique_string()}.
 -type mapping()  :: {symbolic(), any()}.
 
 -type maybe_s(X) :: symbolic() | X.
@@ -54,18 +55,18 @@ generate_new_input(Maps, Model) ->
   [F(M) || M <- Maps].
 
 %% Serialize the representation of a symbolic value
--spec serialize(symbolic()) -> list().
+-spec serialize(symbolic()) -> cuter_lib:unique_string().
 serialize({?SYMBOLIC_PREFIX, SymbVar}) when is_list(SymbVar) -> SymbVar.
 
 %% Create a symbolic value from a List representation
--spec deserialize(list()) -> symbolic().
+-spec deserialize(cuter_lib:unique_string()) -> symbolic().
 deserialize(L) when is_list(L) -> {?SYMBOLIC_PREFIX, L}.
 
 %% =============================================================
 %% Symbolic evaluation of MFAs
 %% =============================================================
 
-%% The MFAs the are supported for symbolic evaluation.
+%% The MFAs that are supported for symbolic evaluation.
 -spec is_supported_mfa(mfa()) -> boolean().
 is_supported_mfa(MFA) ->
   gb_sets:is_member(MFA, cuter_log:supported_mfas()).
