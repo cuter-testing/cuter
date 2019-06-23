@@ -15,6 +15,7 @@
          is_unbound_var/1, handle_unbound_var/1]).
 
 -export_type([lambda/0, lambda_kvs/0, lambda_default/0, lambda_arity/0]).
+-export_type([unique_string/0]).
 
 %% ----------------------------------------------------------------------------
 %% Representation of lambda terms.
@@ -32,11 +33,12 @@
   kvs     :: lambda_kvs(),
   default :: lambda_default()
 }).
--type lambda() :: #?lambda{}.
+-opaque lambda() :: #?lambda{}.
 
+-type unique_string() :: nonempty_string().
 
 %% Generate a unique string
--spec unique_string() -> nonempty_string().
+-spec unique_string() -> unique_string().
 unique_string() -> erlang:ref_to_list(erlang:make_ref()) -- "#Ref<>".
 
 %% Ensure that we use the actual port/pid and not the registered name
