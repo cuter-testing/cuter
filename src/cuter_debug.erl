@@ -8,7 +8,7 @@
 %% Run as:
 %%   erl -noshell -eval "cuter_debug:parse_module_specs(crypto, true)" -s init stop
 
--spec parse_module_specs(atom(), boolean()) -> ok.
+-spec parse_module_specs(module(), boolean()) -> ok.
 parse_module_specs(Module, WithPmatch) ->
   Attrs = get_module_attrs(Module, WithPmatch),
   {TypeAttrs, SpecAttrs} = cuter_cerl:classify_attributes(Attrs),
