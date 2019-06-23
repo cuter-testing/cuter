@@ -15,7 +15,7 @@
 -include("include/cuter_proto_spec.hrl").
 
 -type erlang_term() :: #'ErlangTerm'{}.
--type supported_term() :: atom() | bitstring() | pid() | reference() | list()
+-type supported_term() :: atom() | bitstring() | list() %| pid() | reference()
                         | number() | tuple() | map() | cuter_lib:lambda().
 
 -type commands_no_opts() :: solve | get_model | add_axioms | reset_solver | stop.
