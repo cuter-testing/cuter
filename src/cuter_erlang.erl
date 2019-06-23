@@ -237,6 +237,8 @@ list_to_integer_10(_, _) -> erlang:error(badarg).
 %% ARITHMETIC OPERATIONS
 %% ----------------------------------------------------------------------------
 
+-type nz_integer() :: neg_integer() | pos_integer().
+
 %%
 %% Simulate erlang:'+'/2
 %%
@@ -330,7 +332,7 @@ abs(X) when is_float(X) ->
 -spec safe_pos_div(non_neg_integer(), pos_integer()) -> non_neg_integer().
 safe_pos_div(X, Y) -> X div Y.
 
--spec 'div'(integer(), integer()) -> integer().
+-spec 'div'(integer(), nz_integer()) -> integer().
 'div'(X, Y) when is_integer(X), is_integer(Y), X >= 0, Y > 0 ->
   safe_pos_div(X, Y);
 'div'(X, Y) when is_integer(X), is_integer(Y), X < 0, Y < 0 ->
@@ -360,7 +362,7 @@ safe_pos_div(X, Y) -> X div Y.
 -spec safe_pos_rem(non_neg_integer(), pos_integer()) -> non_neg_integer().
 safe_pos_rem(X, Y) -> X rem Y.
 
--spec 'rem'(integer(), integer()) -> integer().
+-spec 'rem'(integer(), nz_integer()) -> integer().
 'rem'(X, Y) when is_integer(X), is_integer(Y), X >= 0, Y > 0 ->
   safe_pos_rem(X, Y);
 'rem'(X, Y) when is_integer(X), is_integer(Y), X < 0, Y < 0 ->
