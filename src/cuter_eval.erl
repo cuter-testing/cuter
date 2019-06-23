@@ -548,7 +548,7 @@ eval_expr({c_binary, _Anno, Segments}, M, Cenv, Senv, Servers, Fd) ->
 
 %% c_bitstr
 eval_expr({c_bitstr, _Anno, Val, Size, Unit, Type, Flags}, M, Cenv, Senv, Servers, Fd) ->
-  % Evaluate the value and the encoding.
+  %% Evaluate the value and the encoding.
   Val_ev = eval_expr(Val, M, Cenv, Senv, Servers, Fd),
   Val_c = get_concrete(Val_ev),
   Val_s = get_symbolic(Val_ev),
@@ -558,18 +558,18 @@ eval_expr({c_bitstr, _Anno, Val, Size, Unit, Type, Flags}, M, Cenv, Senv, Server
   Flags_ev = eval_expr(Flags, M, Cenv, Senv, Servers, Fd),
   Size_c = get_concrete(Size_ev),
   Size_s = get_symbolic(Size_ev),
-  % Log constraints on type mismatch before construction.
+  %% Log constraints on type mismatch before construction.
   log_bistr_type_mismatch(Val_c, Val_s, Type, Fd), % Type is always a literal.
-  % Log constraints on negative sizes before construction.
+  %% Log constraints on negative sizes before construction.
   log_bitstr_neg_size(Size_c, Size_s, Fd),
-  % Generate the concrete value.
+  %% Generate the concrete value.
   Bin_c = cuter_binlib:make_bitstring(Val_c, Size_c,
     get_concrete(Unit_ev), get_concrete(Type_ev), get_concrete(Flags_ev)),
-  % Generate the symbolic value.
+  %% Generate the symbolic value.
   Encoding_s = {get_symbolic(Size_ev), get_symbolic(Unit_ev),
     get_symbolic(Type_ev), get_symbolic(Flags_ev)},
   Bin_s = cuter_symbolic:make_bitstring(Val_s, Encoding_s, Bin_c, Size_c, Fd),
-  % Return the result.
+  %% Return the result.
   mk_result(Bin_c, Bin_s);
 
 %% c_call
@@ -579,13 +579,13 @@ eval_expr({c_call, _Anno, Mod, Name, Args}, M, Cenv, Senv, Servers, Fd) ->
   Fun =
     fun(A) ->
       A_ev = eval_expr(A, M, Cenv, Senv, Servers, Fd),
-      % Will create closures where appropriate
+      %% Will create closures where appropriate
       case get_concrete(A_ev) of
         {?FUNCTION_PREFIX, {F, Arity}} ->
-          % local func (external func is already in make_fun/3 in core erlang)
+          %% local func (external func is already in make_fun/3 in core erlang)
           create_closure(M, F, Arity, local, Servers, Fd);
         {letrec_func, {Mod, F, Arity, Def, E}} ->
-          % letrec func
+          %% letrec func
           {Ce, Se} = E(),
           create_closure(Mod, F, Arity, {letrec_func, {Def, Ce, Se}}, Servers, Fd);
         _ ->
@@ -594,7 +594,7 @@ eval_expr({c_call, _Anno, Mod, Name, Args}, M, Cenv, Senv, Servers, Fd) ->
     end,
   ZAs = [Fun(A) || A <- Args],
   {CAs, SAs} = cuter_lib:unzip_with(fun to_tuple/1, ZAs),
-  % Constraints Mod_c = Mod_s and Fv_c = Fv_s
+  %% Constraints Mod_c = Mod_s and Fv_c = Fv_s
   Mod_c = get_concrete(Mod_ev),
   eval({named, Mod_c, get_concrete(Fv_ev)}, CAs, SAs, find_call_type(M, Mod_c), Servers, Fd);
 
@@ -1227,7 +1227,7 @@ bit_pattern_match(BinAnno, [{c_bitstr, Anno, {c_literal, _, LVal}, Sz, Unit, Tp,
   Size_s = get_symbolic(Size_ev),
   Enc_s = {Size_s, get_symbolic(Unit_ev), get_symbolic(Type_ev), get_symbolic(Flags_ev)},
   Tags = cuter_cerl:get_tags(Anno),
-  % Log constraints on negative sizes before matching.
+  %% Log constraints on negative sizes before matching.
   log_bitstr_neg_size(Size_c, Size_s, Fd),
   try cuter_binlib:match_bitstring_const(LVal, Size_c, get_concrete(Unit_ev), get_concrete(Type_ev), get_concrete(Flags_ev), Cv) of
     Rest_c ->
@@ -1250,7 +1250,7 @@ bit_pattern_match(BinAnno, [{c_bitstr, Anno, {c_var, _, VarName}, Sz, Unit, Tp, 
   Size_s = get_symbolic(Size_ev),
   Enc_s = {Size_s, get_symbolic(Unit_ev), get_symbolic(Type_ev), get_symbolic(Flags_ev)},
   Tags = cuter_cerl:get_tags(Anno),
-  % Log constraints on negative sizes before matching.
+  %% Log constraints on negative sizes before matching.
   log_bitstr_neg_size(Size_c, Size_s, Fd),
   try cuter_binlib:match_bitstring_var(Size_c, get_concrete(Unit_ev), get_concrete(Type_ev), get_concrete(Flags_ev), Cv) of
     {X_c, Rest_c} ->
