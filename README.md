@@ -48,14 +48,14 @@ In order to use CutEr, you need the following programs:
 
   Download and install the latest [Python 2.x distribution](http://www.python.org).
 
-  Also, you need to install the *protobuf* package (*version 3.2.0*).
+  Also, you need to install the *protobuf* package (*version 3.8.0*).
   You can install it for your user with
 
-        pip install --user protobuf==3.2.0
+        pip install --user protobuf==3.8.0
 
   or globally with
 
-        sudo pip install protobuf==3.2.0
+        sudo pip install protobuf==3.8.0
 
 3. **Z3 Theorem Prover**
 
@@ -75,7 +75,7 @@ In order to use CutEr, you need the following programs:
 
 4. **Protocol Buffer Compiler**
 
-  Download the [3.2.0 version](https://github.com/google/protobuf/releases/tag/v3.2.0) of **protoc** for your OS
+  Download the [3.8.0 version](https://github.com/google/protobuf/releases/tag/v3.8.0) of **protoc** for your OS
   and follow the instructions in *readme.txt*.
 
   If you have a Linux or an OSX system, then you can run the provided `fetch_protoc.sh` script and follow the instructions.
@@ -105,7 +105,7 @@ Installation
    then you need to specify the path of *protoc* to the configure script using a
    command like the following:
 
-        ./configure --with-protoc=$PWD/lib/protoc-3.2.0/bin/protoc
+        ./configure --with-protoc=$PWD/lib/protoc-3.8.0/bin/protoc
 
 * **[Optional]** In order to run the tests you need to install the *parsimonious* Python package (*version 0.7.0*).
     You can install it for your user with
