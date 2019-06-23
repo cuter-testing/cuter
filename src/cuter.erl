@@ -8,11 +8,11 @@
 
 -include("include/cuter_macros.hrl").
 
--type mod() :: atom().  % a subtype of module()
+-type mod()   :: module().
 -type input() :: [any()].
 -type depth() :: pos_integer().
 -type erroneous_inputs() :: [{mfa(), [input()]}].
--type seed() :: {module(), atom(), input(), depth()}.
+-type seed()  :: {module(), atom(), input(), depth()}.
 
 -define(ONE, 1).
 -define(TWO, 2).
@@ -102,7 +102,7 @@ run(Seeds, Options) ->
 
 -spec run_from_file(file:name(), [option()]) -> erroneous_inputs().
 %% Loads the seeds from a file and runs CutEr on all of them.
-%% The terms in the file needs to be in form:
+%% The terms in the file need to be in form:
 %%   {M :: module(), F :: atom(), SeedInput :: [input()], Depth :: pos_integer()}.
 run_from_file(File, Options) ->
   case file:consult(File) of
