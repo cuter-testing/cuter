@@ -34,17 +34,19 @@ find_bugs({Fn, Inp, Depth, Bugs}) ->
 
 -spec run_multiple_test() -> ok.
 run_multiple_test() ->
-  Seeds = [
-    {lists, nth, [3, [1,2,3]], 15},
-    {lists, nthtail, [3, [1,2,3]], 15}
-  ],
-  Errors = cuter:run(Seeds, cuter_options()),
-  Errors1 = filter_errors({lists, nth, 2}, Errors),
-  Errors2 = filter_errors({lists, nthtail, 2}, Errors),
-  LenChecks = [?assertEqual(2, length(Errors1)), ?assertEqual(2, length(Errors2))],
-  ValChecks = [?assert(N > length(L)) || [N, L] <- Errors1 ++ Errors2],
-  AllChecks = LenChecks ++ ValChecks,
-  {timeout, 40000, AllChecks}.
+  Fn = fun() ->
+    Seeds = [
+      {lists, nth, [3, [1,2,3]], 15},
+      {lists, nthtail, [3, [1,2,3]], 15}
+    ],
+    Errors = cuter:run(Seeds, cuter_options()),
+    Errors1 = filter_errors({lists, nth, 2}, Errors),
+    Errors2 = filter_errors({lists, nthtail, 2}, Errors),
+    LenChecks = [?assertEqual(2, length(Errors1)), ?assertEqual(2, length(Errors2))],
+    ValChecks = [?assert(N > length(L)) || [N, L] <- Errors1 ++ Errors2],
+    LenChecks ++ ValChecks
+  end,
+  {timeout, 40000, Fn}.
 
 filter_errors(Mfa, Errors) ->
   case lists:keysearch(Mfa, 1, Errors) of
