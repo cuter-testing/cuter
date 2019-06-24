@@ -75,12 +75,10 @@ In order to use CutEr, you need the following programs:
 
 4. **Protocol Buffer Compiler**
 
-  Download the [3.8.0 version](https://github.com/google/protobuf/releases/tag/v3.8.0) of **protoc** for your OS
+  If you have a Linux or an OSX system then you can skip this step and, after you have downloaded or cloned this repository, you can run the provided `fetch_protoc.sh` script and follow the instructions.
+
+  If you are running on some other OS, download the [3.8.0 version](https://github.com/google/protobuf/releases/tag/v3.8.0) of **protoc** for your OS
   and follow the instructions in *readme.txt*.
-
-  If you have a Linux or an OSX system, then you can run the provided `fetch_protoc.sh` script and follow the instructions.
-
-        ./fetch_protoc.sh
 
 Installation
 ------------
@@ -88,6 +86,10 @@ Installation
 * Download CutEr's sources or clone this repository:
 
         git clone https://github.com/cuter-testing/cuter.git
+
+* If you have not manually downloaded and installed the Protocol Buffer Compiler, run the following script that will fetch it:
+
+        ./fetch_protoc.sh
 
 * **[Optional]** If you want to run the full test suite of CutEr, you will also need [PropEr](https://github.com/proper-testing/proper). You can install it independently or go to CutEr's base directory and run:
 
