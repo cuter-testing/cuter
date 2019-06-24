@@ -109,14 +109,14 @@ Installation
 
         ./configure --with-protoc=$PWD/lib/protoc-3.8.0/bin/protoc
 
-* **[Optional]** In order to run the tests you need to install the *parsimonious* Python package (*version 0.7.0*).
+* **[Optional]** In order to run the tests you need to install the *parsimonious* Python package (*version 0.8.1*).
     You can install it for your user with
 
-        pip install --user parsimonious==0.7.0
+        pip install --user parsimonious==0.8.1
 
     or globally with
 
-        sudo pip install parsimonious==0.7.0
+        sudo pip install parsimonious==0.8.1
 
     Now you can build and run the unit & functional tests with `make test`
 
