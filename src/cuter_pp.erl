@@ -1089,8 +1089,8 @@ set_goal(Goal, Tp) ->
 set_goal(_Goal, _Tp) -> ok.
 -endif.
 
-%% XXX: Argument type may be inaccurate
--spec consume_msg(cuter_serial:supported_term()) -> ok.
+%% XXX: Strengthen the argument type
+-spec consume_msg(term()) -> ok.
 -ifdef(VERBOSE_MERGING).
 consume_msg(Msg) ->
   io:format("[MERGE] (MSG CONSUME) ~p~n", [Msg]).

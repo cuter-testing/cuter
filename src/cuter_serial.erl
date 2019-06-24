@@ -14,8 +14,6 @@
 -include("include/cuter_proto_log_entry.hrl").
 -include("include/cuter_proto_spec.hrl").
 
--export_type([supported_term/0]).
-
 -type erlang_term() :: #'ErlangTerm'{}.
 -type supported_term() :: atom() | bitstring() | list() %| pid() | reference()
                         | number() | tuple() | map() | cuter_lib:lambda().
@@ -62,7 +60,7 @@ to_log_entry(OpCode, Arguments, IsConstraint, TagID) ->
                    , tag = TagID },
   cuter_proto_log_entry:encode_msg(Msg).
 
--spec from_log_entry(binary()) -> {cuter_log:opcode(), [supported_term()], boolean(), cuter_cerl:tagID()}.
+-spec from_log_entry(binary()) -> {cuter_log:opcode(), [term()], boolean(), cuter_cerl:tagID()}.
 from_log_entry(Msg) ->
   LogEntry = cuter_proto_log_entry:decode_msg(Msg, 'LogEntry'),
   Arguments = [from_erlang_term(A) || A <- LogEntry#'LogEntry'.arguments],
@@ -264,10 +262,7 @@ encode_shared(Shared, Seen) ->
 encode_fun(Points, Otherwise, Arity) ->
   Ps = [encode_fun_entry(As, V) || {As, V} <- Points],
   O = to_erlang_term(Otherwise),
-  #'ErlangTerm'{type='FUN',
-                points=Ps,
-                arity=Arity,
-                otherwise=O}.
+  #'ErlangTerm'{type='FUN', points=Ps, arity=Arity, otherwise=O}.
 
 encode_fun_entry(Args, Value) ->
   As = [to_erlang_term(A) || A <- Args],
