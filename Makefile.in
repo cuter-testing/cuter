@@ -33,7 +33,7 @@ export ERL_LIBS := $(PROPER):$(GPB):$$ERL_LIBS
 ###----------------------------------------------------------------------
 
 DIALYZER_APPS = erts kernel stdlib compiler crypto hipe syntax_tools
-DIALYZER_FLAGS = -Wunmatched_returns
+DIALYZER_FLAGS = -Wunmatched_returns -Wunderspecs
 
 ## Option warn_untyped_record cannot be enabled for Erlang/OTP < 22
 ## due to core_parse.hrl not having type information
