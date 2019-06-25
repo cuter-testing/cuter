@@ -177,7 +177,7 @@
 %% It's a transformed version of many_stored_types().
 -type many_stored_types_cache() :: dict:dict(atom(), stored_types()).
 
-%% The data types that holds the configuration info of spec parsing.
+%% The data type that holds the configuration info of spec parsing.
 -record(pconf, {
   mfa            :: mfa(),
   typesCache     :: many_stored_types_cache(),
@@ -205,19 +205,19 @@ retrieve_types(TypeAttrs) ->
 -spec process_type_attr(cuter_cerl:type_info(), stored_types()) -> stored_types().
 %% Processes the declaration of a record.
 process_type_attr({record, {Name, Fields}}, Processed) ->
-  % Process each field of the record.
+  %% Process each field of the record.
   Fs = [t_field_from_form(Field) || Field <- Fields],
-  % Construct the representation of the record.
+  %% Construct the representation of the record.
   Record = t_record(Name, Fs),
-  % Store the record in the proccessed dict.
+  %% Store the record in the proccessed dict.
   dict:store({record, Name}, Record, Processed);
 %% Processes the declaration of a type.
 process_type_attr({type, {Name, Repr, Vars}}, Processed) ->
-  % Process the type's representation.
+  %% Process the type's representation.
   Type = safe_t_from_form(Repr),
-  % Parse the type parameters.
+  %% Parse the type parameters.
   Vs = [{?type_var, Var} || {var, _, Var} <- Vars],
-  % Store the type in the processed dict.
+  %% Store the type in the processed dict.
   dict:store({type, Name, length(Vs)}, {Type, Vs}, Processed).
 
 %% Processes the declaration of a record's field.
@@ -554,7 +554,7 @@ t_function(Types, Ret, Constraints) ->
   Ts = [T || {_V, T} <- Constraints],
   #t{kind = ?function_tag, rep = Rep, deps = unify_deps([Ret|Types] ++ Ts)}.
 
--spec t_userdef(string()) -> t_userdef().
+-spec t_userdef(userdef_rep()) -> t_userdef().
 t_userdef(Name) ->
   #t{kind = ?userdef_tag, rep = Name}.
 
@@ -794,7 +794,7 @@ next_pending_type(Conf) ->
   case ets:lookup(Cache, pending) of
     [{pending, []}] -> error;
     [{pending, [T|Ts]}] ->
-      % T :: {Name :: string(), Fn :: function()}
+      %% T :: {Name :: string(), Fn :: function()}
       true = ets:insert(Cache, {pending, Ts}),
       T
   end.
@@ -1038,7 +1038,7 @@ simplify(#t{kind = ?remote_tag, rep = {Module, Name, Args}}, CurrModule, Env, Vi
           As = [simplify(A, CurrModule, Env, Visited1, Conf) || A <- Args],
           Env1 = bind_parameters(Params, As, new_env()),
           Fn = fun() -> simplify(Type, Module, Env1, Visited1, Conf) end,
-          % Add the type to the pending types, if needed.
+          %% Add the type to the pending types, if needed.
           UniqueTypeName = unique_type_name(Module, Name, As),
           true = add_pending_type(Conf, UniqueTypeName, Fn),
           t_userdef(UniqueTypeName)
