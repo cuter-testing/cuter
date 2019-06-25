@@ -2,22 +2,29 @@
 %%------------------------------------------------------------------------------
 -module(cuter_types).
 
--export([parse_spec/4, retrieve_types/1, retrieve_specs/1, find_spec/2, get_kind/1,
-         find_remote_deps_of_type/2, find_remote_deps_of_spec/2]).
+-export([parse_spec/4, retrieve_types/1, retrieve_specs/1, find_spec/2,
+	 get_kind/1, find_remote_deps_of_type/2, find_remote_deps_of_spec/2]).
 
--export([params_of_t_function_det/1, ret_of_t_function/1, atom_of_t_atom_lit/1, integer_of_t_integer_lit/1,
-         elements_type_of_t_list/1, elements_type_of_t_nonempty_list/1, elements_types_of_t_tuple/1,
-         elements_types_of_t_union/1, bounds_of_t_range/1, segment_size_of_bitstring/1, is_generic_function/1,
-         name_of_t_userdef/1]).
+-export([params_of_t_function_det/1, ret_of_t_function/1, atom_of_t_atom_lit/1,
+	 integer_of_t_integer_lit/1, elements_type_of_t_list/1,
+	 elements_type_of_t_nonempty_list/1, elements_types_of_t_tuple/1,
+	 elements_types_of_t_union/1, bounds_of_t_range/1,
+	 segment_size_of_bitstring/1, is_generic_function/1,
+	 name_of_t_userdef/1]).
 
--export([t_atom/0, t_atom_lit/1, t_any/0, t_binary/0, t_bitstring/0, t_bitstring/2, t_char/0, t_float/0,
-         t_function/0, t_function/2, t_function/3, t_integer/0, t_integer_lit/1, t_list/0, t_list/1,
-         t_nonempty_list/1, t_nil/0, t_number/0, t_remote/3, t_string/0, t_tuple/0, t_tuple/1,
-         t_union/1, t_range/2, t_pos_inf/0, t_neg_inf/0, t_userdef/1]).
+-export([t_atom/0, t_atom_lit/1, t_any/0,
+	 t_binary/0, t_bitstring/0, t_bitstring/2, t_char/0, t_float/0,
+         t_function/0, t_function/2, t_function/3,
+	 t_integer/0, t_integer_lit/1, t_list/0, t_list/1,
+         t_nonempty_list/1, t_nil/0, t_number/0, t_remote/3, t_string/0,
+	 t_tuple/0, t_tuple/1, t_union/1,
+	 t_range/2, t_pos_inf/0, t_neg_inf/0, t_userdef/1]).
 
--export([erl_type_deps_map/2, get_type_name_from_type_dep/1, get_type_from_type_dep/1, unique_type_name/3]).
+-export([erl_type_deps_map/2, get_type_name_from_type_dep/1,
+	 get_type_from_type_dep/1, unique_type_name/3]).
 
--export_type([erl_type/0, erl_spec_clause/0, erl_spec/0, stored_specs/0, stored_types/0, stored_spec_value/0, t_range_limit/0]).
+-export_type([erl_type/0, erl_spec_clause/0, erl_spec/0, stored_specs/0,
+	      stored_types/0, stored_spec_value/0, t_range_limit/0]).
 -export_type([erl_type_dep/0, erl_type_deps/0]).
 
 -include("include/cuter_macros.hrl").
@@ -27,7 +34,6 @@
 %% Type Declarations
 %% ============================================================================
 
-%% Define tags
 -define(type_variable, vart).
 -define(type_var, tvar).
 -define(max_char, 16#10ffff).
@@ -680,7 +686,7 @@ name_of_t_userdef(#t{kind = ?userdef_tag, rep = Name}) ->
 %% Generic API for raw_type().
 %% ----------------------------------------------------------------------------
 
--spec get_kind(raw_type()) -> atom().
+-spec get_kind(raw_type()) -> kind().
 get_kind(Type) ->
   Type#t.kind.
 
