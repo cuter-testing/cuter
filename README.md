@@ -86,15 +86,16 @@ Installation
 * Download CutEr's sources or clone this repository:
 
         git clone https://github.com/cuter-testing/cuter.git
-
-* If you have not manually downloaded and installed the Protocol Buffer Compiler, run the following script that will fetch it:
-
-        ./fetch_protoc.sh
+        cd cuter
 
 * **[Optional]** If you want to run the full test suite of CutEr, you will also need [PropEr](https://github.com/proper-testing/proper). You can install it independently or go to CutEr's base directory and run:
 
         git submodule init && git submodule update
         git submodule foreach make
+
+* **[Optional]** If you have not manually downloaded and installed the Protocol Buffer Compiler, run the following script that will fetch it:
+
+        ./fetch_protoc.sh
 
 * Configure and compile CutEr. For a default build use:
 
