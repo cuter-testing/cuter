@@ -42,7 +42,6 @@ merge_traces(Info, MergedLogFile) ->
   Init = initialize(Dirs, Int, MergedLogFile),
   merge(Init).
 
-
 -spec initialize([cuter_analyzer:node_trace()], cuter_iserver:int_process(), file:name()) -> state().
 initialize(Dirs, {INode, IPid}, MergedLogFile) ->
   F = logfile_from_pid(INode, IPid, Dirs),
@@ -74,7 +73,6 @@ all_logfiles([], Acc) -> Acc;
 all_logfiles([{_Node, Path}|Rest], Acc) ->
   Fs = cuter_lib:list_dir(Path),
   all_logfiles(Rest, Acc ++ Fs).
-
 
 -spec merge(state()) -> ok.
 merge(State=#st{currFd = Fd, logFd = LogFd, openFds = Open, seenRefs = Seen}) ->
