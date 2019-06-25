@@ -24,7 +24,7 @@
 -include("include/cuter_types.hrl").
 
 %% ============================================================================
-%% Type Declations
+%% Type Declarations
 %% ============================================================================
 
 %% Define tags
@@ -34,6 +34,18 @@
 
 %% Pre-processed types.
 
+-type kind() :: ?any_tag | ?atom_lit_tag |?atom_tag | ?bitstring_tag
+              | ?float_tag | ?function_tag | ?integer_lit_tag |?integer_tag
+	      | ?list_tag | ?local_tag | ?neg_inf | ?nil_tag
+	      | ?nonempty_list_tag | ?pos_inf | ?range_tag | ?record_tag
+	      | ?remote_tag | ?tuple_tag | ?union_tag | ?userdef_tag
+	      | ?type_variable.
+-type rep()  :: atom() | bitstring_rep()
+              | function_det_rep() | function_gen_rep()
+              | integer() | integer_range_rep() | local_rep()
+              | record_rep() | remote_rep() | userdef_rep()
+	      | type_var() | raw_type() | [raw_type()].
+
 -type type_name() :: atom().
 -type type_arity() :: byte().
 -type type_var() :: {?type_var, atom()}.
@@ -41,8 +53,8 @@
 -type dep() :: remote_type().
 -type deps() :: ordsets:ordset(remote_type()).
 -record(t, {
-  kind,
-  rep = undefined,
+  kind                 :: kind(),
+  rep  = undefined     :: rep(),
   deps = ordsets:new() :: deps()
 }).
 
@@ -100,29 +112,36 @@
 -type t_union()         :: #t{kind :: ?union_tag, rep :: [raw_type()]}.
 
 %% Range of integers.
--type t_range()           :: #t{kind :: ?range_tag, rep :: {t_range_limit(), t_range_limit()}}.
+-type t_range()           :: #t{kind :: ?range_tag, rep :: integer_range_rep()}.
+-type integer_range_rep() :: {t_range_limit(), t_range_limit()}.
 -type t_range_limit()     :: t_integer_lit() | t_integer_inf().
 -type t_integer_inf()     :: t_integer_pos_inf() | t_integer_neg_inf().
 -type t_integer_pos_inf() :: #t{kind :: ?pos_inf}.
 -type t_integer_neg_inf() :: #t{kind :: ?neg_inf}.
 
 %% Bitstrings.
--type seg_sizes()   :: {non_neg_integer(), non_neg_integer()}.
--type t_bitstring() :: #t{kind :: ?bitstring_tag, rep :: seg_sizes()}.
+-type t_bitstring()   :: #t{kind :: ?bitstring_tag, rep :: bitstring_rep()}.
+-type bitstring_rep() :: {non_neg_integer(), non_neg_integer()}.
 
 %% Funs.
--type t_function()     :: t_function_gen() | t_function_det().
--type t_function_gen() :: #t{kind :: ?function_tag, rep :: {raw_type(), [t_constraint()]}, deps :: deps()}.
--type t_function_det() :: #t{kind :: ?function_tag, rep :: {[raw_type()], raw_type(), [t_constraint()]}, deps :: deps()}.
--type t_constraint()   :: {t_type_var(), raw_type()}.
+-type t_function()       :: t_function_det() | t_function_gen().
+-type t_function_det()   :: #t{kind :: ?function_tag, rep :: function_det_rep(), deps :: deps()}.
+-type function_det_rep() :: {[raw_type()], raw_type(), [t_constraint()]}.
+-type t_function_gen()   :: #t{kind :: ?function_tag, rep :: function_gen_rep(), deps :: deps()}.
+-type function_gen_rep() :: {raw_type(), [t_constraint()]}.
+-type t_constraint()     :: {t_type_var(), raw_type()}.
 
 %% User-defined types (module-local and remote).
--type t_local()  :: #t{kind :: ?local_tag, rep :: {type_name(), [raw_type()]}}.
--type t_remote() :: #t{kind :: ?remote_tag, rep :: {module(), type_name(), [raw_type()]}}.
--type t_userdef() :: #t{kind :: ?userdef_tag, rep :: string()}.
+-type t_local()    :: #t{kind :: ?local_tag, rep :: local_rep()}.
+-type local_rep()  :: {type_name(), [raw_type()]}.
+-type t_remote()   :: #t{kind :: ?remote_tag, rep :: remote_rep()}.
+-type remote_rep() :: {module(), type_name(), [raw_type()]}.
+-type t_userdef()  :: #t{kind :: ?userdef_tag, rep :: userdef_rep()}.
+-type userdef_rep():: string().
 
 %% Records.
--type t_record()          :: #t{kind :: ?record_tag, rep :: {record_name(), [record_field_type()]}}.
+-type t_record()          :: #t{kind :: ?record_tag, rep :: record_rep()}.
+-type record_rep()        :: {record_name(), [record_field_type()]}.
 -type record_name()       :: atom().
 -type record_field_type() :: {record_field_name(), raw_type()}.
 -type record_field_name() :: atom().
@@ -641,11 +660,11 @@ elements_types_of_t_tuple(#t{kind = ?tuple_tag, rep = Types}) ->
 elements_types_of_t_union(#t{kind = ?union_tag, rep = Types}) ->
   Types.
 
--spec bounds_of_t_range(t_range()) -> {t_range_limit(), t_range_limit()}.
+-spec bounds_of_t_range(t_range()) -> integer_range_rep().
 bounds_of_t_range(#t{kind = ?range_tag, rep = Limits}) ->
   Limits.
 
--spec segment_size_of_bitstring(t_bitstring()) -> seg_sizes().
+-spec segment_size_of_bitstring(t_bitstring()) -> bitstring_rep().
 segment_size_of_bitstring(#t{kind = ?bitstring_tag, rep = Sz}) ->
   Sz.
 
@@ -653,7 +672,7 @@ segment_size_of_bitstring(#t{kind = ?bitstring_tag, rep = Sz}) ->
 is_tvar_wild_card(#t{kind = ?type_variable, rep = {?type_var, Var}}) ->
   Var =:= '_'.
 
--spec name_of_t_userdef(t_userdef()) -> string().
+-spec name_of_t_userdef(t_userdef()) -> userdef_rep().
 name_of_t_userdef(#t{kind = ?userdef_tag, rep = Name}) ->
   Name.
 
