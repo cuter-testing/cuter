@@ -35,7 +35,9 @@ export ERL_LIBS := $(PROPER):$(GPB):$$ERL_LIBS
 DIALYZER_APPS = erts kernel stdlib compiler crypto hipe syntax_tools
 DIALYZER_FLAGS = -Wunmatched_returns
 
-WARNS = +warn_exported_vars +warn_unused_import +warn_missing_spec +warn_untyped_record
+## Option warn_untyped_record cannot be enabled for Erlang/OTP < 22
+## due to core_parse.hrl not having type information
+WARNS = +warn_exported_vars +warn_unused_import +warn_missing_spec #+warn_untyped_record
 WARNS_FTEST = +warn_exported_vars +warn_unused_import #+warn_missing_spec +warn_untyped_record
 ERLC_INCLUDE = -I $(INCLUDE) -I $(GPB_INCLUDE)
 ERLC_FLAGS = +debug_info $(WARNS) -Werror
