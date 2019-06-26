@@ -20,7 +20,7 @@ f([H|T], Acc) ->
     _ -> f(T, [H|Acc])
   end.
 
--spec g(integer() | [integer()]) -> iolist().
+-spec g(integer() | [integer()]) -> <<>>.
 g(42) -> error(bug);
 g([42]) -> error(bug);
 g(I) when is_integer(I) -> <<>>;
