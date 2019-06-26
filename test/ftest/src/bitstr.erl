@@ -83,7 +83,7 @@ f24(X, Y) ->
 -spec f24a(bitstring(), neg_integer()) -> ok.
 f24a(X, Y) ->
   case X of
-    <<42>> when Y =:= -3 -> <<42:Y>>;
+    <<42>> when Y =:= -3 -> <<42:Y>>;   %% will crash here
     <<42:Y>> -> error(unreachable_bug);
     _ -> ok
   end.
