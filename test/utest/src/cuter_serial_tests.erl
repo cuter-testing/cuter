@@ -11,7 +11,10 @@
 %% Serializing / De-Serializing first-order values.
 %% ----------------------------------------------------------------------------
 
--spec encdec_test_() -> term().
+%% We are constructing an improper list here on purpose, hence the following:
+-dialyzer({no_improper_lists, encdec_test_/0}).
+
+-spec encdec_test_() -> [{string(), {'setup', fun(), fun()}}].
 encdec_test_() ->
   Ts = [
     {"Integers", [
@@ -201,5 +204,5 @@ encode_spec_test_() ->
   [{"Serialize specs: " ++ C, {setup, Setup(T), Inst}} || {C, T} <- Ts].
 
 encode_spec(Spec) ->
-  cuter_serial:to_log_entry('OP_SPEC', [{Spec, []}], false, 0),
+  _ = cuter_serial:to_log_entry('OP_SPEC', [{Spec, []}], false, 0),
   [].
