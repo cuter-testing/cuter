@@ -11,10 +11,12 @@
 %% Ensure it runs properly
 -spec run_test() -> ok.
 run_test() ->
-  [{{lists, reverse, 1}, R}] = cuter:run('lists', 'reverse', [[1]], 0, cuter_options()),
+  Depth = 3,
+  Opts = cuter_options(),
+  [{{lists, reverse, 1}, R}] = cuter:run(lists, reverse, [[]], Depth, Opts),
   ?assertEqual([], R).
 
--spec bugs_test_() -> any().
+-spec bugs_test_() -> [{string(), {'timeout', timeout(), {'setup', fun(), fun()}}}].
 bugs_test_() ->
   Tests = [ {"Match to single value", {t0, [0], 1, [[42]]}}
           , {"Non-exhaustive pattern matching", {t1, [0], 17, [[42], [42.0]]}}
@@ -32,7 +34,7 @@ find_bugs({Fn, Inp, Depth, Bugs}) ->
       [?_assertEqual(true, Bugs(Found))]
   end.
 
--spec run_multiple_test() -> ok.
+-spec run_multiple_test() -> {'timeout', timeout(), fun(() -> nonempty_list())}.
 run_multiple_test() ->
   Fn = fun() ->
     Seeds = [
