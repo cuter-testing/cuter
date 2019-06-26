@@ -71,7 +71,8 @@ generate_and_collect_tags({M, Cache}) ->
 
 setup_for_tags(M) ->
   Cache = ets:new(M, [ordered_set, protected]),
-  cuter_codeserver:set_branch_counter(cuter_codeserver:initial_branch_counter()),
+  Counter = cuter_codeserver:initial_branch_counter(),
+  _ = cuter_codeserver:set_branch_counter(Counter),
   {M, Cache}.
 
 cleanup_for_tags({_, Cache}) ->
