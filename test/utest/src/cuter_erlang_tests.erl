@@ -6,9 +6,14 @@
 -include_lib("eunit/include/eunit.hrl").
 -include("include/eunit_config.hrl").
 
+-define(TIMEOUT, 10000).
+
+-type descr()    :: nonempty_string().
+-type test_gen() :: [{descr(), {'timeout', ?TIMEOUT, _}}].
+
 -spec test() -> 'ok' | {'error', term()}.  %% This should be provided by EUnit
 
--spec props_test_() -> any().
+-spec props_test_() -> test_gen().
 props_test_() ->
   Props = [
     {"erlang:'<'/2 => cuter_erlang:'<'/2", prop_lt(), 2000}
@@ -69,7 +74,8 @@ prop_lreverse() ->
 prop_lmember() ->
   ?FORALL({X,Y}, {any(),list()}, lists:member(X, Y) =:= cuter_erlang:member(X, Y)).
 
--spec reversible_bifs_test_() -> any().
+
+-spec reversible_bifs_test_() -> test_gen().
 reversible_bifs_test_() ->
   Props = [
     {"erlang:'+'/2 => cuter_erlang:'+'/2", prop_plus(), 1000}
@@ -161,4 +167,4 @@ prop_bnot() ->
 form_test_(Descr, Prop, N) ->
   OuterProp = proper:test_to_outer_test(Prop),
   Options   = [{to_file, user}, {numtests, N}],
-  {Descr, {timeout, 10000, ?_assert(proper:quickcheck(OuterProp, Options))}}.
+  {Descr, {timeout, ?TIMEOUT, ?_assert(proper:quickcheck(OuterProp, Options))}}.
