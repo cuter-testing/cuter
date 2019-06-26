@@ -8,7 +8,7 @@
 -spec test() -> 'ok' | {'error', term()}.  %% This should be provided by EUnit
 
 %% Encoding / Decoding tests
--spec encdec_test_() -> term().
+-spec encdec_test_() -> [{nonempty_string(), {'setup', fun(), fun()}}].
 encdec_test_() ->
   Fun1 = cuter_lib:mk_lambda([{[0], 42}], ok, 1),
   Ts = [

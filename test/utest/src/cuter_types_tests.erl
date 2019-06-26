@@ -6,7 +6,7 @@
 
 -spec test() -> 'ok' | {'error', term()}.  %% This should be provided by EUnit
 
--spec parse_basic_types_test_() -> term().
+-spec parse_basic_types_test_() -> [{string(), {'setup', fun(), fun(), fun()}}].
 parse_basic_types_test_() ->
   Is = [types_and_specs],
   Setup = fun(I) -> fun() -> setup(I) end end,

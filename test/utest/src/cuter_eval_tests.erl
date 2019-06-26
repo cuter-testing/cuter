@@ -16,7 +16,7 @@
 
 -spec test() -> 'ok' | {'error', term()}.  %% This should be provided by EUnit
 
--spec eval_cerl_test_() -> term().
+-spec eval_cerl_test_() -> list().
 eval_cerl_test_() ->
   Is = [
     {"Function application", {doDouble, [2], 4}},
