@@ -16,7 +16,7 @@
 
 -spec test() -> 'ok' | {'error', term()}.  %% This should be provided by EUnit
 
--spec eval_cerl_test_() -> list().
+-spec eval_cerl_test_() -> [{nonempty_string(), {'setup', fun(), fun(), fun()}}].
 eval_cerl_test_() ->
   Is = [
     {"Function application", {doDouble, [2], 4}},
@@ -83,10 +83,10 @@ doDouble(Y) -> double(Y).
 -spec doDouble2(number()) -> number().
 doDouble2(Y) -> ?MODULE:double(Y).
 
--spec doCons(any()) -> [any()].
+-spec doCons(T) -> [T, ...].
 doCons(X) -> [X, X].
 
--spec doTuple(any()) -> {any(), any()}.
+-spec doTuple(T) -> {T, T}.
 doTuple(X) -> {X, X}.
 
 -spec doLet(number()) -> number().
@@ -94,10 +94,10 @@ doLet(X) ->
   Y = X + X,
   Y + 1.
 
--spec doLetRec([any()]) -> [any()].
+-spec doLetRec([T]) -> [T].
 doLetRec(X) -> [Y || Y <- X].
 
--spec doBinary() -> binary().
+-spec doBinary() -> <<_:16>>.
 doBinary() -> <<"42">>.
 
 -spec doDoubleFun(number()) -> number().
@@ -105,10 +105,10 @@ doDoubleFun(X) ->
   F = fun(Y) -> double(Y) end,
   F(X).
 
--spec doEcho() -> any().
+-spec doEcho() -> {pid(), term()}.
 doEcho() -> receive {From, What} -> From ! {self(), What} end.
 
--spec doReceive(any()) -> ok.
+-spec doReceive(any()) -> 'ok'.
 doReceive(X) ->
   P = spawn(?MODULE, doEcho, []),
   P ! {self(), X},
@@ -142,7 +142,7 @@ lambdaEval(Val, _Env) when is_integer(Val)->
 
 %% Bit Pattern Matching
 
--spec doBitMatch() -> {integer(), binary()}.
+-spec doBitMatch() -> {byte(), <<_:16>>}.
 doBitMatch() ->
   Bin = <<"Answer", 42, "ok">>,
   <<"Answer", Int, Result/binary>> = Bin,
@@ -150,14 +150,15 @@ doBitMatch() ->
 
 %% Naming Processes
 
--spec doRegister() -> true | ok.
-doRegister() -> 
-  register(me, self()),
-  me ! hello,
+-spec doRegister() -> boolean().
+doRegister() ->
+  Name = despicable_me,
+  register(Name, self()),
+  Name ! hello,
   receive
-    hello -> unregister(me)
+    hello -> unregister(Name)  % returns 'true'
   after
-    1000 -> ok
+    1000 -> false
   end.
 
 %% Start a slave node
