@@ -9,15 +9,17 @@
 
 -define(ISERVER, cuter_iserver).
 
-%% Ensure start/stop runs properly
--spec start_stop_test_() -> {string(), any()}.
+-type descr() :: nonempty_string().
+
+%% Ensure start/stop runs properly -- 19 below is the line number
+-spec start_stop_test_() -> {descr(), {19, fun(() -> any())}}.
 start_stop_test_() ->
   Start = setup(),
   Stop = cleanup(Start),
   {"Start & Stop", ?_assertEqual(ok, Stop)}.
 
 %% Validate subscriber processes
--spec validate_subscribers_test_() -> list().
+-spec validate_subscribers_test_() -> [{descr(), {'setup', fun(), fun(), fun()}}].
 validate_subscribers_test_() ->
   Setup = fun setup/0,
   Cleanup = fun cleanup/1,

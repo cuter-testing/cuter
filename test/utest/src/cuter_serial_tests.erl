@@ -11,10 +11,12 @@
 %% Serializing / De-Serializing first-order values.
 %% ----------------------------------------------------------------------------
 
+-type descr() :: nonempty_string().
+
 %% We are constructing an improper list here on purpose, hence the following:
 -dialyzer({no_improper_lists, encdec_test_/0}).
 
--spec encdec_test_() -> [{string(), {'setup', fun(), fun()}}].
+-spec encdec_test_() -> [{descr(), {'setup', fun(), fun()}}].
 encdec_test_() ->
   Ts = [
     {"Integers", [
@@ -81,7 +83,7 @@ encode_decode(Terms) ->
 maybe(T) -> T.
 
 %% Serializing unsupported terms tests.
--spec enc_fail_test_() -> term().
+-spec enc_fail_test_() -> {descr(), [{descr(), _}]}.
 enc_fail_test_() ->
   Enc = fun cuter_serial:from_term/1,
   Ts = [
@@ -93,7 +95,7 @@ enc_fail_test_() ->
 %% Serializing / De-Serializing log entries.
 %% ----------------------------------------------------------------------------
 
--spec encdec_cmd_test_() -> term().
+-spec encdec_cmd_test_() -> [{descr(), {'setup', fun(), fun()}}].
 encdec_cmd_test_() ->
   Cs = [
     {"I", {'OP_PARAMS', [cuter_symbolic:fresh_symbolic_var(), cuter_symbolic:fresh_symbolic_var()]}},
@@ -115,7 +117,7 @@ encode_decode_cmd({OpCode, Args}) ->
 %% Serializing / De-Serializing funs.
 %% ----------------------------------------------------------------------------
 
--spec dec_fun_test_() -> term().
+-spec dec_fun_test_() -> [{descr(), {'setup', fun(), fun()}}].
 dec_fun_test_() ->
   Ts = [
     {"1-arity", fun1()},
@@ -137,7 +139,7 @@ decode_fun({Bin, KVs, Def}) ->
   ElseKey = [self() || _ <- lists:seq(1, Arity)],
   [?_assertEqual(V, F(K)) || {K, V} <- KVs] ++ [?_assertEqual(Def, F(ElseKey))].
 
--spec dec_fun2_test_() -> term().
+-spec dec_fun2_test_() -> [{descr(), _}, ...].
 dec_fun2_test_() ->
   L1 = cuter_lib:mk_lambda([{[1], 2}], 42, 1),
   L2 = cuter_lib:mk_lambda([{[2], L1}], 42, 1),
@@ -168,7 +170,7 @@ fun2() ->
 %% Serializing specs.
 %% ----------------------------------------------------------------------------
 
--spec encode_spec_test_() -> term().
+-spec encode_spec_test_() -> [{descr(), {'setup', fun(), fun()}}].
 encode_spec_test_() ->
   Ts = [
     {"Simple", [

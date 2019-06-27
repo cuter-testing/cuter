@@ -9,8 +9,10 @@
 
 -define(Pmatch, true).
 
+-type descr() :: nonempty_string().
+
 %% Ensure start/stop runs properly
--spec start_stop_test_() -> any().
+-spec start_stop_test_() -> [{descr(), _}, ...].
 start_stop_test_() ->
   {_Dir, Server} = Start = setup(),
   R = receive
