@@ -28,7 +28,7 @@ props_test_() ->
   , {"lists:reverse/2 => cuter_erlang:reverse/2", prop_lreverse(), 1000}
   , {"lists:member/2 => cuter_erlang:member/2", prop_lmember(), 1000}
   ],
-  [form_test_(Descr, Prop, N) || {Descr, Prop, N} <- Props].
+  [form_test_gen(Descr, Prop, N) || {Descr, Prop, N} <- Props].
 
 -spec prop_lt() -> proper:test().
 prop_lt() ->
@@ -94,7 +94,7 @@ reversible_bifs_test_() ->
   , {"erlang:'bsr'/2 => cuter_erlang:'bsr'/2", prop_bsr(), 4000}
   , {"erlang:'bnot'/1 => cuter_erlang:'bnot'/1", prop_bnot(), 4000}
   ],
-  [form_test_(Descr, Prop, N) || {Descr, Prop, N} <- Props].
+  [form_test_gen(Descr, Prop, N) || {Descr, Prop, N} <- Props].
 
 -spec prop_plus() -> proper:test().
 prop_plus() ->
@@ -161,10 +161,10 @@ prop_bnot() ->
 
 
 %%----------------------------------------------------------------------
-%% Auxiliary function (generators) below
+%% Auxiliary functions below
 %%----------------------------------------------------------------------
 
-form_test_(Descr, Prop, N) ->
+form_test_gen(Descr, Prop, N) ->
   OuterProp = proper:test_to_outer_test(Prop),
   Options   = [{to_file, user}, {numtests, N}],
   {Descr, {timeout, ?TIMEOUT, ?_assert(proper:quickcheck(OuterProp, Options))}}.

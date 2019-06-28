@@ -135,9 +135,9 @@ lambdaEval({$+, Exp1, Exp2}, Env) ->
   E1 = lambdaEval(Exp1, Env),
   E2 = lambdaEval(Exp2, Env),
   E1 + E2;
-lambdaEval(Var, Env) when is_atom(Var)->
+lambdaEval(Var, Env) when is_atom(Var) ->
   lookupVar(Env, Var);
-lambdaEval(Val, _Env) when is_integer(Val)->
+lambdaEval(Val, _Env) when is_integer(Val) ->
   Val.
 
 %% Bit Pattern Matching
@@ -148,7 +148,7 @@ doBitMatch() ->
   <<"Answer", Int, Result/binary>> = Bin,
   {Int, Result}.
 
-%% Naming Processes
+%% Naming processes
 
 -spec doRegister() -> boolean().
 doRegister() ->
@@ -163,7 +163,7 @@ doRegister() ->
 
 %% Start a slave node
 
--spec doDistributed([any()]) -> integer().
+-spec doDistributed(list()) -> non_neg_integer().
 doDistributed(X) when is_list(X) ->
   _ = net_kernel:start([master, shortnames]),
   {ok, Host} = inet:gethostname(),
