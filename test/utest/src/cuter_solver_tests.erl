@@ -8,7 +8,7 @@
 -spec test() -> 'ok' | {'error', term()}.  %% This should be provided by EUnit
 
 %% Simple models to test the semantics of each log entry.
--spec solve_simple_test_() -> term().
+-spec solve_simple_test_() -> [{string(), [{string(), {'setup', fun(), fun(), fun()}}]}].
 solve_simple_test_() ->
   Setup = fun setup/0,
   Cleanup = fun cleanup/1,

@@ -8,13 +8,19 @@
 
 -spec test() -> 'ok' | {'error', term()}.  %% This should be provided by EUnit
 
+-type descr() :: nonempty_string().
+-type f_one() :: fun((term()) -> term()).
+-type setup() :: {'setup', fun(() -> term()), f_one(), f_one()}.
+-type ret_t() :: {descr(), setup()}.
+
 %% Load the modules
--spec just_load_test_() -> any().
+-spec just_load_test_() -> [ret_t()].
 just_load_test_() ->
   Setup = fun(M) -> fun() -> setup(M) end end,
   Cleanup = fun cleanup/1,
   Inst = fun just_load/1,
-  [{"Load Module: " ++ atom_to_list(M), {setup, Setup(M), Cleanup, Inst}} || M <- ?MODS_LIST].
+  [{"Load Module: " ++ atom_to_list(M), {setup, Setup(M), Cleanup, Inst}}
+   || M <- ?MODS_LIST].
 
 just_load({M, MDb}) ->
   TagGen = fun() -> {?BRANCH_TAG_PREFIX, 42} end,
@@ -24,12 +30,13 @@ just_load({M, MDb}) ->
    {"retrieve module's name", ?_assertEqual([{name, M}], Ns)}].
 
 %% Have the proper exports
--spec load_exports_test_() -> any().
+-spec load_exports_test_() -> [ret_t()].
 load_exports_test_() ->
   Setup = fun(M) -> fun() -> setup(M) end end,
   Cleanup = fun cleanup/1,
   Inst = fun load_exports/1,
-  [{"Validate exported funs: " ++ atom_to_list(M), {setup, Setup(M), Cleanup, Inst}} || M <- ?MODS_LIST].
+  [{"Validate exported funs: " ++ atom_to_list(M),
+    {setup, Setup(M), Cleanup, Inst}} || M <- ?MODS_LIST].
   
 load_exports({M, MDb}) ->
   TagGen = fun() -> {?BRANCH_TAG_PREFIX, 42} end,
@@ -43,7 +50,7 @@ load_exports({M, MDb}) ->
 %% Tags related tests.
 %% ------------------------------------------------------------------
 
--spec tag_test_() -> any().
+-spec tag_test_() -> [ret_t()].
 tag_test_() ->
   Setup = fun(M) -> fun() -> setup_for_tags(M) end end,
   Cleanup = fun cleanup_for_tags/1,
@@ -71,7 +78,8 @@ generate_and_collect_tags({M, Cache}) ->
 
 setup_for_tags(M) ->
   Cache = ets:new(M, [ordered_set, protected]),
-  cuter_codeserver:set_branch_counter(cuter_codeserver:initial_branch_counter()),
+  Counter = cuter_codeserver:initial_branch_counter(),
+  _ = cuter_codeserver:set_branch_counter(Counter),
   {M, Cache}.
 
 cleanup_for_tags({_, Cache}) ->
