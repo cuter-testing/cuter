@@ -464,13 +464,16 @@ def decode_and_check(erl, env, terms):
         s.add(z == y)
         assert s.check() == sat, "Decoded {} is not {} but {}".format(x, y, z)
 
-def compare_solutions(solExpected, solFound):
-    deep_compare(solExpected, solFound)
-    deep_compare(solFound, solExpected)
+def from_fun(f):
+    return [
+      ([a for a in p.arguments], p.value) for p in f.points
+    ]
 
-def deep_compare(d1, d2):
-    assert type(d1) == type(d2)
-    assert d1 == d2
+def get_val(args, ps):
+    for pa, pv in ps:
+      if args == pa:
+        return pv
+    return None
 
 def fun_scenario1():
     """
@@ -509,12 +512,9 @@ def fun_scenario1():
     m = slv.model()
     encoder = TermEncoder(erl, m, fmap, arity)
     f_sol = encoder.encode(m[f])
-    # Create the result
-    f_exp = cc.mk_fun(1, [
-        cc.mk_fun_entry([cc.mk_int(3)],  cc.mk_int(42)),
-        cc.mk_fun_entry([cc.mk_int(10)], cc.mk_int(17)),
-    ], cc.mk_int(42))
-    compare_solutions(f_exp, f_sol)
+    f = from_fun(f_sol)
+    assert get_val([cc.mk_int(3)], f) == cc.mk_int(42)
+    assert get_val([cc.mk_int(10)], f) == cc.mk_int(17)
 
 def fun_scenario2():
     """
@@ -557,12 +557,9 @@ def fun_scenario2():
     m = slv.model()
     encoder = TermEncoder(erl, m, fmap, arity)
     x_sol, y_sol, f_sol = [encoder.encode(m[v]) for v in [x, y, f]]
-    # Create the result
-    f_exp = cc.mk_fun(1, [
-        cc.mk_fun_entry([y_sol], cc.mk_int(10)),
-        cc.mk_fun_entry([x_sol], cc.mk_int(42))
-    ], cc.mk_int(10))
-    compare_solutions(f_exp, f_sol)
+    f = from_fun(f_sol)
+    assert get_val([x_sol], f) == cc.mk_int(42)
+    assert get_val([y_sol], f) == cc.mk_int(10)
 
 def fun_scenario3():
     """
@@ -584,8 +581,10 @@ def fun_scenario3():
       is_int(y)
       is_fun(f, 1)
       t1 = f(x)
+      is_int(t1)
       f(t1) = 42
       t2 = f(y)
+      is_int(t2)
       f(t2) = 17
     """
     erl = Erlang()
@@ -611,14 +610,11 @@ def fun_scenario3():
     m = slv.model()
     encoder = TermEncoder(erl, m, fmap, arity)
     x_sol, y_sol, f_sol = [encoder.encode(m[v]) for v in [x, y, f]]
-    # Create the result
-    f_exp = cc.mk_fun(1, [
-        cc.mk_fun_entry([cc.mk_int(5)], cc.mk_int(17)),
-        cc.mk_fun_entry([cc.mk_int(4)], cc.mk_int(42)),
-        cc.mk_fun_entry([y_sol],        cc.mk_int(5)),
-        cc.mk_fun_entry([x_sol],        cc.mk_int(4))
-    ], cc.mk_int(17))
-    compare_solutions(f_exp, f_sol)
+    f = from_fun(f_sol)
+    t1_sol = get_val([x_sol], f)
+    assert get_val([t1_sol], f) == cc.mk_int(42)
+    t2_sol = get_val([y_sol], f)
+    assert get_val([t2_sol], f) == cc.mk_int(17)
 
 def fun_scenario4():
     """
@@ -660,14 +656,10 @@ def fun_scenario4():
     m = slv.model()
     encoder = TermEncoder(erl, m, fmap, arity)
     x_sol, y_sol, f_sol = [encoder.encode(m[v]) for v in [x, y, f]]
-    # Create the result
-    t1_exp = cc.mk_fun(1, [
-        cc.mk_fun_entry([y_sol], cc.mk_int(42))
-    ], cc.mk_int(42))
-    f_exp = cc.mk_fun(1, [
-        cc.mk_fun_entry([x_sol], t1_exp)
-    ], t1_exp)
-    compare_solutions(f_exp, f_sol)
+    f = from_fun(f_sol)
+    t1_sol = get_val([x_sol], f)
+    t1f = from_fun(t1_sol)
+    assert get_val([y_sol], t1f) == cc.mk_int(42)
 
 def fun_scenario5():
     """
@@ -712,12 +704,9 @@ def fun_scenario5():
     m = slv.model()
     encoder = TermEncoder(erl, m, fmap, arity)
     x_sol, y_sol, z_sol, f_sol = [encoder.encode(m[v]) for v in [x, y, z, f]]
-    # Create the result
-    f_exp = cc.mk_fun(3, [
-        cc.mk_fun_entry([x_sol, y_sol, z_sol], cc.mk_int(42)),
-        cc.mk_fun_entry([z_sol, y_sol, x_sol], cc.mk_int(17))
-    ], cc.mk_int(42))
-    compare_solutions(f_exp, f_sol)
+    f = from_fun(f_sol)
+    assert get_val([x_sol, y_sol, z_sol], f) == cc.mk_int(42)
+    assert get_val([z_sol, y_sol, x_sol], f) == cc.mk_int(17)
 
 def fun_scenario6():
     """
@@ -758,17 +747,12 @@ def fun_scenario6():
     m = slv.model()
     encoder = TermEncoder(erl, m, fmap, arity)
     f_sol = encoder.encode(m[f])
-    # Create the result
-    t2_exp = cc.mk_fun(1, [
-        cc.mk_fun_entry([cc.mk_int(42)], cc.mk_int(42))
-    ], cc.mk_int(42))
-    t1_exp = cc.mk_fun(1, [
-        cc.mk_fun_entry([cc.mk_int(42)], t2_exp)
-    ], t2_exp)
-    f_exp = cc.mk_fun(1, [
-        cc.mk_fun_entry([cc.mk_int(42)], t1_exp)
-    ], t1_exp)
-    compare_solutions(f_exp, f_sol)
+    f = from_fun(f_sol)
+    t1_sol = get_val([cc.mk_int(42)], f)
+    t1f = from_fun(t1_sol)
+    t2_sol = get_val([cc.mk_int(42)], t1f)
+    t2f = from_fun(t2_sol)
+    assert get_val([cc.mk_int(42)], t2f) == cc.mk_int(42)
 
 def fun_scenario7():
     """
@@ -785,8 +769,13 @@ def fun_scenario7():
       is_fun(f, 2)
       is_lst(l)
       l = [h1 | l1]
+      is_int(h1)
+      is_lst(l1)
       t1 = f(h1, 0)
+      is_int(t1)
       l1 = [h2 | l2]
+      is_int(h2)
+      is_lst(l2)
       l2 = []
       f(h2, t1) = 42
     """
@@ -823,19 +812,16 @@ def fun_scenario7():
     m = slv.model()
     encoder = TermEncoder(erl, m, fmap, arity)
     l_sol, f_sol = [encoder.encode(m[v]) for v in [l, f]]
-    # Create the result
-    f_exp = cc.mk_fun(2, [
-        cc.mk_fun_entry([l_sol.subterms[1], cc.mk_int(4)], cc.mk_int(42)),
-        cc.mk_fun_entry([l_sol.subterms[0], cc.mk_int(0)], cc.mk_int(4))
-    ], cc.mk_int(42))
-    compare_solutions(f_exp, f_sol)
+    f = from_fun(f_sol)
+    t1_sol = get_val([l_sol.subterms[0], cc.mk_int(0)], f)
+    assert get_val([l_sol.subterms[1], t1_sol], f) == cc.mk_int(42)
 
 def fun_scenario8():
     """
     Scenario 8
     ----------
     ERLANG CODE
-      -spec f8(fun((integer()) -> integer()), [integer()]) -> integer().
+      -spec f8(fun((integer()) -> boolean()), [integer()]) -> integer().
       f8(F, L) when is_function(F, 1) ->
         L1 = lists:filter(F, L),
         hd(L1).
@@ -843,13 +829,18 @@ def fun_scenario8():
       is_fun(f, 1)
       is_lst(l)
       l = [h1 | l1]
+      is_int(h1)
+      is_lst(l1)
       f(h1) = false
       l1 = [h2 | l2]
-      f(h2) = false
+      is_int(h2)
+      is_lst(l2)
+      f(h2) = true
       l2 = []
     """
     erl = Erlang()
-    T, L, fmap, arity, atmFalse = erl.Term, erl.List, erl.fmap, erl.arity, erl.atmFalse
+    T, L, fmap, arity = erl.Term, erl.List, erl.fmap, erl.arity
+    atmFalse, atmTrue = erl.atmFalse, erl.atmTrue
     # Create the model
     slv = Solver()
     f, l, h1, l1, h2, l2 = Consts('f, l, h1, l1, h2, l2', T)
@@ -860,14 +851,16 @@ def fun_scenario8():
         T.is_lst(l),
         # 1st element
         L.is_cons( T.lval(l) ),
+        T.is_int(h1),
         h1 == L.hd( T.lval(l) ),
         l1 == T.lst( L.tl( T.lval(l) ) ),
         atmFalse == fmap( T.fval(f) )[ L.cons(h1, L.nil) ],
         # 2nd element
         L.is_cons( T.lval(l1) ),
+        T.is_int(h2),
         h2 == L.hd( T.lval(l1) ),
         l2 == T.lst( L.tl( T.lval(l1) ) ),
-        atmFalse == fmap( T.fval(f) )[ L.cons(h2, L.nil) ],
+        atmTrue == fmap( T.fval(f) )[ L.cons(h2, L.nil) ],
         # Result
         L.is_nil( T.lval(l2) )
     ])
@@ -877,13 +870,9 @@ def fun_scenario8():
     m = slv.model()
     encoder = TermEncoder(erl, m, fmap, arity)
     l_sol, f_sol = [encoder.encode(m[v]) for v in [l, f]]
-    # Create the result
-    f_exp = cc.mk_fun(1, [
-        cc.mk_fun_entry([l_sol.subterms[0]], encoder.encode(atmFalse)),
-        cc.mk_fun_entry([l_sol.subterms[1]], encoder.encode(atmFalse))
-    ], encoder.encode(atmFalse))
-    compare_solutions(f_exp, f_sol)
-
+    f = from_fun(f_sol)
+    assert get_val([l_sol.subterms[0]], f) == encoder.encode(atmFalse)
+    assert get_val([l_sol.subterms[1]], f) == encoder.encode(atmTrue)
 
 def fun_scenario9():
     """
@@ -907,9 +896,7 @@ def fun_scenario9():
     m = slv.model()
     encoder = TermEncoder(erl, m, fmap, arity)
     x_sol, f_sol = [encoder.encode(m[v]) for v in [x, f]]
-    # Create the result
-    f_exp = encoder.defaultFun(1)
-    compare_solutions(f_exp, f_sol)
+    assert f_sol == encoder.defaultFun(1)
 
 def fun_scenarios():
     """
