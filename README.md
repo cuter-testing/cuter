@@ -59,10 +59,10 @@ In order to use CutEr, you need the following programs:
 
 3. **Z3 Theorem Prover**
 
-  Download the [v4.8.4 Z3 release](https://github.com/Z3Prover/z3/releases/tag/z3-4.8.4)
-  or clone the `z3-4.8.4` tag of Z3 from its git repository with the following command:
+  Download the [v4.8.5 Z3 release](https://github.com/Z3Prover/z3/releases/tag/Z3-4.8.5)
+  or clone the `Z3-4.8.5` tag of Z3 from its git repository with the following command:
 
-        git clone -b z3-4.8.4 --depth 1 https://github.com/Z3Prover/z3.git
+        git clone -b Z3-4.8.5 --depth 1 https://github.com/Z3Prover/z3.git
 
   For your convenience, we include here a list of commands to build from source and install the above release of Z3:
 
