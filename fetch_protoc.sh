@@ -3,7 +3,7 @@
 set -e
 
 DL="lib"
-VER="3.8.0"
+VER="3.9.2"
 PROTOC_DIR="$DL/protoc-$VER"
 rm -rf $PROTOC_DIR
 
