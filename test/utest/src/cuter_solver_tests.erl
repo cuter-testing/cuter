@@ -244,7 +244,8 @@ tuple_not_sz({_Dir, Fname, Python}) ->
   Mapping = create_logfile(Fname, As, fun tuple_not_sz_logs/2),
   {ok, [SolNormal]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
   {ok, [SolRev]} = cuter_solver:solve({Python, Mapping, Fname, 1}),
-  [ {"Result for Tuple of Not Size N", ?_assertMatch(X when is_tuple(X) andalso tuple_size(X) =/= 2, SolNormal)}
+  [ {"Result for Tuple of Not Size N",
+     ?_assertMatch(X when is_tuple(X) andalso tuple_size(X) =/= 2, SolNormal)}
   , {"Result for Tuple of Not Size N Reversed", ?_assertMatch({_,_}, SolRev)}
   ].
 
@@ -465,8 +466,8 @@ erlang_times({_Dir, Fname, Python}) ->
   As = [0, 0.0],  % Two arguments (int and float)
   Mapping = create_logfile(Fname, As, fun erlang_times_logs/2),
   {ok, [P1, P2]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
-  [ {"Multiplting integers", ?_assertEqual(20, P1)}
-  , {"Multiplting integers and floats", ?_assertEqual(2.22, P2)}
+  [ {"Multiplying integers", ?_assertEqual(20, P1)}
+  , {"Multiplying integers and floats", ?_assertEqual(2.22, P2)}
   ].
 
 erlang_times_logs(Fd, SAs=[P1, P2]) ->
@@ -484,7 +485,7 @@ erlang_rdiv({_Dir, Fname, Python}) ->
   As = [0, 0.0],  % Two arguments (int and float)
   Mapping = create_logfile(Fname, As, fun erlang_rdiv_logs/2),
   {ok, [P1, P2]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
-  [ {"Dividing integers", ?_assertEqual(80.0, P1)}
+  [ {"Dividing integers", ?_assertMatch(X when X == 80.0, P1)}
   , {"Dividing integers and floats", ?_assertEqual(2.5, P2)}
   ].
 
@@ -503,8 +504,10 @@ erlang_posdiv({_Dir, Fname, Python}) ->
   As = [0, 0],  % Two arguments (ints)
   Mapping = create_logfile(Fname, As, fun erlang_posdiv_logs/2),
   {ok, [P1, P2]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
-  [ {"Integer division with natural numbers I", ?_assertMatch(X when is_integer(X) andalso X >= 8 andalso X < 12, P1)}
-  , {"Integer division with natural numbers II", ?_assertMatch(X when is_integer(X) andalso X div P1 =:= 3, P2)}
+  [ {"Integer division with natural numbers I",
+     ?_assertMatch(X when is_integer(X) andalso X >= 8 andalso X < 12, P1)}
+  , {"Integer division with natural numbers II",
+     ?_assertMatch(X when is_integer(X) andalso X div P1 =:= 3, P2)}
   ].
 
 erlang_posdiv_logs(Fd, SAs=[P1, P2]) ->
@@ -522,8 +525,10 @@ erlang_posrem({_Dir, Fname, Python}) ->
   As = [0, 0],  % Two arguments (ints)
   Mapping = create_logfile(Fname, As, fun erlang_posrem_logs/2),
   {ok, [P1, P2]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
-  [ {"Remainder of integer division with natural numbers I", ?_assertMatch(X when is_integer(X) andalso X rem 4 =:= 2, P1)}
-  , {"Remainder of integer division with natural numbers II", ?_assertMatch(X when is_integer(X) andalso X rem P1 =:= 3, P2)}
+  [ {"Remainder of integer division with natural numbers I",
+     ?_assertMatch(X when is_integer(X) andalso X rem 4 =:= 2, P1)}
+  , {"Remainder of integer division with natural numbers II",
+     ?_assertMatch(X when is_integer(X) andalso X rem P1 =:= 3, P2)}
   ].
 
 erlang_posrem_logs(Fd, SAs=[P1, P2]) ->
@@ -562,7 +567,8 @@ erlang_equal({_Dir, Fname, Python}) ->
   {ok, [P1, P2, P3]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
   [ {"Equality of terms I", ?_assertEqual(42, P1)}
   , {"Equality of terms II", ?_assertEqual(ok, P2)}
-  , {"Inequality of integers and floats", ?_assertMatch(X when is_integer(X), P3)}
+  , {"Inequality of integers and floats",
+     ?_assertMatch(X when is_integer(X), P3)}
   ].
 
 erlang_equal_logs(Fd, SAs=[P1, P2, P3]) ->
@@ -666,7 +672,8 @@ atom_head({_Dir, Fname, Python}) ->
   As = [0],
   Mapping = create_logfile(Fname, As, fun atom_head_logs/2),
   {ok, [P1]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
-  [ {"Correct 1st letter of an atom", ?_assertEqual(z, list_to_atom([hd(atom_to_list(P1))]))}
+  [ {"Correct 1st letter of an atom",
+     ?_assertEqual(z, list_to_atom([hd(atom_to_list(P1))]))}
   ].
 
 atom_head_logs(Fd, SAs=[P1]) ->
@@ -681,7 +688,8 @@ atom_tail({_Dir, Fname, Python}) ->
   As = [0],
   Mapping = create_logfile(Fname, As, fun atom_tail_logs/2),
   {ok, [P1]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
-  [ {"Remove the first letter from an atom", ?_assertEqual(ok, list_to_atom(tl(atom_to_list(P1))))}
+  [ {"Remove the first letter from an atom",
+     ?_assertEqual(ok, list_to_atom(tl(atom_to_list(P1))))}
   ].
 
 atom_tail_logs(Fd, SAs=[P1]) ->
@@ -726,7 +734,9 @@ erlang_lt_int({_Dir, Fname, Python}) ->
   As = [0, 0],
   Mapping = create_logfile(Fname, As, fun erlang_lt_int_logs/2),
   {ok, [P1, P2]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
-  [ {"Compare integers (<)", ?_assertEqual(true, P1 < P2 andalso is_integer(P1) andalso is_integer(P2))} ].
+  [ {"Compare integers (<)",
+     ?_assertEqual(true, P1 < P2 andalso is_integer(P1) andalso is_integer(P2))}
+  ].
 
 erlang_lt_int_logs(Fd, SAs=[P1, P2]) ->
   cuter_log:log_symb_params(Fd, SAs),
@@ -740,7 +750,9 @@ erlang_lt_float({_Dir, Fname, Python}) ->
   As = [0, 0],
   Mapping = create_logfile(Fname, As, fun erlang_lt_float_logs/2),
   {ok, [P1, P2]} = cuter_solver:solve({Python, Mapping, Fname, 42}),
-  [ {"Compare floats (<)", ?_assertEqual(true, P1 < P2 andalso is_float(P1) andalso is_float(P2))} ].
+  [ {"Compare floats (<)",
+     ?_assertEqual(true, P1 < P2 andalso is_float(P1) andalso is_float(P2))}
+  ].
 
 erlang_lt_float_logs(Fd, SAs=[P1, P2]) ->
   cuter_log:log_symb_params(Fd, SAs),
