@@ -40,8 +40,8 @@ find_bugs({Fn, Inp, Depth, Bugs}) ->
 
 -define(TIMEOUT_RMT, 40000).
 
--spec run_multiple_test() -> {'timeout', ?TIMEOUT_RMT, fun(() -> nonempty_list())}.
-run_multiple_test() ->
+-spec run_multiple_test_() -> {'timeout', ?TIMEOUT_RMT, fun(() -> nonempty_list())}.
+run_multiple_test_() ->
   Fn = fun() ->
     Seeds = [
       {lists, nth, [3, [1,2,3]], 15},
