@@ -51,11 +51,11 @@ In order to use CutEr, you need the following programs:
   Also, you need to install the *protobuf* package (*version 3.11.0*).
   You can install it for your user with
 
-        pip install --user protobuf==3.11.2
+        pip install --user protobuf==3.11.0
 
   or globally with
 
-        sudo pip install protobuf==3.11.2
+        sudo pip install protobuf==3.11.0
 
 3. **Z3 Theorem Prover**
 
