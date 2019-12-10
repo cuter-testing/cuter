@@ -374,12 +374,21 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 			par_spec = cc.get_parameters_from_complete_fun(spec)
 			ret_spec = cc.get_rettype_from_fun(spec)
 			name = self.fun_rec_flist(par_spec, ret_spec)
-			return ["and", ["is-fun", var], ["=", ["fa", ["fv", var]], build_int(len(par_spec))], [name, ["fm", ["fv", var]]]]
+			return ["and",
+				["is-fun", var],
+				["=", ["fa", ["fv", var]], build_int(len(par_spec))],
+				[name, ["fm", ["fv", var]]],
+				["not", ["=", ["fm", ["fv", var]], "fn"]]
+			]
 		elif cc.is_type_generic_fun(spec):
 			par_spec = None
 			ret_spec = cc.get_rettype_from_fun(spec)
 			name = self.fun_rec_flist(par_spec, ret_spec)
-			return ["and", ["is-fun", var], [name, ["fm", ["fv", var]]]]
+			return ["and",
+				["is-fun", var],
+				[name, ["fm", ["fv", var]]],
+				["not", ["=", ["fm", ["fv", var]], "fn"]]
+			]
 		elif cc.is_type_atomlit(spec):
 			return ["=", var, self.decode(cc.get_literal_from_atomlit(spec))]
 		elif cc.is_type_integerlit(spec):
