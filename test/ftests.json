@@ -1183,6 +1183,20 @@
             "arity": 1,
             "xopts": "--z3-timeout 1",
             "skip": false
+        },
+        {
+            "module": "funs",
+            "function": "mf",
+            "args": "[fun(X) -> X end, fun(_) -> true end,[]]",
+            "depth": "5",
+            "errors": true,
+            "arity": 3,
+            "nondeterministic": true,
+            "solutions": [
+                "type($2((0,))) == type(True)",
+                "[$1((x,)) for x in $3 if $2((x,))] != [z for z in [$1((y,)) for y in $3] if $2((z,))]"
+            ],
+            "skip": false
         }
     ]
 }

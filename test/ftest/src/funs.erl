@@ -1,7 +1,7 @@
 -module(funs).
 -export([f1/1, f2/3, f3/3, f41/3, f42/3, f5/4, f6/1, f7/2, f8/2,
          f91/3, f92/2, f10/1, f11/3, f12/1, f1ws/1, f2ws/3, f3ws/3,
-         f5ws/4, f1hs/1, f13a/2, f13b/2, f14/2]).
+         f5ws/4, f1hs/1, f13a/2, f13b/2, f14/2, mf/3]).
 
 -spec f1(fun((integer()) -> integer())) -> ok.
 f1(F) ->
@@ -233,3 +233,10 @@ f14(F, L) ->
     [1, 2, 3] -> error(bug);
     _ -> ok
   end.
+
+-spec mf(fun((T) -> T), fun((T) -> boolean()), [T]) -> ok.
+mf(F, P, L) ->
+   case lists:map(F, lists:filter(P, L)) =:= lists:filter(P, lists:map(F, L)) of
+     true -> ok;
+     false -> error(mf_prop_fails)
+   end.
