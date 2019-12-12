@@ -194,7 +194,7 @@ Have fun with the tool!
 
 <!-- Badges (alphabetically) -->
 [commit badge]: https://img.shields.io/github/last-commit/cuter-testing/cuter.svg?style=flat-square
-[erlang versions badge]: https://img.shields.io/badge/erlang-19.0%20to%2022.1-blue.svg?style=flat-square
+[erlang versions badge]: https://img.shields.io/badge/erlang-19.0%20to%2022.2-blue.svg?style=flat-square
 [travis badge]: https://img.shields.io/travis/cuter-testing/cuter.svg?branch=master?style=flat-square
 
 <!-- Links (alphabetically) -->
