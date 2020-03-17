@@ -885,8 +885,7 @@
             "solutions": [
                 "($1 + $2) & ($1 - $2) == 1208425819634629144706176"
             ],
-            "xopts": "--z3-timeout 1",
-            "skip": true
+            "skip": false
         },
         {
             "module": "bitstr",
