@@ -193,9 +193,6 @@ utest: $(TARGETS)
 ftest: $(TARGETS)
 	@(./$(TEST)/functional_test --no=$(no))
 
-z3py-ftest: $(TARGETS)
-	@(./$(TEST)/functional_test --no=$(no) --z3py)
-
 dialyzer: .plt/.cuter_plt cuter_target
 	dialyzer --plt $< $(DIALYZER_FLAGS) $(EBIN)/*.beam
 
