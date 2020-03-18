@@ -681,14 +681,15 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		"""
 		t = self.decode(term)
 		n = cc.get_int(num)
-		l = ["and", ["is-tuple", t]]
+		is_t = ["is-tuple", t]
+		l = ["and"]
 		c = ["tv", t]
 		while n > 0:
 			l.append(["is-tc", c])
 			c = ["tt", c]
 			n -= 1
 		l.append(["is-tn", c])
-		self.commands.append(["assert", ["not", l]])
+		self.commands.append(["assert", ["and", is_t, ["not", l]]])
 
 	def tuple_not_sz_reversed(self, term, num):
 		"""
