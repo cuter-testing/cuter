@@ -45,7 +45,6 @@
 -define(SORTED_ERRORS, sorted_errors).
 -define(SUPPRESS_UNSUPPORTED_MFAS, suppress_unsupported).
 -define(NO_TYPE_NORMALIZATION, no_type_normalization).
--define(Z3PY, z3py).
 -define(Z3_TIMEOUT, z3_timeout).
 
 -type default_option() :: {?POLLERS_NO, ?ONE}
@@ -63,7 +62,6 @@
                 | ?SORTED_ERRORS
                 | ?SUPPRESS_UNSUPPORTED_MFAS
                 | ?NO_TYPE_NORMALIZATION
-                | ?Z3PY
                 | {?Z3_TIMEOUT, pos_integer()}
                 .
 
@@ -299,11 +297,7 @@ z3_timeout([_|Rest]) -> z3_timeout(Rest).
 -spec get_solver_backend([option()]) -> nonempty_string().
 get_solver_backend(Options) ->
   T = z3_timeout(Options),
-  Cmd = ?PYTHON_CALL ++ " --timeout " ++ integer_to_list(T),
-  case lists:member(?Z3PY, Options) of
-      true -> Cmd;
-      false -> Cmd ++ " --smt"
-  end.
+  ?PYTHON_CALL ++ " --smt --timeout " ++ integer_to_list(T).
 
 -spec get_whitelist([option()]) -> cuter_mock:whitelist().
 get_whitelist([]) ->

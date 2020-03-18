@@ -5,7 +5,6 @@ import traceback, argparse
 import cuter_global as cglb
 import cuter_port as cp
 import cuter_io as cIO
-import cuter_z3 as cz3
 import cuter_smt as cSMT
 import cuter_logger as clg
 import cuter_common as cc
@@ -24,7 +23,7 @@ cglb.init()
 # Initialize the communication with Erlang
 erlport = cp.ErlangPort()
 # Initialize the Solver interface
-erlSolver = cz3.ErlangZ3() if not args.smt else cSMT.ErlangSMT(args.timeout)
+erlSolver = cSMT.ErlangSMT(args.timeout)
 
 try:
     while cglb.__RUN__:

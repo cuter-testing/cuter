@@ -28,7 +28,6 @@ def main():
   parser.add_argument("--sorted-errors", action='store_true', help="report the erroneous inputs in a sorted order")
   parser.add_argument("--suppress-unsupported", action='store_true', help="suppresses the reporting of unsupported MFAs")
   parser.add_argument("--no-type-normalization", action='store_true', help="disable the normalization specifications & types")
-  parser.add_argument("--z3py", action='store_true', help="use the z3py solver backend")
   parser.add_argument("--z3-timeout", metavar="N", type=int, default=2,
     help="set the timeout N for the Z3 SMT solver (default: %(default)s)")
 
@@ -92,8 +91,6 @@ def main():
     opts.append("no_type_normalization")
   if args.w != None:
       opts.append("{{whitelist, '{}'}}".format(args.w))
-  if args.z3py:
-      opts.append("z3py")
   strOpts = ",".join(opts)
 
   # Run CutEr

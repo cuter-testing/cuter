@@ -2,19 +2,18 @@ AC_INIT([cuter], [0.1])
 
 ###############################################
 #
-# Testing erlang compiler
+# Erlang compiler
 #
 ###############################################
 AC_ARG_WITH(erlc,
-[AS_HELP_STRING([--with-erlc=ERLC],
-		[specify the location of the erlang compiler.])])
+[AS_HELP_STRING([--with-erlc=ERLC_PATH],
+		[specify the location of the Erlang compiler.])])
 
-ERLC="erlc"
+ERLC_PATH=`which erlc`
 if test "x$with_erlc" != x; then
-  ERLC="$with_erlc"
+  ERLC_PATH="$with_erlc"
 fi
-
-AC_SUBST(ERLC)
+AC_SUBST(ERLC_PATH)
 
 cat > test_erlc.erl <<EOF
 -module(test_erlc).
@@ -22,7 +21,7 @@ cat > test_erlc.erl <<EOF
 foo() -> ok.
 EOF
 
-if $ERLC test_erlc.erl; then
+if $ERLC_PATH test_erlc.erl; then
   HAS_ERLC="1"
   rm -f test_erlc.beam
 else
@@ -35,27 +34,25 @@ if test "$HAS_ERLC" = "0"; then
 fi
 
 AT_LEAST_21=
-ERL=`which erl`
-if $ERL -noshell -eval "X=erlang:system_info(otp_release) >= \"21\",X=true" -s init stop &> /dev/null; then
+ERL_PATH=`which erl`
+if $ERL_PATH -noshell -eval "X=erlang:system_info(otp_release) >= \"21\",X=true" -s init stop &> /dev/null; then
   AT_LEAST_21="-DAT_LEAST_21"
 fi
-
 AC_SUBST(AT_LEAST_21)
 
 ###############################################
 #
-# Testing python
+# Python
 #
 ###############################################
 AC_ARG_WITH(python,
 [AS_HELP_STRING([--with-python=PYTHON_PATH],
 		[specify the location of the python 2.x executable.])])
 
-PYTHON_PATH="python"
+PYTHON_PATH=`which python`
 if test "x$with_python" != x; then
   PYTHON_PATH="$with_python"
 fi
-
 AC_SUBST(PYTHON_PATH)
 
 cat > test_python.py <<EOF
@@ -78,9 +75,19 @@ fi
 
 ###############################################
 #
-# Testing Z3Py
+# Z3
 #
 ###############################################
+AC_ARG_WITH(z3,
+[AS_HELP_STRING([--with-z3=Z3_PATH],
+		[specify the location of Z3.])])
+
+Z3_PATH=`which z3`
+if test "x$with_z3" != x; then
+  Z3_PATH="$with_z3"
+fi
+AC_SUBST(Z3_PATH)
+
 cat > test_z3.py <<EOF
 try:
   __import__('z3')
@@ -92,20 +99,20 @@ EOF
 
 if $PYTHON_PATH test_z3.py; then
   HAS_Z3="1"
-  HAS_Z3_MSG="yes"
+  Z3_PATH=`which z3`
+  Z3_VSN=`$Z3_PATH -version`
 else
   HAS_Z3="0"
-  HAS_Z3_MSG="no"
 fi
 rm -f test_z3.py
 
 if test "$HAS_Z3" = "0"; then
-   AC_MSG_ERROR([You need Z3 and Z3Py. Please download Z3 at https://github.com/Z3Prover/z3 and follow the instructions.])
+   AC_MSG_ERROR([You need a recent Z3. Please download Z3 at https://github.com/Z3Prover/z3 and follow the instructions.])
 fi
 
 ###############################################
 #
-# Testing protobuf
+# Protobuf
 #
 ###############################################
 cat > test_protobuf.py <<EOF
@@ -132,7 +139,7 @@ fi
 
 ###############################################
 #
-# Testing protoc
+# Protoc
 #
 ###############################################
 AC_ARG_WITH(protoc,
@@ -143,7 +150,6 @@ PROTOC_PATH="protoc"
 if test "x$with_protoc" != x; then
   PROTOC_PATH="$with_protoc"
 fi
-
 AC_SUBST(PROTOC_PATH)
 
 cat > person.proto <<EOF
@@ -165,7 +171,7 @@ fi
 
 ###############################################
 #
-# Testing PropEr
+# PropEr
 #
 ###############################################
 AC_ARG_WITH(proper,
@@ -176,7 +182,6 @@ PROPER="lib/proper"
 if test "x$with_proper" != x; then
   PROPER="$with_proper"
 fi
-
 AC_SUBST(PROPER)
 
 cat > test_proper.erl <<EOF
@@ -189,8 +194,7 @@ foo() ->
   end.
 EOF
 
-ERL=`which erl`
-if $ERLC test_proper.erl && $ERL -noshell -pa $PROPER/ebin -eval "test_proper:foo()" -s init stop &> /dev/null; then
+if $ERLC_PATH test_proper.erl && $ERL_PATH -noshell -pa $PROPER/ebin -eval "test_proper:foo()" -s init stop &> /dev/null; then
   HAS_PROPER="1"
   HAS_PROPER_MSG="yes"
 else
@@ -207,7 +211,7 @@ fi
 
 ###############################################
 #
-# Testing gpb
+# GPB
 #
 ###############################################
 AC_ARG_WITH(gpb,
@@ -218,7 +222,6 @@ GPB="lib/gpb"
 if test "x$with_gpb" != x; then
   GPB="$with_gpb"
 fi
-
 AC_SUBST(GPB)
 
 cat > message.proto <<EOF
@@ -246,26 +249,27 @@ fi
 
 ###############################################
 #
-# Generating configuration
+# Generate configuration
 #
 ###############################################
 AC_OUTPUT(Makefile)
 
 ###############################################
 #
-# Show Information on how to build CutEr
+# Show information on how to build CutEr
 #
 ###############################################
 cat <<EOF
 
 CutEr was configured with success.
-Erlang Compiler:    $ERLC
-Python:             $PYTHON_PATH
-protoc:             $PROTOC_PATH
-Z3Py:               $HAS_Z3_MSG
-protobuf (Python):  $HAS_PROTOBUF_MSG
-PropEr:             $HAS_PROPER_MSG
-GPB:                $HAS_GPB_MSG
+  Erlang:	      $ERL_PATH
+  Erlang Compiler:    $ERLC_PATH
+  Z3:                 $Z3_PATH	($Z3_VSN)
+  Python:             $PYTHON_PATH
+  protoc:             $PROTOC_PATH
+  protobuf (Python):  $HAS_PROTOBUF_MSG
+  GPB:                $HAS_GPB_MSG
+  PropEr:             $HAS_PROPER_MSG
 
 To build CutEr, execute:
   make depend
