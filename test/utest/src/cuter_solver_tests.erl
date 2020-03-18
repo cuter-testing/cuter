@@ -12,10 +12,7 @@
 solve_simple_test_() ->
   Setup = fun setup/0,
   Cleanup = fun cleanup/1,
-  Ts = [ { "MFA's Parameters & Spec definitions"
-         , [ {"Just define the parameters", fun just_params/1} ]
-         }
-       , { "Constraints"
+  Ts = [ { "Constraints"
          , [ {"Guard True", fun guard_true/1}
            , {"Guard False", fun guard_false/1}
            , {"Match equal", fun match_equal/1}
@@ -103,21 +100,6 @@ create_logfile(Fname, As, CreateLogs) ->
   ok = CreateLogs(Fd, SAs),                      % Add the logs
   cuter_log:close_file(Fd),                      % Close the logfile
   Mapping.                                       % Return the mapping
-
-%% ----------------------------------------------------------------------------
-%% Just define the function parameters.
-%% No constraints added.
-%% ----------------------------------------------------------------------------
-
-just_params({_Dir, Fname, Python}) ->
-  %% Create a random number of random integers to serve as the arguments
-  As = [rand:uniform(42) || _ <- lists:seq(1, rand:uniform(42))],
-  Mapping = create_logfile(Fname, As, fun just_params_logs/2),
-  {ok, Sol} = cuter_solver:solve({Python, Mapping, Fname, 42}),
-  [{"The solution equals the input", ?_assertEqual(As, Sol)}].
-
-just_params_logs(Fd, SAs) ->
-  cuter_log:log_symb_params(Fd, SAs).
 
 %% ----------------------------------------------------------------------------
 %% The Guard True and Guard False constraints
