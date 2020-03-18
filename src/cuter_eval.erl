@@ -1137,15 +1137,15 @@ pattern_match({c_var, _Anno, Name}, _BitInfo, _Mode, Cv, Sv, CMaps, SMaps, _Serv
 pattern_match({c_tuple, Anno, Es}, BitInfo, Mode, Cv, Sv, CMaps, SMaps, Servers, Fd) when is_tuple(Cv) ->
   Ne = length(Es),
   Tags = cuter_cerl:get_tags(Anno),
-  case tuple_size(Cv) of
-    Ne ->
+  case tuple_size(Cv) =:= Ne of
+    true ->
       Cv_l = tuple_to_list(Cv),
       %% CONSTRAINT: Sv is a tuple of Ne elements
       visit_tag(Servers#svs.code, Tags#tags.this),
       cuter_log:log_tuple(Fd, sz, Sv, Ne, Tags#tags.next),
       Sv_l = cuter_symbolic:tpl_to_list(Sv, Ne, Fd),
       pattern_match_all(Es, BitInfo, Mode, Cv_l, Sv_l, CMaps, SMaps, Servers, Fd);
-    _ ->
+    false ->
       %% CONSTRAINT: Sv is a tuple of not Ne elements
       visit_tag(Servers#svs.code, Tags#tags.next),
       cuter_log:log_tuple(Fd, not_sz, Sv, Ne, Tags#tags.this),
