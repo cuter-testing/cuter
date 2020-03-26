@@ -1,6 +1,18 @@
 {
     "tests": [
         {
+            "module": "funs",
+            "function": "ff_f_g",
+            "args": "[fun (F) when is_function(F, 1) -> 42 end, fun (_) -> 1 end, fun (_) -> 2 end]",
+            "depth": "42",
+            "errors": false,
+            "arity": 3,
+            "nondeterministic": false,
+            "solutions": [
+            ],
+            "skip": false
+        },
+        {
             "module": "bitstr",
             "function": "f11",
             "args": "[0]",
