@@ -742,7 +742,7 @@ pp_input_fully_verbose(Input, _MFA) ->
 
 pp_assignments(FLs) ->
   PP_Fn = fun(Fn) -> pp_argument(Fn, proplists:delete(Fn, FLs)) end,
-  Ss = [io_lib:format("~s = ~s,", [[L, $0], PP_Fn(Fn)]) || {Fn, L} <- FLs],
+  Ss = [io_lib:format("~s = ~s, ", [[L, $0], PP_Fn(Fn)]) || {Fn, L} <- FLs],
   string:join(Ss, "").
 
 pp_arguments(Args) ->
@@ -765,7 +765,7 @@ preprocess_fn(A, InFn) ->
     false ->
       [];
     true when InFn ->
-      [A] ++ preprocess_fn(A, false);
+      [A | preprocess_fn(A, false)];
     true ->
       KVs = cuter_lib:lambda_kvs(A),
       AllKs = lists:flatten([Ks || {Ks, _} <- KVs]),
