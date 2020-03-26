@@ -777,6 +777,9 @@ pp_argument(Arg) ->
   pp_argument(Arg, []).
 
 pp_argument(Arg, FLs) ->
+  pp_argument(Arg, FLs, false).
+
+pp_argument(Arg, FLs, IsP) ->
   case cuter_lib:is_lambda(Arg) of
     true ->
       case proplists:lookup(Arg, FLs) of
@@ -786,8 +789,10 @@ pp_argument(Arg, FLs) ->
           Arity = cuter_lib:lambda_arity(Arg),
           ClauseList = pp_lambda_kvs(KVs, FLs) ++ [pp_lambda_default(Default, Arity)],
           lists:flatten(["fun", string:join(ClauseList, "; "), " end"]);
+        {_, L} when IsP ->
+          [L];
         {_, L} ->
-          [L]
+          [L, $0]
       end;
     false when is_list(Arg) ->
       case io_lib:printable_list(Arg) of
@@ -807,7 +812,7 @@ pp_lambda_kvs(KVs, FLs) ->
   [pp_lambda_kv(KV, FLs) || KV <- KVs].
 
 pp_lambda_kv({Args, Val}, FLs) ->
-  SArgs = [pp_argument(A, FLs) || A <- Args],
+  SArgs = [pp_argument(A, FLs, true) || A <- Args],
   Ls = lists:flatten([find_inner_vars(A, FLs) || A <- Args]),
   G = case length(Ls) of
     0 ->
