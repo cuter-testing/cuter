@@ -54,13 +54,22 @@ def run(testDir, n):
                 printOutputAndExit(output)
         # Validate the errors found.
         solutions = interesting.strip().split("\n")
-        found = filter_funs(["[" + re.search(r"\((.*)\)", sol).group(1) + "]" for sol in solutions])
+        found = filter_funs(get_matches(solutions))
         diffMode = False if "nondeterministic" in test and test["nondeterministic"] else True
         if not validate(test["arity"], diffMode, found, test["solutions"]):
             printOutputAndExit(output)
 
+def get_matches(solutions):
+    pat = r"(\s*(?P<vars>\w+\s*=\s*.+)\s*,\s*)?\w+:\w+\((?P<mfa>.*)\)"
+    matches = []
+    for solution in solutions:
+        m = re.search(pat, solution)
+        vs = m.group("vars").lstrip("31m") if m.group("vars") else ""
+        matches.append((vs, "[" + m.group("mfa") + "]"))
+    return matches
+
 def filter_funs(found):
-    filtered = [f for f in found if not "#Fun" in f]
+    filtered = [f for f in found if not "#Fun" in f[1]]
     if len(found) > len(filtered):
         print "[INFO] Initial function argument filtered from errors."
     return filtered
@@ -103,12 +112,12 @@ def validate(arity, diffMode, found, expected):
     Parameters:
         arity : integer
         diffMode : bool
-        args : list of string
-        cond : list of string
+        found : list of string * string tuples
+        expected : list of string
     """
     allfound = set([])
-    for i in found:
-        matched = set([r for r in expected if is_expected_input(arity, diffMode, i, str(r))])
+    for f in found:
+        matched = set([r for r in expected if is_expected_input(arity, diffMode, f, str(r))])
         if len(matched) == 0:
             return False
         allfound = allfound | matched
@@ -120,16 +129,21 @@ def is_expected_input(arity, diffMode, args, cond):
     Parameters:
         arity : integer
         diffMode : bool
-        args : string
+        args : string * string
         cond : string
     """
+    vs, mfa = args
     if diffMode:
-        return args == cond
+        return mfa == cond
     else:
         pms = ",".join(["x{}".format(i + 1) for i in range(arity)])
         cond = cond.replace("$", "x")
         try:
-            assign = "[{}]=terms.parse('{}')".format(pms, args)
+            d = {}
+            if vs:
+                vassign = "d=terms.parse('{}')".format(vs)
+                exec(vassign)
+            assign = "[{}]=terms.parse_with_vars('{}', d)".format(pms, mfa)
             exec(assign)
             return eval(cond)
         except:
