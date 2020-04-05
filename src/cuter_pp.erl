@@ -721,8 +721,10 @@ pp_execution_status_fully_verbose({internal_error, {Type, Node, Why}}) ->
 pp_input_minimal([], {M, F, _}) ->
   io:format(standard_error, "\033[01;31m~p:~p()\033[00m~n", [M, F]);
 pp_input_minimal(Input, {M, F, _}) ->
-  io:format(standard_error, "\033[01;31m~p:~p(\033[00m", [M, F]),
-  S = pp_arguments(Input),
+  FLs = preprocess_input(Input),
+  S = pp_arguments(Input, FLs),
+  As = pp_assignments(FLs),
+  io:format(standard_error, "\033[01;31m~s~p:~p(\033[00m", [As, M, F]),
   io:format(standard_error, "\033[01;31m~s)\033[00m~n", [S]).
 
 -spec pp_input_verbose(cuter:input(), mfa()) -> ok.
@@ -744,9 +746,6 @@ pp_assignments(FLs) ->
   PP_Fn = fun(Fn) -> pp_argument(Fn, proplists:delete(Fn, FLs)) end,
   Ss = [io_lib:format("~s = ~s, ", [[L, $0], PP_Fn(Fn)]) || {Fn, L} <- FLs],
   string:join(Ss, "").
-
-pp_arguments(Args) ->
-  pp_arguments(Args, []).
 
 pp_arguments(Args, FLs) ->
   string:join([pp_argument(A, FLs) || A <- Args], ", ").
@@ -997,7 +996,10 @@ pp_erroneous_inputs_h([{Mfa, Errors}|Rest], N) ->
 pp_erroneous_inputs_mfa([], _MFA, N) ->
   N;
 pp_erroneous_inputs_mfa([I|Is], {M, F, _}=MFA, N) ->
-  io:format("~n#~w \033[00;31m~p:~p(~s)\033[00m", [N, M, F, pp_arguments(I)]),
+  FLs = preprocess_input(I),
+  S = pp_arguments(I, FLs),
+  As = pp_assignments(FLs),
+  io:format("~n#~w \033[00;31m~s~p:~p(~s)\033[00m", [N, As, M, F, S]),
   pp_erroneous_inputs_mfa(Is, MFA, N + 1).
 
 %% ----------------------------------------------------------------------------
