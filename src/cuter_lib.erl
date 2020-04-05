@@ -209,7 +209,7 @@ compile_lambda(T) ->
 compile_lambda_h(#?lambda{arity = Arity, kvs = KVs, default = Default}) ->
   %% TODO Check if the parameters is a lambda, in case of recursion.
   %% TODO Also compile lambdas in maps.
-  CompiledKVs = [{K, compile_lambda_h(V)} || {K, V} <- KVs],
+  CompiledKVs = [{compile_lambda_h(K), compile_lambda_h(V)} || {K, V} <- KVs],
   CompiledDefault = compile_lambda_h(Default),
   Dict = dict:from_list(CompiledKVs),
   Lookup = fun(As) -> lookup_args(As, Dict, CompiledDefault) end,
