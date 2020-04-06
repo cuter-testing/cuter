@@ -241,9 +241,9 @@ mf(F, P, L) ->
      false -> error(mf_prop_fails)
    end.
 
-%-spec ff_f_g(fun((fun((integer()) -> integer())) -> integer()),
-%             fun((integer()) -> integer()),
-%             fun((integer()) -> integer())) -> 'ok'.
+%%-spec ff_f_g(fun((fun((integer()) -> integer())) -> integer()),
+%%             fun((integer()) -> integer()),
+%%             fun((integer()) -> integer())) -> 'ok'.
 
 -type fun_i2i() :: fun((integer()) -> integer()).
 -spec ff_f_g(fun((fun_i2i()) -> integer()), fun_i2i(), fun_i2i()) -> 'ok'.
@@ -257,10 +257,10 @@ ff_f_g(FF, F, G) ->
        ok
   end.
 
-%-spec ff_f_g_h(fun((fun((integer()) -> integer())) -> integer()),
-%               fun((integer()) -> integer()),
-%               fun((integer()) -> integer()),
-%               fun((integer()) -> integer())) -> 'ok'.
+%%-spec ff_f_g_h(fun((fun((integer()) -> integer())) -> integer()),
+%%               fun((integer()) -> integer()),
+%%               fun((integer()) -> integer()),
+%%               fun((integer()) -> integer())) -> 'ok'.
 
 -spec ff_f_g_h(fun((fun_i2i()) -> integer()), fun_i2i(), fun_i2i(), fun_i2i()) -> 'ok'.
 ff_f_g_h(FF, F, G, H) ->

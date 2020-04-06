@@ -814,12 +814,12 @@ pp_lambda_kv({Args, Val}, FLs) ->
   SArgs = [pp_argument(A, FLs, true) || A <- Args],
   Ls = lists:flatten([find_inner_vars(A, FLs) || A <- Args]),
   G = case length(Ls) of
-    0 ->
-      "";
-    _ ->
-    GLs = [io_lib:format("~s =:= ~s", [[L], [L,  $0]]) || L <- Ls],
-    io_lib:format(" when ~s", [string:join(GLs, ", ")])
-  end,
+        0 ->
+          "";
+        _ ->
+          GLs = [io_lib:format("~s =:= ~s", [[L], [L,  $0]]) || L <- Ls],
+	  io_lib:format(" when ~s", [string:join(GLs, ", ")])
+      end,
   StrArgs = ["(", string:join(SArgs, ","), ")"],
   lists:flatten([StrArgs, G, " -> ", pp_argument(Val, [])]).
 
