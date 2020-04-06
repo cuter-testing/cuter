@@ -721,62 +721,132 @@ pp_execution_status_fully_verbose({internal_error, {Type, Node, Why}}) ->
 pp_input_minimal([], {M, F, _}) ->
   io:format(standard_error, "\033[01;31m~p:~p()\033[00m~n", [M, F]);
 pp_input_minimal(Input, {M, F, _}) ->
-  io:format(standard_error, "\033[01;31m~p:~p(\033[00m", [M, F]),
-  S = pp_arguments(Input),
+  FLs = preprocess_input(Input),
+  S = pp_arguments(Input, FLs),
+  As = pp_assignments(FLs),
+  io:format(standard_error, "\033[01;31m~s~p:~p(\033[00m", [As, M, F]),
   io:format(standard_error, "\033[01;31m~s)\033[00m~n", [S]).
 
 -spec pp_input_verbose(cuter:input(), mfa()) -> ok.
 pp_input_verbose([], {M, F, _}) ->
   io:format("~p:~p()~n", [M, F]);
 pp_input_verbose(Input, {M, F, _}) ->
-  io:format("~p:~p(", [M, F]),
-  S = pp_arguments(Input),
-  io:format("~s) ... ", [S]).
+  FLs = preprocess_input(Input),
+  S = pp_arguments(Input, FLs),
+  io:format("~s~p:~p(~s) ... ", [pp_assignments(FLs), M, F, S]).
 
 -spec pp_input_fully_verbose(cuter:input(), mfa()) -> ok.
 pp_input_fully_verbose(Input, _MFA) ->
+  FLs = preprocess_input(Input),
   divider("="),
   io:format("INPUT~n"),
-  io:format("~s~n", [pp_arguments(Input)]).
+  io:format("~s~s~n", [pp_assignments(FLs), pp_arguments(Input, FLs)]).
 
-pp_arguments([]) ->
-  "";
-pp_arguments(Args) ->
-  string:join([pp_argument(A) || A <- Args], ", ").
+pp_assignments(FLs) ->
+  PP_Fn = fun(Fn) -> pp_argument(Fn, proplists:delete(Fn, FLs)) end,
+  Ss = [io_lib:format("~s = ~s, ", [[L, $0], PP_Fn(Fn)]) || {Fn, L} <- FLs],
+  string:join(Ss, "").
+
+pp_arguments(Args, FLs) ->
+  string:join([pp_argument(A, FLs) || A <- Args], ", ").
+
+preprocess_input(I) ->
+  Fns = lists:flatten([preprocess_fn(A, false) || A <- I]),
+  Ls = [$A + N || N <- lists:seq(0, length(Fns) - 1)],
+  lists:zip(Fns, Ls).
+
+preprocess_fn(A, InFn) ->
+  case cuter_lib:is_lambda(A) of
+    false when is_list(A) ->
+      lists:flatten([preprocess_fn(E, InFn) || E <- A]);
+    false when is_tuple(A) ->
+      lists:flatten([preprocess_fn(E, InFn) || E <- tuple_to_list(A)]);
+    false ->
+      [];
+    true when InFn ->
+      [A | preprocess_fn(A, false)];
+    true ->
+      KVs = cuter_lib:lambda_kvs(A),
+      AllKs = lists:flatten([Ks || {Ks, _} <- KVs]),
+      lists:flatten([preprocess_fn(E, true) || E <- AllKs])
+  end.
 
 -spec pp_argument(term()) -> string().
 pp_argument(Arg) ->
+  pp_argument(Arg, []).
+
+pp_argument(Arg, FLs) ->
+  pp_argument(Arg, FLs, false).
+
+pp_argument(Arg, FLs, IsP) ->
   case cuter_lib:is_lambda(Arg) of
     true ->
-      KVs = cuter_lib:lambda_kvs(Arg),
-      Default = cuter_lib:lambda_default(Arg),
-      Arity = cuter_lib:lambda_arity(Arg),
-      ClauseList = pp_lambda_kvs(KVs) ++ [pp_lambda_default(Default, Arity)],
-      lists:flatten(["fun", string:join(ClauseList, "; "), " end"]);
+      case proplists:lookup(Arg, FLs) of
+        none ->
+          KVs = cuter_lib:lambda_kvs(Arg),
+          Default = cuter_lib:lambda_default(Arg),
+          Arity = cuter_lib:lambda_arity(Arg),
+          ClauseList = pp_lambda_kvs(KVs, FLs) ++ [pp_lambda_default(Default, Arity)],
+          lists:flatten(["fun", string:join(ClauseList, "; "), " end"]);
+        {_, L} when IsP ->
+          [L];
+        {_, L} ->
+          [L, $0]
+      end;
     false when is_list(Arg) ->
       case io_lib:printable_list(Arg) of
         true ->
           io_lib:format("~p", [Arg]);
         false ->
-          "[" ++ string:join([pp_argument(A) || A <- Arg], ",") ++ "]"
+          "[" ++ string:join([pp_argument(A, FLs) || A <- Arg], ",") ++ "]"
       end;
     false when is_tuple(Arg) ->
       L = tuple_to_list(Arg),
-      "{" ++ string:join([pp_argument(A) || A <- L], ",") ++ "}";
+      "{" ++ string:join([pp_argument(A, FLs) || A <- L], ",") ++ "}";
     false ->
       io_lib:format("~p", [cuter_lib:handle_unbound_var(Arg)])
   end.
 
-pp_lambda_kvs(KVs) ->
-  [pp_lambda_kv(KV) || KV <- KVs].
+pp_lambda_kvs(KVs, FLs) ->
+  [pp_lambda_kv(KV, FLs) || KV <- KVs].
 
-pp_lambda_kv({Args, Val}) ->
-  StrArgs = ["(", string:join([pp_argument(A) || A <- Args], ","), ")"],
-  lists:flatten([StrArgs, " -> ", pp_argument(Val)]).
+pp_lambda_kv({Args, Val}, FLs) ->
+  SArgs = [pp_argument(A, FLs, true) || A <- Args],
+  Ls = lists:flatten([find_inner_vars(A, FLs) || A <- Args]),
+  G = case length(Ls) of
+        0 ->
+          "";
+        _ ->
+          GLs = [io_lib:format("~s =:= ~s", [[L], [L,  $0]]) || L <- Ls],
+	  io_lib:format(" when ~s", [string:join(GLs, ", ")])
+      end,
+  StrArgs = ["(", string:join(SArgs, ","), ")"],
+  lists:flatten([StrArgs, G, " -> ", pp_argument(Val, [])]).
 
 pp_lambda_default(X, Arity) ->
   Args = string:join(["_" || _ <- lists:seq(1, Arity)], ","),
-  lists:flatten(["(", Args, ") -> ", pp_argument(X)]).
+  lists:flatten(["(", Args, ") -> ", pp_argument(X, [])]).
+
+find_inner_vars(A, FLs) ->
+  Fn = fun(E) -> E =/= none end,
+  lists:filter(Fn, find_inner_vars_h(A, FLs)).
+
+find_inner_vars_h(A, FLs) ->
+  case cuter_lib:is_lambda(A) of
+    false when is_list(A) ->
+      lists:flatten([find_inner_vars_h(E, FLs) || E <- A]);
+    false when is_tuple(A) ->
+      lists:flatten([find_inner_vars_h(E, FLs) || E <- tuple_to_list(A)]);
+    false ->
+      [none];
+    true ->
+      case proplists:lookup(A, FLs) of
+        none ->
+          [none];
+        {_, L} ->
+          [L]
+      end
+  end.
 
 %% ----------------------------------------------------------------------------
 %% Report the execution logs
@@ -926,7 +996,10 @@ pp_erroneous_inputs_h([{Mfa, Errors}|Rest], N) ->
 pp_erroneous_inputs_mfa([], _MFA, N) ->
   N;
 pp_erroneous_inputs_mfa([I|Is], {M, F, _}=MFA, N) ->
-  io:format("~n#~w \033[00;31m~p:~p(~s)\033[00m", [N, M, F, pp_arguments(I)]),
+  FLs = preprocess_input(I),
+  S = pp_arguments(I, FLs),
+  As = pp_assignments(FLs),
+  io:format("~n#~w \033[00;31m~s~p:~p(~s)\033[00m", [N, As, M, F, S]),
   pp_erroneous_inputs_mfa(Is, MFA, N + 1).
 
 %% ----------------------------------------------------------------------------
