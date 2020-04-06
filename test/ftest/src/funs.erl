@@ -1,7 +1,7 @@
 -module(funs).
 -export([f1/1, f2/3, f3/3, f41/3, f42/3, f5/4, f6/1, f7/2, f8/2,
          f91/3, f92/2, f10/1, f11/3, f12/1, f1ws/1, f2ws/3, f3ws/3,
-         f5ws/4, f1hs/1, f13a/2, f13b/2, f14/2, mf/3, ff_f_g/3]).
+         f5ws/4, f1hs/1, f13a/2, f13b/2, f14/2, mf/3, ff_f_g/3, ff_f_g_h/4]).
 
 -spec f1(fun((integer()) -> integer())) -> ok.
 f1(F) ->
@@ -253,6 +253,23 @@ ff_f_g(FF, F, G) ->
   case FF_F =:= 123 andalso FF_G =:= 456 of
      true ->
        error(ff_f_g_bug);
+     false ->
+       ok
+  end.
+
+%-spec ff_f_g_h(fun((fun((integer()) -> integer())) -> integer()),
+%               fun((integer()) -> integer()),
+%               fun((integer()) -> integer()),
+%               fun((integer()) -> integer())) -> 'ok'.
+
+-spec ff_f_g_h(fun((fun_i2i()) -> integer()), fun_i2i(), fun_i2i(), fun_i2i()) -> 'ok'.
+ff_f_g_h(FF, F, G, H) ->
+  FF_F = FF(F),
+  FF_G = FF(G),
+  FF_H = FF(H),
+  case FF_F =:= 123 andalso FF_G =:= 456 andalso FF_H =:= 789 of
+     true ->
+       error(ff_f_g_h_bug);
      false ->
        ok
   end.

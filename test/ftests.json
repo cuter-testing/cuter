@@ -1208,6 +1208,19 @@
                 "$1(($2,)) == 123 and $1(($3,)) == 456"
             ],
             "skip": false
+        },
+        {
+            "module": "funs",
+            "function": "ff_f_g_h",
+            "args": "[fun (F) when is_function(F, 1) -> 42 end, fun (_) -> 1 end, fun (_) -> 2 end, fun (_) -> 3 end]",
+            "depth": "42",
+            "errors": true,
+            "arity": 4,
+            "nondeterministic": true,
+            "solutions": [
+                "$1(($2,)) == 123 and $1(($3,)) == 456 and $1(($4,)) == 789"
+            ],
+            "skip": false
         }
     ]
 }
