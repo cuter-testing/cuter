@@ -12,6 +12,7 @@ import cuter_common as cc
 ## Parse the arguments.
 
 parser = argparse.ArgumentParser(description="Run the Solver Component.")
+parser.add_argument("-d", "--debug", action='store_true', help="record debug information")
 parser.add_argument("-s", "--smt", action='store_true', help="use the SMTv2 backend")
 parser.add_argument("-t", "--timeout", metavar="N", type=int, default=2,
     help="set the timeout N for the SMT solver (default: %(default)s)")
@@ -19,7 +20,7 @@ args = parser.parse_args()
 
 ## Main Program
 
-cglb.init()
+cglb.init(debug=args.debug)
 # Initialize the communication with Erlang
 erlport = cp.ErlangPort()
 # Initialize the Solver interface

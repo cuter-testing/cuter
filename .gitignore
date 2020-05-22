@@ -37,3 +37,7 @@ venv
 
 dev/*
 temp/
+
+# Logs
+
+smt.log.*

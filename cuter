@@ -30,6 +30,7 @@ def main():
   parser.add_argument("--no-type-normalization", action='store_true', help="disable the normalization specifications & types")
   parser.add_argument("--z3-timeout", metavar="N", type=int, default=2,
     help="set the timeout N for the Z3 SMT solver (default: %(default)s)")
+  parser.add_argument("-ds", "--debug_smt", action='store_true', help="store debug information for SMT solving")
 
   # Parse the arguments
   args = parser.parse_args()
@@ -91,6 +92,8 @@ def main():
     opts.append("no_type_normalization")
   if args.w != None:
       opts.append("{{whitelist, '{}'}}".format(args.w))
+  if args.debug_smt:
+    opts.append("debug_smt")
   strOpts = ",".join(opts)
 
   # Run CutEr
