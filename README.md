@@ -44,18 +44,13 @@ In order to use CutEr, you need the following programs:
   [INSTALL.md](https://github.com/erlang/otp/blob/maint/HOWTO/INSTALL.md)
   for building and installing Erlang/OTP.
 
-2. **Python 2.x**
+2. **Python 3.x**
 
-  Download and install the latest [Python 2.x distribution](http://www.python.org).
+  Download and install the latest [Python 3.x distribution](http://www.python.org).
 
-  Also, you need to install the *protobuf* package (*version 3.11.3*).
-  You can install it for your user with
+  Also, you need to install the required Python dependencies.
 
-        pip install --user protobuf==3.11.3
-
-  or globally with
-
-        sudo pip install protobuf==3.11.3
+        python3 -m pip install -r requirements.txt
 
 3. **Z3 Theorem Prover**
 
@@ -110,17 +105,6 @@ Installation
    command like the following:
 
         ./configure --with-protoc=$PWD/lib/protoc-3.11.3/bin/protoc
-
-* **[Optional]** In order to run the tests you need to install the *parsimonious* Python package (*version 0.8.1*).
-    You can install it for your user with
-
-        pip install --user parsimonious==0.8.1
-
-    or globally with
-
-        sudo pip install parsimonious==0.8.1
-
-    Now you can build and run the unit & functional tests with `make test`
 
 * **[Optional]** You can also run Dialyzer with `make dialyzer`
 

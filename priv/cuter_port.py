@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 import sys, struct, json
@@ -10,16 +9,16 @@ import cuter_proto_solver_command_pb2 as scmd
 
 class ErlangPort:
     def __init__(self):
-        self.chan_in = sys.stdin
-        self.chan_out = sys.stdout
+        self.chan_in = sys.stdin.buffer
+        self.chan_out = sys.stdout.buffer
 
     def receive(self):
         """
         Receives a command from Erlang.
         """
         x = self.chan_in.read(4)
-        if (len(x) == 4):
-            sz = struct.unpack('!i', x)[0]
+        if len(x) == 4:
+            (sz,) = struct.unpack('!i', x)
             return self.chan_in.read(sz)
 
     def send(self, data):
@@ -27,7 +26,7 @@ class ErlangPort:
         Sends data to Erlang.
         """
         if cglb.__TTY__:
-            print data
+            print(data)
         else:
           try:
               sz = len(data)

@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 ##
@@ -27,26 +26,26 @@ def solve(fname, n, printConstraints, withPrint):
     # Load the axioms to the solver.
     erlSolver.add_axioms()
     # Solve the model.
-    if withPrint: print "Solving the model ...",
+    if withPrint: print("Solving the model ...",)
     slv = erlSolver.solve()
-    if withPrint: print slv
+    if withPrint: print(slv)
     if cc.is_sat(slv):
         m = erlSolver.encode_model()
-        if withPrint: print m
+        if withPrint: print(m)
         values = [e.value.value for e in m.model.entries]
         return (slv, values)
     return slv
 
 def usage():
-    print "Usage: cuter_solve_offline.py TraceFile NoOfConstraint [ OPTIONS ]"
-    print "PARAMETERS"
-    print "	TraceFile		The trace file of an execution."
-    print "	NoOfConstraint		The cardinality of the constraint to reverse."
-    print "OPTIONS"
-    print "	--print-constraints	Print all the commands as they are being loaded (for debugging)."
-    print "	-e Dir			Dir is the ebin."
-    print "	-u Dir			Dir is the utest ebin."
-    print "	--help			Display this information."
+    print("Usage: cuter_solve_offline.py TraceFile NoOfConstraint [ OPTIONS ]")
+    print("PARAMETERS")
+    print("	TraceFile		The trace file of an execution.")
+    print("	NoOfConstraint		The cardinality of the constraint to reverse.")
+    print("OPTIONS")
+    print("	--print-constraints	Print all the commands as they are being loaded (for debugging).")
+    print("	-e Dir			Dir is the ebin.")
+    print("	-u Dir			Dir is the utest ebin.")
+    print("	--help			Display this information.")
 
 def run_tests(ebin, utestEbin):
     fname = "logfile"

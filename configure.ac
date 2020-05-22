@@ -47,9 +47,9 @@ AC_SUBST(AT_LEAST_21)
 ###############################################
 AC_ARG_WITH(python,
 [AS_HELP_STRING([--with-python=PYTHON_PATH],
-		[specify the location of the python 2.x executable.])])
+		[specify the location of the python 3.x executable.])])
 
-PYTHON_PATH=`which python`
+PYTHON_PATH=`which python3`
 if test "x$with_python" != x; then
   PYTHON_PATH="$with_python"
 fi
@@ -57,7 +57,7 @@ AC_SUBST(PYTHON_PATH)
 
 cat > test_python.py <<EOF
 from sys import version
-if version >= "3":
+if version < "3":
    exit(1)
 exit(0)
 EOF
@@ -70,7 +70,7 @@ fi
 rm -f test_python.py
 
 if test "$HAS_PYTHON" = "0"; then 
-   AC_MSG_ERROR([You need Python 2.x. Please download Python at http://python.org])
+   AC_MSG_ERROR([You need Python 3.x. Please download Python at http://python.org])
 fi
 
 ###############################################
@@ -88,23 +88,13 @@ if test "x$with_z3" != x; then
 fi
 AC_SUBST(Z3_PATH)
 
-cat > test_z3.py <<EOF
-try:
-  __import__('z3')
-except:
-  exit(1)
-else:
-  exit(0)
-EOF
-
-if $PYTHON_PATH test_z3.py; then
+if $Z3_PATH --version >/dev/null 2>&1; then
   HAS_Z3="1"
   Z3_PATH=`which z3`
   Z3_VSN=`$Z3_PATH -version`
 else
   HAS_Z3="0"
 fi
-rm -f test_z3.py
 
 if test "$HAS_Z3" = "0"; then
    AC_MSG_ERROR([You need a recent Z3. Please download Z3 at https://github.com/Z3Prover/z3 and follow the instructions.])
@@ -134,7 +124,7 @@ fi
 rm -f test_protobuf.py
 
 if test "$HAS_PROTOBUF" = "0"; then
-  AC_MSG_ERROR([The Python protobuf library is missing. Please install version 3.2.0 by running: pip install protobuf==3.2.0])
+  AC_MSG_ERROR([The Python protobuf library is missing. Please follow the instructions in the Python section of the README.md.])
 fi
 
 ###############################################

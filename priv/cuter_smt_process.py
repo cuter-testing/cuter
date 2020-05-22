@@ -27,7 +27,8 @@ class Solver:
 
   def write(self, stmt):
     line = serialize(stmt)
-    self.process.stdin.write(line + "\n")
+    self.process.stdin.write((line + "\n"))
+    self.process.stdin.flush()
     self.logger.log(line)
 
   def read(self):

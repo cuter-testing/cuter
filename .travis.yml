@@ -9,8 +9,9 @@ before_install:
   - export PYTHONPATH=$PWD/z3/bin/python:$PYTHONPATH
   - export C_INCLUDE_PATH=$PWD/z3/include/:$C_INCLUDE_PATH
   - export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD/z3/bin
-  - sudo pip install protobuf==3.11.3
-  - sudo pip install parsimonious==0.8.1
+  - sudo apt-get install python3-pip
+  - sudo apt-get install python3-setuptools
+  - python3 -m pip install -r requirements.txt
 script:
   - git submodule update
   - git submodule foreach make

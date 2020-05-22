@@ -1,7 +1,10 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import sys, json, struct
+import json
+from typing import Any, Dict, Text
+import struct
+import sys
+
 import cuter_global as cglb
 import cuter_common as cc
 import cuter_io as cio
@@ -10,15 +13,15 @@ from cuter_proto_log_entry_pb2 import LogEntry
 with_tags = True if "tags" in sys.argv else False
 
 scnt = 0
-symbs = {}
+symbs: Dict[Any, Text] = {}
 
 def pprint(ls, tag):
   if with_tags:
-    print "%s (%s)" % (ls[0], tag)
+    print("%s (%s)" % (ls[0], tag))
   else:
-    print ls[0]
+    print(ls[0])
   for l in ls[1:]:
-    print "  %s" % l
+    print("  %s" % l)
 
 def pretty_list(l):
   return ", ".join(map(pretty, l))
@@ -448,9 +451,9 @@ def print_cmd(entry, rev):
       "%s = apply(%s, [ %s ]) " % (pretty(xs[0]), pretty(xs[1]), pretty_list(xs[2:]))
     ], tag)
   else:
-    print "UNKNOWN OPCODE", tp
+    print("UNKNOWN OPCODE", tp)
     xs = entry.arguments
-    print xs
+    print(xs)
     sys.exit(1)
 
 if __name__ == "__main__":
@@ -462,4 +465,4 @@ if __name__ == "__main__":
   for entry, rev in cio.JsonReader(fname, 100000000):
     n += 1
     print_cmd(entry, rev)
-  print "Total Commands:", n
+  print("Total Commands:", n)
