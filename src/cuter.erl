@@ -46,6 +46,7 @@
 -define(SUPPRESS_UNSUPPORTED_MFAS, suppress_unsupported).
 -define(NO_TYPE_NORMALIZATION, no_type_normalization).
 -define(Z3_TIMEOUT, z3_timeout).
+-define(DEBUG_SMT, debug_smt).
 
 -type default_option() :: {?POLLERS_NO, ?ONE}
                         .
@@ -63,6 +64,7 @@
                 | ?SUPPRESS_UNSUPPORTED_MFAS
                 | ?NO_TYPE_NORMALIZATION
                 | {?Z3_TIMEOUT, pos_integer()}
+                | ?DEBUG_SMT
                 .
 
 %% ----------------------------------------------------------------------------
@@ -294,10 +296,19 @@ z3_timeout([]) -> ?TWO;
 z3_timeout([{?Z3_TIMEOUT, N}|_Rest]) -> N;
 z3_timeout([_|Rest]) -> z3_timeout(Rest).
 
+-spec debug_smt([option()]) -> boolean().
+debug_smt(Options) -> lists:member(?DEBUG_SMT, Options).
+
 -spec get_solver_backend([option()]) -> nonempty_string().
 get_solver_backend(Options) ->
   T = z3_timeout(Options),
-  ?PYTHON_CALL ++ " --smt --timeout " ++ integer_to_list(T).
+  Base = ?PYTHON_CALL ++ " --smt --timeout " ++ integer_to_list(T),
+  case debug_smt(Options) of
+    false ->
+      Base;
+    true ->
+      Base ++ " -d"
+  end.
 
 -spec get_whitelist([option()]) -> cuter_mock:whitelist().
 get_whitelist([]) ->
