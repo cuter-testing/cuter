@@ -24,9 +24,7 @@ script:
 otp_release:
   - 22.3
   - 22.0
-  - 21.2
-  - 21.0
-  - 20.3
+  - 21.2        # 21.3 is not available for bionic (18.04)
   - 20.3.8
 
 cache:
