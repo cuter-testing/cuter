@@ -44,13 +44,15 @@ In order to use CutEr, you need the following programs:
   [INSTALL.md](https://github.com/erlang/otp/blob/maint/HOWTO/INSTALL.md)
   for building and installing Erlang/OTP.
 
-2. **Python 3.x**
+2. **Python 3.x**, x >= 6
 
   Download and install the latest [Python 3.x distribution](http://www.python.org).
 
   Also, you need to install the required Python dependencies.
 
         python3 -m pip install -r requirements.txt
+
+  Note that CutEr requires Python 3.6 or higher.
 
 3. **Z3 Theorem Prover**
 
