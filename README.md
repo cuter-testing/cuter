@@ -108,6 +108,8 @@ Installation
 
         ./configure --with-protoc=$PWD/lib/protoc-3.11.3/bin/protoc
 
+* **[Optional]** You can run the unit and functional tests with `make test`
+
 * **[Optional]** You can also run Dialyzer with `make dialyzer`
 
 * Add CutEr's base directory to your Erlang library path by updating the `ERL_LIBS` environment variable. Just add
