@@ -1,5 +1,5 @@
 os: linux
-dist: xenial
+dist: bionic
 language: erlang
 before_install:
   - wget https://github.com/Z3Prover/z3/releases/download/z3-4.8.8/z3-4.8.8-x64-ubuntu-16.04.zip
