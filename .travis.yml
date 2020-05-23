@@ -1,5 +1,5 @@
 os: linux
-dist: xenial
+dist: bionic
 language: erlang
 before_install:
   - wget https://github.com/Z3Prover/z3/releases/download/z3-4.8.8/z3-4.8.8-x64-ubuntu-16.04.zip
@@ -9,8 +9,9 @@ before_install:
   - export PYTHONPATH=$PWD/z3/bin/python:$PYTHONPATH
   - export C_INCLUDE_PATH=$PWD/z3/include/:$C_INCLUDE_PATH
   - export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD/z3/bin
-  - sudo pip install protobuf==3.11.3
-  - sudo pip install parsimonious==0.8.1
+  - sudo apt-get install python3-pip
+  - sudo apt-get install python3-setuptools
+  - python3 -m pip install -r requirements.txt
 script:
   - git submodule update
   - git submodule foreach make
@@ -23,11 +24,8 @@ script:
 otp_release:
   - 22.3
   - 22.0
-  - 21.3
-  - 21.0
-  - 20.3
-  - 20.0
-  - 19.3
+  - 21.2        # 21.3 is not available for bionic (18.04)
+  - 20.3.8
 
 cache:
   directories:

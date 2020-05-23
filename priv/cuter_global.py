@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 import sys
@@ -6,6 +5,8 @@ import sys
 LISTS_FORALL_PATS = 1
 LISTS_FORALL_NO_PATS = 2
 LISTS_EXPAND = 3
+
+__RUN__ = False
 
 def init(debug=False):
     global __TTY__

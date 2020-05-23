@@ -487,8 +487,8 @@
             "arity": 2,
             "nondeterministic": true,
             "solutions": [
-                "reduce(lambda a, b, f = $1: f((b,a,)), $2 if isinstance($2, list) else map(ord, $2), 0) == 42 and len($2) == 1",
-                "reduce(lambda a, b, f = $1: f((b,a,)), $2 if isinstance($2, list) else map(ord, $2), 0) == 42 and len($2) == 2"
+                "reduce(lambda a, b, f = $1: f((b,a,)), $2 if isinstance($2, list) else list(map(ord, $2)), 0) == 42 and len($2) == 1",
+                "reduce(lambda a, b, f = $1: f((b,a,)), $2 if isinstance($2, list) else list(map(ord, $2)), 0) == 42 and len($2) == 2"
             ],
             "skip": false
         },

@@ -21,6 +21,7 @@ GPB = $(realpath @GPB@)
 PROTOC-ERL = $(GPB)/bin/protoc-erl
 GPB_INCLUDE = $(GPB)/include
 PROTOC=@PROTOC_PATH@
+PYTHON_USER_BASE = $(shell @PYTHON_PATH@ -m site --user-base)
 
 ###----------------------------------------------------------------------
 ### Set Environment Variables
@@ -161,7 +162,7 @@ $(SRC)/%.erl: %.proto
 
 $(PRIV)/%_pb2.py: %.proto
 	@echo "PROTOC $(notdir  $<)"
-	@$(PROTOC) -I $(SRC) --python_out=$(PRIV) $<
+	@$(PROTOC) -I $(SRC) --python_out=$(PRIV) --plugin=$(PYTHON_USER_BASE)/bin/protoc-gen-mypy --mypy_out=$(PRIV) $<
 
 $(EBIN)/%.beam: %.erl
 	@echo "ERLC $<"
@@ -186,7 +187,8 @@ $(FTEST_EBIN)/%.beam: %.erl
 utest: $(TARGETS)
 	@(./$(TEST)/eunit_test -e $(EBIN) -u $(UTEST_EBIN) -- $(SRC_MODULES))
 	@(./$(TEST)/python_test -p $(PRIV) -e $(EBIN) -u $(UTEST_EBIN) -- $(PRIV_MODULES))
-	@(python $(TEST)/terms.py)
+	@(@PYTHON_PATH@ $(TEST)/terms.py)
+	@(@PYTHON_PATH@ -m mypy $(PRIV))
 
 ftest: $(TARGETS)
 	@(./$(TEST)/functional_test --no=$(no))
@@ -222,6 +224,6 @@ cleangen: cleandep cleanprotobufs
 	$(RM) .plt/.cuter_plt
 
 cleanprotobufs:
-	$(RM) $(PROTOBUFS:%=$(SRC)/%.erl) $(PROTOBUFS:%=$(INCLUDE)/%.hrl) $(PROTOBUFS:%=$(PRIV)/%_pb2.py)
+	$(RM) $(PROTOBUFS:%=$(SRC)/%.erl) $(PROTOBUFS:%=$(INCLUDE)/%.hrl) $(PROTOBUFS:%=$(PRIV)/%_pb2.py) "$(PRIV)/*.pyi"
 
 distclean: clean clean_tests cleangen cleanprotobufs

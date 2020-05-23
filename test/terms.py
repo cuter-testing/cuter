@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 import sys
@@ -59,7 +58,7 @@ def eval_ast(ast, vs):
         bs = bin(int(ast.text))[2:]
         return ["0" * (8 - len(bs)) + bs]
     elif node == "bitexp":
-        parts = map(int, ast.text.split(":"))
+        parts = list(map(int, ast.text.split(":")))
         bs = bin(parts[0])[2:]
         return ["0" * (parts[1] - len(bs)) + bs]
     elif node == "function":

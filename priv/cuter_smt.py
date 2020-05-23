@@ -228,7 +228,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		if len(self.define_funs_rec) > 0:
 			[names, args, bodies] = zip(*self.define_funs_rec)
 			n = len(names)
-			self.commands.append(["define-funs-rec", map(list, zip(names, args, ["Bool"]*n)), list(bodies)])
+			self.commands.append(["define-funs-rec", list(map(list, zip(names, args, ["Bool"]*n))), list(bodies)])
 		self.define_funs_rec = None
 
 	def fun_rec_name(self):
@@ -444,7 +444,7 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		ret = []
 		while b > 0:
 			ret.append("true" if n % 2 != 0 else "false")
-			n /= 2
+			n //= 2
 			b -= 1
 		# assert n == 0, "n overflows b bits as an unsigned integer" # TODO erlang sends b = 0 and n = 42
 		ret.reverse()
