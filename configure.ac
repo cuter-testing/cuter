@@ -57,7 +57,7 @@ AC_SUBST(PYTHON_PATH)
 
 cat > test_python.py <<EOF
 from sys import version
-if version < "3":
+if version < "3.6":
    exit(1)
 exit(0)
 EOF
@@ -70,7 +70,7 @@ fi
 rm -f test_python.py
 
 if test "$HAS_PYTHON" = "0"; then 
-   AC_MSG_ERROR([You need Python 3.x. Please download Python at http://python.org])
+   AC_MSG_ERROR([You need Python >= 3.6. Please download Python at http://python.org])
 fi
 
 ###############################################
@@ -97,7 +97,7 @@ else
 fi
 
 if test "$HAS_Z3" = "0"; then
-   AC_MSG_ERROR([You need a recent Z3. Please download Z3 at https://github.com/Z3Prover/z3 and follow the instructions.])
+   AC_MSG_ERROR([You need Z3 >= 4.8.8. Please download Z3 at https://github.com/Z3Prover/z3 and follow the instructions.])
 fi
 
 ###############################################
