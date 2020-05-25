@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from typing import List, Text, TypeVar, Union
 
 # =================
 # struct -> smtlib: serialize
@@ -11,12 +12,15 @@
 # erlang -> struct: decode
 # =================
 
+T = TypeVar('T')
+Expr = Union[List[T], Text]
+
 
 # ------------------------
 # convert from & to smtlib
 # ------------------------
 
-def serialize(expr):
+def serialize(expr: Expr) -> Text:
 	"""
 	Serialize a structured list to an SMTLIB string.
 	"""
