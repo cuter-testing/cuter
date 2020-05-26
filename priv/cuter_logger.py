@@ -3,6 +3,7 @@
 import datetime
 import json
 import os
+from typing import Text
 
 import cuter_global as cglb
 
@@ -11,7 +12,7 @@ JSON_LOADED_LOG = "json_loaded.log"
 MODEL_UNKNOWN = "model_unknown.log"
 DEBUG_LOG = "debug.log"
 
-def touch(fname):
+def touch(fname: Text):
   if os.path.exists(fname):
     os.utime(fname, None)
   else:
@@ -27,7 +28,7 @@ class Logger(object):
     else:
       self.fd = None
 
-  def log(self, msg):
+  def log(self, msg: Text):
     if self.fd:
       self.fd.write(msg + "\n")
 
@@ -44,8 +45,10 @@ class SMTLogger(Logger):
       touch(fname)
       super(SMTLogger, self).__init__(fname)
 
-  def logComment(self, msg):
-    self.log("; " + msg)
+  def logComment(self, msg: Text):
+    lines = msg.split("\n")
+    for line in lines:
+      self.log("; " + line)
 
 
 def debug_info(data):
@@ -87,7 +90,7 @@ def clean_empty_logs():
   clean_empty_log(JSON_LOADED_LOG)
   clean_empty_log(MODEL_UNKNOWN)
 
-def clean_empty_log(log):
+def clean_empty_log(log: Text):
   try:
     if os.stat(log).st_size == 0:
       os.remove(log)

@@ -1,9 +1,18 @@
 # -*- coding: utf-8 -*-
 
 import subprocess
+from typing import Optional, Text
+
+import attr
 
 import cuter_logger
-from cuter_smt_library import serialize, unserialize
+import cuter_smt_library as cslib
+
+
+@attr.s(auto_attribs=True)
+class Log:
+  expr: cslib.Expr
+  comment: Optional[Text] = None
 
 
 class Solver:
@@ -25,11 +34,16 @@ class Solver:
   def kill(self):
     self.process.kill()
 
-  def write(self, stmt):
-    line = serialize(stmt)
+  def write(self, log: Log):
+    if isinstance(log, Log):
+      line = cslib.serialize(log.expr)
+      if log.comment:
+        self.logger.logComment(log.comment)
+    else:
+      line = cslib.serialize(log)
+    self.logger.log(line)
     self.process.stdin.write((line + "\n"))
     self.process.stdin.flush()
-    self.logger.log(line)
 
   def read(self):
     open_cnt = 0
@@ -46,7 +60,7 @@ class Solver:
     self.logger.logComment(smt)
     if open_cnt == 0 and close_cnt == 0:
       return smt
-    return unserialize(smt)
+    return cslib.unserialize(smt)
 
   def check_sat(self):
     self.write(["check-sat"])
