@@ -8,7 +8,7 @@ def main(argv):
   shortOpts = "e:u:h"
   longOpts = ["ebin=", "utest-ebin=", "help"]
   try:
-    print "\033[01;34mRunning EUnit tests ...\033[00m"
+    print ("\033[01;34mRunning EUnit tests ...\033[00m")
     optlist, mods = getopt.gnu_getopt(argv, shortOpts, longOpts)
     if len(mods) == 0:
       usage()
@@ -25,10 +25,10 @@ def main(argv):
         usage()
         sys.exit(0)
     if ebin == None:
-      print "\033[01;31mCutEr's ebin directory has not been specified.\033[00m"
+      print ("\033[01;31mCutEr's ebin directory has not been specified.\033[00m")
       sys.exit(1)
     if utestEbin == None:
-      print "\033[01;31mCutEr's utest directory ebin has not been specified.\033[00m"
+      print ("\033[01;31mCutEr's utest directory ebin has not been specified.\033[00m")
       sys.exit(1)
     # Run EUnit tests.
     cmd = "erl -noshell -pa {} -pa {} -eval \"case eunit:test([{}], [verbose]) of ok -> ok; _ -> halt(42) end\" -s init stop".format(
@@ -36,20 +36,20 @@ def main(argv):
     )
     sys.exit(runCmd(cmd))
   except Exception as e:
-    print "\033[01;31mFatal Error:\033[00m", e
+    print ("\033[01;31mFatal Error:\033[00m", e)
     sys.exit(1)
 
 def runCmd(cmd):
   return subp.call(cmd, shell=True)
 
 def usage():
-  print "Usage: eunit_test.py options Mods"
-  print "PARAMETERS"
-  print "	Mods				A list of space-separated modules."
-  print "OPTIONS"
-  print "	-e Dir, --ebin=Dir		The directory Dir of CutEr's ebin."
-  print "	-ue Dir, --utest-ebin=Dir	The directory Dir of CutEr's utest ebin."
-  print "	--help				Display this information."
+  print ("Usage: eunit_test.py options Mods")
+  print ("PARAMETERS")
+  print ("	Mods				A list of space-separated modules.")
+  print ("OPTIONS")
+  print ("	-e Dir, --ebin=Dir		The directory Dir of CutEr's ebin.")
+  print ("	-ue Dir, --utest-ebin=Dir	The directory Dir of CutEr's utest ebin.")
+  print ("	--help				Display this information.")
 
 if __name__ == "__main__":
   try:
