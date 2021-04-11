@@ -17,6 +17,7 @@
 -define(ONE, 1).
 -define(TWO, 2).
 -define(DEFAULT_DEPTH, 25).
+-define(DEFAULT_STRATEGY, cuter_bfs_strategy).
 
 %% The configuration of the tool.
 -record(conf, {
@@ -46,6 +47,7 @@
 -define(SUPPRESS_UNSUPPORTED_MFAS, suppress_unsupported).
 -define(NO_TYPE_NORMALIZATION, no_type_normalization).
 -define(Z3_TIMEOUT, z3_timeout).
+-define(STRATEGY, strategy).
 -define(DEBUG_SMT, debug_smt).
 
 -type default_option() :: {?POLLERS_NO, ?ONE}
@@ -64,6 +66,7 @@
                 | ?SUPPRESS_UNSUPPORTED_MFAS
                 | ?NO_TYPE_NORMALIZATION
                 | {?Z3_TIMEOUT, pos_integer()}
+                | {?STRATEGY, atom()}
                 | ?DEBUG_SMT
                 .
 
@@ -250,8 +253,9 @@ initialize_app(Options) ->
   SolverBackend = get_solver_backend(Options),
   Whitelist = get_whitelist(Options),
   NormalizeTypes = type_normalization(Options),
+  Strategy = get_strategy(Options),
   CodeServer = cuter_codeserver:start(self(), WithPmatch, Whitelist, NormalizeTypes),
-  SchedPid = cuter_scheduler_maxcover:start(SolverBackend, ?DEFAULT_DEPTH, CodeServer),
+  SchedPid = cuter_scheduler_maxcover:start(SolverBackend, ?DEFAULT_DEPTH, Strategy, CodeServer),
   #conf{ calculateCoverage = calculate_coverage(Options)
        , codeServer = CodeServer
        , dataDir = cuter_lib:get_tmp_dir(BaseDir)
@@ -295,6 +299,11 @@ with_pmatch(Options) -> not lists:member(?DISABLE_PMATCH, Options).
 z3_timeout([]) -> ?TWO;
 z3_timeout([{?Z3_TIMEOUT, N}|_Rest]) -> N;
 z3_timeout([_|Rest]) -> z3_timeout(Rest).
+
+-spec get_strategy([option()]) -> atom().
+get_strategy([]) -> ?DEFAULT_STRATEGY;
+get_strategy([{?STRATEGY, S}|_Rest]) -> S;
+get_strategy([_|Rest]) -> get_strategy(Rest).
 
 -spec debug_smt([option()]) -> boolean().
 debug_smt(Options) -> lists:member(?DEBUG_SMT, Options).

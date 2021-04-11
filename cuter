@@ -14,6 +14,7 @@ def main():
   parser.add_argument("-pa", nargs='+', default=[], metavar="Dir", help="preppends each Dir to Erlang's code path")
   parser.add_argument("-pz", nargs='+', default=[], metavar="Dir", help="appends each Dir to Erlang's code path")
   parser.add_argument("-d", "--depth", metavar="D", type=int, default=25, help="the depth limit D of the search")
+  parser.add_argument("-st", "--strategy", metavar="S", type=str, default='cuter_bfs_strategy', help="the strategy of the treeseach algorithm", choices=["cuter_bfs_strategy"])
   parser.add_argument("-p", "--pollers", metavar="N", type=int, default=1,
     help="use N pollers (default: %(default)s)")
   parser.add_argument("-s", "--solvers", metavar="N", type=int, default=1,
@@ -77,6 +78,7 @@ def main():
   opts.append("{{number_of_pollers, {}}}".format(args.pollers))
   opts.append("{{number_of_solvers, {}}}".format(args.solvers))
   opts.append("{{z3_timeout, {}}}".format(args.z3_timeout))
+  opts.append("{{strategy, {}}}".format(args.strategy))
   if args.verbose:
     opts.append("verbose_execution_info")
   if args.coverage:
