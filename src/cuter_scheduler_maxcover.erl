@@ -73,6 +73,7 @@
   running         :: dict:dict(handle(), cuter:input()),
   solving         :: dict:dict(pid(), operationId()),
   tagsQueue       :: cuter_minheap:minheap(),
+  strategyData   :: {},
   visitedTags     :: cuter_cerl:visited_tags(),
   solved = 0      :: non_neg_integer(),
   not_solved = 0  :: non_neg_integer(),
@@ -155,7 +156,8 @@ get_not_solved_models(Scheduler) ->
 -spec init(init_arg()) -> {ok, state()}.
 init([Python, DefaultDepth, CodeServer]) ->
   _ = set_execution_counter(0),
-  TagsQueue = cuter_minheap:new(fun erlang:'<'/2),
+  Strategy = cuter_bfs_strategy, %% has to be passed as argument
+  StrategyData = Strategy:init_data(),
   {ok, #st{ codeServer = CodeServer
           , infoTab = dict:new()
           , python = Python
@@ -166,13 +168,13 @@ init([Python, DefaultDepth, CodeServer]) ->
           , erroneous = []
           , inputsQueue = queue:new()
           , solving = dict:new()
-          , tagsQueue = TagsQueue
-	  , strategy = cuter_bfs_strategy}}.
+          , strategyData = StrategyData
+	  , strategy = Strategy}}.
 
 %% terminate/2
 -spec terminate(any(), state()) -> ok.
-terminate(_Reason, #st{tagsQueue = TQ}) ->
-  cuter_minheap:delete(TQ),
+terminate(_Reason, _S) ->
+  %%cuter_minheap:delete(TQ),
   %% TODO clear dirs
   ok.
 
@@ -210,13 +212,13 @@ handle_call({set_depth, NewDepth}, _From, State) ->
   {reply, ok, State#st{ depth = NewDepth }};
 
 %% Ask for a new input to execute.
-handle_call(request_input, _From, S=#st{running = Running, firstOperation = FirstOperation, inputsQueue = InputsQueue, tagsQueue = TagsQueue,
-                                        solving = Solving}) ->
+handle_call(request_input, _From, S=#st{running = Running, firstOperation = FirstOperation, inputsQueue = InputsQueue, strategyData = StrategyData,
+                                        solving = Solving, strategy = Strategy}) ->
   %% Check the queue for inputs that wait to be executed.
   case queue:out(InputsQueue) of
     %% Empty queue.
     {empty, InputsQueue} ->
-      case dict:is_empty(Running) andalso cuter_minheap:is_empty(TagsQueue) andalso dict:is_empty(Solving) of
+      case dict:is_empty(Running) andalso Strategy:no_paths(StrategyData) andalso dict:is_empty(Solving) of
         true  -> {reply, empty, S};     % There are no active executions, so the queues will remain empty.
         false -> {reply, try_later, S}  % There are active executions, so the queues may later have some entries.
       end;
@@ -229,8 +231,8 @@ handle_call(request_input, _From, S=#st{running = Running, firstOperation = Firs
   end;
 
 %% Store the information of a concolic execution.
-handle_call({store_execution, Handle, Info}, _From, S=#st{tagsQueue = TQ, infoTab = AllInfo, visitedTags = Vs, depth = Depth,
-                                                          running = Rn, firstOperation = FOp, erroneous = Err, codeServer = CServer}) ->
+handle_call({store_execution, Handle, Info}, _From, S=#st{infoTab = AllInfo, visitedTags = Vs, depth = Depth,
+                                                          running = Rn, firstOperation = FOp, erroneous = Err, codeServer = CServer, strategy = Strategy, strategyData = StrategyData}) ->
   %% Generate the information of the execution.
   I = #info{ dataDir = cuter_analyzer:dir_of_info(Info)
            , mappings = cuter_analyzer:mappings_of_info(Info)
@@ -244,12 +246,13 @@ handle_call({store_execution, Handle, Info}, _From, S=#st{tagsQueue = TQ, infoTa
   N = dict:fetch(Handle, FOp),
   Rvs = cuter_analyzer:reversible_of_info(Info),
   Items = generate_queue_items(Rvs, Handle, Visited, N, Depth),
-  lists:foreach(fun(Item) -> cuter_minheap:insert(Item, TQ) end, Items),
+  NewStrategyData = Strategy:handle_execution(StrategyData, Items),
   {reply, ok, S#st{ infoTab = dict:store(Handle, I, AllInfo)
                   , visitedTags = Visited
                   , running = dict:erase(Handle, Rn)  % Remove the handle from the running set
                   , firstOperation = dict:erase(Handle, FOp)
-                  , erroneous = NErr}};
+                  , erroneous = NErr
+                  , strategyData = NewStrategyData}};
 
 %% Report the result of an SMT solving.
 handle_call({solver_reply, Reply}, {Who, _Ref}, S=#st{solving = Solving, inputsQueue = InputsQueue, solved = Slvd, not_solved = NSlvd}) ->
@@ -266,8 +269,8 @@ handle_call({solver_reply, Reply}, {Who, _Ref}, S=#st{solving = Solving, inputsQ
   end;
 
 %% Request an operation to reverse.
-handle_call(request_operation, {Who, _Ref}, S=#st{tagsQueue = TagsQueue, infoTab = Info, visitedTags = Visited, python = Python, solving = Solving, strategy = Strategy}) ->
-  case Strategy:locate_next_reversible(TagsQueue, Visited) of
+handle_call(request_operation, {Who, _Ref}, S=#st{strategyData = StrategyData, infoTab = Info, visitedTags = Visited, python = Python, solving = Solving, strategy = Strategy}) ->
+  case Strategy:locate_next_reversible(StrategyData, Visited) of
     %% The queue is empty.
     empty -> {reply, try_later, S};
     %% Located an operation to reverse.
