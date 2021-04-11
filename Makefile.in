@@ -76,7 +76,8 @@ SRC_MODULES = \
 	cuter_debug \
 	cuter_callgraph \
 	cuter_serial \
-	cerl_pmatch
+	cerl_pmatch \
+	strategies/cuter_bfs_strategy
 
 UTEST_MODULES = \
 	cuter_tests_lib \
