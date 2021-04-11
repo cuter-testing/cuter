@@ -75,7 +75,8 @@
   tagsQueue       :: cuter_minheap:minheap(),
   visitedTags     :: cuter_cerl:visited_tags(),
   solved = 0      :: non_neg_integer(),
-  not_solved = 0  :: non_neg_integer()}).
+  not_solved = 0  :: non_neg_integer(),
+  strategy        :: any()}).
 -type state() :: #st{}.
 
 %% ----------------------------------------------------------------------------
@@ -165,7 +166,8 @@ init([Python, DefaultDepth, CodeServer]) ->
           , erroneous = []
           , inputsQueue = queue:new()
           , solving = dict:new()
-          , tagsQueue = TagsQueue}}.
+          , tagsQueue = TagsQueue
+	  , strategy = cuter_bfs_strategy}}.
 
 %% terminate/2
 -spec terminate(any(), state()) -> ok.
@@ -264,8 +266,8 @@ handle_call({solver_reply, Reply}, {Who, _Ref}, S=#st{solving = Solving, inputsQ
   end;
 
 %% Request an operation to reverse.
-handle_call(request_operation, {Who, _Ref}, S=#st{tagsQueue = TagsQueue, infoTab = Info, visitedTags = Visited, python = Python, solving = Solving}) ->
-  case locate_next_reversible(TagsQueue, Visited) of
+handle_call(request_operation, {Who, _Ref}, S=#st{tagsQueue = TagsQueue, infoTab = Info, visitedTags = Visited, python = Python, solving = Solving, strategy = Strategy}) ->
+  case Strategy:locate_next_reversible(TagsQueue, Visited) of
     %% The queue is empty.
     empty -> {reply, try_later, S};
     %% Located an operation to reverse.
@@ -315,30 +317,6 @@ handle_cast(_Msg, State) ->
 %%       TagId       : the Id of the tag that will be visited
 %%       Handle      : the unique identifier of the concolic execution
 
--spec locate_next_reversible(cuter_minheap:minheap(), cuter_cerl:visited_tags()) -> {ok, integer(), handle()} | empty.
-locate_next_reversible(Queue, Visited) ->
-  locate_next_reversible(Queue, Visited, cuter_minheap:heap_size(Queue)).
-
--spec locate_next_reversible(cuter_minheap:minheap(), cuter_cerl:visited_tags(), integer()) -> {ok, integer(), handle()} | empty.
-locate_next_reversible(Queue, Visited, M) ->
-  case cuter_minheap:take_min(Queue) of
-    {error, empty_heap} -> empty;
-    {true, N, _TagID, Handle} -> {ok, N, Handle};
-    {false, N, TagID, Handle} ->
-      %% Check if the tag is actually visited
-      case gb_sets:is_element(TagID, Visited) of
-        %% If it's not visited, then return it.
-        false -> {ok, N, Handle};
-        %% else, put it back in the heap.
-        true  ->
-          case M of
-            0 -> {ok, N, Handle};  % Have seen all the entries at least once (possible redundant)
-            _ ->
-              cuter_minheap:insert({true, N, TagID, Handle}, Queue),
-              locate_next_reversible(Queue, Visited, M-1)
-          end
-      end
-  end.
 
 -spec generate_queue_items(cuter_analyzer:reversible_with_tags(), handle(), cuter_cerl:visited_tags(), operationId(), cuter:depth()) -> [item()].
 generate_queue_items(Rvs, Handle, Visited, N, Depth) ->

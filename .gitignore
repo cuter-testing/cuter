@@ -43,3 +43,9 @@ temp/
 # Logs
 
 smt.log.*
+
+# strategies branch stuff
+
+erl_crash.dump
+error.log
+foo.erl
