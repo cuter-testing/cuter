@@ -4,7 +4,7 @@
 -behaviour(gen_server).
 
 %% External API.
--export([start/3, stop/1, request_input/1, store_execution/3, set_depth/2,
+-export([start/4, stop/1, request_input/1, store_execution/3, set_depth/2,
          request_operation/1, solver_reply/2, add_seed_input/2, clear_erroneous_inputs/1]).
 %% Get logs API.
 -export([get_visited_tags/1, get_erroneous_inputs/1, get_solved_models/1, get_not_solved_models/1]).
@@ -85,9 +85,9 @@
 %% ----------------------------------------------------------------------------
 
 %% Starts the Scheduler.
--spec start(file:filename(), integer(), pid()) -> pid().
-start(Python, DefaultDepth, CodeServer) ->
-  case gen_server:start_link(?MODULE, [Python, DefaultDepth, CodeServer], []) of
+-spec start(file:filename(), integer(), atom(), pid()) -> pid().
+start(Python, DefaultDepth, Strategy, CodeServer) ->
+  case gen_server:start_link(?MODULE, [Python, DefaultDepth, Strategy, CodeServer], []) of
     {ok, Scheduler} -> Scheduler;
     {error, R} -> exit({scheduler_start, R})
   end.
@@ -154,9 +154,8 @@ get_not_solved_models(Scheduler) ->
 %% init/1
 -type init_arg() :: [file:filename() | integer() | pid(), ...].
 -spec init(init_arg()) -> {ok, state()}.
-init([Python, DefaultDepth, CodeServer]) ->
+init([Python, DefaultDepth, Strategy, CodeServer]) ->
   _ = set_execution_counter(0),
-  Strategy = cuter_bfs_strategy, %% has to be passed as argument
   StrategyData = Strategy:init_data(),
   {ok, #st{ codeServer = CodeServer
           , infoTab = dict:new()
