@@ -3,8 +3,6 @@
 
 -export([locate_next_reversible/2, init_data/0, no_paths/1, handle_execution/2]).
 
-%% -include("include/cuter_macros.hrl").
-
 -spec init_data() -> tuple().
 init_data() ->
   {cuter_minheap:new(fun erlang:'<'/2)}.
