@@ -5,6 +5,7 @@ import sys, argparse, os
 import subprocess as subp
 
 def main():
+  available_strategies = [i.replace(".erl", "") for i in os.listdir("src/strategies")]
   parser = argparse.ArgumentParser(description="Run the CutEr tool.")
   # Add positional arguments.
   parser.add_argument("module", metavar="M", help="the module")
@@ -14,7 +15,7 @@ def main():
   parser.add_argument("-pa", nargs='+', default=[], metavar="Dir", help="preppends each Dir to Erlang's code path")
   parser.add_argument("-pz", nargs='+', default=[], metavar="Dir", help="appends each Dir to Erlang's code path")
   parser.add_argument("-d", "--depth", metavar="D", type=int, default=25, help="the depth limit D of the search")
-  parser.add_argument("-st", "--strategy", metavar="S", type=str, default='cuter_bfs_strategy', help="the strategy of the treeseach algorithm", choices=["cuter_bfs_strategy"])
+  parser.add_argument("-st", "--strategy", metavar="S", type=str, default='cuter_bfs_strategy', help="the strategy of the treeseach algorithm", choices=available_strategies)
   parser.add_argument("-p", "--pollers", metavar="N", type=int, default=1,
     help="use N pollers (default: %(default)s)")
   parser.add_argument("-s", "--solvers", metavar="N", type=int, default=1,
