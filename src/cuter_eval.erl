@@ -1622,8 +1622,8 @@ subscribe_and_apply(MonitorServer, Parent, Args, Ref) ->
 %% --------------------------------------------------------
 %% Resolve the type of an MFA call
 %% --------------------------------------------------------
-find_call_type(_M, _M)   -> local;
-find_call_type(_M1, _M2) -> external.
+find_call_type(M, M) -> local;
+find_call_type(_, _) -> external.
 
 %% --------------------------------------------------------
 %% Encode and Decode Msgs
