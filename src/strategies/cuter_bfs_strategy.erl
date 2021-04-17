@@ -1,28 +1,33 @@
 %% -*- erlang-indent-level: 2 -*-
 -module(cuter_bfs_strategy).
+-behaviour(cuter_strategy_behaviour).
 
--export([locate_next_reversible/2, init_data/0, no_paths/1, handle_execution/2]).
+-export([locate_next_reversible/2, init_data/0, destroy_data/1, no_paths/1, handle_execution/2]).
 
--spec init_data() -> tuple().
+-spec init_data() -> cuter_minheap:minheap().
 init_data() ->
-  {cuter_minheap:new(fun erlang:'<'/2)}.
+  cuter_minheap:new(fun erlang:'<'/2).
 
--spec handle_execution(tuple(), any()) -> {cuter_minheap:minheap()}.
-handle_execution({TQ}, Items) ->
+-spec destroy_data(cuter_minheap:minheap()) -> ok.
+destroy_data(TQ) ->
+  cuter_minheap:delete(TQ),
+  ok.
+
+-spec handle_execution(tuple(), any()) -> cuter_minheap:minheap().
+handle_execution(TQ, Items) ->
   lists:foreach(fun(Item) -> cuter_minheap:insert(Item, TQ) end, Items),
-  {TQ}.
+  TQ.
 
--spec no_paths(tuple()) -> boolean().
-no_paths({TagsQueue}) ->
+-spec no_paths(cuter_minheap:minheap()) -> boolean().
+no_paths(TagsQueue) ->
   cuter_minheap:is_empty(TagsQueue).
 
--spec locate_next_reversible({cuter_minheap:minheap()}, cuter_cerl:visited_tags()) -> {ok, integer(), cuter_scheduler_maxcover:handle()} | empty.
-locate_next_reversible({Queue}, Visited) ->
-  locate_next_reversible({Queue}, Visited, cuter_minheap:heap_size(Queue)).
-
+-spec locate_next_reversible(cuter_minheap:minheap(), cuter_cerl:visited_tags()) -> {ok, integer(), cuter_scheduler_maxcover:handle()} | empty.
+locate_next_reversible(Queue, Visited) ->
+  locate_next_reversible(Queue, Visited, cuter_minheap:heap_size(Queue)).
 
 -spec locate_next_reversible({cuter_minheap:minheap()}, cuter_cerl:visited_tags(), integer()) -> {ok, integer(), cuter_scheduler_maxcover:handle()} | empty.
-locate_next_reversible({Queue}, Visited, M) ->
+locate_next_reversible(Queue, Visited, M) ->
   case cuter_minheap:take_min(Queue) of
     {error, empty_heap} -> empty;
     {true, N, _TagID, Handle} -> {ok, N, Handle};
