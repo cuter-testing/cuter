@@ -72,8 +72,7 @@
   python          :: file:filename(),
   running         :: dict:dict(handle(), cuter:input()),
   solving         :: dict:dict(pid(), operationId()),
-  tagsQueue       :: cuter_minheap:minheap(),
-  strategyData   :: {},
+  strategyData    :: cuter_minheap:minheap(),
   visitedTags     :: cuter_cerl:visited_tags(),
   solved = 0      :: non_neg_integer(),
   not_solved = 0  :: non_neg_integer(),
@@ -172,8 +171,8 @@ init([Python, DefaultDepth, Strategy, CodeServer]) ->
 
 %% terminate/2
 -spec terminate(any(), state()) -> ok.
-terminate(_Reason, _S) ->
-  %%cuter_minheap:delete(TQ),
+terminate(_Reason, _S=#st{strategy = Strategy, strategyData = ST}) ->
+  Strategy:destroy_data(ST),
   %% TODO clear dirs
   ok.
 

@@ -41,7 +41,7 @@ DIALYZER_FLAGS = -Wunmatched_returns -Wunderspecs
 WARNS = +warn_exported_vars +warn_unused_import +warn_missing_spec #+warn_untyped_record
 WARNS_FTEST = +warn_exported_vars +warn_unused_import #+warn_missing_spec +warn_untyped_record
 ERLC_INCLUDE = -I $(INCLUDE) -I $(GPB_INCLUDE)
-ERLC_FLAGS = +debug_info $(WARNS) -Werror
+ERLC_FLAGS = +debug_info $(WARNS) -Werror -pa $(EBIN)
 ERLC_FLAGS_PROTOBUFS = +debug_info $(WARNS_FTEST) -Werror
 ERLC_FLAGS_FTEST = +debug_info $(WARNS_FTEST) -Werror
 ERLC_FLAGS_NO_DBG = $(WARNS) -Werror
@@ -77,6 +77,7 @@ SRC_MODULES = \
 	cuter_callgraph \
 	cuter_serial \
 	cerl_pmatch \
+	strategies/cuter_strategy_behaviour \
 	strategies/cuter_bfs_strategy
 
 UTEST_MODULES = \
