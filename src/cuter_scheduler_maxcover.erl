@@ -51,14 +51,18 @@
 %%   The path to the python script that will invoke the solver.
 %% running :: dict:dict(handle(), cuter:input())
 %%   The currently running concolic executions and their inputs.
-%%  tagsQueue :: cuter_minheap:minheap()
-%%   The heap with all the constraints/tags that await to be reversed.
+%% strategy :: atom()
+%%   This atom is the module containing the algorithm that chooses the next
+%%   reversible node, its behaviour is defined in src/strategies/cuter_strategy_behaviour
+%% strategyData :: cuter_minheap:minheap()
+%%   The data that the current strategy keeps to fetch the condition to reverse next
 %%  visitedTags :: cuter_cerl:visited_tags()
 %%   The visited tags of the concolic executions.
 %% solved :: non_neg_integer()
 %%   The number of solved models.
 %% not_solved :: non_neg_integer()
 %%   The number of not solved models.
+
 
 -record(st, {
   codeServer      :: pid(),
