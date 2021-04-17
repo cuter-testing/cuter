@@ -15,9 +15,7 @@
 
 -export_type([handle/0, operationId/0]).
 
--type visited() :: boolean().
 -type operationId() :: integer().
--type item() :: {visited(), operationId(), cuter_cerl:tagID(), handle()}.
 -type inputs_queue_item() :: {operationId(), cuter:input()}.
 -type inputs_queue() :: queue:queue(inputs_queue_item()).
 -type handle() :: nonempty_string().
@@ -243,8 +241,7 @@ handle_call({store_execution, Handle, Info}, _From, S=#st{infoTab = AllInfo, vis
   %% Update the queue.
   N = dict:fetch(Handle, FOp),
   Rvs = cuter_analyzer:reversible_of_info(Info),
-  Items = generate_queue_items(Rvs, Handle, Visited, N, Depth),
-  NewStrategyData = Strategy:handle_execution(StrategyData, Items),
+  NewStrategyData = Strategy:handle_execution(StrategyData, Rvs, Handle, Visited, N, Depth),
   {reply, ok, S#st{ infoTab = dict:store(Handle, I, AllInfo)
                   , visitedTags = Visited
                   , running = dict:erase(Handle, Rn)  % Remove the handle from the running set
@@ -307,37 +304,6 @@ handle_call(get_not_solved_models, _From, State=#st{not_solved = NotSolved}) ->
 -spec handle_cast(any(), state()) -> {noreply, state()}.
 handle_cast(_Msg, State) ->
   {noreply, State}.
-
-%% ----------------------------------------------------------------------------
-%% Functions for tags
-%% ----------------------------------------------------------------------------
-
-%% Each item in the heap is in the form {Visited, OperationId, TagId, Handle}
-%% where Visited     : if the tag has already been visited during an execution
-%%       OperationId : the cardinality of the constraint in the path vertex
-%%       TagId       : the Id of the tag that will be visited
-%%       Handle      : the unique identifier of the concolic execution
-
-
--spec generate_queue_items(cuter_analyzer:reversible_with_tags(), handle(), cuter_cerl:visited_tags(), operationId(), cuter:depth()) -> [item()].
-generate_queue_items(Rvs, Handle, Visited, N, Depth) ->
-  generate_queue_items(Rvs, Handle, Visited, N, Depth, []).
-
--spec generate_queue_items(cuter_analyzer:reversible_with_tags(), handle(), cuter_cerl:visited_tags(), operationId(), cuter:depth(), [item()]) -> [item()].
-generate_queue_items([], _Handle, _Visited, _N, _Depth, Acc) ->
-  lists:reverse(Acc);
-generate_queue_items([R|Rs], Handle, Visited, N, Depth, Acc) ->
-  case maybe_item(R, Handle, Visited, N) of
-    false -> generate_queue_items(Rs, Handle, Visited, N, Depth, Acc);
-    {ok, Item} -> generate_queue_items(Rs, Handle, Visited, N, Depth, [Item|Acc])
-  end.
-
--spec maybe_item(cuter_analyzer:reversible_with_tag(), handle(), cuter_cerl:visited_tags(), operationId()) -> {ok, item()} | false.
-maybe_item({Id, TagID}, Handle, Visited, N) ->
-  case Id < N of
-    true  -> false;
-    false -> {ok, {gb_sets:is_element(TagID, Visited), Id, TagID, Handle}}
-  end.
 
 %% ----------------------------------------------------------------------------
 %% Generate handles for executions
