@@ -5,7 +5,7 @@ import sys, argparse, os
 import subprocess as subp
 
 def main():
-  available_strategies = [i.replace(".erl", "") for i in os.listdir("src/strategies")]
+  available_strategies = [i.replace(".erl", "") for i in os.listdir("src/strategies") if i != "cuter_strategy_behaviour.erl"]
   parser = argparse.ArgumentParser(description="Run the CutEr tool.")
   # Add positional arguments.
   parser.add_argument("module", metavar="M", help="the module")
