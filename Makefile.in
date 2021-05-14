@@ -107,7 +107,8 @@ FTEST_MODULES = \
 	no_debug_info \
 	collection \
 	funs \
-	sum
+	sum \
+	search
 
 PRIV_MODULES = \
 	cuter_io \
