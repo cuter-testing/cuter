@@ -176,16 +176,16 @@ start([{M, F, As, Depth}|Seeds], Conf) ->
 
 start_one(M, F, As, Depth, CodeServer, Scheduler, Dir, N_Pollers, N_Solvers) ->
   cuter_pp:mfa({M, F, length(As)}),
-  ok = cuter_scheduler_maxcover:add_seed_input(Scheduler, As),
-  ok = cuter_scheduler_maxcover:set_depth(Scheduler, Depth),
+  ok = cuter_scheduler:add_seed_input(Scheduler, As),
+  ok = cuter_scheduler:set_depth(Scheduler, Depth),
   Pollers = [cuter_poller:start(CodeServer, Scheduler, M, F, Dir, Depth) || _ <- lists:seq(1, N_Pollers)],
   Solvers = [cuter_solver:start(Scheduler) || _ <- lists:seq(1, N_Solvers)],
   ok = wait_for_processes(Pollers, fun cuter_poller:send_stop_message/1),
   LiveSolvers = lists:filter(fun is_process_alive/1, Solvers),
   lists:foreach(fun cuter_solver:send_stop_message/1, LiveSolvers),
   ok = wait_for_processes(LiveSolvers, fun cuter_solver:send_stop_message/1),
-  ErroneousInputs = cuter_scheduler_maxcover:get_erroneous_inputs(Scheduler),
-  ok = cuter_scheduler_maxcover:clear_erroneous_inputs(Scheduler),
+  ErroneousInputs = cuter_scheduler:get_erroneous_inputs(Scheduler),
+  ok = cuter_scheduler:clear_erroneous_inputs(Scheduler),
   ErroneousInputs.
 
 -spec wait_for_processes([pid()], fun((pid()) -> ok)) -> ok.
@@ -206,11 +206,11 @@ wait_for_processes(Procs, StopFn) ->
 -spec stop_and_report(configuration()) -> erroneous_inputs().
 stop_and_report(Conf) ->
   %% Report solver statistics.
-  SolvedModels = cuter_scheduler_maxcover:get_solved_models(Conf#conf.scheduler),
-  NotSolvedModels = cuter_scheduler_maxcover:get_not_solved_models(Conf#conf.scheduler),
+  SolvedModels = cuter_scheduler:get_solved_models(Conf#conf.scheduler),
+  NotSolvedModels = cuter_scheduler:get_not_solved_models(Conf#conf.scheduler),
   cuter_analyzer:solving_stats(SolvedModels, NotSolvedModels),
   %% Report coverage statistics.
-  VisitedTags = cuter_scheduler_maxcover:get_visited_tags(Conf#conf.scheduler),
+  VisitedTags = cuter_scheduler:get_visited_tags(Conf#conf.scheduler),
   cuter_analyzer:calculate_coverage(Conf#conf.calculateCoverage, Conf#conf.codeServer, VisitedTags),
   %% Report the erroneous inputs.
   ErroneousInputs = lists:reverse(Conf#conf.errors),
@@ -233,7 +233,7 @@ stop(Conf) ->
 
 -spec stop(configuration(), erroneous_inputs()) -> erroneous_inputs().
 stop(Conf, ErroneousInputs) ->
-  cuter_scheduler_maxcover:stop(Conf#conf.scheduler),
+  cuter_scheduler:stop(Conf#conf.scheduler),
   cuter_codeserver:stop(Conf#conf.codeServer),
   cuter_pp:stop(),
   cuter_lib:clear_and_delete_dir(Conf#conf.dataDir),
@@ -255,7 +255,7 @@ initialize_app(Options) ->
   NormalizeTypes = type_normalization(Options),
   Strategy = get_strategy(Options),
   CodeServer = cuter_codeserver:start(self(), WithPmatch, Whitelist, NormalizeTypes),
-  SchedPid = cuter_scheduler_maxcover:start(SolverBackend, ?DEFAULT_DEPTH, Strategy, CodeServer),
+  SchedPid = cuter_scheduler:start(SolverBackend, ?DEFAULT_DEPTH, Strategy, CodeServer),
   #conf{ calculateCoverage = calculate_coverage(Options)
        , codeServer = CodeServer
        , dataDir = cuter_lib:get_tmp_dir(BaseDir)

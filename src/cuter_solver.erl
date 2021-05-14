@@ -65,7 +65,7 @@
 -type fsm_state() :: #fsm_state{}.
 
 -type mappings() :: [cuter_symbolic:mapping()].
--type solver_input() :: {string(), mappings(), file:name(), cuter_scheduler_maxcover:operationId()}.
+-type solver_input() :: {string(), mappings(), file:name(), cuter_scheduler:operation_id()}.
 -type solver_result() :: {ok, cuter:input()} | error.
 
 %% ----------------------------------------------------------------------------
@@ -91,7 +91,7 @@ loop(Parent, Scheduler) ->
     true -> stop();
     false ->
       %% Query the scheduler.
-      case cuter_scheduler_maxcover:request_operation(Scheduler) of
+      case cuter_scheduler:request_operation(Scheduler) of
         %% No operation is currently available.
         try_later ->
           timer:sleep(?SLEEP),
@@ -99,7 +99,7 @@ loop(Parent, Scheduler) ->
         %% Got an operation to solve.
         {Python, Mappings, File, N} ->
           Result = solve({Python, Mappings, File, N}),
-          ok = cuter_scheduler_maxcover:solver_reply(Scheduler, Result),
+          ok = cuter_scheduler:solver_reply(Scheduler, Result),
           loop(Parent, Scheduler)
       end
   end.

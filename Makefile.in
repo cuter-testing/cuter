@@ -5,7 +5,8 @@ SHELL := /bin/bash
 ### Orientation information
 ###----------------------------------------------------------------------
 
-SRC  = src
+SRC = src
+STRATEGIES_SRC = $(SRC)/strategies
 INCLUDE = include
 EBIN = ebin
 PRIV = $(PWD)/priv
@@ -66,7 +67,7 @@ SRC_MODULES = \
 	cuter_env \
 	cuter_erlang \
 	cuter_pp \
-	cuter_scheduler_maxcover \
+	cuter_scheduler \
 	cuter_analyzer \
 	cuter_solver \
 	cuter_merger \
@@ -77,8 +78,8 @@ SRC_MODULES = \
 	cuter_callgraph \
 	cuter_serial \
 	cerl_pmatch \
-	strategies/cuter_strategy_behaviour \
-	strategies/cuter_bfs_strategy
+	cuter_strategy \
+	cuter_bfs_strategy
 
 UTEST_MODULES = \
 	cuter_tests_lib \
@@ -123,6 +124,7 @@ PROTOBUFS = \
 
 ERL_DIRS = \
 	$(SRC) \
+	$(STRATEGIES_SRC) \
 	$(UTEST_SRC) \
 	$(FTEST_SRC)
 
