@@ -47,7 +47,6 @@ def decode_command(erlport, erlSolver, data):
         scmd.SolverCommand.SOLVE: decode_solve,
         scmd.SolverCommand.GET_MODEL: decode_get_model,
         scmd.SolverCommand.ADD_AXIOMS: decode_add_axioms,
-        scmd.SolverCommand.FIX_VARIABLE: decode_fix_variable,
         scmd.SolverCommand.RESET_SOLVER: decode_reset_solver,
         scmd.SolverCommand.STOP: decode_stop,
     }
@@ -83,13 +82,6 @@ def decode_add_axioms(erlport, erlSolver, cmd):
     Adds the axioms.
     """
     erlSolver.add_axioms()
-
-def decode_fix_variable(erlport, erlSolver, cmd):
-    """
-    Fixes a variable to a specific value.
-    """
-    var, val = cmd.symbvar, cmd.symbvar_value
-    erlSolver.fix_parameter(var, val)
 
 def decode_reset_solver(erlport, erlSolver, cmd):
     """

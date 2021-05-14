@@ -12,7 +12,7 @@ message SolverCommand {
         SOLVE = 1;
         GET_MODEL = 2;
         ADD_AXIOMS = 3;
-        FIX_VARIABLE = 4;
+        FIX_VARIABLE = 4; // Deprecated.
         RESET_SOLVER = 5;
         STOP = 6;
     }

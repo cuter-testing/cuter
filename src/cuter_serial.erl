@@ -40,7 +40,6 @@ to_term(Msg) ->
 solver_command(Command) -> solver_command(Command, none).
 
 -spec solver_command(load_trace_file, {file:name(), integer()}) -> binary()
-                  ; (fix_variable, {cuter_symbolic:symbolic(), any()}) -> binary()
                   ; (commands_no_opts(), none) -> binary().
 solver_command(Command, Options) ->
   Msg = to_solver_command(Command, Options),
@@ -349,10 +348,6 @@ to_solver_command(get_model, none) ->
   #'SolverCommand'{type='GET_MODEL'};
 to_solver_command(add_axioms, none) ->
   #'SolverCommand'{type='ADD_AXIOMS'};
-to_solver_command(fix_variable, {SymbVar, Value}) ->
-  #'SolverCommand'{type='FIX_VARIABLE',
-                   symbvar=to_erlang_term(SymbVar),
-                   symbvar_value=to_erlang_term(Value)};
 to_solver_command(reset_solver, none) ->
   #'SolverCommand'{type='RESET_SOLVER'};
 to_solver_command(stop, none) ->
