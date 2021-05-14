@@ -4,6 +4,7 @@
 -behaviour(gen_statem).
 
 -include("include/cuter_macros.hrl").
+-include("include/cuter_metric_definitions.hrl").
 
 -export([
   %% external exports
@@ -135,7 +136,9 @@ solve({Python, Mappings, File, N}=Args) ->
 -spec query_solver(pid(), mappings()) -> solver_result().
 query_solver(FSM, Mappings) ->
   ok = add_axioms(FSM),
-  case check_model(FSM) of
+  Status = check_model(FSM),
+  cuter_metrics:measure_distribution(?SOLVER_STATUS_METRIC, Status),
+  case Status of
     'SAT' ->
       get_solution(FSM, Mappings);
     _ ->

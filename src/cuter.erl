@@ -7,6 +7,7 @@
 -export_type([mod/0, input/0, erroneous_inputs/0, depth/0]).
 
 -include("include/cuter_macros.hrl").
+-include("include/cuter_metric_definitions.hrl").
 
 -type mod()   :: module().
 -type input() :: [any()].
@@ -236,6 +237,7 @@ stop(Conf, ErroneousInputs) ->
   cuter_scheduler:stop(Conf#conf.scheduler),
   cuter_codeserver:stop(Conf#conf.codeServer),
   cuter_pp:stop(),
+  cuter_metrics:stop(),
   cuter_lib:clear_and_delete_dir(Conf#conf.dataDir),
   ErroneousInputs.
 
@@ -248,7 +250,9 @@ initialize_app(Options) ->
   BaseDir = set_basedir(Options),
   process_flag(trap_exit, true),
   error_logger:tty(false),  %% disable error_logger
+  ok = cuter_metrics:start(),
   ok = cuter_pp:start(reporting_level(Options)),
+  ok = define_metrics(),
   WithPmatch = with_pmatch(Options),
   SolverBackend = get_solver_backend(Options),
   Whitelist = get_whitelist(Options),
@@ -268,6 +272,18 @@ initialize_app(Options) ->
 
 add_seeds(Conf, Seeds) ->
   Conf#conf{ seeds = Seeds }.
+
+define_metrics() ->
+  define_distribution_metrics().
+
+define_distribution_metrics() ->
+  define_distribution_metrics(?DISTRIBUTION_METRICS).
+
+define_distribution_metrics([]) ->
+  ok;
+define_distribution_metrics([N|Ns]) ->
+  ok = cuter_metrics:define_distribution_metric(N),
+  define_distribution_metrics(Ns).
 
 %% ----------------------------------------------------------------------------
 %% Set app parameters
