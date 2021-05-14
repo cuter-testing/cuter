@@ -5,7 +5,8 @@ SHELL := /bin/bash
 ### Orientation information
 ###----------------------------------------------------------------------
 
-SRC  = src
+SRC = src
+STRATEGIES_SRC = $(SRC)/strategies
 INCLUDE = include
 EBIN = ebin
 PRIV = $(PWD)/priv
@@ -41,7 +42,7 @@ DIALYZER_FLAGS = -Wunmatched_returns -Wunderspecs
 WARNS = +warn_exported_vars +warn_unused_import +warn_missing_spec #+warn_untyped_record
 WARNS_FTEST = +warn_exported_vars +warn_unused_import #+warn_missing_spec +warn_untyped_record
 ERLC_INCLUDE = -I $(INCLUDE) -I $(GPB_INCLUDE)
-ERLC_FLAGS = +debug_info $(WARNS) -Werror
+ERLC_FLAGS = +debug_info $(WARNS) -Werror -pa $(EBIN)
 ERLC_FLAGS_PROTOBUFS = +debug_info $(WARNS_FTEST) -Werror
 ERLC_FLAGS_FTEST = +debug_info $(WARNS_FTEST) -Werror
 ERLC_FLAGS_NO_DBG = $(WARNS) -Werror
@@ -66,7 +67,7 @@ SRC_MODULES = \
 	cuter_env \
 	cuter_erlang \
 	cuter_pp \
-	cuter_scheduler_maxcover \
+	cuter_scheduler \
 	cuter_analyzer \
 	cuter_solver \
 	cuter_merger \
@@ -76,7 +77,9 @@ SRC_MODULES = \
 	cuter_debug \
 	cuter_callgraph \
 	cuter_serial \
-	cerl_pmatch
+	cerl_pmatch \
+	cuter_strategy \
+	cuter_bfs_strategy
 
 UTEST_MODULES = \
 	cuter_tests_lib \
@@ -121,6 +124,7 @@ PROTOBUFS = \
 
 ERL_DIRS = \
 	$(SRC) \
+	$(STRATEGIES_SRC) \
 	$(UTEST_SRC) \
 	$(FTEST_SRC)
 

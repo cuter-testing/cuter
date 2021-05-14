@@ -61,7 +61,7 @@ get_tmp_dir(BaseDir) ->
   filename:absname(?RELATIVE_TMP_DIR, BaseDir).
 
 %% The directory to store the data of the specific execution
--spec get_data_dir(file:filename(), cuter_scheduler_maxcover:handle()) -> file:filename().
+-spec get_data_dir(file:filename(), cuter_scheduler:handle()) -> file:filename().
 get_data_dir(BaseDir, Handle) ->
   filename:absname("exec" ++ Handle, BaseDir).
 

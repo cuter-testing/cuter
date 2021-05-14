@@ -87,7 +87,7 @@
   pplevel :: pp_level(),
   nl      :: boolean(),
   mfa     :: mfa() | 'undefined',
-  info    :: dict:dict(cuter_scheduler_maxcover:handle(), execution_data())
+  info    :: dict:dict(cuter_scheduler:handle(), execution_data())
 }).
 -type state() :: #st{}.
 
@@ -105,11 +105,11 @@
               | {invalid_ast_with_pmatch, module(), any()}
               | {error_retrieving_spec, mfa(), any()}
               | {form_has_unsupported_type, any()}
-              | {input, cuter_scheduler_maxcover:handle(), cuter:input()}
-              | {execution_status, cuter_scheduler_maxcover:handle(), cuter_iserver:execution_status()}
-              | {execution_info, cuter_scheduler_maxcover:handle(), cuter_iserver:logs()}
-              | {path_vertex, cuter_scheduler_maxcover:handle(), cuter_analyzer:path_vertex()}
-              | {flush, cuter_scheduler_maxcover:handle()}
+              | {input, cuter_scheduler:handle(), cuter:input()}
+              | {execution_status, cuter_scheduler:handle(), cuter_iserver:execution_status()}
+              | {execution_info, cuter_scheduler:handle(), cuter_iserver:logs()}
+              | {path_vertex, cuter_scheduler:handle(), cuter_analyzer:path_vertex()}
+              | {flush, cuter_scheduler:handle()}
               | solving_failed_unsat
               | solving_failed_timeout
               | solving_failed_unknown
@@ -178,7 +178,7 @@ mfa(MFA) ->
   gen_server:call(?PRETTY_PRINTER, {mfa, MFA}).
 
 %% The input that will be tested.
--spec input(cuter_scheduler_maxcover:handle(), cuter:input()) -> ok.
+-spec input(cuter_scheduler:handle(), cuter:input()) -> ok.
 input(Ref, As) ->
   gen_server:call(?PRETTY_PRINTER, {input, Ref, As}).
 
@@ -198,22 +198,22 @@ form_has_unsupported_type(Info) ->
   gen_server:call(?PRETTY_PRINTER, {form_has_unsupported_type, Info}).
 
 %% The result status of the given concolic execution.
--spec execution_status(cuter_scheduler_maxcover:handle(), cuter_iserver:execution_status()) -> ok.
+-spec execution_status(cuter_scheduler:handle(), cuter_iserver:execution_status()) -> ok.
 execution_status(Ref, Status) ->
   gen_server:call(?PRETTY_PRINTER, {execution_status, Ref, Status}).
 
 %% The InterpreterServer's logs of the given concolic execution.
--spec execution_info(cuter_scheduler_maxcover:handle(), cuter_iserver:logs()) -> ok.
+-spec execution_info(cuter_scheduler:handle(), cuter_iserver:logs()) -> ok.
 execution_info(Ref, Logs) ->
   gen_server:call(?PRETTY_PRINTER, {execution_info, Ref, Logs}).
 
 %% The path vertex of the given concolic execution.
--spec path_vertex(cuter_scheduler_maxcover:handle(), cuter_analyzer:path_vertex()) -> ok.
+-spec path_vertex(cuter_scheduler:handle(), cuter_analyzer:path_vertex()) -> ok.
 path_vertex(Ref, Vertex) ->
   gen_server:call(?PRETTY_PRINTER, {path_vertex, Ref, Vertex}).
 
 %% Display the information of the given concolic execution.
--spec flush(cuter_scheduler_maxcover:handle()) -> ok.
+-spec flush(cuter_scheduler:handle()) -> ok.
 flush(Ref) ->
   gen_server:call(?PRETTY_PRINTER, {flush, Ref}).
 

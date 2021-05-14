@@ -37,7 +37,7 @@ loop(Parent, Conf) ->
     true -> stop();
     false ->
       Scheduler = Conf#conf.scheduler,
-      case cuter_scheduler_maxcover:request_input(Scheduler) of
+      case cuter_scheduler:request_input(Scheduler) of
         %% No input is or will be available in the future.
         empty ->
           stop();
@@ -51,7 +51,7 @@ loop(Parent, Conf) ->
             cuter_error ->
               stop();
             Info ->
-              ok = cuter_scheduler_maxcover:store_execution(Scheduler, Handle, Info),
+              ok = cuter_scheduler:store_execution(Scheduler, Handle, Info),
               loop(Parent, Conf)
           end
       end
@@ -79,7 +79,7 @@ got_stop_message(Parent) ->
 %% Concolic Execution
 %% ------------------------------------------------------------------
 
--spec concolic_execute(configuration(), cuter_scheduler_maxcover:handle(), cuter:input()) -> cuter_analyzer:info() | cuter_error.
+-spec concolic_execute(configuration(), cuter_scheduler:handle(), cuter:input()) -> cuter_analyzer:info() | cuter_error.
 concolic_execute(Conf, Handle, Input) ->
   cuter_pp:input(Handle, Input),
   BaseDir = Conf#conf.dataDir,
@@ -88,7 +88,7 @@ concolic_execute(Conf, Handle, Input) ->
   IServer = cuter_iserver:start(Conf#conf.mod, Conf#conf.func, Input, TraceDir, Conf#conf.depth, Conf#conf.codeServer),
   retrieve_info(IServer, Handle, DataDir).
 
--spec retrieve_info(pid(), cuter_scheduler_maxcover:handle(), file:filename()) -> cuter_analyzer:info() | cuter_error.
+-spec retrieve_info(pid(), cuter_scheduler:handle(), file:filename()) -> cuter_analyzer:info() | cuter_error.
 retrieve_info(IServer, Handle, DataDir) ->
   case wait_for_execution(IServer) of
     {ok, ExStatus, Logs} ->

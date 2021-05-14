@@ -1,26 +1,27 @@
 %% -*- erlang-indent-level: 2 -*-
 %%------------------------------------------------------------------------------
--module(cuter_scheduler_maxcover).
+-module(cuter_scheduler).
 -behaviour(gen_server).
 
 %% External API.
--export([start/3, stop/1, request_input/1, store_execution/3, set_depth/2,
+-export([start/4, stop/1, request_input/1, store_execution/3, set_depth/2,
          request_operation/1, solver_reply/2, add_seed_input/2, clear_erroneous_inputs/1]).
 %% Get logs API.
 -export([get_visited_tags/1, get_erroneous_inputs/1, get_solved_models/1, get_not_solved_models/1]).
 %% gen_server callbacks.
 -export([init/1, terminate/2, code_change/3, handle_info/2, handle_call/3, handle_cast/2]).
 
+-export_type([handle/0, operation_id/0]).
+
 -include("include/cuter_macros.hrl").
 
--export_type([handle/0, operationId/0]).
-
--type visited() :: boolean().
--type operationId() :: integer().
--type item() :: {visited(), operationId(), cuter_cerl:tagID(), handle()}.
--type inputs_queue_item() :: {operationId(), cuter:input()}.
+-type inputs_queue_item() :: {operation_id(), cuter:input()}.
 -type inputs_queue() :: queue:queue(inputs_queue_item()).
+%% A handle that uniquely identifies an execution.
 -type handle() :: nonempty_string().
+%% An ID that represents an operation in an execution log.
+%% We use the integer that represents the order of the operation in the log.
+-type operation_id() :: integer().
 
 -record(info, {
   dataDir   :: file:filename(),
@@ -41,7 +42,7 @@
 %%   Maximum number of branches to log per process.
 %% erroneous :: [cuter:input()]
 %%   A list of all the inputs that led to a runtime error.
-%% firstOperation :: dict:dict(handle(), operationId())
+%% firstOperation :: dict:dict(handle(), operation_id())
 %%   The first operation that will be considered to be reversed
 %%   for each concolic execution.
 %% infoTab :: execution_info_tab()
@@ -53,29 +54,35 @@
 %%   The path to the python script that will invoke the solver.
 %% running :: dict:dict(handle(), cuter:input())
 %%   The currently running concolic executions and their inputs.
-%%  tagsQueue :: cuter_minheap:minheap()
-%%   The heap with all the constraints/tags that await to be reversed.
-%%  visitedTags :: cuter_cerl:visited_tags()
+%% strategy :: atom()
+%%   The module that contains the strategy algorithm.
+%%   The behaviour is defined in src/strategies/cuter_strategy.erl.
+%% strategyState :: cuter_strategy:state()
+%%   The internal state for the current strategy.
+%% visitedTags :: cuter_cerl:visited_tags()
 %%   The visited tags of the concolic executions.
 %% solved :: non_neg_integer()
 %%   The number of solved models.
 %% not_solved :: non_neg_integer()
 %%   The number of not solved models.
 
+
 -record(st, {
   codeServer      :: pid(),
   depth           :: cuter:depth(),
   erroneous       :: [cuter:input()],
-  firstOperation  :: dict:dict(handle(), operationId()),
+  firstOperation  :: dict:dict(handle(), operation_id()),
   infoTab         :: execution_info_tab(),
   inputsQueue     :: inputs_queue(),
   python          :: file:filename(),
   running         :: dict:dict(handle(), cuter:input()),
-  solving         :: dict:dict(pid(), operationId()),
-  tagsQueue       :: cuter_minheap:minheap(),
+  solving         :: dict:dict(pid(), operation_id()),
+  strategy        :: atom(),
+  strategyState   :: cuter_minheap:minheap(),
   visitedTags     :: cuter_cerl:visited_tags(),
   solved = 0      :: non_neg_integer(),
-  not_solved = 0  :: non_neg_integer()}).
+  not_solved = 0  :: non_neg_integer()
+}).
 -type state() :: #st{}.
 
 %% ----------------------------------------------------------------------------
@@ -83,9 +90,9 @@
 %% ----------------------------------------------------------------------------
 
 %% Starts the Scheduler.
--spec start(file:filename(), integer(), pid()) -> pid().
-start(Python, DefaultDepth, CodeServer) ->
-  case gen_server:start_link(?MODULE, [Python, DefaultDepth, CodeServer], []) of
+-spec start(file:filename(), integer(), atom(), pid()) -> pid().
+start(Python, DefaultDepth, Strategy, CodeServer) ->
+  case gen_server:start_link(?MODULE, [Python, DefaultDepth, Strategy, CodeServer], []) of
     {ok, Scheduler} -> Scheduler;
     {error, R} -> exit({scheduler_start, R})
   end.
@@ -152,9 +159,9 @@ get_not_solved_models(Scheduler) ->
 %% init/1
 -type init_arg() :: [file:filename() | integer() | pid(), ...].
 -spec init(init_arg()) -> {ok, state()}.
-init([Python, DefaultDepth, CodeServer]) ->
-  _ = set_execution_counter(0),
-  TagsQueue = cuter_minheap:new(fun erlang:'<'/2),
+init([Python, DefaultDepth, Strategy, CodeServer]) ->
+  _ = init_execution_counter(),
+  StrategyState = Strategy:init(),
   {ok, #st{ codeServer = CodeServer
           , infoTab = dict:new()
           , python = Python
@@ -165,12 +172,13 @@ init([Python, DefaultDepth, CodeServer]) ->
           , erroneous = []
           , inputsQueue = queue:new()
           , solving = dict:new()
-          , tagsQueue = TagsQueue}}.
+          , strategyState = StrategyState
+	  , strategy = Strategy}}.
 
 %% terminate/2
 -spec terminate(any(), state()) -> ok.
-terminate(_Reason, #st{tagsQueue = TQ}) ->
-  cuter_minheap:delete(TQ),
+terminate(_Reason, _S=#st{strategy = Strategy, strategyState = ST}) ->
+  Strategy:clean_up(ST),
   %% TODO clear dirs
   ok.
 
@@ -208,13 +216,13 @@ handle_call({set_depth, NewDepth}, _From, State) ->
   {reply, ok, State#st{ depth = NewDepth }};
 
 %% Ask for a new input to execute.
-handle_call(request_input, _From, S=#st{running = Running, firstOperation = FirstOperation, inputsQueue = InputsQueue, tagsQueue = TagsQueue,
-                                        solving = Solving}) ->
+handle_call(request_input, _From, S=#st{running = Running, firstOperation = FirstOperation, inputsQueue = InputsQueue, strategyState = StrategyState,
+                                        solving = Solving, strategy = Strategy}) ->
   %% Check the queue for inputs that wait to be executed.
   case queue:out(InputsQueue) of
     %% Empty queue.
     {empty, InputsQueue} ->
-      case dict:is_empty(Running) andalso cuter_minheap:is_empty(TagsQueue) andalso dict:is_empty(Solving) of
+      case dict:is_empty(Running) andalso Strategy:no_paths(StrategyState) andalso dict:is_empty(Solving) of
         true  -> {reply, empty, S};     % There are no active executions, so the queues will remain empty.
         false -> {reply, try_later, S}  % There are active executions, so the queues may later have some entries.
       end;
@@ -227,8 +235,8 @@ handle_call(request_input, _From, S=#st{running = Running, firstOperation = Firs
   end;
 
 %% Store the information of a concolic execution.
-handle_call({store_execution, Handle, Info}, _From, S=#st{tagsQueue = TQ, infoTab = AllInfo, visitedTags = Vs, depth = Depth,
-                                                          running = Rn, firstOperation = FOp, erroneous = Err, codeServer = CServer}) ->
+handle_call({store_execution, Handle, Info}, _From, S=#st{infoTab = AllInfo, visitedTags = Vs, depth = Depth,
+                                                          running = Rn, firstOperation = FOp, erroneous = Err, codeServer = CServer, strategy = Strategy, strategyState = StrategyState}) ->
   %% Generate the information of the execution.
   I = #info{ dataDir = cuter_analyzer:dir_of_info(Info)
            , mappings = cuter_analyzer:mappings_of_info(Info)
@@ -241,13 +249,13 @@ handle_call({store_execution, Handle, Info}, _From, S=#st{tagsQueue = TQ, infoTa
   %% Update the queue.
   N = dict:fetch(Handle, FOp),
   Rvs = cuter_analyzer:reversible_of_info(Info),
-  Items = generate_queue_items(Rvs, Handle, Visited, N, Depth),
-  lists:foreach(fun(Item) -> cuter_minheap:insert(Item, TQ) end, Items),
+  NewStrategyState = Strategy:handle_execution(StrategyState, Rvs, Handle, Visited, N, Depth),
   {reply, ok, S#st{ infoTab = dict:store(Handle, I, AllInfo)
                   , visitedTags = Visited
                   , running = dict:erase(Handle, Rn)  % Remove the handle from the running set
                   , firstOperation = dict:erase(Handle, FOp)
-                  , erroneous = NErr}};
+                  , erroneous = NErr
+                  , strategyState = NewStrategyState}};
 
 %% Report the result of an SMT solving.
 handle_call({solver_reply, Reply}, {Who, _Ref}, S=#st{solving = Solving, inputsQueue = InputsQueue, solved = Slvd, not_solved = NSlvd}) ->
@@ -264,8 +272,9 @@ handle_call({solver_reply, Reply}, {Who, _Ref}, S=#st{solving = Solving, inputsQ
   end;
 
 %% Request an operation to reverse.
-handle_call(request_operation, {Who, _Ref}, S=#st{tagsQueue = TagsQueue, infoTab = Info, visitedTags = Visited, python = Python, solving = Solving}) ->
-  case locate_next_reversible(TagsQueue, Visited) of
+handle_call(request_operation, {Who, _Ref}, S=#st{strategyState = StrategyState, infoTab = Info, visitedTags = Visited,
+                                                  python = Python, solving = Solving, strategy = Strategy}) ->
+  case Strategy:locate_next_reversible(StrategyState, Visited) of
     %% The queue is empty.
     empty -> {reply, try_later, S};
     %% Located an operation to reverse.
@@ -306,67 +315,12 @@ handle_cast(_Msg, State) ->
   {noreply, State}.
 
 %% ----------------------------------------------------------------------------
-%% Functions for tags
-%% ----------------------------------------------------------------------------
-
-%% Each item in the heap is in the form {Visited, OperationId, TagId, Handle}
-%% where Visited     : if the tag has already been visited during an execution
-%%       OperationId : the cardinality of the constraint in the path vertex
-%%       TagId       : the Id of the tag that will be visited
-%%       Handle      : the unique identifier of the concolic execution
-
--spec locate_next_reversible(cuter_minheap:minheap(), cuter_cerl:visited_tags()) -> {ok, integer(), handle()} | empty.
-locate_next_reversible(Queue, Visited) ->
-  locate_next_reversible(Queue, Visited, cuter_minheap:heap_size(Queue)).
-
--spec locate_next_reversible(cuter_minheap:minheap(), cuter_cerl:visited_tags(), integer()) -> {ok, integer(), handle()} | empty.
-locate_next_reversible(Queue, Visited, M) ->
-  case cuter_minheap:take_min(Queue) of
-    {error, empty_heap} -> empty;
-    {true, N, _TagID, Handle} -> {ok, N, Handle};
-    {false, N, TagID, Handle} ->
-      %% Check if the tag is actually visited
-      case gb_sets:is_element(TagID, Visited) of
-        %% If it's not visited, then return it.
-        false -> {ok, N, Handle};
-        %% else, put it back in the heap.
-        true  ->
-          case M of
-            0 -> {ok, N, Handle};  % Have seen all the entries at least once (possible redundant)
-            _ ->
-              cuter_minheap:insert({true, N, TagID, Handle}, Queue),
-              locate_next_reversible(Queue, Visited, M-1)
-          end
-      end
-  end.
-
--spec generate_queue_items(cuter_analyzer:reversible_with_tags(), handle(), cuter_cerl:visited_tags(), operationId(), cuter:depth()) -> [item()].
-generate_queue_items(Rvs, Handle, Visited, N, Depth) ->
-  generate_queue_items(Rvs, Handle, Visited, N, Depth, []).
-
--spec generate_queue_items(cuter_analyzer:reversible_with_tags(), handle(), cuter_cerl:visited_tags(), operationId(), cuter:depth(), [item()]) -> [item()].
-generate_queue_items([], _Handle, _Visited, _N, _Depth, Acc) ->
-  lists:reverse(Acc);
-generate_queue_items([R|Rs], Handle, Visited, N, Depth, Acc) ->
-  case maybe_item(R, Handle, Visited, N) of
-    false -> generate_queue_items(Rs, Handle, Visited, N, Depth, Acc);
-    {ok, Item} -> generate_queue_items(Rs, Handle, Visited, N, Depth, [Item|Acc])
-  end.
-
--spec maybe_item(cuter_analyzer:reversible_with_tag(), handle(), cuter_cerl:visited_tags(), operationId()) -> {ok, item()} | false.
-maybe_item({Id, TagID}, Handle, Visited, N) ->
-  case Id < N of
-    true  -> false;
-    false -> {ok, {gb_sets:is_element(TagID, Visited), Id, TagID, Handle}}
-  end.
-
-%% ----------------------------------------------------------------------------
 %% Generate handles for executions
 %% ----------------------------------------------------------------------------
 
--spec set_execution_counter(integer()) -> integer() | undefined.
-set_execution_counter(N) ->
-  put(?EXECUTION_COUNTER_PREFIX, N).
+-spec init_execution_counter() -> integer() | undefined.
+init_execution_counter() ->
+  put(?EXECUTION_COUNTER_PREFIX, 0).
 
 -spec fresh_execution_handle() -> handle().
 fresh_execution_handle() ->

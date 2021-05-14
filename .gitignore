@@ -39,7 +39,9 @@ venv
 
 dev/*
 temp/
+erl_crash.dump
 
 # Logs
 
 smt.log.*
+error.log
