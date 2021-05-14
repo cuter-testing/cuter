@@ -102,7 +102,7 @@ def main():
   strOpts = ",".join(opts)
 
   # Run CutEr
-  cmd = "erl -noshell {} -eval \"cuter:run({}, {}, {}, {}, [{}])\" -s init stop".format(
+  cmd = "erl -noshell {} -eval \"cuter:run({}, {}, {}, {}, [{}]), halt()\"".format(
     paths, args.module, args.fun, args.args, args.depth, strOpts)
   sys.exit(subp.call(cmd, shell=True))
 
