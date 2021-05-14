@@ -4,6 +4,7 @@
 
 -export([get_result/1, get_mapping/1, get_traces/1, is_runtime_error/1, solving_stats/2,
          get_int_process/1, process_raw_execution_info/1, calculate_coverage/3,
+         report_solver_statistics/0,
          %% Constructor & accessors for #raw{}
          mk_raw_info/5, traces_of_raw_info/1, int_of_raw_info/1,
          %% Accessors for #info{}
@@ -11,6 +12,7 @@
          dir_of_info/1, pathVertex_of_info/1]).
 
 -include("include/cuter_macros.hrl").
+-include("include/cuter_metric_definitions.hrl").
 
 -export_type([execution_result/0, node_trace/0, path_vertex/0,
               raw_info/0, info/0, reversible_with_tags/0, reversible_with_tag/0]).
@@ -198,4 +200,17 @@ calculate_coverage(Feasible, Visited) ->
       NotVisited = gb_sets:size(Diff),
       Coverage = 100 * (All - NotVisited) / All,
       {All - NotVisited, All, Coverage}
+  end.
+
+%% ----------------------------------------------------------------------------
+%% Solver statistics.
+%% ----------------------------------------------------------------------------
+
+-spec report_solver_statistics() -> ok.
+report_solver_statistics() ->
+  case cuter_metrics:get_distribution(?SOLVER_STATUS_METRIC) of
+    enoent ->
+      ok;
+    {ok, Distribution} ->
+      cuter_pp:solver_status_distribution(Distribution)
   end.

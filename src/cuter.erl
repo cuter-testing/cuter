@@ -32,7 +32,8 @@
   seeds = []          :: [seed()],
   nPollers            :: pos_integer(),
   nSolvers            :: pos_integer(),
-  errors = []         :: erroneous_inputs()
+  errors = []         :: erroneous_inputs(),
+  reportMetrics       :: boolean()
 }).
 -type configuration() :: #conf{}.
 
@@ -50,6 +51,7 @@
 -define(Z3_TIMEOUT, z3_timeout).
 -define(STRATEGY, strategy).
 -define(DEBUG_SMT, debug_smt).
+-define(REPORT_METRICS, report_metrics).
 
 -type default_option() :: {?POLLERS_NO, ?ONE}
                         .
@@ -69,6 +71,7 @@
                 | {?Z3_TIMEOUT, pos_integer()}
                 | {?STRATEGY, atom()}
                 | ?DEBUG_SMT
+                | ?REPORT_METRICS
                 .
 
 %% ----------------------------------------------------------------------------
@@ -213,6 +216,11 @@ stop_and_report(Conf) ->
   %% Report coverage statistics.
   VisitedTags = cuter_scheduler:get_visited_tags(Conf#conf.scheduler),
   cuter_analyzer:calculate_coverage(Conf#conf.calculateCoverage, Conf#conf.codeServer, VisitedTags),
+  %% Report solver statistics.
+  case Conf#conf.reportMetrics of
+    false -> ok;
+    true -> cuter_analyzer:report_solver_statistics()
+  end,
   %% Report the erroneous inputs.
   ErroneousInputs = lists:reverse(Conf#conf.errors),
   ErroneousInputs1 = maybe_sort_errors(Conf#conf.sortErrors, ErroneousInputs),
@@ -268,7 +276,8 @@ initialize_app(Options) ->
        , scheduler = SchedPid
        , sortErrors = sort_errors(Options)
        , suppressUnsupported = suppress_unsupported_mfas(Options)
-       , whitelist = Whitelist }.
+       , whitelist = Whitelist
+       , reportMetrics = report_metrics(Options) }.
 
 add_seeds(Conf, Seeds) ->
   Conf#conf{ seeds = Seeds }.
@@ -378,3 +387,7 @@ suppress_unsupported_mfas(Options) ->
 -spec type_normalization([option()]) -> boolean().
 type_normalization(Options) ->
   not lists:member(?NO_TYPE_NORMALIZATION, Options).
+
+-spec report_metrics([option()]) -> boolean().
+report_metrics(Options) ->
+  lists:member(?REPORT_METRICS, Options).
