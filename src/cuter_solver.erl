@@ -51,7 +51,6 @@
 -type err_sync()  :: {stop_and_reply, {unexpected_event, any()}, {reply, from(), ok}, fsm_state()}.
 -type ok_reply()  :: {reply, from(), ok}.
 -type model()     :: #{cuter_symbolic:symbolic() => any()}.
--type simplifier_conf() :: bitstring().
 
 %% fsm state datatype
 -record(fsm_state, {
@@ -131,21 +130,16 @@ solve({Python, Mappings, File, N}=Args) ->
   FSM = start_fsm(Args),
   ok = exec(FSM, Python),
   ok = load_trace_file(FSM, {File, N}),
-  Setting = initial_setting(length(Mappings)),
-  query_solver(FSM, Mappings, Setting).
+  query_solver(FSM, Mappings).
 
--spec query_solver(pid(), mappings(), bitstring()) -> solver_result().
-query_solver(FSM, Mappings, CurrSetting) ->
+-spec query_solver(pid(), mappings()) -> solver_result().
+query_solver(FSM, Mappings) ->
   ok = add_axioms(FSM),
-  load_setting(CurrSetting, Mappings, FSM),
   case check_model(FSM) of
     'SAT' ->
       get_solution(FSM, Mappings);
-    'UNSAT' ->
-      stop_fsm(FSM, error);  %% RETURN ERROR
     _ ->
-      NextSetting = generate_next_setting(CurrSetting, length(Mappings)),
-      query_with_new_setting(NextSetting, FSM, Mappings)
+      stop_fsm(FSM, error)  %% RETURN ERROR
   end.
 
 -spec get_solution(pid(), mappings()) -> solver_result().
@@ -167,77 +161,10 @@ wait_for_fsm(FSM, Ret) ->
     Ret
   end.
 
--spec query_with_new_setting(error, pid(), mappings()) -> error
-                          ; ({ok, simplifier_conf()}, pid(), mappings()) -> solver_result().
-query_with_new_setting(error, FSM, _Mappings) ->
-  stop_fsm(FSM, error);
-query_with_new_setting({ok, Setting}, FSM, Mappings) ->
-  ok = reset_solver(FSM),
-  query_solver(FSM, Mappings, Setting).
-
 %% Lookup the value of a symbolic var in the generated model
 -spec lookup_in_model(cuter_symbolic:symbolic(), model()) -> any().
 lookup_in_model(Var, Model) ->
   maps:get(Var, Model).
-
-%% ----------------------------------------------------------------------------
-%% Manage the setting for the query.
-%% The setting is a bit string with length N, where N is the number of
-%% the symbolic parameters.
-%% If the i-th bit is 1 then we fix the i-th parameter to its existing value,
-%% else we leave it unbound.
-%% This technique is used to simplify the query to the solver.
-%% ----------------------------------------------------------------------------
-
-%% The initial setting.
-%% Do not fix any variable.
--spec initial_setting(non_neg_integer()) -> simplifier_conf().
-initial_setting(N) -> <<0:N>>.
-
-%% Generate the next setting if possible.
--spec generate_next_setting(simplifier_conf(), non_neg_integer()) -> {ok, simplifier_conf()} | error.
-generate_next_setting(Setting, N) ->
-  Next = next_setting(Setting, N),
-  case is_limit_setting(Next, N) of
-    true  -> error;
-    false -> {ok, Next}
-  end.
-
-%% Actually generate the next setting.
-%% The current strategy is to have at most one variable fixed,
-%% so we just apply a left bit shift to the setting.
--spec next_setting(simplifier_conf(), non_neg_integer()) -> simplifier_conf().
-next_setting(Setting, N) ->
-  case Setting of
-    <<0:N>> -> <<1:N>>;
-    <<X:N>> -> <<(X bsl 1):N >>
-  end.
-
-%% Check if we have generated all the available settings.
-%% For our current strategy, the end is when we have performed
-%% N left bit shifts, where N is the length of the bitstring.
--spec is_limit_setting(simplifier_conf(), non_neg_integer()) -> boolean().
-is_limit_setting(Setting, N) ->
-  Max = << <<1:1>> || _ <- lists:seq(1,N) >>,
-  Overflow = <<0:N>>,
-  case Setting of
-    Max -> true;
-    Overflow -> true;
-    _ -> false
-  end.
-
-%% Load the current setting to the solver.
--spec load_setting(simplifier_conf(), mappings(), pid()) -> ok.
-load_setting(<<>>, [], _FSM) ->
-  ok;
-load_setting(<<F:1, Rest/bitstring>>, [M|Ms], FSM) ->
-  case F of
-    0 ->
-      load_setting(Rest, Ms, FSM);
-    1 ->
-      fix_variable(FSM, M),
-      load_setting(Rest, Ms, FSM)
-  end.
 
 %% ----------------------------------------------------------------------------
 %% API to interact with the FSM
@@ -267,11 +194,6 @@ load_trace_file(Pid, FileInfo) ->
 add_axioms(Pid) ->
   gen_statem:call(Pid, add_axioms).
 
-%% Fix a variable to a specific value
--spec fix_variable(pid(), cuter_symbolic:mapping()) -> ok.
-fix_variable(Pid, Mapping) ->
-  gen_statem:call(Pid, {fix_variable, Mapping}).
-
 %% Check the model for satisfiability
 -spec check_model(pid()) -> solver_status().
 check_model(Pid) ->
@@ -281,11 +203,6 @@ check_model(Pid) ->
 -spec get_model(pid()) -> mappings().
 get_model(Pid) ->
   gen_statem:call(Pid, get_model, 500000).
-
-%% Remove all the axioms from the solver
--spec reset_solver(pid()) -> ok.
-reset_solver(Pid) ->
-  gen_statem:call(Pid, reset_solver).
 
 %% Stop the FSM
 -spec stop_exec(pid()) -> ok.
@@ -456,8 +373,7 @@ trace_loaded(info, Msg, Data) ->
 %%
 
 -spec axioms_added(cast, any(), fsm_state()) -> err_async();
-                  ({call, from()}, any(), fsm_state()) -> {next_state, solving, fsm_state()} |
-                                                          {next_state, axioms_added, fsm_state(), [ok_reply()]} | err_sync();
+                  ({call, from()}, any(), fsm_state()) -> {next_state, solving, fsm_state()} | err_sync();
                   (info, any(), fsm_state()) -> {next_state, state(), fsm_state()} | err_async().
 
 axioms_added(cast, Event, Data) ->
@@ -468,12 +384,6 @@ axioms_added({call, From}, check_model, Data=#fsm_state{port = Port}) ->
   cuter_pp:send_cmd(axioms_added, Cmd, "Check the model"),
   Port ! {self(), {command, Cmd}},
   {next_state, solving, Data#fsm_state{from = From}};
-%% Fix a symbolic variable to a specific value
-axioms_added({call, From}, {fix_variable, Mapping}, Data=#fsm_state{port = Port}) ->
-  Cmd = cuter_serial:solver_command(fix_variable, Mapping),
-  cuter_pp:send_cmd(axioms_added, Mapping, "Fix a variable"),
-  Port ! {self(), {command, Cmd}},
-  {next_state, axioms_added, Data, [{reply, From, ok}]};
 axioms_added({call, From}, Event, Data) ->
   {stop_and_reply, {unexpected_event, Event}, {reply, From, ok}, Data};
 axioms_added(info, Msg, Data) ->
@@ -489,12 +399,6 @@ axioms_added(info, Msg, Data) ->
 
 failed(cast, Event, Data) ->
   {stop, {unexpected_event, Event}, Data};
-%% Reset the solver by unloading all the axioms
-failed({call, From}, reset_solver, Data=#fsm_state{port = Port}) ->
-  Cmd = cuter_serial:solver_command(reset_solver),
-  cuter_pp:send_cmd(failed, Cmd, "Reset the solver"),
-  Port ! {self(), {command, Cmd}},
-  {next_state, trace_loaded, Data, [{reply, From, ok}]};
 %% Terminate the solver
 failed({call, From}, stop_exec, Data=#fsm_state{port = Port}) ->
   Cmd = cuter_serial:solver_command(stop),
