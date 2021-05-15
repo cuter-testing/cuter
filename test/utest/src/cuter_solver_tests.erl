@@ -84,12 +84,14 @@ solve_simple_test_() ->
 -spec setup() -> {file:name(), file:name(), string()}.
 setup() ->
   put('__conc_depth', 100),
+  ok = cuter_metrics:start(),
   Dir = cuter_tests_lib:setup_dir(),
   Fname = filename:absname("logfile", Dir),
   Python = cuter_tests_lib:get_python_command(),
   {Dir, Fname, Python}.
 
 cleanup({Dir, _Fname, _Python}) ->
+  ok = cuter_metrics:stop(),
   cuter_lib:clear_and_delete_dir(Dir).
 
 -spec create_logfile(file:name(), [any()], fun((file:io_device(), [cuter_symbolic:symbolic()]) -> ok)) -> [cuter_symbolic:mapping()].
