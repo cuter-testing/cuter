@@ -1,5 +1,7 @@
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import getopt
 import json
 from typing import Any, Dict, Text
 import struct
@@ -10,14 +12,15 @@ import cuter_common as cc
 import cuter_io as cio
 from cuter_proto_log_entry_pb2 import LogEntry
 
-with_tags = True if "tags" in sys.argv else False
+# Global options.
+with_tags = False
 
 scnt = 0
 symbs: Dict[Any, Text] = {}
 
 def pprint(ls, tag):
-  if with_tags:
-    print("%s (%s)" % (ls[0], tag))
+  if with_tags and tag:
+    print("%s [%s]" % (ls[0], tag))
   else:
     print(ls[0])
   for l in ls[1:]:
@@ -33,12 +36,12 @@ def pretty(d):
     if cc.is_symb(d):
       s = cc.get_symb(d)
       if s in symbs:
-        return symbs[s] + "("+s+")"
+        return symbs[s]
       else:
         scnt += 1
         x = "x%s" % scnt
         symbs[s] = x
-        return x + "("+s+")"
+        return x
     # Type
     if cc.is_type_message(d):
       return pretty_type(d)
@@ -102,18 +105,18 @@ def print_cmd(entry, rev):
   tag = cc.get_tag(entry)
   # Symbolic parameters
   if tp == LogEntry.OP_PARAMS:
-      pprint([
-          "PARAMS",
-          pretty_list(entry.arguments)
-      ], tag)
+    pprint([
+      "PARAMS",
+      pretty_list(entry.arguments)
+    ], tag)
   # Symbolic parameters
   elif tp == LogEntry.OP_SPEC:
-      msg = ["SPEC"]
-      for sp in cc.get_spec_clauses(cc.get_spec(entry)):
-          pms = cc.get_parameters_from_complete_funsig(sp)
-          ret = cc.get_rettype_from_funsig(sp)
-          msg.append("(%s) -> %s" % (pretty_list(pms), pretty(ret)))
-      pprint(msg, tag)
+    msg = ["SPEC"]
+    for sp in cc.get_spec_clauses(cc.get_spec(entry)):
+      pms = cc.get_parameters_from_complete_funsig(sp)
+      ret = cc.get_rettype_from_funsig(sp)
+      msg.append("(%s) -> %s" % (pretty_list(pms), pretty(ret)))
+    pprint(msg, tag)
   # True guard constraint
   elif tp == LogEntry.OP_GUARD_TRUE:
     xs = entry.arguments
@@ -450,17 +453,38 @@ def print_cmd(entry, rev):
       "EVALUATED CLOSURE",
       "%s = apply(%s, [ %s ]) " % (pretty(xs[0]), pretty(xs[1]), pretty_list(xs[2:]))
     ], tag)
+  elif tp == LogEntry.OP_LT_FLOAT:
+    xs = entry.arguments
+    pprint([
+      "LT FLOAT",
+      "%s = %s < %s " % (pretty(xs[0]), pretty(xs[1]), pretty(xs[2]))
+    ], tag)
   else:
     print("UNKNOWN OPCODE", tp)
     xs = entry.arguments
     print(xs)
     sys.exit(1)
 
+def usage():
+    print("Usage: cuter_print.py TraceFile [ OPTIONS ]")
+    print("PARAMETERS")
+    print("	TraceFile		The trace file of an execution.")
+    print("OPTIONS")
+    print("	-t    			Shows the tag of the log entry.")
+    print("	--help			Display this information.")
+
 if __name__ == "__main__":
-  if "tty" in sys.argv:
-    sys.argv.remove("tty")
+  shortOpts = "t"
+  longOpts = ["help"]
+  optlist, remainder = getopt.gnu_getopt(sys.argv[1:], shortOpts, longOpts)
+  for opt, arg in optlist:
+    if opt == "--help":
+      usage()
+      sys.exit(0)
+    elif opt == "-t":
+      with_tags = True
   cglb.init()
-  fname = sys.argv[1]
+  fname = remainder[0]
   n = 0
   for entry, rev in cio.JsonReader(fname, 100000000):
     n += 1
