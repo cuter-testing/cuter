@@ -11,8 +11,7 @@
 
 -include_lib("eunit/include/eunit.hrl").
 -include("include/eunit_config.hrl").
-
--define(Pmatch, false).
+-include_lib("include/cuter_macros.hrl").
 
 -spec test() -> 'ok' | {'error', term()}.  %% This should be provided by EUnit
 
@@ -40,7 +39,10 @@ eval_cerl_test_() ->
   [{"Basic Cerl Evaluation: " ++ C, {setup, Setup(I), Cleanup, Inst}} || {C, I} <- Is].
 
 eval_cerl({F, As, Result, Dir}) ->
-  CodeServer = cuter_codeserver:start(self(), ?Pmatch, cuter_mock:empty_whitelist(), true),
+  cuter_config:store(?DISABLE_PMATCH, false),
+  cuter_config:store(?DISABLE_TYPE_NORMALIZATION, false),
+  cuter_config:store(?WHITELISTED_MFAS, cuter_mock:empty_whitelist()),
+  CodeServer = cuter_codeserver:start(self()),
   Server = cuter_iserver:start(?MODULE, F, As, Dir, ?TRACE_DEPTH, CodeServer),
   R = execution_result(Server),
   ok = wait_for_iserver(Server),
@@ -61,12 +63,15 @@ wait_for_iserver(Server) ->
 
 setup({F, As, Result}) ->
   process_flag(trap_exit, true),
-  _ = cuter_pp:start(cuter_pp:default_reporting_level()),
+  cuter_config:start(),
+  cuter_config:store(?VERBOSITY_LEVEL, cuter_pp:default_reporting_level()),
+  _ = cuter_pp:start(),
   Dir = cuter_tests_lib:setup_dir(),
   {F, As, Result, Dir}.
 
 cleanup({_F, _As, _Result, Dir}) ->
   cuter_pp:stop(),
+  cuter_config:stop(),
   cuter_lib:clear_and_delete_dir(Dir).
 
 %% --------------------------------------------------------

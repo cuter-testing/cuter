@@ -4,6 +4,7 @@
 
 -include_lib("eunit/include/eunit.hrl").
 -include("include/eunit_config.hrl").
+-include_lib("include/cuter_macros.hrl").
 
 -spec test() -> 'ok' | {'error', term()}.  %% This should be provided by EUnit
 
@@ -84,6 +85,8 @@ solve_simple_test_() ->
 -spec setup() -> {file:name(), file:name(), string()}.
 setup() ->
   put('__conc_depth', 100),
+  cuter_config:start(),
+  cuter_config:store(?DEBUG_SOLVER_FSM, false),
   ok = cuter_metrics:start(),
   Dir = cuter_tests_lib:setup_dir(),
   Fname = filename:absname("logfile", Dir),
@@ -92,6 +95,7 @@ setup() ->
 
 cleanup({Dir, _Fname, _Python}) ->
   ok = cuter_metrics:stop(),
+  cuter_config:stop(),
   cuter_lib:clear_and_delete_dir(Dir).
 
 -spec create_logfile(file:name(), [any()], fun((file:io_device(), [cuter_symbolic:symbolic()]) -> ok)) -> [cuter_symbolic:mapping()].

@@ -2,7 +2,7 @@
 %%------------------------------------------------------------------------------
 -module(cuter_types).
 
--export([parse_spec/4, retrieve_types/1, retrieve_specs/1, find_spec/2,
+-export([parse_spec/3, retrieve_types/1, retrieve_specs/1, find_spec/2,
 	 get_kind/1, find_remote_deps_of_type/2, find_remote_deps_of_spec/2]).
 
 -export([params_of_t_function_det/1, ret_of_t_function/1, atom_of_t_atom_lit/1,
@@ -910,16 +910,16 @@ insert_userdef_and_update_seen(Seen, IsTopLevel, NormalizedType, Deps) ->
 %% Traverse a spec and substitute the local and remote types.
 %% ----------------------------------------------------------------------------
 
--spec parse_spec(mfa(), stored_spec_value(), many_stored_types(), boolean()) -> erl_spec().
-parse_spec(Mfa, Spec, ManyStoredTypes, NormalizeTypes) ->
+-spec parse_spec(mfa(), stored_spec_value(), many_stored_types()) -> erl_spec().
+parse_spec(Mfa, Spec, ManyStoredTypes) ->
   Conf = mk_conf(Mfa, ManyStoredTypes),
   {ParsedSpec, Deps} = parse_spec_clauses(Spec, Conf, []),
   true = cleanup_conf(Conf),
   %% TODO Maybe also normalize the parsed spec.
-  case NormalizeTypes of
-    false ->
+  case cuter_config:fetch(?DISABLE_TYPE_NORMALIZATION) of
+    {ok, true} ->
       {ParsedSpec, Deps};
-    true ->
+    _ ->
       NormalizedDeps = normalize_type_deps(Deps),
       {ParsedSpec, NormalizedDeps}
   end.

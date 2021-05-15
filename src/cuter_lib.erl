@@ -87,7 +87,7 @@ logfile_name(Dir, Pid) ->
   F = erlang:pid_to_list(Pid) -- "<>",
   filename:absname("proc-" ++ F, Dir).
 
-%% Delete the whole subfolder/file structure of a specific directory
+%% Delete the whole subfolder/file structure of a specific directory.
 -spec clear_and_delete_dir(file:filename_all()) -> ok.
 clear_and_delete_dir(D) ->
   clear_and_delete_dir(D, none).
@@ -100,7 +100,7 @@ clear_and_delete_dir(D, EF) ->
   cuter_pp:delete_file(D, true),
   case filelib:is_regular(D) of
     true ->
-      _ = delete_file(D),
+      _ = file:delete(D),
       ok;
     false ->
       case file:del_dir(D) of
@@ -113,12 +113,6 @@ clear_and_delete_dir(D, EF) ->
         _ -> ok
       end
   end.
-
--ifdef(DELETE_TRACE).
-delete_file(F) -> file:delete(F).
--else.
-delete_file(_) -> ok.
--endif.
 
 %% List the absolute names of the files/folders in a directory in ascending order
 -spec list_dir(file:filename_all()) -> [file:filename()].

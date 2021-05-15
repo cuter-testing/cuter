@@ -13,66 +13,22 @@
 -type input() :: [any()].
 -type depth() :: pos_integer().
 -type erroneous_inputs() :: [{mfa(), [input()]}].
--type seed()  :: {module(), atom(), input(), depth()}.
+-type seed()    :: {module(), atom(), input(), depth()}.
+-type options() :: proplists:proplist().  %% [debug_options() | runtime_options()].
 
 -define(ONE, 1).
 -define(TWO, 2).
 -define(DEFAULT_DEPTH, 25).
 -define(DEFAULT_STRATEGY, cuter_bfs_strategy).
 
-%% The configuration of the tool.
--record(conf, {
-  codeServer          :: pid(),
-  dataDir             :: file:filename(),
-  scheduler           :: pid(),
-  calculateCoverage   :: boolean(),
-  sortErrors          :: boolean(),
-  whitelist           :: cuter_mock:whitelist(),
-  suppressUnsupported :: boolean(),
-  seeds = []          :: [seed()],
-  nPollers            :: pos_integer(),
-  nSolvers            :: pos_integer(),
-  errors = []         :: erroneous_inputs(),
-  reportMetrics       :: boolean()
+%% The state of the tool.
+-record(st, {
+  codeServer  :: pid(),
+  scheduler   :: pid(),
+  seeds = []  :: [seed()],
+  errors = [] :: erroneous_inputs()
 }).
--type configuration() :: #conf{}.
-
-%% Runtime Options.
--define(FULLY_VERBOSE_EXEC_INFO, fully_verbose_execution_info).
--define(VERBOSE_EXEC_INFO, verbose_execution_info).
--define(DISABLE_PMATCH, disable_pmatch).
--define(POLLERS_NO, number_of_pollers).
--define(SOLVERS_NO, number_of_solvers).
--define(WHITELISTED_MFAS, whitelist).
--define(CALCULATE_COVERAGE, coverage).
--define(SORTED_ERRORS, sorted_errors).
--define(SUPPRESS_UNSUPPORTED_MFAS, suppress_unsupported).
--define(NO_TYPE_NORMALIZATION, no_type_normalization).
--define(Z3_TIMEOUT, z3_timeout).
--define(STRATEGY, strategy).
--define(DEBUG_SMT, debug_smt).
--define(REPORT_METRICS, report_metrics).
-
--type default_option() :: {?POLLERS_NO, ?ONE}
-                        .
-
--type option() :: default_option()
-                | {basedir, file:filename()}
-                | {?POLLERS_NO, pos_integer()}
-                | {?SOLVERS_NO, pos_integer()}
-                | ?FULLY_VERBOSE_EXEC_INFO
-                | ?VERBOSE_EXEC_INFO
-                | ?DISABLE_PMATCH
-                | {?WHITELISTED_MFAS, file:filename()}
-                | ?CALCULATE_COVERAGE
-                | ?SORTED_ERRORS
-                | ?SUPPRESS_UNSUPPORTED_MFAS
-                | ?NO_TYPE_NORMALIZATION
-                | {?Z3_TIMEOUT, pos_integer()}
-                | {?STRATEGY, atom()}
-                | ?DEBUG_SMT
-                | ?REPORT_METRICS
-                .
+-type state() :: #st{}.
 
 %% ----------------------------------------------------------------------------
 %% Public API
@@ -84,30 +40,35 @@ run(M, F, As) ->
 
 -spec run(mod(), atom(), input(), depth()) -> erroneous_inputs().
 run(M, F, As, Depth) ->
-  run(M, F, As, Depth, default_options()).
+  run(M, F, As, Depth, []).
 
--spec run(mod(), atom(), input(), depth(), [option()]) -> erroneous_inputs().
+-spec run(mod(), atom(), input(), depth(), options()) -> erroneous_inputs().
 run(M, F, As, Depth, Options) ->
   Seeds = [{M, F, As, Depth}],
   run(Seeds, Options).
 
--spec run([seed()], [option()]) -> erroneous_inputs().
+-spec run([seed()], options()) -> erroneous_inputs().
 %% Runs CutEr on multiple units.
 run(Seeds, Options) ->
-  Conf = initialize_app(Options),
-  ConfWithSeeds = add_seeds(Conf, Seeds),
+  State = initialize_app(Options),
+  StateWithSeeds = add_seeds(State, Seeds),
   Mfas = [{M, F, length(As)} || {M, F, As, _} <- Seeds],
   case pre_run_checks(Mfas) of
     error ->
-      stop(ConfWithSeeds);
+      stop(StateWithSeeds);
     ok ->
-      case preprocess(ConfWithSeeds, Mfas) of
-        false -> stop(ConfWithSeeds);
-        true  -> start(ConfWithSeeds)
+      case preprocess(StateWithSeeds, Mfas) of
+        ok ->
+          start(StateWithSeeds);
+        error ->
+          stop(StateWithSeeds)
       end
   end.
 
--spec run_from_file(file:name(), [option()]) -> erroneous_inputs().
+add_seeds(State, Seeds) ->
+  State#st{ seeds = Seeds }.
+
+-spec run_from_file(file:name(), options()) -> erroneous_inputs().
 %% Loads the seeds from a file and runs CutEr on all of them.
 %% The terms in the file need to be in form:
 %%   {M :: module(), F :: atom(), SeedInput :: [input()], Depth :: pos_integer()}.
@@ -146,43 +107,42 @@ pre_run_checks([{M, F, A}|Rest]) ->
 %% Preprocessing
 %% ----------------------------------------------------------------------------
 
--spec preprocess(configuration(), [mfa()]) -> boolean().
-preprocess(Conf, Mfas) ->
-  preprocess_coverage(Conf, Mfas, Conf#conf.calculateCoverage).
-
--spec preprocess_coverage(configuration(), [mfa()], boolean()) -> boolean().
-preprocess_coverage(_Conf, _Mfas, false) -> true;
-preprocess_coverage(Conf, Mfas, true) ->
-  ok =:= cuter_codeserver:calculate_callgraph(Conf#conf.codeServer, Mfas).
+-spec preprocess(state(), [mfa()]) -> ok | error.
+preprocess(State, Mfas) ->
+  case cuter_config:fetch(?CALCULATE_COVERAGE) of
+    {ok, true} ->
+      cuter_codeserver:calculate_callgraph(State#st.codeServer, Mfas);
+    _ ->
+      ok
+  end.
 
 %% ----------------------------------------------------------------------------
 %% Manage the concolic executions
 %% ----------------------------------------------------------------------------
 
--spec start(configuration()) -> erroneous_inputs().
-start(Conf) ->
-  start(Conf#conf.seeds, Conf).
+-spec start(state()) -> erroneous_inputs().
+start(State) ->
+  start(State#st.seeds, State).
 
--spec start([seed()], configuration()) -> erroneous_inputs().
-start([], Conf) ->
-  stop_and_report(Conf);
-start([{M, F, As, Depth}|Seeds], Conf) ->
-  CodeServer = Conf#conf.codeServer,
-  Scheduler = Conf#conf.scheduler,
-  Dir = Conf#conf.dataDir,
-  N_Pollers = Conf#conf.nPollers,
-  N_Solvers = Conf#conf.nSolvers,
-  Errors = start_one(M, F, As, Depth, CodeServer, Scheduler, Dir, N_Pollers, N_Solvers),
-  NewErrors = [{{M, F, length(As)}, Errors}|Conf#conf.errors],
-  Conf1 = Conf#conf{errors = NewErrors},
+-spec start([seed()], state()) -> erroneous_inputs().
+start([], State) ->
+  stop_and_report(State);
+start([{M, F, As, Depth}|Seeds], State) ->
+  CodeServer = State#st.codeServer,
+  Scheduler = State#st.scheduler,
+  Errors = start_one(M, F, As, Depth, CodeServer, Scheduler),
+  NewErrors = [{{M, F, length(As)}, Errors}|State#st.errors],
   io:nl(),
-  start(Seeds, Conf1).
+  start(Seeds, State#st{errors = NewErrors}).
 
-start_one(M, F, As, Depth, CodeServer, Scheduler, Dir, N_Pollers, N_Solvers) ->
+start_one(M, F, As, Depth, CodeServer, Scheduler) ->
   cuter_pp:mfa({M, F, length(As)}),
   ok = cuter_scheduler:add_seed_input(Scheduler, As),
   ok = cuter_scheduler:set_depth(Scheduler, Depth),
+  {ok, N_Pollers} = cuter_config:fetch(?NUM_POLLERS),
+  {ok, Dir} = cuter_config:fetch(?WORKING_DIR),
   Pollers = [cuter_poller:start(CodeServer, Scheduler, M, F, Dir, Depth) || _ <- lists:seq(1, N_Pollers)],
+  {ok, N_Solvers} = cuter_config:fetch(?NUM_SOLVERS),
   Solvers = [cuter_solver:start(Scheduler) || _ <- lists:seq(1, N_Solvers)],
   ok = wait_for_processes(Pollers, fun cuter_poller:send_stop_message/1),
   LiveSolvers = lists:filter(fun is_process_alive/1, Solvers),
@@ -207,80 +167,80 @@ wait_for_processes(Procs, StopFn) ->
       wait_for_processes(Rest, StopFn)
   end.
 
--spec stop_and_report(configuration()) -> erroneous_inputs().
-stop_and_report(Conf) ->
+-spec stop_and_report(state()) -> erroneous_inputs().
+stop_and_report(State) ->
   %% Report solver statistics.
-  SolvedModels = cuter_scheduler:get_solved_models(Conf#conf.scheduler),
-  NotSolvedModels = cuter_scheduler:get_not_solved_models(Conf#conf.scheduler),
+  SolvedModels = cuter_scheduler:get_solved_models(State#st.scheduler),
+  NotSolvedModels = cuter_scheduler:get_not_solved_models(State#st.scheduler),
   cuter_analyzer:solving_stats(SolvedModels, NotSolvedModels),
   %% Report coverage statistics.
-  VisitedTags = cuter_scheduler:get_visited_tags(Conf#conf.scheduler),
-  cuter_analyzer:calculate_coverage(Conf#conf.calculateCoverage, Conf#conf.codeServer, VisitedTags),
+  VisitedTags = cuter_scheduler:get_visited_tags(State#st.scheduler),
+  case cuter_config:fetch(?CALCULATE_COVERAGE) of
+    {ok, true} ->
+      cuter_analyzer:calculate_coverage(State#st.codeServer, VisitedTags);
+    _ ->
+      ok
+  end,
   %% Report solver statistics.
-  case Conf#conf.reportMetrics of
-    false -> ok;
-    true -> cuter_analyzer:report_metrics()
+  case cuter_config:fetch(?REPORT_METRICS) of
+    {ok, true} ->
+      cuter_analyzer:report_metrics();
+    _ ->
+      ok
   end,
   %% Report the erroneous inputs.
-  ErroneousInputs = lists:reverse(Conf#conf.errors),
-  ErroneousInputs1 = maybe_sort_errors(Conf#conf.sortErrors, ErroneousInputs),
-  cuter_pp:errors_found(ErroneousInputs1),
+  ErroneousInputs = maybe_sort_errors(lists:reverse(State#st.errors)),
+  cuter_pp:errors_found(ErroneousInputs),
   %% Report the code logs.
-  CodeLogs = cuter_codeserver:get_logs(Conf#conf.codeServer),
-  cuter_pp:code_logs(CodeLogs, Conf#conf.whitelist, Conf#conf.suppressUnsupported),
-  stop(Conf, ErroneousInputs1).
+  CodeLogs = cuter_codeserver:get_logs(State#st.codeServer),
+  cuter_pp:code_logs(CodeLogs),
+  stop(State, ErroneousInputs).
 
--spec maybe_sort_errors(boolean(), erroneous_inputs()) -> erroneous_inputs().
-maybe_sort_errors(false, ErroneousInputs) ->
-  ErroneousInputs;
-maybe_sort_errors(true, ErroneousInputs) ->
-  [{Mfa, lists:sort(Errors)} || {Mfa, Errors} <- ErroneousInputs].
+maybe_sort_errors(ErroneousInputs) ->
+  case cuter_config:fetch(?SORTED_ERRORS) of
+    {ok, true} ->
+      [{Mfa, lists:sort(Errors)} || {Mfa, Errors} <- ErroneousInputs];
+    _ ->
+      ErroneousInputs
+  end.
 
--spec stop(configuration()) -> erroneous_inputs().
-stop(Conf) ->
-  stop(Conf, []).
+-spec stop(state()) -> erroneous_inputs().
+stop(State) ->
+  stop(State, []).
 
--spec stop(configuration(), erroneous_inputs()) -> erroneous_inputs().
-stop(Conf, ErroneousInputs) ->
-  cuter_scheduler:stop(Conf#conf.scheduler),
-  cuter_codeserver:stop(Conf#conf.codeServer),
+-spec stop(state(), erroneous_inputs()) -> erroneous_inputs().
+stop(State, ErroneousInputs) ->
+  cuter_scheduler:stop(State#st.scheduler),
+  cuter_codeserver:stop(State#st.codeServer),
   cuter_pp:stop(),
   cuter_metrics:stop(),
-  cuter_lib:clear_and_delete_dir(Conf#conf.dataDir),
+  case cuter_config:fetch(?DEBUG_KEEP_TRACES) of
+    {ok, true} ->
+      ok;
+    _ ->
+      {ok, Dir} = cuter_config:fetch(?WORKING_DIR),
+      cuter_lib:clear_and_delete_dir(Dir)
+  end,
+  cuter_config:stop(),
   ErroneousInputs.
 
 %% ----------------------------------------------------------------------------
 %% Initializations
 %% ----------------------------------------------------------------------------
 
--spec initialize_app([option()]) -> configuration().
+-spec initialize_app(options()) -> state().
 initialize_app(Options) ->
-  BaseDir = set_basedir(Options),
   process_flag(trap_exit, true),
   error_logger:tty(false),  %% disable error_logger
+  ok = cuter_config:start(),
   ok = cuter_metrics:start(),
-  ok = cuter_pp:start(reporting_level(Options)),
   ok = define_metrics(),
-  WithPmatch = with_pmatch(Options),
-  SolverBackend = get_solver_backend(Options),
-  Whitelist = get_whitelist(Options),
-  NormalizeTypes = type_normalization(Options),
-  Strategy = get_strategy(Options),
-  CodeServer = cuter_codeserver:start(self(), WithPmatch, Whitelist, NormalizeTypes),
-  SchedPid = cuter_scheduler:start(SolverBackend, ?DEFAULT_DEPTH, Strategy, CodeServer),
-  #conf{ calculateCoverage = calculate_coverage(Options)
-       , codeServer = CodeServer
-       , dataDir = cuter_lib:get_tmp_dir(BaseDir)
-       , nPollers = number_of_pollers(Options)
-       , nSolvers = number_of_solvers(Options)
-       , scheduler = SchedPid
-       , sortErrors = sort_errors(Options)
-       , suppressUnsupported = suppress_unsupported_mfas(Options)
-       , whitelist = Whitelist
-       , reportMetrics = report_metrics(Options) }.
-
-add_seeds(Conf, Seeds) ->
-  Conf#conf{ seeds = Seeds }.
+  enable_debug_config(Options),
+  enable_runtime_config(Options),
+  ok = cuter_pp:start(),
+  CodeServer = cuter_codeserver:start(self()),
+  SchedPid = cuter_scheduler:start(?DEFAULT_DEPTH, CodeServer),
+  #st{ codeServer = CodeServer, scheduler = SchedPid }.
 
 define_metrics() ->
   define_distribution_metrics().
@@ -288,100 +248,56 @@ define_metrics() ->
 define_distribution_metrics() ->
   lists:foreach(fun cuter_metrics:define_distribution_metric/1, ?DISTRIBUTION_METRICS).
 
-%% ----------------------------------------------------------------------------
-%% Set app parameters
-%% ----------------------------------------------------------------------------
+-spec enable_debug_config(options()) -> ok.
+enable_debug_config(Options) ->
+  cuter_config:store(?DEBUG_KEEP_TRACES, proplists:get_bool(?DEBUG_KEEP_TRACES, Options)),
+  cuter_config:store(?DEBUG_SMT, proplists:get_bool(?DEBUG_SMT, Options)),
+  cuter_config:store(?DEBUG_SOLVER_FSM, proplists:get_bool(?DEBUG_SOLVER_FSM, Options)).
 
--spec default_options() -> [default_option(), ...].
-default_options() ->
-  [{?POLLERS_NO, 1}].
+-spec enable_runtime_config(options()) -> ok.
+enable_runtime_config(Options) ->
+  {ok, CWD} = file:get_cwd(),
+  cuter_config:store(?WORKING_DIR,
+                     cuter_lib:get_tmp_dir(proplists:get_value(?WORKING_DIR, Options, CWD))),
+  cuter_config:store(?VERBOSITY_LEVEL, verbosity_level(Options)),
+  cuter_config:store(?Z3_TIMEOUT, proplists:get_value(?Z3_TIMEOUT, Options, ?TWO)),
+  cuter_config:store(?STRATEGY,
+                     proplists:get_value(?STRATEGY, Options, ?DEFAULT_STRATEGY)),
+  cuter_config:store(?REPORT_METRICS, proplists:get_bool(?REPORT_METRICS, Options)),
+  cuter_config:store(?CALCULATE_COVERAGE, proplists:get_bool(?CALCULATE_COVERAGE, Options)),
+  cuter_config:store(?DISABLE_PMATCH, proplists:get_bool(?DISABLE_PMATCH, Options)),
+  cuter_config:store(?SUPPRESS_UNSUPPORTED_MFAS, 
+                     proplists:get_bool(?SUPPRESS_UNSUPPORTED_MFAS, Options)),
+  cuter_config:store(?DISABLE_TYPE_NORMALIZATION, 
+                     proplists:get_bool(?DISABLE_TYPE_NORMALIZATION, Options)),
+  cuter_config:store(?SORTED_ERRORS, proplists:get_bool(?SORTED_ERRORS, Options)),
+  cuter_config:store(?WHITELISTED_MFAS, whitelisted_mfas(Options)),
+  cuter_config:store(?NUM_SOLVERS, proplists:get_value(?NUM_SOLVERS, Options, ?ONE)),
+  cuter_config:store(?NUM_POLLERS, proplists:get_value(?NUM_POLLERS, Options, ?ONE)).
 
--spec set_basedir([option()]) -> file:filename().
-set_basedir([]) -> {ok, CWD} = file:get_cwd(), CWD;
-set_basedir([{basedir, BaseDir}|_]) -> BaseDir;
-set_basedir([_|Rest]) -> set_basedir(Rest).
-
--spec number_of_pollers([option()]) -> pos_integer().
-number_of_pollers([]) -> ?ONE;
-number_of_pollers([{?POLLERS_NO, N}|_Rest]) -> N;
-number_of_pollers([_|Rest]) -> number_of_pollers(Rest).
-
--spec number_of_solvers([option()]) -> pos_integer().
-number_of_solvers([]) -> ?ONE;
-number_of_solvers([{?SOLVERS_NO, N}|_Rest]) -> N;
-number_of_solvers([_|Rest]) -> number_of_solvers(Rest).
-
--spec with_pmatch([option()]) -> boolean().
-with_pmatch(Options) -> not lists:member(?DISABLE_PMATCH, Options).
-
--spec z3_timeout([option()]) -> pos_integer().
-z3_timeout([]) -> ?TWO;
-z3_timeout([{?Z3_TIMEOUT, N}|_Rest]) -> N;
-z3_timeout([_|Rest]) -> z3_timeout(Rest).
-
--spec get_strategy([option()]) -> atom().
-get_strategy([]) -> ?DEFAULT_STRATEGY;
-get_strategy([{?STRATEGY, S}|_Rest]) -> S;
-get_strategy([_|Rest]) -> get_strategy(Rest).
-
--spec debug_smt([option()]) -> boolean().
-debug_smt(Options) -> lists:member(?DEBUG_SMT, Options).
-
--spec get_solver_backend([option()]) -> nonempty_string().
-get_solver_backend(Options) ->
-  T = z3_timeout(Options),
-  Base = ?PYTHON_CALL ++ " --smt --timeout " ++ integer_to_list(T),
-  case debug_smt(Options) of
-    false ->
-      Base;
-    true ->
-      Base ++ " -d"
-  end.
-
--spec get_whitelist([option()]) -> cuter_mock:whitelist().
-get_whitelist([]) ->
-  cuter_mock:empty_whitelist();
-get_whitelist([{?WHITELISTED_MFAS, File}|_]) ->
-  case file:consult(File) of
-    {ok, LoadedData} ->
-      Whitelist = cuter_mock:parse_whitelist(LoadedData),
-      cuter_pp:loaded_whitelist(File, Whitelist),
-      Whitelist;
-    Error ->
-      cuter_pp:error_loading_whitelist(File, Error),
-      cuter_mock:empty_whitelist()
-  end;
-get_whitelist([_|Rest]) ->
-  get_whitelist(Rest).
-
--spec reporting_level([option()]) -> cuter_pp:pp_level().
-reporting_level(Options) ->
+verbosity_level(Options) ->
   Default = cuter_pp:default_reporting_level(),
-  case lists:member(?FULLY_VERBOSE_EXEC_INFO, Options) of
+  case proplists:get_bool(?FULLY_VERBOSE_EXECUTION, Options) of
     true  -> cuter_pp:fully_verbose_exec_info(Default);
     false ->
-      case lists:member(?VERBOSE_EXEC_INFO, Options) of
+      case proplists:get_bool(?VERBOSE_EXECUTION, Options) of
         true  -> cuter_pp:verbose_exec_info(Default);
         false -> Default
       end
   end.
 
--spec calculate_coverage([option()]) -> boolean().
-calculate_coverage(Options) ->
-  lists:member(?CALCULATE_COVERAGE, Options).
-
--spec sort_errors([option()]) -> boolean().
-sort_errors(Options) ->
-  lists:member(?SORTED_ERRORS, Options).
-
--spec suppress_unsupported_mfas([option()]) -> boolean().
-suppress_unsupported_mfas(Options) ->
-  lists:member(?SUPPRESS_UNSUPPORTED_MFAS, Options).
-
--spec type_normalization([option()]) -> boolean().
-type_normalization(Options) ->
-  not lists:member(?NO_TYPE_NORMALIZATION, Options).
-
--spec report_metrics([option()]) -> boolean().
-report_metrics(Options) ->
-  lists:member(?REPORT_METRICS, Options).
+whitelisted_mfas(Options) ->
+  case proplists:get_value(?WHITELISTED_MFA_PATH, Options) of
+    undefined ->
+      cuter_mock:empty_whitelist();
+    File ->
+      case file:consult(File) of
+        {ok, LoadedData} ->
+          Whitelist = cuter_mock:parse_whitelist(LoadedData),
+          cuter_pp:loaded_whitelist(File, Whitelist),
+          Whitelist;
+        Error ->
+          cuter_pp:error_loading_whitelist(File, Error),
+          cuter_mock:empty_whitelist()
+      end
+  end.

@@ -4,7 +4,7 @@
 -behaviour(gen_server).
 
 %% External API.
--export([start/4, stop/1, request_input/1, store_execution/3, set_depth/2,
+-export([start/2, stop/1, request_input/1, store_execution/3, set_depth/2,
          request_operation/1, solver_reply/2, add_seed_input/2, clear_erroneous_inputs/1]).
 %% Get logs API.
 -export([get_visited_tags/1, get_erroneous_inputs/1, get_solved_models/1, get_not_solved_models/1]).
@@ -90,9 +90,9 @@
 %% ----------------------------------------------------------------------------
 
 %% Starts the Scheduler.
--spec start(file:filename(), integer(), atom(), pid()) -> pid().
-start(Python, DefaultDepth, Strategy, CodeServer) ->
-  case gen_server:start_link(?MODULE, [Python, DefaultDepth, Strategy, CodeServer], []) of
+-spec start(integer(), pid()) -> pid().
+start(DefaultDepth, CodeServer) ->
+  case gen_server:start_link(?MODULE, [DefaultDepth, CodeServer], []) of
     {ok, Scheduler} -> Scheduler;
     {error, R} -> exit({scheduler_start, R})
   end.
@@ -157,14 +157,14 @@ get_not_solved_models(Scheduler) ->
 %% ----------------------------------------------------------------------------
 
 %% init/1
--type init_arg() :: [file:filename() | integer() | pid(), ...].
--spec init(init_arg()) -> {ok, state()}.
-init([Python, DefaultDepth, Strategy, CodeServer]) ->
+-spec init([pos_integer() | pid(), ...]) -> {ok, state()}.
+init([DefaultDepth, CodeServer]) ->
+  {ok, Strategy} = cuter_config:fetch(?STRATEGY),
   _ = init_execution_counter(),
   StrategyState = Strategy:init(),
   {ok, #st{ codeServer = CodeServer
           , infoTab = dict:new()
-          , python = Python
+          , python = python_cmd()
           , depth = DefaultDepth
           , visitedTags = gb_sets:new()
           , running = dict:new()
@@ -173,7 +173,17 @@ init([Python, DefaultDepth, Strategy, CodeServer]) ->
           , inputsQueue = queue:new()
           , solving = dict:new()
           , strategyState = StrategyState
-	  , strategy = Strategy}}.
+	        , strategy = Strategy }}.
+
+python_cmd() ->
+  {ok, T} = cuter_config:fetch(?Z3_TIMEOUT),
+  Base = ?PYTHON_CALL ++ " --smt --timeout " ++ integer_to_list(T),
+  case cuter_config:fetch(?DEBUG_SMT) of
+    {ok, true} ->
+      Base ++ " -d";
+    _ ->
+      Base
+  end.
 
 %% terminate/2
 -spec terminate(any(), state()) -> ok.
