@@ -30,11 +30,14 @@ def main():
   parser.add_argument("--disable-pmatch", action='store_true', help="disable the pattern matching compilation")
   parser.add_argument("--sorted-errors", action='store_true', help="report the erroneous inputs in a sorted order")
   parser.add_argument("--suppress-unsupported", action='store_true', help="suppresses the reporting of unsupported MFAs")
-  parser.add_argument("--no-type-normalization", action='store_true', help="disable the normalization specifications & types")
+  parser.add_argument("--disable-type-normalization", action='store_true',
+    help="disable the normalization specifications & types")
   parser.add_argument("--z3-timeout", metavar="N", type=int, default=2,
     help="set the timeout N for the Z3 SMT solver (default: %(default)s)")
-  parser.add_argument("-ds", "--debug_smt", action='store_true', help="store debug information for SMT solving")
+  parser.add_argument("-ds", "--debug-smt", action='store_true', help="store debug information for SMT solving")
   parser.add_argument("-m", "--metrics", action='store_true', help="report collected metrics")
+  parser.add_argument("--debug-keep-traces", action='store_true', help="keep execution traces for debugging")
+  parser.add_argument("--debug-solver-fsm", action='store_true', help="output debug logs for the solver FSM")
 
   # Parse the arguments
   args = parser.parse_args()
@@ -83,25 +86,29 @@ def main():
   opts.append("{{z3_timeout, {}}}".format(args.z3_timeout))
   opts.append("{{strategy, {}}}".format(args.strategy))
   if args.verbose:
-    opts.append("verbose_execution_info")
+    opts.append("verbose_execution")
   if args.coverage:
     opts.append("coverage")
   if args.fully_verbose:
-    opts.append("fully_verbose_execution_info")
+    opts.append("fully_verbose_execution")
   if args.disable_pmatch:
     opts.append("disable_pmatch")
   if args.sorted_errors:
     opts.append("sorted_errors")
   if args.suppress_unsupported:
     opts.append("suppress_unsupported")
-  if args.no_type_normalization:
-    opts.append("no_type_normalization")
+  if args.disable_type_normalization:
+    opts.append("disable_type_normalization")
   if args.w != None:
       opts.append("{{whitelist, '{}'}}".format(args.w))
   if args.debug_smt:
     opts.append("debug_smt")
   if args.metrics:
     opts.append("report_metrics")
+  if args.debug_keep_traces:
+    opts.append("debug_keep_traces")
+  if args.debug_solver_fsm:
+    opts.append("debug_solver_fsm")
   strOpts = ",".join(opts)
 
   # Run CutEr

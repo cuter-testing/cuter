@@ -80,7 +80,8 @@ SRC_MODULES = \
 	cerl_pmatch \
 	cuter_strategy \
 	cuter_bfs_strategy \
-	cuter_metrics
+	cuter_metrics \
+	cuter_config
 
 UTEST_MODULES = \
 	cuter_tests_lib \
@@ -97,7 +98,8 @@ UTEST_MODULES = \
 	cuter_pp_tests \
 	types_and_specs \
 	types_and_specs2 \
-	cuter_metrics_tests
+	cuter_metrics_tests \
+	cuter_config_tests
 
 FTEST_MODULES = \
 	bitstr \
