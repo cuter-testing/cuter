@@ -219,7 +219,7 @@ stop_and_report(Conf) ->
   %% Report solver statistics.
   case Conf#conf.reportMetrics of
     false -> ok;
-    true -> cuter_analyzer:report_solver_statistics()
+    true -> cuter_analyzer:report_metrics()
   end,
   %% Report the erroneous inputs.
   ErroneousInputs = lists:reverse(Conf#conf.errors),
@@ -286,13 +286,7 @@ define_metrics() ->
   define_distribution_metrics().
 
 define_distribution_metrics() ->
-  define_distribution_metrics(?DISTRIBUTION_METRICS).
-
-define_distribution_metrics([]) ->
-  ok;
-define_distribution_metrics([N|Ns]) ->
-  ok = cuter_metrics:define_distribution_metric(N),
-  define_distribution_metrics(Ns).
+  lists:foreach(fun cuter_metrics:define_distribution_metric/1, ?DISTRIBUTION_METRICS).
 
 %% ----------------------------------------------------------------------------
 %% Set app parameters

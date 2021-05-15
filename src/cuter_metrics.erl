@@ -5,11 +5,12 @@
 
 %% External API.
 -export([define_distribution_metric/1, measure_distribution/2, get_distribution/1,
+         get_distribution_metrics/0,
          start/0, stop/0]).
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_info/2, handle_call/3, handle_cast/2]).
 
--export_type([distribution_list/0]).
+-export_type([distribution_list/0, name/0]).
 
 -define(METRICS_SERVER, metrics_server).
 
@@ -58,6 +59,11 @@ measure_distribution(Name, Value) ->
 get_distribution(Name) ->
   gen_server:call(?METRICS_SERVER, {get_distribution, Name}).
 
+%% Gets a list of the names of all the collected distribution metrics.
+-spec get_distribution_metrics() -> [name()].
+get_distribution_metrics() ->
+  gen_server:call(?METRICS_SERVER, get_distribution_metrics).
+
 %% ============================================================================
 %% gen_server callbacks (Server Implementation)
 %% ============================================================================
@@ -81,6 +87,7 @@ code_change(_OldVsn, State, _Extra) ->
 -spec handle_call({new_distribution_metric, name()}, from(), state()) -> {reply, ok | eexist, state()}
                ; ({measure_distribution, name(), any()}, from(), state()) -> {reply, ok | enoent, state()}
                ; ({get_distribution, name()}, from(), state()) -> {reply, {ok, distribution_list()} | enoent, state()}
+               ; (get_distribution_metrics, from(), state()) -> {reply, [name()], state()}
                ; (stop, from(), state()) -> {stop, normal, ok, state()}
                .
 %% Defines a new distribution metric.
@@ -116,6 +123,9 @@ handle_call({get_distribution, Name}, _From, #st{distribution_metrics = Metrics}
       Repr = lists:reverse(lists:keysort(2, dict:to_list(Distribution))),
       {reply, {ok, Repr}, S}
   end;
+%% Gets a list of the names of all the collected distribution metrics.
+handle_call(get_distribution_metrics, _From, #st{distribution_metrics = Metrics}=S) ->
+  {reply, dict:fetch_keys(Metrics), S};
 %% Stops the metrics server.
 handle_call(stop, _From, State) ->
   {stop, normal, ok, State}.

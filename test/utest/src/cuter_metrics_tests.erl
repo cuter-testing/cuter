@@ -22,6 +22,16 @@ distribution_metric_test() ->
   D = [{42, 3}, {1, 2}, {23, 1}],
   ?assertEqual({ok, D}, R).
 
+-spec distribution_metric_collected_test() -> ok.
+distribution_metric_collected_test() ->
+  ok = cuter_metrics:start(),
+  ok = cuter_metrics:define_distribution_metric(xxx),
+  ok = cuter_metrics:define_distribution_metric(yyy),
+  ok = cuter_metrics:define_distribution_metric(zzz),
+  R = cuter_metrics:get_distribution_metrics(),
+  ok = cuter_metrics:stop(),
+  ?assertEqual([xxx, yyy, zzz], R).
+
 -spec distribution_metric_exists_test() -> ok.
 distribution_metric_exists_test() ->
   Name = some_metric,

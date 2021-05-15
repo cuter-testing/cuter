@@ -11,8 +11,7 @@
          execution_info/2, path_vertex/2, flush/1, errors_found/1,
          form_has_unsupported_type/1, invalid_ast_with_pmatch/2, code_logs/3]).
 %% Report information about solving.
--export([solving_failed_unsat/0, solving_failed_timeout/0, solving_failed_unknown/0,
-         solver_status_distribution/1]).
+-export([solving_failed_unsat/0, solving_failed_timeout/0, solving_failed_unknown/0]).
 %% Report callgraph related info.
 -export([callgraph_calculation_failed/1, callgraph_calculation_started/1,
          callgraph_calculation_succeeded/0, loading_visited_module/1]).
@@ -30,6 +29,8 @@
 -export([parsed_spec/1]).
 %% Used in unit tests.
 -export([pp_argument/1]).
+%% Metrics.
+-export([pp_metrics_title/0, pp_distribution_metric/2]).
 
 -export([ reversible_operations/1
         %% Execution info reporting level
@@ -114,7 +115,6 @@
               | solving_failed_unsat
               | solving_failed_timeout
               | solving_failed_unknown
-              | {solver_status_distribution, cuter_metrics:distribution_list()}
               | {errors_found, cuter:erroneous_inputs()}
               | {code_logs, cuter_codeserver:logs(), cuter_mock:whitelist(), boolean()}
               | {callgraph_calculation_started, [mfa()]}
@@ -233,11 +233,6 @@ solving_failed_timeout() ->
 -spec solving_failed_unknown() -> ok.
 solving_failed_unknown() ->
   gen_server:call(?PRETTY_PRINTER, solving_failed_unknown).
-
-%% Prints the distribution of the solver statuses.
--spec solver_status_distribution(cuter_metrics:distribution_list()) -> ok.
-solver_status_distribution(D) ->
-  gen_server:call(?PRETTY_PRINTER, {solver_status_distribution, D}).
 
 %% Print the erroneous input that were found.
 -spec errors_found(cuter:erroneous_inputs()) -> ok.
@@ -572,10 +567,6 @@ handle_call(SlvFail, _From, State=#st{pplevel = PpLevel}) when SlvFail =:= solvi
                                                                SlvFail =:= solving_failed_unknown ->
   pp_solving_failure(SlvFail, PpLevel#pp_level.execInfo),
   {reply, ok, State#st{nl = true}};
-%% Prints the distribution of the solver statuses.
-handle_call({solver_status_distribution, D}, _From, State=#st{pplevel = PpLevel}) ->
-  pp_solver_status_distribution(D, PpLevel#pp_level.execInfo),
-  {reply, ok, State#st{nl = false}};
 %% Report the errors that were found.
 handle_call({errors_found, Errors}, _From, State=#st{pplevel = PpLevel}) ->
   pp_erroneous_inputs(Errors, PpLevel#pp_level.execInfo),
@@ -666,18 +657,6 @@ pp_solving_failure(solving_failed_timeout, ?MINIMAL) -> io:format(standard_error
 pp_solving_failure(solving_failed_timeout, _) -> io:format("t");
 pp_solving_failure(solving_failed_unknown, ?MINIMAL) -> io:format(standard_error, "u", []);
 pp_solving_failure(solving_failed_unknown, _) -> io:format("u").
-
--spec pp_solver_status_distribution(cuter_metrics:distribution_list(), level()) -> ok.
-pp_solver_status_distribution(D, _) ->
-  TN = lists:sum([N || {_, N} <- D]),
-  io:format("~nSolver outcomes encountered: ~w~n", [TN]),
-  pp_solver_status_values(D).
-
-pp_solver_status_values(D) ->
-  lists:foreach(fun pp_solver_status_value/1, D).
-
-pp_solver_status_value({V, N}) ->
-  io:format("- ~s: ~w~n", [V, N]).
 
 -spec pp_execution_info(execution_data(), mfa(), boolean(), level()) -> ok.
 pp_execution_info(Data, MFA, Nl, ?MINIMAL) ->
@@ -1331,3 +1310,22 @@ pp_typesig(Fun, FmtFn) ->
       Params = [pp_type(P, StrFmtFn) || P <- cuter_types:params_of_t_function_det(Fun)],
       FmtFn("fun((~s) -> ~s)", [string:join(Params, ", "), Ret])
   end.
+
+%% ----------------------------------------------------------------------------
+%% Report collected metrics.
+%% ----------------------------------------------------------------------------
+
+-spec pp_metrics_title() -> ok.
+pp_metrics_title() ->
+  io:format("~n=== Collected Metrics ===~n~n").
+
+-spec pp_distribution_metric(cuter_metrics:name(), cuter_metrics:distribution_list()) -> ok.
+pp_distribution_metric(Name, Distribution) ->
+  io:format("[~s]~n", [Name]),
+  pp_distribution_values(Distribution).
+
+pp_distribution_values(D) ->
+  lists:foreach(fun pp_distribution_value/1, D).
+
+pp_distribution_value({V, N}) ->
+  io:format("- ~s: ~w~n", [V, N]).

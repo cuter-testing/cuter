@@ -4,7 +4,7 @@
 
 -export([get_result/1, get_mapping/1, get_traces/1, is_runtime_error/1, solving_stats/2,
          get_int_process/1, process_raw_execution_info/1, calculate_coverage/3,
-         report_solver_statistics/0,
+         report_metrics/0,
          %% Constructor & accessors for #raw{}
          mk_raw_info/5, traces_of_raw_info/1, int_of_raw_info/1,
          %% Accessors for #info{}
@@ -203,14 +203,25 @@ calculate_coverage(Feasible, Visited) ->
   end.
 
 %% ----------------------------------------------------------------------------
-%% Solver statistics.
+%% Report collected metrics.
 %% ----------------------------------------------------------------------------
 
--spec report_solver_statistics() -> ok.
-report_solver_statistics() ->
-  case cuter_metrics:get_distribution(?SOLVER_STATUS_METRIC) of
+-spec report_metrics() -> ok.
+report_metrics() ->
+  case cuter_metrics:get_distribution_metrics() of
+    [] -> ok;
+    Names ->
+      cuter_pp:pp_metrics_title(),
+      report_distribution_metrics(Names)
+  end.
+
+report_distribution_metrics([]) ->
+  ok;
+report_distribution_metrics([N|Ns]) ->
+  case cuter_metrics:get_distribution(N) of
     enoent ->
       ok;
     {ok, Distribution} ->
-      cuter_pp:solver_status_distribution(Distribution)
-  end.
+      cuter_pp:pp_distribution_metric(N, Distribution)
+  end,
+  report_distribution_metrics(Ns).

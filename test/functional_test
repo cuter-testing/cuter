@@ -66,14 +66,14 @@ def run(testDir, n):
                 printSolverStatsAndExit(test["solver"], got)
 
 def get_solver_stats(text: str) -> str:
-    def extract(pat):
-        m = re.search(pat, text)
+    def extract(regex):
+        m = re.search(regex, text, re.MULTILINE | re.DOTALL)
         return int(m.group("n"), 10) if m and m.group("n") else 0
     all_stats = {
-        "SAT": extract(r"- SAT: (?P<n>\d+)"),
-        "UNSAT": extract(r"- UNSAT: (?P<n>\d+)"),
-        "TIMEOUT": extract(r"- TIMEOUT: (?P<n>\d+)"),
-        "UNKNOWN": extract(r"- UNKNOWN: (?P<n>\d+)"),
+        "SAT": extract(r"solver\/status.*- SAT: (?P<n>\d+)"),
+        "UNSAT": extract(r"solver\/status.*- UNSAT: (?P<n>\d+)"),
+        "TIMEOUT": extract(r"solver\/status.*- TIMEOUT: (?P<n>\d+)"),
+        "UNKNOWN": extract(r"solver\/status.*- UNKNOWN: (?P<n>\d+)"),
     }
     return {k: v for k, v in all_stats.items() if v}
 
