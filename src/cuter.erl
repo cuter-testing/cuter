@@ -7,6 +7,7 @@
 -export_type([mod/0, input/0, erroneous_inputs/0, depth/0]).
 
 -include("include/cuter_macros.hrl").
+-include("include/cuter_metrics.hrl").
 
 -type mod()   :: module().
 -type input() :: [any()].
@@ -31,7 +32,8 @@
   seeds = []          :: [seed()],
   nPollers            :: pos_integer(),
   nSolvers            :: pos_integer(),
-  errors = []         :: erroneous_inputs()
+  errors = []         :: erroneous_inputs(),
+  reportMetrics       :: boolean()
 }).
 -type configuration() :: #conf{}.
 
@@ -49,6 +51,7 @@
 -define(Z3_TIMEOUT, z3_timeout).
 -define(STRATEGY, strategy).
 -define(DEBUG_SMT, debug_smt).
+-define(REPORT_METRICS, report_metrics).
 
 -type default_option() :: {?POLLERS_NO, ?ONE}
                         .
@@ -68,6 +71,7 @@
                 | {?Z3_TIMEOUT, pos_integer()}
                 | {?STRATEGY, atom()}
                 | ?DEBUG_SMT
+                | ?REPORT_METRICS
                 .
 
 %% ----------------------------------------------------------------------------
@@ -212,6 +216,11 @@ stop_and_report(Conf) ->
   %% Report coverage statistics.
   VisitedTags = cuter_scheduler:get_visited_tags(Conf#conf.scheduler),
   cuter_analyzer:calculate_coverage(Conf#conf.calculateCoverage, Conf#conf.codeServer, VisitedTags),
+  %% Report solver statistics.
+  case Conf#conf.reportMetrics of
+    false -> ok;
+    true -> cuter_analyzer:report_metrics()
+  end,
   %% Report the erroneous inputs.
   ErroneousInputs = lists:reverse(Conf#conf.errors),
   ErroneousInputs1 = maybe_sort_errors(Conf#conf.sortErrors, ErroneousInputs),
@@ -236,6 +245,7 @@ stop(Conf, ErroneousInputs) ->
   cuter_scheduler:stop(Conf#conf.scheduler),
   cuter_codeserver:stop(Conf#conf.codeServer),
   cuter_pp:stop(),
+  cuter_metrics:stop(),
   cuter_lib:clear_and_delete_dir(Conf#conf.dataDir),
   ErroneousInputs.
 
@@ -248,7 +258,9 @@ initialize_app(Options) ->
   BaseDir = set_basedir(Options),
   process_flag(trap_exit, true),
   error_logger:tty(false),  %% disable error_logger
+  ok = cuter_metrics:start(),
   ok = cuter_pp:start(reporting_level(Options)),
+  ok = define_metrics(),
   WithPmatch = with_pmatch(Options),
   SolverBackend = get_solver_backend(Options),
   Whitelist = get_whitelist(Options),
@@ -264,10 +276,17 @@ initialize_app(Options) ->
        , scheduler = SchedPid
        , sortErrors = sort_errors(Options)
        , suppressUnsupported = suppress_unsupported_mfas(Options)
-       , whitelist = Whitelist }.
+       , whitelist = Whitelist
+       , reportMetrics = report_metrics(Options) }.
 
 add_seeds(Conf, Seeds) ->
   Conf#conf{ seeds = Seeds }.
+
+define_metrics() ->
+  define_distribution_metrics().
+
+define_distribution_metrics() ->
+  lists:foreach(fun cuter_metrics:define_distribution_metric/1, ?DISTRIBUTION_METRICS).
 
 %% ----------------------------------------------------------------------------
 %% Set app parameters
@@ -362,3 +381,7 @@ suppress_unsupported_mfas(Options) ->
 -spec type_normalization([option()]) -> boolean().
 type_normalization(Options) ->
   not lists:member(?NO_TYPE_NORMALIZATION, Options).
+
+-spec report_metrics([option()]) -> boolean().
+report_metrics(Options) ->
+  lists:member(?REPORT_METRICS, Options).

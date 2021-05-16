@@ -29,6 +29,8 @@
 -export([parsed_spec/1]).
 %% Used in unit tests.
 -export([pp_argument/1]).
+%% Metrics.
+-export([pp_metrics_title/0, pp_distribution_metric/2]).
 
 -export([ reversible_operations/1
         %% Execution info reporting level
@@ -1308,3 +1310,22 @@ pp_typesig(Fun, FmtFn) ->
       Params = [pp_type(P, StrFmtFn) || P <- cuter_types:params_of_t_function_det(Fun)],
       FmtFn("fun((~s) -> ~s)", [string:join(Params, ", "), Ret])
   end.
+
+%% ----------------------------------------------------------------------------
+%% Report collected metrics.
+%% ----------------------------------------------------------------------------
+
+-spec pp_metrics_title() -> ok.
+pp_metrics_title() ->
+  io:format("~n=== Collected Metrics ===~n~n").
+
+-spec pp_distribution_metric(cuter_metrics:name(), cuter_metrics:distribution_list()) -> ok.
+pp_distribution_metric(Name, Distribution) ->
+  io:format("[~s]~n", [Name]),
+  pp_distribution_values(Distribution).
+
+pp_distribution_values(D) ->
+  lists:foreach(fun pp_distribution_value/1, D).
+
+pp_distribution_value({V, N}) ->
+  io:format("- ~s: ~w~n", [V, N]).

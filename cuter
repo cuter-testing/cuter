@@ -34,6 +34,7 @@ def main():
   parser.add_argument("--z3-timeout", metavar="N", type=int, default=2,
     help="set the timeout N for the Z3 SMT solver (default: %(default)s)")
   parser.add_argument("-ds", "--debug_smt", action='store_true', help="store debug information for SMT solving")
+  parser.add_argument("-m", "--metrics", action='store_true', help="report collected metrics")
 
   # Parse the arguments
   args = parser.parse_args()
@@ -99,6 +100,8 @@ def main():
       opts.append("{{whitelist, '{}'}}".format(args.w))
   if args.debug_smt:
     opts.append("debug_smt")
+  if args.metrics:
+    opts.append("report_metrics")
   strOpts = ",".join(opts)
 
   # Run CutEr

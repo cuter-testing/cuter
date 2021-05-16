@@ -4,6 +4,7 @@
 
 -export([get_result/1, get_mapping/1, get_traces/1, is_runtime_error/1, solving_stats/2,
          get_int_process/1, process_raw_execution_info/1, calculate_coverage/3,
+         report_metrics/0,
          %% Constructor & accessors for #raw{}
          mk_raw_info/5, traces_of_raw_info/1, int_of_raw_info/1,
          %% Accessors for #info{}
@@ -11,6 +12,7 @@
          dir_of_info/1, pathVertex_of_info/1]).
 
 -include("include/cuter_macros.hrl").
+-include("include/cuter_metrics.hrl").
 
 -export_type([execution_result/0, node_trace/0, path_vertex/0,
               raw_info/0, info/0, reversible_with_tags/0, reversible_with_tag/0]).
@@ -199,3 +201,25 @@ calculate_coverage(Feasible, Visited) ->
       Coverage = 100 * (All - NotVisited) / All,
       {All - NotVisited, All, Coverage}
   end.
+
+%% ----------------------------------------------------------------------------
+%% Report collected metrics.
+%% ----------------------------------------------------------------------------
+
+-spec report_metrics() -> ok.
+report_metrics() ->
+  case cuter_metrics:get_distribution_metrics() of
+    [] -> ok;
+    Names ->
+      cuter_pp:pp_metrics_title(),
+      report_distribution_metrics(Names)
+  end.
+
+report_distribution_metrics([]) -> ok;
+report_distribution_metrics([N|Ns]) ->
+  case cuter_metrics:get_distribution(N) of
+    enoent -> ok;
+    {ok, Distribution} ->
+      cuter_pp:pp_distribution_metric(N, Distribution)
+  end,
+  report_distribution_metrics(Ns).

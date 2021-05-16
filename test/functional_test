@@ -23,7 +23,7 @@ def run(testDir, n):
         # Get the runtime options.
         opts = get_options(test, testDir)
         # Run the test.
-        cmd = "{} {} {} '{}' -d {} {} --sorted-errors".format(
+        cmd = "{} {} {} '{}' -d {} {} -m --sorted-errors".format(
           cuterScript, test["module"], test["function"], test["args"], test["depth"], opts
         )
         print("\n\033[00;34m[Test #{}]\033[00m\n{}".format(i + 1, cmd))
@@ -59,6 +59,32 @@ def run(testDir, n):
         diffMode = False if "nondeterministic" in test and test["nondeterministic"] else True
         if not validate(test["arity"], diffMode, found, test["solutions"]):
             printOutputAndExit(output)
+        # Extract the solver statistics.
+        if "solver" in test:
+            got = get_solver_stats(output)
+            if not validate_solver_stats(test["solver"], got):
+                printSolverStatsAndExit(test["solver"], got)
+
+def get_solver_stats(text: str) -> str:
+    def extract(regex):
+        m = re.search(regex, text, re.MULTILINE | re.DOTALL)
+        return int(m.group("n"), 10) if m and m.group("n") else 0
+    all_stats = {
+        "SAT": extract(r"solver\/status.*- SAT: (?P<n>\d+)"),
+        "UNSAT": extract(r"solver\/status.*- UNSAT: (?P<n>\d+)"),
+        "TIMEOUT": extract(r"solver\/status.*- TIMEOUT: (?P<n>\d+)"),
+        "UNKNOWN": extract(r"solver\/status.*- UNKNOWN: (?P<n>\d+)"),
+    }
+    return {k: v for k, v in all_stats.items() if v}
+
+def validate_solver_stats(expected, got):
+  for k, v in expected.items():
+      if not k in got or got[k] != v:
+          return False
+  for k, v in got.items():
+      if not k in expected or expected[k] != v:
+          return False
+  return True
 
 def get_matches(solutions):
     pat = r"(\s*(?P<vars>\w+\s*=\s*.+)\s*,\s*)?\w+:\w+\((?P<mfa>.*)\)"
@@ -155,6 +181,14 @@ def printOutputAndExit(out):
     print("OUTPUT MISMATCH")
     print("=================================================================")
     print(out.strip())
+    print("=================================================================")
+    sys.exit(1)
+
+def printSolverStatsAndExit(expected, got):
+    print("SOLVER MISMATCH")
+    print("=================================================================")
+    print("EXPECTED:", expected)
+    print("GOT:", got)
     print("=================================================================")
     sys.exit(1)
 
