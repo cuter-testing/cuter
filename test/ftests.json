@@ -1223,7 +1223,7 @@
             "skip": false
         },
         {
-            "module": "search",
+            "module": "reduce_search_space",
             "function": "f",
             "args": "[0]",
             "depth": "25",
