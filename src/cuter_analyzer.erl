@@ -215,12 +215,10 @@ report_metrics() ->
       report_distribution_metrics(Names)
   end.
 
-report_distribution_metrics([]) ->
-  ok;
+report_distribution_metrics([]) -> ok;
 report_distribution_metrics([N|Ns]) ->
   case cuter_metrics:get_distribution(N) of
-    enoent ->
-      ok;
+    enoent -> ok;
     {ok, Distribution} ->
       cuter_pp:pp_distribution_metric(N, Distribution)
   end,
