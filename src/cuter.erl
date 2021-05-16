@@ -7,7 +7,7 @@
 -export_type([mod/0, input/0, erroneous_inputs/0, depth/0]).
 
 -include("include/cuter_macros.hrl").
--include("include/cuter_metric_definitions.hrl").
+-include("include/cuter_metrics.hrl").
 
 -type mod()   :: module().
 -type input() :: [any()].

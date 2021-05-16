@@ -12,7 +12,7 @@
          dir_of_info/1, pathVertex_of_info/1]).
 
 -include("include/cuter_macros.hrl").
--include("include/cuter_metric_definitions.hrl").
+-include("include/cuter_metrics.hrl").
 
 -export_type([execution_result/0, node_trace/0, path_vertex/0,
               raw_info/0, info/0, reversible_with_tags/0, reversible_with_tag/0]).

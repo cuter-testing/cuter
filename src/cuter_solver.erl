@@ -4,7 +4,7 @@
 -behaviour(gen_statem).
 
 -include("include/cuter_macros.hrl").
--include("include/cuter_metric_definitions.hrl").
+-include("include/cuter_metrics.hrl").
 
 -export([
   %% external exports
