@@ -60,7 +60,7 @@
 -type visited_remotes() :: ordsets:ordset(remote_type()).
 
 -type codeserver() :: pid().
--type supervisor() :: pid().
+-type codeserver_args() :: #{}.
 
 %% Server's state
 %% ---------------
@@ -68,8 +68,6 @@
 %% db :: ets:tid()
 %%   Acts as a reference table for looking up the ETS table that holds a module's extracted code.
 %%   It stores tuples {Module :: module(), ModuleDb :: ets:tid()}.
-%% super :: pid()
-%%   The supervisor process that spawned the codeserver.
 %% tags :: tags()
 %%   The visited tags.
 %% waiting :: orddict()
@@ -83,7 +81,6 @@
 
 -record(st, {
   db                           :: cache(),
-  super                        :: pid(),
   tags = gb_sets:new()         :: tags(),
   waiting = orddict:new()      :: [{{atom(), tuple()}, pid()}],
   workers = []                 :: [pid()],
@@ -100,7 +97,7 @@
 %% Starts a code server in the local node.
 -spec start() -> codeserver().
 start() ->
-  case gen_server:start_link(?MODULE, [self()], []) of
+  case gen_server:start_link(?MODULE, #{}, []) of
     {ok, CodeServer} -> CodeServer;
     {error, Reason}  -> exit({codeserver_start, Reason})
   end.
@@ -108,7 +105,7 @@ start() ->
 %% Stops a code server.
 -spec stop(codeserver()) -> ok.
 stop(CodeServer) ->
-  gen_server:cast(CodeServer, {stop, self()}).
+  gen_server:cast(CodeServer, stop).
 
 %% Requests a module's cache.
 -spec load(codeserver(), module()) -> load_reply().
@@ -164,13 +161,12 @@ get_feasible_tags(CodeServer, NodeTypes) ->
 %% ----------------------------------------------------------------------------
 
 %% gen_server callback : init/1
--spec init([supervisor(), ...]) -> {ok, state()}.
-init([Super]) ->
+-spec init(codeserver_args()) -> {ok, state()}.
+init(_Args) ->
   {ok, Whitelist} = cuter_config:fetch(?WHITELISTED_MFAS),
+  Db = ets:new(?MODULE, [ordered_set, protected]),
   _ = set_branch_counter(initial_branch_counter()), %% Initialize the counter for the branch enumeration.
-  {ok, #st{ db = ets:new(?MODULE, [ordered_set, protected])
-          , super = Super
-          , whitelist = Whitelist }}.
+  {ok, #st{ db = Db, whitelist = Whitelist }}.
 
 %% gen_server callback : terminate/2
 -spec terminate(any(), state()) -> ok.
@@ -248,17 +244,14 @@ handle_call({calculate_callgraph, Mfas}, _From, State=#st{whitelist = Whitelist}
   end.
 
 %% gen_server callback : handle_cast/2
--spec handle_cast({stop, supervisor()}, state()) -> {stop, normal, state()} | {noreply, state()}
+-spec handle_cast(stop, state()) -> {stop, normal, state()} | {noreply, state()}
                ; ({unsupported_mfa, mfa()}, state()) -> {noreply, state()}
                ; ({visit_tag, cuter_cerl:tag()}, state()) -> {noreply, state()}.
 handle_cast({unsupported_mfa, MFA}, State=#st{unsupportedMfas = Ms}) ->
   Ms1 = sets:add_element(MFA, Ms),
   {noreply, State#st{unsupportedMfas = Ms1}};
-handle_cast({stop, FromWho}, State=#st{super = Super}) ->
-  case FromWho =:= Super of
-    true  -> {stop, normal, State};
-    false -> {noreply, State}
-  end;
+handle_cast(stop, State) ->
+  {stop, normal, State};
 handle_cast({visit_tag, Tag}, State=#st{tags = Tags}) ->
   Ts = gb_sets:add_element(cuter_cerl:id_of_tag(Tag), Tags),
   {noreply, State#st{tags = Ts}}.
