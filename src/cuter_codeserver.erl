@@ -69,11 +69,6 @@
   db :: cache(),
   %% The visited tags.
   tags = gb_sets:new() :: tags(),
-  %% The processes that await a response and their requests.
-  %% Each element in the dictionary is {{Request :: atom(), Info :: tuple()}, Process :: pid()}.
-  waiting = orddict:new() :: [{{atom(), tuple()}, pid()}],
-  %% PIDs of all worker processes.
-  workers = [] :: [pid()],
   %% The set of mfa() that are not supported for symbolic execution but were
   %% encountered during the concolic executions.
   unsupportedMfas = sets:new() :: sets:set(mfa()),
