@@ -238,7 +238,7 @@ initialize_app(Options) ->
   enable_debug_config(Options),
   enable_runtime_config(Options),
   ok = cuter_pp:start(),
-  CodeServer = cuter_codeserver:start(self()),
+  CodeServer = cuter_codeserver:start(),
   SchedPid = cuter_scheduler:start(?DEFAULT_DEPTH, CodeServer),
   #st{ codeServer = CodeServer, scheduler = SchedPid }.
 

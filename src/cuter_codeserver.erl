@@ -5,13 +5,12 @@
 -behaviour(gen_server).
 
 %% external exports
--export([start/1, start/3, stop/1, load/2, unsupported_mfa/2, retrieve_spec/2,
+-export([start/0, stop/1, load/2, unsupported_mfa/2, retrieve_spec/2,
          get_feasible_tags/2, get_logs/1, get_whitelist/1, get_visited_tags/1,
          visit_tag/2, calculate_callgraph/2,
          %% Work with module cache
          merge_dumped_cached_modules/2, modules_of_dumped_cache/1,
          lookup_in_module_cache/2, insert_in_module_cache/3,
-         no_cached_modules/0,
          %% Access logs
          cachedMods_of_logs/1, visitedTags_of_logs/1, tagsAddedNo_of_logs/1,
          unsupportedMfas_of_logs/1, loadedMods_of_logs/1]).
@@ -60,6 +59,9 @@
 -type module_deps()     :: ordsets:ordset(cuter:mod()).
 -type visited_remotes() :: ordsets:ordset(remote_type()).
 
+-type codeserver() :: pid().
+-type supervisor() :: pid().
+
 %% Server's state
 %% ---------------
 %%
@@ -95,32 +97,26 @@
 %% Public API
 %% ----------------------------------------------------------------------------
 
-%% Starts a CodeServer in the local node.
--spec start(pid()) -> pid().
-start(Super) ->
-  start(Super, no_cached_modules(), initial_branch_counter()).
-
-%% Starts a CodeServer in the local node with an initialized
-%% modules' cache and tag counter.
--spec start(pid(), cached_modules(), counter()) -> pid().
-start(Super, StoredMods, TagsN) ->
-  case gen_server:start(?MODULE, [Super, StoredMods, TagsN], []) of
+%% Starts a code server in the local node.
+-spec start() -> codeserver().
+start() ->
+  case gen_server:start_link(?MODULE, [self()], []) of
     {ok, CodeServer} -> CodeServer;
     {error, Reason}  -> exit({codeserver_start, Reason})
   end.
 
-%% Stops a CodeServer.
--spec stop(pid()) -> ok.
+%% Stops a code server.
+-spec stop(codeserver()) -> ok.
 stop(CodeServer) ->
   gen_server:cast(CodeServer, {stop, self()}).
 
 %% Requests a module's cache.
--spec load(pid(), module()) -> load_reply().
+-spec load(codeserver(), module()) -> load_reply().
 load(CodeServer, M) ->
   gen_server:call(CodeServer, {load, M}).
 
 %% Log an MFA that cannot be symbolically evaluated.
--spec unsupported_mfa(pid(), mfa()) -> ok.
+-spec unsupported_mfa(codeserver(), mfa()) -> ok.
 -ifdef(LOG_UNSUPPORTED_MFAS).
 unsupported_mfa(CodeServer, MFA) ->
   gen_server:cast(CodeServer, {unsupported_mfa, MFA}).
@@ -129,37 +125,37 @@ unsupported_mfa(_, _) -> ok.
 -endif.
 
 %% Retrieves the spec of a given MFA.
--spec retrieve_spec(pid(), mfa()) -> spec_reply().
+-spec retrieve_spec(codeserver(), mfa()) -> spec_reply().
 retrieve_spec(CodeServer, MFA) ->
   gen_server:call(CodeServer, {get_spec, MFA}).
 
 %% Reports visiting a tag.
--spec visit_tag(pid(), cuter_cerl:tag()) -> ok.
+-spec visit_tag(codeserver(), cuter_cerl:tag()) -> ok.
 visit_tag(CodeServer, Tag) ->
   gen_server:cast(CodeServer, {visit_tag, Tag}).
 
 %% Gets the visited tags.
--spec get_visited_tags(pid()) -> tags().
+-spec get_visited_tags(codeserver()) -> tags().
 get_visited_tags(CodeServer) ->
   gen_server:call(CodeServer, get_visited_tags).
 
 %% Gets the logs of the CodeServer.
--spec get_logs(pid()) -> logs().
+-spec get_logs(codeserver()) -> logs().
 get_logs(CodeServer) ->
   gen_server:call(CodeServer, get_logs).
 
 %% Gets the whitelisted MFAs.
--spec get_whitelist(pid()) -> cuter_mock:whitelist().
+-spec get_whitelist(codeserver()) -> cuter_mock:whitelist().
 get_whitelist(CodeServer) ->
   gen_server:call(CodeServer, get_whitelist).
 
 %% Calculates the callgraph from some MFAs.
--spec calculate_callgraph(pid(), [mfa()]) -> ok | error.
+-spec calculate_callgraph(codeserver(), [mfa()]) -> ok | error.
 calculate_callgraph(CodeServer, Mfas) ->
   gen_server:call(CodeServer, {calculate_callgraph, Mfas}).
 
 %% Gets the feasible tags.
--spec get_feasible_tags(pid(), cuter_cerl:node_types()) -> cuter_cerl:visited_tags().
+-spec get_feasible_tags(codeserver(), cuter_cerl:node_types()) -> cuter_cerl:visited_tags().
 get_feasible_tags(CodeServer, NodeTypes) ->
   gen_server:call(CodeServer, {get_feasible_tags, NodeTypes}).
 
@@ -168,14 +164,11 @@ get_feasible_tags(CodeServer, NodeTypes) ->
 %% ----------------------------------------------------------------------------
 
 %% gen_server callback : init/1
--spec init([pid() | cached_modules() | counter(), ...]) -> {ok, state()}.
-init([Super, CachedMods, TagsN]) ->
-  link(Super),
+-spec init([supervisor(), ...]) -> {ok, state()}.
+init([Super]) ->
   {ok, Whitelist} = cuter_config:fetch(?WHITELISTED_MFAS),
-  Db = ets:new(?MODULE, [ordered_set, protected]),
-  add_cached_modules(Db, CachedMods),
-  _ = set_branch_counter(TagsN), %% Initialize the counter for the branch enumeration.
-  {ok, #st{ db = Db
+  _ = set_branch_counter(initial_branch_counter()), %% Initialize the counter for the branch enumeration.
+  {ok, #st{ db = ets:new(?MODULE, [ordered_set, protected])
           , super = Super
           , whitelist = Whitelist }}.
 
@@ -255,7 +248,7 @@ handle_call({calculate_callgraph, Mfas}, _From, State=#st{whitelist = Whitelist}
   end.
 
 %% gen_server callback : handle_cast/2
--spec handle_cast({stop, pid()}, state()) -> {stop, normal, state()} | {noreply, state()}
+-spec handle_cast({stop, supervisor()}, state()) -> {stop, normal, state()} | {noreply, state()}
                ; ({unsupported_mfa, mfa()}, state()) -> {noreply, state()}
                ; ({visit_tag, cuter_cerl:tag()}, state()) -> {noreply, state()}.
 handle_cast({unsupported_mfa, MFA}, State=#st{unsupportedMfas = Ms}) ->
@@ -458,10 +451,6 @@ dump_cached_modules(Db) ->
   Fun = fun({M, MDb}, Stored) -> dict:store(M, ets:tab2list(MDb), Stored) end,
   ets:foldl(Fun, dict:new(), Db).
 
-%% Creates an empty modules' cache.
--spec no_cached_modules() -> cached_modules().
-no_cached_modules() -> dict:new().
-
 %% Merges two caches.
 -spec merge_dumped_cached_modules(cached_modules(), cached_modules()) -> cached_modules().
 merge_dumped_cached_modules(Cached1, Cached2) ->
@@ -471,18 +460,6 @@ merge_dumped_cached_modules(Cached1, Cached2) ->
 -spec modules_of_dumped_cache(cached_modules()) -> modules().
 modules_of_dumped_cache(Cached) ->
   dict:fetch_keys(Cached).
-
-%% Populates the DB with the stored modules provided.
--spec add_cached_modules(cache(), cached_modules()) -> ok.
-add_cached_modules(Db, CachedMods) ->
-  Fun = fun(M, Info, CDb) ->
-	    MDb = ets:new(M, [ordered_set, protected]),
-	    ets:insert(MDb, Info),
-	    ets:insert(CDb, {M, MDb}),
-	    CDb
-	end,
-  dict:fold(Fun, Db, CachedMods),
-  ok.
 
 %% ----------------------------------------------------------------------------
 %% Counter for branch enumeration

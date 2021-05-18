@@ -42,7 +42,7 @@ eval_cerl({F, As, Result, Dir}) ->
   cuter_config:store(?DISABLE_PMATCH, false),
   cuter_config:store(?DISABLE_TYPE_NORMALIZATION, false),
   cuter_config:store(?WHITELISTED_MFAS, cuter_mock:empty_whitelist()),
-  CodeServer = cuter_codeserver:start(self()),
+  CodeServer = cuter_codeserver:start(),
   Server = cuter_iserver:start(?MODULE, F, As, Dir, ?TRACE_DEPTH, CodeServer),
   R = execution_result(Server),
   ok = wait_for_iserver(Server),

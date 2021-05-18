@@ -30,7 +30,7 @@ setup() ->
   cuter_config:store(?VERBOSITY_LEVEL, cuter_pp:default_reporting_level()),
   cuter_config:store(?WHITELISTED_MFAS, cuter_mock:empty_whitelist()),
   ok = cuter_pp:start(),
-  CodeServer = cuter_codeserver:start(self()),
+  CodeServer = cuter_codeserver:start(),
   Server = cuter_iserver:start(lists, reverse, [[42,17]], Dir, ?TRACE_DEPTH, CodeServer),
   {Dir, Server}.
 
