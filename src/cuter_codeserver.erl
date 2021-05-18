@@ -63,30 +63,24 @@
 -type codeserver_args() :: #{}.
 
 %% Server's state
-%% ---------------
-%%
-%% db :: ets:tid()
-%%   Acts as a reference table for looking up the ETS table that holds a module's extracted code.
-%%   It stores tuples {Module :: module(), ModuleDb :: ets:tid()}.
-%% tags :: tags()
-%%   The visited tags.
-%% waiting :: orddict()
-%%   The processes that await a response and their requests.
-%%   Each element in the dictionary is {{Request :: atom(), Info :: tuple()}, Process :: pid()}.
-%% workers :: [pid()]
-%%   PIDs of all worker processes.
-%% unsupportedMfas :: sets:set(mfa())
-%%   The set of mfa() that are not supported for symbolic execution but were
-%%   encountered during the concolic executions.
-
 -record(st, {
-  db                           :: cache(),
-  tags = gb_sets:new()         :: tags(),
-  waiting = orddict:new()      :: [{{atom(), tuple()}, pid()}],
-  workers = []                 :: [pid()],
+  %% Acts as a reference table for looking up the ETS table that holds a module's extracted code.
+  %% It stores tuples {Module :: module(), ModuleDb :: ets:tid()}.
+  db :: cache(),
+  %% The visited tags.
+  tags = gb_sets:new() :: tags(),
+  %% The processes that await a response and their requests.
+  %% Each element in the dictionary is {{Request :: atom(), Info :: tuple()}, Process :: pid()}.
+  waiting = orddict:new() :: [{{atom(), tuple()}, pid()}],
+  %% PIDs of all worker processes.
+  workers = [] :: [pid()],
+  %% The set of mfa() that are not supported for symbolic execution but were
+  %% encountered during the concolic executions.
   unsupportedMfas = sets:new() :: sets:set(mfa()),
-  whitelist                    :: cuter_mock:whitelist(),
-  callgraph                    :: cuter_callgraph:callgraph() | 'undefined'
+  %% The whitelisted MFAs that should be treated as BIFs.
+  whitelist :: cuter_mock:whitelist(),
+  %% The computed callgraph from the entry points.
+  callgraph :: cuter_callgraph:callgraph() | 'undefined'
 }).
 -type state() :: #st{}.
 
