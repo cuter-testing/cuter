@@ -18,8 +18,7 @@
 -export([init/1, terminate/2, code_change/3,
          handle_info/2, handle_call/3, handle_cast/2]).
 %% Counter of branches & Tag generator.
--export([set_branch_counter/1, get_branch_counter/0, initial_branch_counter/0,
-         generate_tag/0]).
+-export([get_branch_counter/0, init_branch_counter/0, generate_tag/0]).
 
 -include("include/cuter_macros.hrl").
 
@@ -154,7 +153,7 @@ get_feasible_tags(CodeServer, NodeTypes) ->
 init(_Args) ->
   {ok, Whitelist} = cuter_config:fetch(?WHITELISTED_MFAS),
   Db = ets:new(?MODULE, [ordered_set, protected]),
-  _ = set_branch_counter(initial_branch_counter()), %% Initialize the counter for the branch enumeration.
+  init_branch_counter(),
   {ok, #st{ db = Db, whitelist = Whitelist }}.
 
 %% gen_server callback : terminate/2
@@ -447,16 +446,15 @@ modules_of_dumped_cache(Cached) ->
 %% Counter for branch enumeration
 %% ----------------------------------------------------------------------------
 
--spec initial_branch_counter() -> 0.
-initial_branch_counter() -> 0.
+%% Initialized the branch counter to 0.
+-spec init_branch_counter() -> ok.
+init_branch_counter() ->
+  _ = put(?BRANCH_COUNTER_PREFIX, 0),
+  ok.
 
 -spec get_branch_counter() -> counter().
 get_branch_counter() ->
   get(?BRANCH_COUNTER_PREFIX).
-
--spec set_branch_counter(counter()) -> counter() | undefined.
-set_branch_counter(N) ->
-  put(?BRANCH_COUNTER_PREFIX, N).
 
 -spec generate_tag() -> cuter_cerl:tag().
 generate_tag() ->
