@@ -67,6 +67,7 @@
 -type solver_result() :: {ok, cuter:input()} | error.
 
 -type solver() :: pid().
+-type solver_args() :: #{  }.
 -type solver_fsm() :: pid().
 
 %% ----------------------------------------------------------------------------
@@ -89,20 +90,20 @@ poll(Scheduler) ->
 -spec loop(cuter_scheduler:scheduler()) -> ok.
 loop(Scheduler) ->
   case got_stop_message() of
-    true -> stop();
+    true ->
+      ok;
     false ->
       %% Query the scheduler.
       case cuter_scheduler:request_operation(Scheduler) of
         %% No operation is currently available.
         try_later ->
-          timer:sleep(?SLEEP),
-          loop(Scheduler);
+          timer:sleep(?SLEEP);
         %% Got an operation to solve.
         {Python, Mappings, File, N} ->
           Result = solve({Python, Mappings, File, N}),
-          ok = cuter_scheduler:solver_reply(Scheduler, Result),
-          loop(Scheduler)
-      end
+          ok = cuter_scheduler:solver_reply(Scheduler, Result)
+      end,
+      loop(Scheduler)
   end.
 
 %% Stops a Solver process.
@@ -117,11 +118,6 @@ got_stop_message() ->
   receive stop -> true
   after 0 -> false
   end.
-
-%% Cleans up before exiting.
--spec stop() -> ok.
-stop() ->
-  ok.
 
 %% ----------------------------------------------------------------------------
 %% Query the Z3 SMT Solver
@@ -160,9 +156,7 @@ stop_fsm(FSM, Ret) ->
 -spec wait_for_fsm(solver_fsm(), solver_result()) -> solver_result().
 wait_for_fsm(FSM, Ret) ->
   receive {'EXIT', FSM, normal} -> Ret
-  after 10 ->
-%%    io:format("TIMEOUT~n"),
-    Ret
+  after 10 -> Ret
   end.
 
 %% Lookup the value of a symbolic var in the generated model
@@ -175,11 +169,11 @@ lookup_in_model(Var, Model) ->
 %% ----------------------------------------------------------------------------
 
 %% Start the FSM
--spec start_fsm(solver_input()) -> solver_fsm() | {error, term()}.
+-spec start_fsm(solver_input()) -> solver_fsm().
 start_fsm(Args) ->
   case gen_statem:start_link(?MODULE, [Args], []) of
     {ok, Pid} -> Pid;
-    {error, _Reason} = R -> R
+    {error, Reason} -> throw({solver_fsm_failed, Reason})
   end.
 
 %% Execute an external program
