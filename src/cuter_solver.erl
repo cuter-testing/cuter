@@ -57,8 +57,7 @@
   from = null   :: from() | null,
   port = null   :: port() | null,
   sol = #{}     :: model(),
-  var = null    :: cuter_symbolic:symbolic() | null,
-  debug         :: solver_input()
+  var = null    :: cuter_symbolic:symbolic() | null
 }).
 -type fsm_state() :: #fsm_state{}.
 
@@ -67,8 +66,8 @@
 -type solver_result() :: {ok, cuter:input()} | error.
 
 -type solver() :: pid().
--type solver_args() :: #{  }.
 -type solver_fsm() :: pid().
+-type solver_fsm_args() :: #{}.
 
 %% ----------------------------------------------------------------------------
 %% Start a Solver process
@@ -124,8 +123,8 @@ got_stop_message() ->
 %% ----------------------------------------------------------------------------
 
 -spec solve(solver_input()) -> solver_result().
-solve({Python, Mappings, File, N}=Args) ->
-  FSM = start_fsm(Args),
+solve({Python, Mappings, File, N}) ->
+  FSM = start_fsm(),
   ok = exec(FSM, Python),
   ok = load_trace_file(FSM, {File, N}),
   query_solver(FSM, Mappings).
@@ -169,9 +168,9 @@ lookup_in_model(Var, Model) ->
 %% ----------------------------------------------------------------------------
 
 %% Start the FSM
--spec start_fsm(solver_input()) -> solver_fsm().
-start_fsm(Args) ->
-  case gen_statem:start_link(?MODULE, [Args], []) of
+-spec start_fsm() -> solver_fsm().
+start_fsm() ->
+  case gen_statem:start_link(?MODULE, #{}, []) of
     {ok, Pid} -> Pid;
     {error, Reason} -> throw({solver_fsm_failed, Reason})
   end.
@@ -216,10 +215,10 @@ callback_mode() ->
 %% ----------------------------------------------------------------------------
 
 %% init/1
--spec init([solver_input(), ...]) -> {ok, idle, fsm_state()}.
-init([Debug]) ->
+-spec init(solver_fsm_args()) -> {ok, idle, fsm_state()}.
+init(_Args) ->
   process_flag(trap_exit, true),
-  {ok, idle, #fsm_state{ debug = Debug }}.
+  {ok, idle, #fsm_state{}}.
 
 %% terminate/3
 -spec terminate(term(), state(), fsm_state()) -> ok.
@@ -296,7 +295,7 @@ handle_info({Port, {data, Bin}}, State, Data=#fsm_state{port = Port}) ->
   {next_state, State, Data};
 %% Unknown message
 handle_info(Info, _State, Data) ->
-  cuter_pp:debug_unexpected_solver_message(Data#fsm_state.debug),
+  cuter_pp:debug_unexpected_solver_message(Info),
   {stop, {unexpected_info, Info}, Data}.
 
 
