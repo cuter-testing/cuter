@@ -55,7 +55,6 @@
 
 %% fsm state datatype
 -record(fsm_state, {
-  super         :: pid(),
   from = null   :: from() | null,
   port = null   :: port() | null,
   sol = #{}     :: model(),
@@ -176,7 +175,7 @@ lookup_in_model(Var, Model) ->
 %% Start the FSM
 -spec start_fsm(solver_input()) -> pid() | {error, term()}.
 start_fsm(Args) ->
-  case gen_statem:start_link(?MODULE, [self(), Args], []) of
+  case gen_statem:start_link(?MODULE, [Args], []) of
     {ok, Pid} -> Pid;
     {error, _Reason} = R -> R
   end.
@@ -221,10 +220,10 @@ callback_mode() ->
 %% ----------------------------------------------------------------------------
 
 %% init/1
--spec init([pid()| solver_input(), ...]) -> {ok, idle, fsm_state()}.
-init([Super, Debug]) ->
+-spec init([solver_input(), ...]) -> {ok, idle, fsm_state()}.
+init([Debug]) ->
   process_flag(trap_exit, true),
-  {ok, idle, #fsm_state{super = Super, debug = Debug}}.
+  {ok, idle, #fsm_state{ debug = Debug }}.
 
 %% terminate/3
 -spec terminate(term(), state(), fsm_state()) -> ok.
