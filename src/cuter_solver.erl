@@ -144,7 +144,8 @@ query_solver(FSM, Mappings) ->
     'SAT' ->
       get_solution(FSM, Mappings);
     _ ->
-      stop_fsm(FSM, error)  %% RETURN ERROR
+      stop_exec(FSM),
+      wait_for_fsm(FSM, error)  %% RETURN ERROR
   end.
 
 -spec get_solution(solver_fsm(), mappings()) -> solver_result().
@@ -153,10 +154,6 @@ get_solution(FSM, Mappings) ->
   ok = stop_exec(FSM),
   Inp = cuter_symbolic:generate_new_input(Mappings, M),
   wait_for_fsm(FSM, {ok, Inp}).
-
-stop_fsm(FSM, Ret) ->
-  ok = stop_exec(FSM),
-  wait_for_fsm(FSM, Ret).
 
 -spec wait_for_fsm(solver_fsm(), solver_result()) -> solver_result().
 wait_for_fsm(FSM, Ret) ->
@@ -217,10 +214,6 @@ get_model(Pid) ->
 stop_exec(Pid) ->
   gen_statem:call(Pid, stop_exec).
 
--spec callback_mode() -> state_functions.
-callback_mode() ->
-    state_functions.
-
 %% ----------------------------------------------------------------------------
 %% gen_fsm callbacks
 %% ----------------------------------------------------------------------------
@@ -236,7 +229,7 @@ init(_Args) ->
 terminate(normal, finished, _Data) ->
   ok;
 terminate(Reason, State, #fsm_state{port = Port}) ->
-  %% Ensure the port has closed
+  %% Ensure the port has closed.
   case erlang:port_info(Port) of
     undefined -> ok;
     _ -> port_close(Port)
@@ -309,6 +302,9 @@ handle_info(Info, _State, Data) ->
   cuter_pp:debug_unexpected_solver_message(Info),
   {stop, {unexpected_info, Info}, Data}.
 
+-spec callback_mode() -> state_functions.
+callback_mode() ->
+    state_functions.
 
 %% ----------------------------------------------------------------------------
 %% FSM states
@@ -324,7 +320,7 @@ handle_info(Info, _State, Data) ->
 
 idle(cast, Event, Data) ->
   {stop, {unexpected_event, Event}, Data};
-%% Open a port by executing an external program
+%% Opens a port by executing an external program
 idle({call, From}, {exec, Command}, Data) ->
   Port = open_port({spawn, Command}, [{packet, 4}, binary, hide]),
   cuter_pp:fsm_started(Port),
