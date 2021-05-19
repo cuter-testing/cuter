@@ -11,7 +11,7 @@
     lookup_in_model/2
   , start/1
   , send_stop_message/1
-  , solve/1
+  , mk_solver_input/4
   %% gen_fsm callbacks
   , callback_mode/0
   , init/1
@@ -29,6 +29,9 @@
   , finished/3
   , failed/3
 ]).
+
+%% Exports that should be used by unit tests only.
+-export([solve/1]).
 
 -export_type([model/0, state/0, solver_input/0, solver_result/0, solver_status/0]).
 
@@ -62,7 +65,10 @@
 -type fsm_state() :: #fsm_state{}.
 
 -type mappings() :: [cuter_symbolic:mapping()].
--type solver_input() :: {string(), mappings(), file:name(), cuter_scheduler:operation_id()}.
+-type solver_input() :: #{ cmd := string()
+                         , mappings := mappings()
+                         , trace := file:name()
+                         , operation := cuter_scheduler:operation_id() }.
 -type solver_result() :: {ok, cuter:input()} | error.
 
 -type solver() :: pid().
@@ -98,8 +104,8 @@ loop(Scheduler) ->
         try_later ->
           timer:sleep(?SLEEP);
         %% Got an operation to solve.
-        {Python, Mappings, File, N} ->
-          Result = solve({Python, Mappings, File, N}),
+        SolverInput ->
+          Result = solve(SolverInput),
           ok = cuter_scheduler:solver_reply(Scheduler, Result)
       end,
       loop(Scheduler)
@@ -123,11 +129,11 @@ got_stop_message() ->
 %% ----------------------------------------------------------------------------
 
 -spec solve(solver_input()) -> solver_result().
-solve({Python, Mappings, File, N}) ->
+solve(#{ cmd := Cmd, mappings := Ms, trace := F, operation := N}) ->
   FSM = start_fsm(),
-  ok = exec(FSM, Python),
-  ok = load_trace_file(FSM, {File, N}),
-  query_solver(FSM, Mappings).
+  ok = exec(FSM, Cmd),
+  ok = load_trace_file(FSM, {F, N}),
+  query_solver(FSM, Ms).
 
 -spec query_solver(solver_fsm(), mappings()) -> solver_result().
 query_solver(FSM, Mappings) ->
@@ -163,6 +169,11 @@ wait_for_fsm(FSM, Ret) ->
 lookup_in_model(Var, Model) ->
   maps:get(Var, Model).
 
+%% Creates a new map that can be passed to a solver process as input.
+-spec mk_solver_input(string(), mappings(), file:name(), cuter_scheduler:operation_id()) -> solver_input().
+mk_solver_input(Cmd, Ms, F, N) ->
+  #{ cmd => Cmd, mappings => Ms, trace => F, operation => N }.
+
 %% ----------------------------------------------------------------------------
 %% API to interact with the FSM
 %% ----------------------------------------------------------------------------
@@ -175,7 +186,7 @@ start_fsm() ->
     {error, Reason} -> throw({solver_fsm_failed, Reason})
   end.
 
-%% Execute an external program
+%% Executes an external program.
 %% In this case, it will be a Python program.
 -spec exec(solver_fsm(), string()) -> ok.
 exec(Pid, Python) ->

@@ -292,7 +292,8 @@ handle_call(request_operation, {Who, _Ref}, S=#st{strategyState = StrategyState,
     %% Located an operation to reverse.
     {ok, OperationId, Handle} ->
       ExecInfo = dict:fetch(Handle, Info),
-      Reply = {Python, ExecInfo#info.mappings, ExecInfo#info.traceFile, OperationId},
+      Reply = cuter_solver:mk_solver_input(Python, ExecInfo#info.mappings,
+                                           ExecInfo#info.traceFile, OperationId),
       {reply, Reply, S#st{solving = dict:store(Who, OperationId, Solving)}}
   end;
 
