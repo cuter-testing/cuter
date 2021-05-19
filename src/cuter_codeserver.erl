@@ -446,7 +446,7 @@ modules_of_dumped_cache(Cached) ->
 %% Counter for branch enumeration
 %% ----------------------------------------------------------------------------
 
-%% Initialized the branch counter to 0.
+%% Initializes the branch counter to 0.
 -spec init_branch_counter() -> ok.
 init_branch_counter() ->
   _ = put(?BRANCH_COUNTER_PREFIX, 0),
