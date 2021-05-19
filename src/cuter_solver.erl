@@ -67,24 +67,27 @@
 -type solver_input() :: {string(), mappings(), file:name(), cuter_scheduler:operation_id()}.
 -type solver_result() :: {ok, cuter:input()} | error.
 
+-type solver() :: pid().
+-type solver_fsm() :: pid().
+
 %% ----------------------------------------------------------------------------
 %% Start a Solver process
 %% ----------------------------------------------------------------------------
 
 %% Starts a Solver process.
--spec start(pid()) -> pid().
+-spec start(cuter_scheduler:scheduler()) -> solver().
 start(Scheduler) ->
   spawn_link(?MODULE, poll, [self(), Scheduler]).
 
 %% Initializes and starts the loop.
--spec poll(pid(), pid()) -> ok.
+-spec poll(pid(), cuter_scheduler:scheduler()) -> ok.
 poll(Parent, Scheduler) ->
   process_flag(trap_exit, true),
   loop(Parent, Scheduler).
 
 %% Enters the loop where it will query the scheduler for an operation to
 %% reverse and then report the result.
--spec loop(pid(), pid()) -> ok.
+-spec loop(pid(), cuter_scheduler:scheduler()) -> ok.
 loop(Parent, Scheduler) ->
   case got_stop_message(Parent) of
     true -> stop();
@@ -104,7 +107,7 @@ loop(Parent, Scheduler) ->
   end.
 
 %% Stops a Solver process.
--spec send_stop_message(pid()) -> ok.
+-spec send_stop_message(solver()) -> ok.
 send_stop_message(Solver) ->
   Solver ! {self(), stop},
   ok.
@@ -132,7 +135,7 @@ solve({Python, Mappings, File, N}=Args) ->
   ok = load_trace_file(FSM, {File, N}),
   query_solver(FSM, Mappings).
 
--spec query_solver(pid(), mappings()) -> solver_result().
+-spec query_solver(solver_fsm(), mappings()) -> solver_result().
 query_solver(FSM, Mappings) ->
   ok = add_axioms(FSM),
   Status = check_model(FSM),
@@ -144,7 +147,7 @@ query_solver(FSM, Mappings) ->
       stop_fsm(FSM, error)  %% RETURN ERROR
   end.
 
--spec get_solution(pid(), mappings()) -> solver_result().
+-spec get_solution(solver_fsm(), mappings()) -> solver_result().
 get_solution(FSM, Mappings) ->
   M = get_model(FSM),
   ok = stop_exec(FSM),
@@ -155,7 +158,7 @@ stop_fsm(FSM, Ret) ->
   ok = stop_exec(FSM),
   wait_for_fsm(FSM, Ret).
 
--spec wait_for_fsm(pid(), solver_result()) -> solver_result().
+-spec wait_for_fsm(solver_fsm(), solver_result()) -> solver_result().
 wait_for_fsm(FSM, Ret) ->
   receive {'EXIT', FSM, normal} -> Ret
   after 10 ->
@@ -173,7 +176,7 @@ lookup_in_model(Var, Model) ->
 %% ----------------------------------------------------------------------------
 
 %% Start the FSM
--spec start_fsm(solver_input()) -> pid() | {error, term()}.
+-spec start_fsm(solver_input()) -> solver_fsm() | {error, term()}.
 start_fsm(Args) ->
   case gen_statem:start_link(?MODULE, [Args], []) of
     {ok, Pid} -> Pid;
@@ -182,32 +185,32 @@ start_fsm(Args) ->
 
 %% Execute an external program
 %% In this case, it will be a Python program.
--spec exec(pid(), string()) -> ok.
+-spec exec(solver_fsm(), string()) -> ok.
 exec(Pid, Python) ->
   gen_statem:call(Pid, {exec, Python}).
 
 %% Load the trace file
--spec load_trace_file(pid(), {file:name(), integer()}) -> ok.
+-spec load_trace_file(solver_fsm(), {file:name(), integer()}) -> ok.
 load_trace_file(Pid, FileInfo) ->
   gen_statem:call(Pid, {load_trace_file, FileInfo}, 10000).
 
 %% Add the generated axioms to the solver
--spec add_axioms(pid()) -> ok.
+-spec add_axioms(solver_fsm()) -> ok.
 add_axioms(Pid) ->
   gen_statem:call(Pid, add_axioms).
 
 %% Check the model for satisfiability
--spec check_model(pid()) -> solver_status().
+-spec check_model(solver_fsm()) -> solver_status().
 check_model(Pid) ->
   gen_statem:call(Pid, check_model, 500000).
 
 %% Get the instance of the sat model
--spec get_model(pid()) -> mappings().
+-spec get_model(solver_fsm()) -> mappings().
 get_model(Pid) ->
   gen_statem:call(Pid, get_model, 500000).
 
 %% Stop the FSM
--spec stop_exec(pid()) -> ok.
+-spec stop_exec(solver_fsm()) -> ok.
 stop_exec(Pid) ->
   gen_statem:call(Pid, stop_exec).
 
