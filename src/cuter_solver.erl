@@ -10,7 +10,6 @@
   %% external exports
     lookup_in_model/2
   , start/1
-  , poll/2
   , send_stop_message/1
   , solve/1
   %% gen_fsm callbacks
@@ -77,19 +76,19 @@
 %% Starts a Solver process.
 -spec start(cuter_scheduler:scheduler()) -> solver().
 start(Scheduler) ->
-  spawn_link(?MODULE, poll, [self(), Scheduler]).
+  spawn_link(fun() -> poll(Scheduler) end).
 
 %% Initializes and starts the loop.
--spec poll(pid(), cuter_scheduler:scheduler()) -> ok.
-poll(Parent, Scheduler) ->
+-spec poll(cuter_scheduler:scheduler()) -> ok.
+poll(Scheduler) ->
   process_flag(trap_exit, true),
-  loop(Parent, Scheduler).
+  loop(Scheduler).
 
 %% Enters the loop where it will query the scheduler for an operation to
 %% reverse and then report the result.
--spec loop(pid(), cuter_scheduler:scheduler()) -> ok.
-loop(Parent, Scheduler) ->
-  case got_stop_message(Parent) of
+-spec loop(cuter_scheduler:scheduler()) -> ok.
+loop(Scheduler) ->
+  case got_stop_message() of
     true -> stop();
     false ->
       %% Query the scheduler.
@@ -97,25 +96,25 @@ loop(Parent, Scheduler) ->
         %% No operation is currently available.
         try_later ->
           timer:sleep(?SLEEP),
-          loop(Parent, Scheduler);
+          loop(Scheduler);
         %% Got an operation to solve.
         {Python, Mappings, File, N} ->
           Result = solve({Python, Mappings, File, N}),
           ok = cuter_scheduler:solver_reply(Scheduler, Result),
-          loop(Parent, Scheduler)
+          loop(Scheduler)
       end
   end.
 
 %% Stops a Solver process.
 -spec send_stop_message(solver()) -> ok.
 send_stop_message(Solver) ->
-  Solver ! {self(), stop},
+  Solver ! stop,
   ok.
 
 %% Checks if the solver process should stop.
--spec got_stop_message(pid()) -> boolean().
-got_stop_message(Parent) ->
-  receive {Parent, stop} -> true
+-spec got_stop_message() -> boolean().
+got_stop_message() ->
+  receive stop -> true
   after 0 -> false
   end.
 
