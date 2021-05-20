@@ -92,11 +92,11 @@ concolic_execute(Conf, Handle, Input) ->
   cuter_pp:input(Handle, Input),
   BaseDir = Conf#conf.dataDir,
   DataDir = cuter_lib:get_data_dir(BaseDir, Handle),
-  TraceDir = cuter_lib:get_trace_dir(DataDir),  % Directory to store process traces
+  TraceDir = cuter_lib:get_trace_dir(DataDir),  %% Directory to store process traces
   IServer = cuter_iserver:start(Conf#conf.mod, Conf#conf.func, Input, TraceDir, Conf#conf.depth, Conf#conf.codeServer),
   retrieve_info(IServer, Handle, DataDir).
 
--spec retrieve_info(pid(), cuter_scheduler:handle(), file:filename()) -> cuter_analyzer:info() | cuter_error.
+-spec retrieve_info(cuter_iserver:iserver(), cuter_scheduler:handle(), file:filename()) -> cuter_analyzer:info() | cuter_error.
 retrieve_info(IServer, Handle, DataDir) ->
   case wait_for_execution(IServer) of
     {ok, ExStatus, Logs} ->
@@ -121,7 +121,8 @@ retrieve_info(IServer, Handle, DataDir) ->
       cuter_error
   end.
 
--spec wait_for_execution(pid()) -> {ok, cuter_iserver:execution_status(), cuter_iserver:logs()} | {error, any()}.
+-spec wait_for_execution(cuter_iserver:iserver()) -> {ok, cuter_iserver:execution_status(), cuter_iserver:logs()} 
+                                                   | {error, any()}.
 wait_for_execution(IServer) ->
   receive
     {IServer, ExStatus, Logs} ->
@@ -131,7 +132,7 @@ wait_for_execution(IServer) ->
       {error, Why}
   end.
 
--spec wait_for_iserver(pid()) -> ok | not_ok.
+-spec wait_for_iserver(cuter_iserver:iserver()) -> ok | not_ok.
 wait_for_iserver(IServer) ->
   receive {'EXIT', IServer, normal} -> ok
   after 10000 -> not_ok

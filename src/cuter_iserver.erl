@@ -13,7 +13,7 @@
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_info/2, handle_call/3, handle_cast/2]).
 
--export_type([execution_status/0, logs/0, node_logs/0, maybe/1, int_process/0]).
+-export_type([execution_status/0, logs/0, iserver/0, node_logs/0, maybe/1, int_process/0]).
 
 %% Internal type declarations
 -type ann_pid() :: {node(), pid()}.
@@ -42,6 +42,8 @@
 -type monitor_logs() :: [{node(), cuter_monitor:logs()}].
 -type mapping_logs() :: [{node(), maybe([cuter_symbolic:mapping()])}].
 -type int_logs()     :: [{node(), maybe(int_process())}].
+
+-type iserver() :: pid().
 
 %% Server's state
 %% ---------------
