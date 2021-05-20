@@ -2,7 +2,7 @@
 %%------------------------------------------------------------------------------
 -module(cuter_poller).
 
--export([start/6, poll/2, send_stop_message/1]).
+-export([start/6, send_stop_message/1]).
 
 %% The configuration of the poller.
 -record(conf, {
@@ -32,16 +32,16 @@ start(CodeServer, Scheduler, M, F, Dir, Depth) ->
               , dataDir = Dir
               , depth = Depth
               , scheduler = Scheduler },
-  spawn_link(?MODULE, poll, [self(), Conf]).
+  spawn_link(fun() -> poll(Conf) end).
 
--spec poll(pid(), configuration()) -> ok.
-poll(Parent, Conf) ->
+-spec poll(configuration()) -> ok.
+poll(Conf) ->
   process_flag(trap_exit, true),
-  loop(Parent, Conf).
+  loop(Conf).
 
--spec loop(pid(), configuration()) -> ok.
-loop(Parent, Conf) ->
-  case got_stop_message(Parent) of
+-spec loop(configuration()) -> ok.
+loop(Conf) ->
+  case got_stop_message() of
     true -> stop();
     false ->
       Scheduler = Conf#conf.scheduler,
@@ -52,7 +52,7 @@ loop(Parent, Conf) ->
         %% No input is currently available.
         try_later ->
           timer:sleep(?SLEEP),
-          loop(Parent, Conf);
+          loop(Conf);
         %% Got an input to run.
         {Handle, As} ->
           case concolic_execute(Conf, Handle, As) of
@@ -60,7 +60,7 @@ loop(Parent, Conf) ->
               stop();
             Info ->
               ok = cuter_scheduler:store_execution(Scheduler, Handle, Info),
-              loop(Parent, Conf)
+              loop(Conf)
           end
       end
   end.
@@ -73,13 +73,13 @@ stop() ->
 -spec send_stop_message(poller()) -> ok.
 send_stop_message(Poller) ->
   io:format("Stopping poller ~p...~n", [Poller]),
-  Poller ! {self(), stop},
+  Poller ! stop,
   ok.
 
 %% Checks if the poller process should stop.
--spec got_stop_message(pid()) -> boolean().
-got_stop_message(Parent) ->
-  receive {Parent, stop} -> true
+-spec got_stop_message() -> boolean().
+got_stop_message() ->
+  receive stop -> true
   after 0 -> false
   end.
 
