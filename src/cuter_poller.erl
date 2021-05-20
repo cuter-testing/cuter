@@ -6,12 +6,18 @@
 
 %% The configuration of the poller.
 -record(conf, {
-  codeServer    :: cuter_codeserver:codeserver(),
-  mod           :: cuter:mod(),
-  func          :: atom(),
-  dataDir       :: file:filename(),
-  depth         :: cuter:depth(),
-  scheduler     :: cuter_scheduler:scheduler()
+  %% The handle for the code server.
+  codeServer :: cuter_codeserver:codeserver(),
+  %% The module part of the MFA entry point.
+  m :: cuter:mod(),
+  %% The function part of the MFA entry point.
+  f :: atom(),
+  %% The base directory to store execution traces.
+  dir :: file:filename(),
+  %% The depth for tracing.
+  depth :: cuter:depth(),
+  %% The handle for the scheduler.
+  scheduler :: cuter_scheduler:scheduler()
 }).
 -type configuration() :: #conf{}.
 
@@ -27,9 +33,9 @@
             atom(), file:filename(), cuter:depth()) -> poller().
 start(CodeServer, Scheduler, M, F, Dir, Depth) ->
   Conf = #conf{ codeServer = CodeServer
-              , mod = M
-              , func = F
-              , dataDir = Dir
+              , m = M
+              , f = F
+              , dir = Dir
               , depth = Depth
               , scheduler = Scheduler },
   spawn_link(fun() -> poll(Conf) end).
@@ -40,11 +46,10 @@ poll(Conf) ->
   loop(Conf).
 
 -spec loop(configuration()) -> ok.
-loop(Conf) ->
+loop(#conf{ scheduler = Scheduler } = Conf) ->
   case got_stop_message() of
     true -> stop();
     false ->
-      Scheduler = Conf#conf.scheduler,
       case cuter_scheduler:request_input(Scheduler) of
         %% No input is or will be available in the future.
         empty ->
@@ -88,12 +93,12 @@ got_stop_message() ->
 %% ------------------------------------------------------------------
 
 -spec concolic_execute(configuration(), cuter_scheduler:handle(), cuter:input()) -> cuter_analyzer:info() | cuter_error.
-concolic_execute(Conf, Handle, Input) ->
+concolic_execute(#conf{ dir = Dir, m = M, f = F, depth = D, codeServer = CS }, Handle, Input) ->
   cuter_pp:input(Handle, Input),
-  BaseDir = Conf#conf.dataDir,
-  DataDir = cuter_lib:get_data_dir(BaseDir, Handle),
-  TraceDir = cuter_lib:get_trace_dir(DataDir),  %% Directory to store process traces
-  IServer = cuter_iserver:start(Conf#conf.mod, Conf#conf.func, Input, TraceDir, Conf#conf.depth, Conf#conf.codeServer),
+  DataDir = cuter_lib:get_data_dir(Dir, Handle),
+  %% Directory to store the traces of a process.
+  TraceDir = cuter_lib:get_trace_dir(DataDir),
+  IServer = cuter_iserver:start(M, F, Input, TraceDir, D, CS),
   retrieve_info(IServer, Handle, DataDir).
 
 -spec retrieve_info(cuter_iserver:iserver(), cuter_scheduler:handle(), file:filename()) -> cuter_analyzer:info() | cuter_error.
