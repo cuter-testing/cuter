@@ -65,10 +65,10 @@
 -type fsm_state() :: #fsm_state{}.
 
 -type mappings() :: [cuter_symbolic:mapping()].
--type solver_input() :: #{ cmd := string()
-                         , mappings := mappings()
-                         , trace := file:name()
-                         , operation := cuter_scheduler:operation_id() }.
+-type solver_input() :: #{cmd := string(),
+                          mappings := mappings(),
+                          trace := file:name(),
+                          operation := cuter_scheduler:operation_id()}.
 -type solver_result() :: {ok, cuter:input()} | error.
 
 -type solver() :: pid().
@@ -129,7 +129,7 @@ got_stop_message() ->
 %% ----------------------------------------------------------------------------
 
 -spec solve(solver_input()) -> solver_result().
-solve(#{ cmd := Cmd, mappings := Ms, trace := F, operation := N}) ->
+solve(#{cmd := Cmd, mappings := Ms, trace := F, operation := N}) ->
   FSM = start_fsm(),
   ok = exec(FSM, Cmd),
   ok = load_trace_file(FSM, {F, N}),
@@ -169,7 +169,7 @@ lookup_in_model(Var, Model) ->
 %% Creates a new map that can be passed to a solver process as input.
 -spec mk_solver_input(string(), mappings(), file:name(), cuter_scheduler:operation_id()) -> solver_input().
 mk_solver_input(Cmd, Ms, F, N) ->
-  #{ cmd => Cmd, mappings => Ms, trace => F, operation => N }.
+  #{cmd => Cmd, mappings => Ms, trace => F, operation => N}.
 
 %% ----------------------------------------------------------------------------
 %% API to interact with the FSM
@@ -228,7 +228,7 @@ init(_Args) ->
 -spec terminate(term(), state(), fsm_state()) -> ok.
 terminate(normal, finished, _Data) ->
   ok;
-terminate(Reason, State, #fsm_state{ port = Port }) ->
+terminate(Reason, State, #fsm_state{port = Port}) ->
   %% Ensure the port has closed.
   case erlang:port_info(Port) of
     undefined -> ok;
@@ -257,9 +257,9 @@ handle_info({Port, {data, Resp}}, State=solving, Data=#fsm_state{from = From, po
       gen_statem:reply(From, Status),
       case Status of
         'SAT' ->
-          {next_state, solved, Data#fsm_state{ from = undefined }};
+          {next_state, solved, Data#fsm_state{from = undefined}};
         _ ->
-          {next_state, failed, Data#fsm_state{ from = undefined }}
+          {next_state, failed, Data#fsm_state{from = undefined}}
       end;
     {'model', Model} ->
       {stop, {expecting_status_got_model, Model}, Data}
@@ -280,7 +280,7 @@ handle_info({Port, {data, Resp}}, State=generating_model, Data=#fsm_state{from =
         end,
       maps:fold(Fn, ok, Model),
       gen_statem:reply(From, Model),
-      {next_state, model_received, Data#fsm_state{ from = undefined }};
+      {next_state, model_received, Data#fsm_state{from = undefined}};
     {'status', Status} ->
       {stop, {expecting_model_got_status, Status}, Data}
   catch
@@ -292,7 +292,7 @@ handle_info({Port, {data, Resp}}, State=generating_model, Data=#fsm_state{from =
 %% Stop the FSM
 handle_info({'EXIT', Port, normal}, finished, Data=#fsm_state{port = Port}) ->
   cuter_pp:port_closed(),
-  {stop, normal, Data#fsm_state{ port = undefined }};
+  {stop, normal, Data#fsm_state{port = undefined}};
 %% Unknown message from the port
 handle_info({Port, {data, Bin}}, State, Data=#fsm_state{port = Port}) ->
   cuter_pp:undecoded_msg(Bin, State),
@@ -324,7 +324,7 @@ idle(cast, Event, Data) ->
 idle({call, From}, {exec, Command}, Data) ->
   Port = open_port({spawn, Command}, [{packet, 4}, binary, hide]),
   cuter_pp:fsm_started(Port),
-  {next_state, python_started, Data#fsm_state{ port = Port }, [{reply, From, ok}]};
+  {next_state, python_started, Data#fsm_state{port = Port}, [{reply, From, ok}]};
 idle({call, From}, Event, Data) ->
   {stop_and_reply, {unexpected_event, Event}, {reply, From, ok}, Data};
 idle(info, Msg, Data) ->
@@ -387,7 +387,7 @@ axioms_added({call, From}, check_model, Data=#fsm_state{port = Port}) ->
   Cmd = cuter_serial:solver_command(solve),
   cuter_pp:send_cmd(axioms_added, Cmd, "Check the model"),
   Port ! {self(), {command, Cmd}},
-  {next_state, solving, Data#fsm_state{ from = From }};
+  {next_state, solving, Data#fsm_state{from = From}};
 axioms_added({call, From}, Event, Data) ->
   {stop_and_reply, {unexpected_event, Event}, {reply, From, ok}, Data};
 axioms_added(info, Msg, Data) ->
@@ -445,7 +445,7 @@ solved({call, From}, get_model, Data=#fsm_state{port = Port}) ->
   Cmd = cuter_serial:solver_command(get_model),
   cuter_pp:send_cmd(solved, Cmd, "Get the model"),
   Port ! {self(), {command, Cmd}},
-  {next_state, generating_model, Data#fsm_state{ from = From }};
+  {next_state, generating_model, Data#fsm_state{from = From}};
 solved({call, From}, Event, Data) ->
   {stop_and_reply, {unexpected_event, Event}, {reply, From, ok}, Data};
 solved(info, Msg, Data) ->
