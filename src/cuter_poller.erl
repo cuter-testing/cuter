@@ -6,24 +6,32 @@
 
 %% The configuration of the poller.
 -record(conf, {
-  codeServer    :: pid(),
+  codeServer    :: cuter_codeserver:codeserver(),
   mod           :: cuter:mod(),
   func          :: atom(),
   dataDir       :: file:filename(),
   depth         :: cuter:depth(),
-  scheduler     :: pid()
+  scheduler     :: cuter_scheduler:scheduler()
 }).
 -type configuration() :: #conf{}.
 
 -define(SLEEP, 50).
 
+-type poller() :: pid().
+
 %% ------------------------------------------------------------------
 %% Main functions of the poller
 %% ------------------------------------------------------------------
 
--spec start(pid(), pid(), cuter:mod(), atom(), file:filename(), cuter:depth()) -> pid().
+-spec start(cuter_codeserver:codeserver(), cuter_scheduler:scheduler(), cuter:mod(),
+            atom(), file:filename(), cuter:depth()) -> poller().
 start(CodeServer, Scheduler, M, F, Dir, Depth) ->
-  Conf = mk_conf(CodeServer, Scheduler, M, F, Dir, Depth),
+  Conf = #conf{ codeServer = CodeServer
+              , mod = M
+              , func = F
+              , dataDir = Dir
+              , depth = Depth
+              , scheduler = Scheduler },
   spawn_link(?MODULE, poll, [self(), Conf]).
 
 -spec poll(pid(), configuration()) -> ok.
@@ -62,7 +70,7 @@ stop() ->
   ok.
 
 %% Stops a poller process.
--spec send_stop_message(pid()) -> ok.
+-spec send_stop_message(poller()) -> ok.
 send_stop_message(Poller) ->
   io:format("Stopping poller ~p...~n", [Poller]),
   Poller ! {self(), stop},
@@ -128,16 +136,3 @@ wait_for_iserver(IServer) ->
   receive {'EXIT', IServer, normal} -> ok
   after 10000 -> not_ok
   end.
-
-%% ----------------------------------------------------------------------------
-%% Manage the configuration.
-%% ----------------------------------------------------------------------------
-
--spec mk_conf(pid(), pid(), cuter:mod(), atom(), file:filename(), cuter:depth()) -> configuration().
-mk_conf(CodeServer, Scheduler, M, F, Dir, Depth) ->
-  #conf{ codeServer = CodeServer
-       , mod = M
-       , func = F
-       , dataDir = Dir
-       , depth = Depth
-       , scheduler = Scheduler}.
