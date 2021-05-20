@@ -4,12 +4,13 @@
 
 -export([run/2, run/3, run/4, run/5, run_from_file/2]).
 
--export_type([mod/0, input/0, erroneous_inputs/0, depth/0]).
+-export_type([func/0, mod/0, input/0, erroneous_inputs/0, depth/0]).
 
 -include("include/cuter_macros.hrl").
 -include("include/cuter_metrics.hrl").
 
 -type mod()   :: module().
+-type func()  :: atom().
 -type input() :: [any()].
 -type depth() :: pos_integer().
 -type erroneous_inputs() :: [{mfa(), [input()]}].

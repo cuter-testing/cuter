@@ -11,7 +11,7 @@
   %% The module part of the MFA entry point.
   m :: cuter:mod(),
   %% The function part of the MFA entry point.
-  f :: atom(),
+  f :: cuter:func(),
   %% The base directory to store execution traces.
   dir :: file:filename(),
   %% The depth for tracing.
@@ -30,7 +30,7 @@
 %% ------------------------------------------------------------------
 
 -spec start(cuter_codeserver:codeserver(), cuter_scheduler:scheduler(), cuter:mod(),
-            atom(), file:filename(), cuter:depth()) -> poller().
+            cuter:func(), file:filename(), cuter:depth()) -> poller().
 start(CodeServer, Scheduler, M, F, Dir, Depth) ->
   Conf = #conf{ codeServer = CodeServer
               , m = M
