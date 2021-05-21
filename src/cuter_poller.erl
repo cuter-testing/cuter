@@ -32,12 +32,12 @@
 -spec start(cuter_codeserver:codeserver(), cuter_scheduler:scheduler(), cuter:mod(),
             cuter:func(), file:filename(), cuter:depth()) -> poller().
 start(CodeServer, Scheduler, M, F, Dir, Depth) ->
-  Conf = #conf{ codeServer = CodeServer
-              , m = M
-              , f = F
-              , dir = Dir
-              , depth = Depth
-              , scheduler = Scheduler },
+  Conf = #conf{codeServer = CodeServer,
+               m = M,
+               f = F,
+               dir = Dir,
+               depth = Depth,
+               scheduler = Scheduler},
   spawn_link(fun() -> poll(Conf) end).
 
 -spec poll(configuration()) -> ok.
@@ -46,7 +46,7 @@ poll(Conf) ->
   loop(Conf).
 
 -spec loop(configuration()) -> ok.
-loop(#conf{ scheduler = Scheduler } = Conf) ->
+loop(#conf{scheduler = Scheduler} = Conf) ->
   case got_stop_message() of
     true -> stop();
     false ->
@@ -93,7 +93,7 @@ got_stop_message() ->
 %% ------------------------------------------------------------------
 
 -spec concolic_execute(configuration(), cuter_scheduler:handle(), cuter:input()) -> cuter_analyzer:info() | cuter_error.
-concolic_execute(#conf{ dir = Dir, m = M, f = F, depth = D, codeServer = CS }, Handle, Input) ->
+concolic_execute(#conf{dir = Dir, m = M, f = F, depth = D, codeServer = CS}, Handle, Input) ->
   cuter_pp:input(Handle, Input),
   DataDir = cuter_lib:get_data_dir(Dir, Handle),
   %% Directory to store the traces of a process.
