@@ -22,7 +22,7 @@
 
 -include("include/cuter_macros.hrl").
 
--export_type([cached_modules/0, counter/0, module_cache/0, logs/0]).
+-export_type([cached_modules/0, codeserver/0, counter/0, module_cache/0, logs/0]).
 
 %% Macros
 -define(BRANCH_COUNTER_PREFIX, '__branch_count').
