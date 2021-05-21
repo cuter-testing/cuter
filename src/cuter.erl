@@ -153,7 +153,7 @@ start_one(M, F, As, Depth, CodeServer, Scheduler) ->
   ok = cuter_scheduler:clear_erroneous_inputs(Scheduler),
   ErroneousInputs.
 
--spec wait_for_processes([pid()], fun((pid()) -> ok)) -> ok.
+-spec wait_for_processes([cuter_poller:poller()], fun((cuter_poller:poller()) -> ok)) -> ok.
 wait_for_processes([], _StopFn) ->
   ok;
 wait_for_processes(Procs, StopFn) ->

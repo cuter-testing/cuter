@@ -4,6 +4,8 @@
 
 -export([start/6, send_stop_message/1]).
 
+-export_type([poller/0]).
+
 %% The configuration of the poller.
 -record(conf, {
   %% The handle for the code server.
