@@ -10,9 +10,8 @@
   %% external exports
     lookup_in_model/2
   , start/1
-  , poll/2
   , send_stop_message/1
-  , solve/1
+  , mk_solver_input/4
   %% gen_fsm callbacks
   , callback_mode/0
   , init/1
@@ -30,6 +29,9 @@
   , finished/3
   , failed/3
 ]).
+
+%% Exports that should be used by unit tests only.
+-export([solve/1]).
 
 -export_type([model/0, state/0, solver_input/0, solver_result/0, solver_status/0]).
 
@@ -55,85 +57,85 @@
 
 %% fsm state datatype
 -record(fsm_state, {
-  super         :: pid(),
-  from = null   :: from() | null,
-  port = null   :: port() | null,
-  sol = #{}     :: model(),
-  var = null    :: cuter_symbolic:symbolic() | null,
-  debug         :: solver_input()
+  %% The caller that awaits a response.
+  from :: from() | undefined,
+  %% The descriptor for the port to the solver.
+  port :: port() | undefined
 }).
 -type fsm_state() :: #fsm_state{}.
 
 -type mappings() :: [cuter_symbolic:mapping()].
--type solver_input() :: {string(), mappings(), file:name(), cuter_scheduler:operation_id()}.
+-type solver_input() :: #{cmd := string(),
+                          mappings := mappings(),
+                          trace := file:name(),
+                          operation := cuter_scheduler:operation_id()}.
 -type solver_result() :: {ok, cuter:input()} | error.
+
+-type solver() :: pid().
+-type solver_fsm() :: pid().
+-type solver_fsm_args() :: #{}.
 
 %% ----------------------------------------------------------------------------
 %% Start a Solver process
 %% ----------------------------------------------------------------------------
 
 %% Starts a Solver process.
--spec start(pid()) -> pid().
+-spec start(cuter_scheduler:scheduler()) -> solver().
 start(Scheduler) ->
-  spawn_link(?MODULE, poll, [self(), Scheduler]).
+  spawn_link(fun() -> poll(Scheduler) end).
 
 %% Initializes and starts the loop.
--spec poll(pid(), pid()) -> ok.
-poll(Parent, Scheduler) ->
+-spec poll(cuter_scheduler:scheduler()) -> ok.
+poll(Scheduler) ->
   process_flag(trap_exit, true),
-  loop(Parent, Scheduler).
+  loop(Scheduler).
 
 %% Enters the loop where it will query the scheduler for an operation to
 %% reverse and then report the result.
--spec loop(pid(), pid()) -> ok.
-loop(Parent, Scheduler) ->
-  case got_stop_message(Parent) of
-    true -> stop();
+-spec loop(cuter_scheduler:scheduler()) -> ok.
+loop(Scheduler) ->
+  case got_stop_message() of
+    true ->
+      ok;
     false ->
       %% Query the scheduler.
       case cuter_scheduler:request_operation(Scheduler) of
         %% No operation is currently available.
         try_later ->
-          timer:sleep(?SLEEP),
-          loop(Parent, Scheduler);
+          timer:sleep(?SLEEP);
         %% Got an operation to solve.
-        {Python, Mappings, File, N} ->
-          Result = solve({Python, Mappings, File, N}),
-          ok = cuter_scheduler:solver_reply(Scheduler, Result),
-          loop(Parent, Scheduler)
-      end
+        SolverInput ->
+          Result = solve(SolverInput),
+          ok = cuter_scheduler:solver_reply(Scheduler, Result)
+      end,
+      loop(Scheduler)
   end.
 
 %% Stops a Solver process.
--spec send_stop_message(pid()) -> ok.
+-spec send_stop_message(solver()) -> ok.
 send_stop_message(Solver) ->
-  Solver ! {self(), stop},
+  Solver ! stop,
   ok.
 
 %% Checks if the solver process should stop.
--spec got_stop_message(pid()) -> boolean().
-got_stop_message(Parent) ->
-  receive {Parent, stop} -> true
+-spec got_stop_message() -> boolean().
+got_stop_message() ->
+  receive stop -> true
   after 0 -> false
   end.
-
-%% Cleans up before exiting.
--spec stop() -> ok.
-stop() ->
-  ok.
 
 %% ----------------------------------------------------------------------------
 %% Query the Z3 SMT Solver
 %% ----------------------------------------------------------------------------
 
 -spec solve(solver_input()) -> solver_result().
-solve({Python, Mappings, File, N}=Args) ->
-  FSM = start_fsm(Args),
-  ok = exec(FSM, Python),
-  ok = load_trace_file(FSM, {File, N}),
-  query_solver(FSM, Mappings).
+solve(#{cmd := Cmd, mappings := Ms, trace := F, operation := N}) ->
+  FSM = start_fsm(),
+  ok = exec(FSM, Cmd),
+  ok = load_trace_file(FSM, {F, N}),
+  query_solver(FSM, Ms).
 
--spec query_solver(pid(), mappings()) -> solver_result().
+-spec query_solver(solver_fsm(), mappings()) -> solver_result().
 query_solver(FSM, Mappings) ->
   ok = add_axioms(FSM),
   Status = check_model(FSM),
@@ -142,26 +144,21 @@ query_solver(FSM, Mappings) ->
     'SAT' ->
       get_solution(FSM, Mappings);
     _ ->
-      stop_fsm(FSM, error)  %% RETURN ERROR
+      stop_exec(FSM),
+      wait_for_fsm(FSM, error)  %% RETURN ERROR
   end.
 
--spec get_solution(pid(), mappings()) -> solver_result().
+-spec get_solution(solver_fsm(), mappings()) -> solver_result().
 get_solution(FSM, Mappings) ->
   M = get_model(FSM),
   ok = stop_exec(FSM),
   Inp = cuter_symbolic:generate_new_input(Mappings, M),
   wait_for_fsm(FSM, {ok, Inp}).
 
-stop_fsm(FSM, Ret) ->
-  ok = stop_exec(FSM),
-  wait_for_fsm(FSM, Ret).
-
--spec wait_for_fsm(pid(), solver_result()) -> solver_result().
+-spec wait_for_fsm(solver_fsm(), solver_result()) -> solver_result().
 wait_for_fsm(FSM, Ret) ->
   receive {'EXIT', FSM, normal} -> Ret
-  after 10 ->
-%%    io:format("TIMEOUT~n"),
-    Ret
+  after 10 -> Ret
   end.
 
 %% Lookup the value of a symbolic var in the generated model
@@ -169,69 +166,70 @@ wait_for_fsm(FSM, Ret) ->
 lookup_in_model(Var, Model) ->
   maps:get(Var, Model).
 
+%% Creates a new map that can be passed to a solver process as input.
+-spec mk_solver_input(string(), mappings(), file:name(), cuter_scheduler:operation_id()) -> solver_input().
+mk_solver_input(Cmd, Ms, F, N) ->
+  #{cmd => Cmd, mappings => Ms, trace => F, operation => N}.
+
 %% ----------------------------------------------------------------------------
 %% API to interact with the FSM
 %% ----------------------------------------------------------------------------
 
 %% Start the FSM
--spec start_fsm(solver_input()) -> pid() | {error, term()}.
-start_fsm(Args) ->
-  case gen_statem:start_link(?MODULE, [self(), Args], []) of
+-spec start_fsm() -> solver_fsm().
+start_fsm() ->
+  case gen_statem:start_link(?MODULE, #{}, []) of
     {ok, Pid} -> Pid;
-    {error, _Reason} = R -> R
+    {error, Reason} -> throw({solver_fsm_failed, Reason})
   end.
 
-%% Execute an external program
+%% Executes an external program.
 %% In this case, it will be a Python program.
--spec exec(pid(), string()) -> ok.
+-spec exec(solver_fsm(), string()) -> ok.
 exec(Pid, Python) ->
   gen_statem:call(Pid, {exec, Python}).
 
 %% Load the trace file
--spec load_trace_file(pid(), {file:name(), integer()}) -> ok.
+-spec load_trace_file(solver_fsm(), {file:name(), integer()}) -> ok.
 load_trace_file(Pid, FileInfo) ->
   gen_statem:call(Pid, {load_trace_file, FileInfo}, 10000).
 
 %% Add the generated axioms to the solver
--spec add_axioms(pid()) -> ok.
+-spec add_axioms(solver_fsm()) -> ok.
 add_axioms(Pid) ->
   gen_statem:call(Pid, add_axioms).
 
 %% Check the model for satisfiability
--spec check_model(pid()) -> solver_status().
+-spec check_model(solver_fsm()) -> solver_status().
 check_model(Pid) ->
   gen_statem:call(Pid, check_model, 500000).
 
 %% Get the instance of the sat model
--spec get_model(pid()) -> mappings().
+-spec get_model(solver_fsm()) -> mappings().
 get_model(Pid) ->
   gen_statem:call(Pid, get_model, 500000).
 
 %% Stop the FSM
--spec stop_exec(pid()) -> ok.
+-spec stop_exec(solver_fsm()) -> ok.
 stop_exec(Pid) ->
   gen_statem:call(Pid, stop_exec).
-
--spec callback_mode() -> state_functions.
-callback_mode() ->
-    state_functions.
 
 %% ----------------------------------------------------------------------------
 %% gen_fsm callbacks
 %% ----------------------------------------------------------------------------
 
 %% init/1
--spec init([pid()| solver_input(), ...]) -> {ok, idle, fsm_state()}.
-init([Super, Debug]) ->
+-spec init(solver_fsm_args()) -> {ok, idle, fsm_state()}.
+init(_Args) ->
   process_flag(trap_exit, true),
-  {ok, idle, #fsm_state{super = Super, debug = Debug}}.
+  {ok, idle, #fsm_state{}}.
 
 %% terminate/3
 -spec terminate(term(), state(), fsm_state()) -> ok.
 terminate(normal, finished, _Data) ->
   ok;
 terminate(Reason, State, #fsm_state{port = Port}) ->
-  %% Ensure the port has closed
+  %% Ensure the port has closed.
   case erlang:port_info(Port) of
     undefined -> ok;
     _ -> port_close(Port)
@@ -259,9 +257,9 @@ handle_info({Port, {data, Resp}}, State=solving, Data=#fsm_state{from = From, po
       gen_statem:reply(From, Status),
       case Status of
         'SAT' ->
-          {next_state, solved, Data#fsm_state{from = null}};
+          {next_state, solved, Data#fsm_state{from = undefined}};
         _ ->
-          {next_state, failed, Data#fsm_state{from = null}}
+          {next_state, failed, Data#fsm_state{from = undefined}}
       end;
     {'model', Model} ->
       {stop, {expecting_status_got_model, Model}, Data}
@@ -282,7 +280,7 @@ handle_info({Port, {data, Resp}}, State=generating_model, Data=#fsm_state{from =
         end,
       maps:fold(Fn, ok, Model),
       gen_statem:reply(From, Model),
-      {next_state, model_received, Data#fsm_state{from = null, sol = #{}}};
+      {next_state, model_received, Data#fsm_state{from = undefined}};
     {'status', Status} ->
       {stop, {expecting_model_got_status, Status}, Data}
   catch
@@ -294,16 +292,19 @@ handle_info({Port, {data, Resp}}, State=generating_model, Data=#fsm_state{from =
 %% Stop the FSM
 handle_info({'EXIT', Port, normal}, finished, Data=#fsm_state{port = Port}) ->
   cuter_pp:port_closed(),
-  {stop, normal, Data#fsm_state{port = null}};
+  {stop, normal, Data#fsm_state{port = undefined}};
 %% Unknown message from the port
 handle_info({Port, {data, Bin}}, State, Data=#fsm_state{port = Port}) ->
   cuter_pp:undecoded_msg(Bin, State),
   {next_state, State, Data};
 %% Unknown message
 handle_info(Info, _State, Data) ->
-  cuter_pp:debug_unexpected_solver_message(Data#fsm_state.debug),
+  cuter_pp:debug_unexpected_solver_message(Info),
   {stop, {unexpected_info, Info}, Data}.
 
+-spec callback_mode() -> state_functions.
+callback_mode() ->
+    state_functions.
 
 %% ----------------------------------------------------------------------------
 %% FSM states
@@ -319,7 +320,7 @@ handle_info(Info, _State, Data) ->
 
 idle(cast, Event, Data) ->
   {stop, {unexpected_event, Event}, Data};
-%% Open a port by executing an external program
+%% Opens a port by executing an external program
 idle({call, From}, {exec, Command}, Data) ->
   Port = open_port({spawn, Command}, [{packet, 4}, binary, hide]),
   cuter_pp:fsm_started(Port),
