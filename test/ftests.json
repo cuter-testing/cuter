@@ -671,6 +671,20 @@
             "skip": false
         },
         {
+            "module": "sum",
+            "function": "classify2",
+            "args": "[[]]",
+            "depth": "25",
+            "withProper": true,
+            "errors": true,
+            "arity": 1,
+            "nondeterministic": true,
+            "solutions": [
+                "sum($1) == 4711"
+            ],
+            "skip": false
+        },
+        {
             "module": "funs",
             "function": "f14",
             "args": "[fun(_) -> 1 end, []]",
