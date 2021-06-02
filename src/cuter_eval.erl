@@ -683,17 +683,25 @@ eval_expr({c_letrec, _Anno, Defs, Body}, M, Cenv, Senv, Servers, Fd) ->
   eval_expr(Body, M, NCe, NSe, Servers, Fd);
 
 %% c_literal
-eval_expr({c_literal, _Anno, V}, _M, _Cenv, _Senv, _Servers, Fd) ->
+eval_expr({c_literal, _Anno, V}, _M, _Cenv, _Senv, Servers, Fd) ->
   case erlang:is_function(V) of
     false -> mk_result(V, V);
     true ->
       Info = erlang:fun_info(V),
-      case proplists:get_value(arity, Info) of
+      Mod = proplists:get_value(module, Info),
+      Func = proplists:get_value(name, Info),
+      Arity = proplists:get_value(arity, Info),
+      case Arity of
         undefined -> mk_result(V, V);
-        Arity ->
-          LambdaS = cuter_symbolic:fresh_lambda(Arity, Fd),
-          add_to_created_closure(LambdaS),
-          mk_result(V, LambdaS)
+        _ ->
+          case Mod of
+	    undefined ->
+              LambdaS = cuter_symbolic:fresh_lambda(Arity, Fd),
+              add_to_created_closure(LambdaS),
+              mk_result(V, LambdaS);
+	    _ ->
+              make_fun(Mod, Func, Arity, Servers, Fd)
+	  end
       end
   end;
 
