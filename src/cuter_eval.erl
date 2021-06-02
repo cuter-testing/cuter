@@ -688,19 +688,17 @@ eval_expr({c_literal, _Anno, V}, _M, _Cenv, _Senv, Servers, Fd) ->
     false -> mk_result(V, V);
     true ->
       Info = erlang:fun_info(V),
-      Arity = proplists:get_value(arity, Info),
-      case Arity of
-        undefined -> mk_result(V, V);
-        _ ->
-	  Mod = proplists:get_value(module, Info),
-          case Mod of
+      case proplists:get_value(arity, Info) of
+	undefined -> mk_result(V, V);
+        Arity ->
+          case proplists:get_value(module, Info) of
 	    undefined -> % XXX: Check whether this case actually happens
 	      LambdaS = cuter_symbolic:fresh_lambda(Arity, Fd),
-              add_to_created_closure(LambdaS),
-              mk_result(V, LambdaS);
-	    _ ->
+	      add_to_created_closure(LambdaS),
+	      mk_result(V, LambdaS);
+	    Mod ->
 	      Func = proplists:get_value(name, Info),
-              make_fun(Mod, Func, Arity, Servers, Fd)
+	      make_fun(Mod, Func, Arity, Servers, Fd)
 	  end
       end
   end;
