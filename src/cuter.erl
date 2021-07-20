@@ -182,13 +182,7 @@ stop_and_report(State) ->
     _ ->
       ok
   end,
-  %% Report solver statistics.
-  case cuter_config:fetch(?REPORT_METRICS) of
-    {ok, true} ->
-      cuter_analyzer:report_metrics();
-    _ ->
-      ok
-  end,
+  report_metrics(),
   %% Report the erroneous inputs.
   ErroneousInputs = maybe_sort_errors(lists:reverse(State#st.errors)),
   cuter_pp:errors_found(ErroneousInputs),
@@ -204,6 +198,9 @@ maybe_sort_errors(ErroneousInputs) ->
     _ ->
       ErroneousInputs
   end.
+
+report_metrics() ->
+  cuter_flags:report_metrics() andalso cuter_analyzer:report_metrics().
 
 -spec stop(state()) -> erroneous_inputs().
 stop(State) ->
@@ -264,7 +261,6 @@ enable_runtime_config(Options) ->
   cuter_config:store(?Z3_TIMEOUT, proplists:get_value(?Z3_TIMEOUT, Options, ?TWO)),
   cuter_config:store(?STRATEGY,
                      proplists:get_value(?STRATEGY, Options, ?DEFAULT_STRATEGY)),
-  cuter_config:store(?REPORT_METRICS, proplists:get_bool(?REPORT_METRICS, Options)),
   cuter_config:store(?CALCULATE_COVERAGE, proplists:get_bool(?CALCULATE_COVERAGE, Options)),
   cuter_config:store(?DISABLE_PMATCH, proplists:get_bool(?DISABLE_PMATCH, Options)),
   cuter_config:store(?SUPPRESS_UNSUPPORTED_MFAS, 

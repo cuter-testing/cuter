@@ -64,8 +64,6 @@
 -define(WORKING_DIR, working_dir).
 %% Sets the timeout for the Z3 SMT solver in seconds.
 -define(Z3_TIMEOUT, z3_timeout).
-%% If enabled, reports the collected metrics.
--define(REPORT_METRICS, report_metrics).
 %% Selects the search strategy for the scheduler.
 -define(STRATEGY, strategy).
 %% If enabled, we compute and report the achieved code coverage.
@@ -91,7 +89,6 @@
 -define(NUM_POLLERS, number_of_pollers).
 
 -type runtime_options() :: {?Z3_TIMEOUT, pos_integer()} 
-                         | ?REPORT_METRICS
                          | {?STRATEGY, atom()}
                          | ?CALCULATE_COVERAGE
                          | ?DISABLE_PMATCH

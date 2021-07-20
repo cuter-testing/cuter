@@ -35,7 +35,7 @@ def main():
   parser.add_argument("--z3-timeout", metavar="N", type=int, default=2,
     help="set the timeout N for the Z3 SMT solver (default: %(default)s)")
   parser.add_argument("-ds", "--debug-smt", action='store_true', help="store debug information for SMT solving")
-  parser.add_argument("-m", "--metrics", action='store_true', help="report collected metrics")
+  parser.add_argument("-m", "--report-metrics", action='store_true', help="report collected metrics")
   parser.add_argument("--debug-keep-traces", action='store_true', help="keep execution traces for debugging")
   parser.add_argument("--debug-solver-fsm", action='store_true', help="output debug logs for the solver FSM")
 
@@ -103,17 +103,20 @@ def main():
       opts.append("{{whitelist, '{}'}}".format(args.w))
   if args.debug_smt:
     opts.append("debug_smt")
-  if args.metrics:
-    opts.append("report_metrics")
   if args.debug_keep_traces:
     opts.append("debug_keep_traces")
   if args.debug_solver_fsm:
     opts.append("debug_solver_fsm")
   strOpts = ",".join(opts)
 
+  cuter_flags = []
+  if args.report_metrics:
+    cuter_flags.append("-report-metrics")
+  cuter_flags_str = " ".join(cuter_flags)
+
   # Run CutEr
-  cmd = "erl -noshell {} -eval \"cuter:run({}, {}, {}, {}, [{}]), halt()\"".format(
-    paths, args.module, args.fun, args.args, args.depth, strOpts)
+  cmd = "erl -noshell {} -eval \"cuter:run({}, {}, {}, {}, [{}]), halt()\" {}".format(
+    paths, args.module, args.fun, args.args, args.depth, strOpts, cuter_flags_str)
   sys.exit(subp.call(cmd, shell=True))
 
 def getDirectory():
