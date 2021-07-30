@@ -81,6 +81,7 @@ SRC_MODULES = \
 	cuter_strategy \
 	cuter_bfs_strategy \
 	cuter_metrics \
+	cuter_maybe_error_annotation \
 	cuter_config
 
 UTEST_MODULES = \
@@ -110,7 +111,8 @@ FTEST_MODULES = \
 	collection \
 	funs \
 	sum \
-	reduce_search_space
+	reduce_search_space \
+	maybe_error_annotated
 
 PRIV_MODULES = \
 	cuter_io \

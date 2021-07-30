@@ -141,12 +141,17 @@ log_mfa_spec(_, _, _) -> ok.
 %% Concrete/Symbolic Evaluation and Logging of an MFA call
 %% -------------------------------------------------------------------
 -spec eval(eval(), [any()], [any()], calltype(), servers(), file:io_device()) -> result().
+eval(A, CAs, SAs, CallType, Servers, Fd) ->
+  eval(A, CAs, SAs, CallType, Servers, Fd, false).
+
+
+-spec eval(eval(), [any()], [any()], calltype(), servers(), file:io_device(), cuter_maybe_error_annotation:maybe_error()) -> result().
 
 %% Handle spawns so that the spawned process will be interpreted
 %% and not directly executed
 
 %% spawn/{1,2,3,4} & spawn_link/{1,2,3,4}
-eval({named, erlang, F}, CAs, SAs, _CallType, Servers, Fd) when F =:= spawn; F =:= spawn_link ->
+eval({named, erlang, F}, CAs, SAs, _CallType, Servers, Fd, _) when F =:= spawn; F =:= spawn_link ->
   Arity = length(CAs),
   SAs_e = cuter_symbolic:ensure_list(SAs, Arity, Fd),
   Rf = erlang:make_ref(),
@@ -190,7 +195,7 @@ eval({named, erlang, F}, CAs, SAs, _CallType, Servers, Fd) when F =:= spawn; F =
   end;
 
 %% spawn_monitor/{1,3}
-eval({named, erlang, spawn_monitor}, CAs, SAs, _CallType, Servers, Fd) ->
+eval({named, erlang, spawn_monitor}, CAs, SAs, _CallType, Servers, Fd, _) ->
   Arity = length(CAs),
   SAs_e = cuter_symbolic:ensure_list(SAs, Arity, Fd),
   Rf = erlang:make_ref(),
@@ -217,7 +222,7 @@ eval({named, erlang, spawn_monitor}, CAs, SAs, _CallType, Servers, Fd) ->
   end;
 
 %% spawn_opt/{1,3,4,5}
-eval({named, erlang, spawn_opt}, CAs, SAs, _CallType, Servers, Fd) ->
+eval({named, erlang, spawn_opt}, CAs, SAs, _CallType, Servers, Fd, _) ->
   Arity = length(CAs),
   SAs_e = cuter_symbolic:ensure_list(SAs, Arity, Fd),
   Rf = erlang:make_ref(),
@@ -269,11 +274,11 @@ eval({named, erlang, spawn_opt}, CAs, SAs, _CallType, Servers, Fd) ->
 %% so as to zip the concrete and symbolic message
 
 %% Redirect erlang:'!'/2 to erlang:send/2
-eval({named, erlang, '!'}, [_, _] = CAs, SAs, CallType, Servers, Fd) ->
-  eval({named, erlang, send}, CAs, SAs, CallType, Servers, Fd);
+eval({named, erlang, '!'}, [_, _] = CAs, SAs, CallType, Servers, Fd, IsForced) ->
+  eval({named, erlang, send}, CAs, SAs, CallType, Servers, Fd, IsForced);
 
 %% send/{2,3}
-eval({named, erlang, send}, CAs, SAs, _CallType, Servers, Fd) ->
+eval({named, erlang, send}, CAs, SAs, _CallType, Servers, Fd, _) ->
   Arity = length(CAs),
   SAs_e = cuter_symbolic:ensure_list(SAs, Arity, Fd),
   case CAs of
@@ -296,7 +301,7 @@ eval({named, erlang, send}, CAs, SAs, _CallType, Servers, Fd) ->
   end;
 
 %% send_after/3
-eval({named, erlang, send_after}, CAs, SAs, _CallType, Servers, Fd) ->
+eval({named, erlang, send_after}, CAs, SAs, _CallType, Servers, Fd, _) ->
   Arity = length(CAs),
   SAs_e = cuter_symbolic:ensure_list(SAs, Arity, Fd),
   case CAs of
@@ -312,7 +317,7 @@ eval({named, erlang, send_after}, CAs, SAs, _CallType, Servers, Fd) ->
   end;
 
 %% send_nosuspend/{2,3}
-eval({named, erlang, send_nosuspend}, CAs, SAs, _CallType, Servers, Fd) ->
+eval({named, erlang, send_nosuspend}, CAs, SAs, _CallType, Servers, Fd, _) ->
   Arity = length(CAs),
   SAs_e = cuter_symbolic:ensure_list(SAs, Arity, Fd),
   case CAs of
@@ -338,7 +343,7 @@ eval({named, erlang, send_nosuspend}, CAs, SAs, _CallType, Servers, Fd) ->
 %% so as to zip the concrete and symbolic reason
 
 %% throw/1
-eval({named, erlang, throw}, CAs, SAs, _CallType, _Servers, Fd) ->
+eval({named, erlang, throw}, CAs, SAs, _CallType, _Servers, Fd, _) ->
   Arity = length(CAs),
   SAs_e = cuter_symbolic:ensure_list(SAs, Arity, Fd),
   case CAs of
@@ -351,7 +356,7 @@ eval({named, erlang, throw}, CAs, SAs, _CallType, _Servers, Fd) ->
   end;
 
 %% exit/{1,2}
-eval({named, erlang, exit}, CAs, SAs, _CallType, _Servers, Fd) ->
+eval({named, erlang, exit}, CAs, SAs, _CallType, _Servers, Fd, _) ->
   Arity = length(CAs),
   SAs_e = cuter_symbolic:ensure_list(SAs, Arity, Fd),
   case CAs of
@@ -382,7 +387,7 @@ eval({named, erlang, exit}, CAs, SAs, _CallType, _Servers, Fd) ->
   end;
 
 %% error/{1,2}
-eval({named, erlang, error}, CAs, SAs, _CallType, _Servers, Fd) ->
+eval({named, erlang, error}, CAs, SAs, _CallType, _Servers, Fd, _) ->
   Arity = length(CAs),
   SAs_e = cuter_symbolic:ensure_list(SAs, Arity, Fd),
   case CAs of
@@ -400,7 +405,7 @@ eval({named, erlang, error}, CAs, SAs, _CallType, _Servers, Fd) ->
   end;
 
 %% raise/3
-eval({named, erlang, raise}, CAs, SAs, _CallType, _Servers, Fd) ->
+eval({named, erlang, raise}, CAs, SAs, _CallType, _Servers, Fd, _) ->
   Arity = length(CAs),
   SAs_e = cuter_symbolic:ensure_list(SAs, Arity, Fd),
   case CAs of
@@ -416,30 +421,30 @@ eval({named, erlang, raise}, CAs, SAs, _CallType, _Servers, Fd) ->
 %% Handle other important functions
 
 %% make_fun/3
-eval({named, erlang, make_fun}, CAs, SAs, _CallType, Servers, Fd) ->
+eval({named, erlang, make_fun}, CAs, SAs, _CallType, Servers, Fd, IsForced) ->
   Arity = length(CAs),
   _ = cuter_symbolic:ensure_list(SAs, Arity, Fd),
   case CAs of
     [M, F, A] ->
-      make_fun(M, F, A, Servers, Fd);
+      make_fun(M, F, A, Servers, Fd, IsForced);
     _ ->
       exception(error, {undef, {erlang, make_fun, Arity}})
   end;
 
 %% apply/{2,3}
-eval({named, erlang, apply}, CAs, SAs, _CallType, Servers, Fd) ->
+eval({named, erlang, apply}, CAs, SAs, _CallType, Servers, Fd, IsForced) ->
   Arity = length(CAs),
   SAs_e = cuter_symbolic:ensure_list(SAs, Arity, Fd),
   case CAs of
     [Fun, Args] ->
       [SFun, SArgs] = SAs_e,
       %% Constraint: Fun=SFun
-      eval({lambda, Fun, SFun}, Args, SArgs, local, Servers, Fd);
+      eval({lambda, Fun, SFun}, Args, SArgs, local, Servers, Fd, IsForced);
     [M, F, Args] ->
       [_SMod, _SFun, SArgs] = SAs_e,
       %% Constraints: SMod = M, SFun=F
       Call = find_call_type(erlang, M),
-      eval({named, M, F}, Args, SArgs, Call, Servers, Fd);
+      eval({named, M, F}, Args, SArgs, Call, Servers, Fd, IsForced);
     _ ->
       exception(error, {undef, {erlang, apply, Arity}})
   end;
@@ -447,7 +452,7 @@ eval({named, erlang, apply}, CAs, SAs, _CallType, Servers, Fd) ->
 %% Generic case
 
 %% Handle an MFA
-eval({named, M, F}, CAs_b, SAs_b, CallType, Servers, Fd) ->
+eval({named, M, F}, CAs_b, SAs_b, CallType, Servers, Fd, IsForced) ->
   {CAs, SAs} = adjust_arguments(M, F, CAs_b, SAs_b, Fd),
   Arity = length(CAs),
   SAs_e = cuter_symbolic:ensure_list(SAs, Arity, Fd),
@@ -460,11 +465,11 @@ eval({named, M, F}, CAs_b, SAs_b, CallType, Servers, Fd) ->
       NSenv = cuter_env:new_environment(),
       Cenv = cuter_env:bind_parameters(CAs, Def#c_fun.vars, NCenv),
       Senv = cuter_env:bind_parameters(SAs_e, Def#c_fun.vars, NSenv),
-      eval_expr(Def#c_fun.body, NM, Cenv, Senv, Servers, Fd)
+      eval_expr(Def#c_fun.body, NM, Cenv, Senv, Servers, Fd, IsForced)
   end;
 
 %% Handle a Closure
-eval({lambda, Closure, ClosureSymb}, CAs, SAs, _CallType, _Servers, Fd) ->
+eval({lambda, Closure, ClosureSymb}, CAs, SAs, _CallType, _Servers, Fd, _IsForced) ->
   Arity = length(CAs),
   SAs_e = cuter_symbolic:ensure_list(SAs, Arity, Fd),
   ZAs = zip_args(CAs, SAs_e),
@@ -494,35 +499,35 @@ eval({lambda, Closure, ClosureSymb}, CAs, SAs, _CallType, _Servers, Fd) ->
   end;
 
 %% Handle a function bound in a letrec expression
-eval({letrec_func, {M, _F, Def, E}}, CAs, SAs, _CallType, Servers, Fd) ->
+eval({letrec_func, {M, _F, Def, E}}, CAs, SAs, _CallType, Servers, Fd, IsForced) ->
   {Cenv, Senv} = E(),
   SAs_e = cuter_symbolic:ensure_list(SAs, length(CAs), Fd),
   NCenv = cuter_env:bind_parameters(CAs, Def#c_fun.vars, Cenv),
   NSenv = cuter_env:bind_parameters(SAs_e, Def#c_fun.vars, Senv),
-  eval_expr(Def#c_fun.body, M, NCenv, NSenv, Servers, Fd).
+  eval_expr(Def#c_fun.body, M, NCenv, NSenv, Servers, Fd, IsForced).
 
 %% --------------------------------------------------------
 %% eval_expr
 %%
 %% Evaluates a Core Erlang expression
 %% --------------------------------------------------------
--spec eval_expr(cerl:cerl(), module(), cuter_env:environment(), cuter_env:environment(), servers(), file:io_device()) -> result().
+-spec eval_expr(cerl:cerl(), module(), cuter_env:environment(), cuter_env:environment(), servers(), file:io_device(), cuter_maybe_error_annotation:maybe_error()) -> result().
 
 %% c_apply
-eval_expr({c_apply, _Anno, Op, Args}, M, Cenv, Senv, Servers, Fd) ->
-  Op_ev = eval_expr(Op, M, Cenv, Senv, Servers, Fd),
+eval_expr({c_apply, _Anno, Op, Args}, M, Cenv, Senv, Servers, Fd, IsForced) ->
+  Op_ev = eval_expr(Op, M, Cenv, Senv, Servers, Fd, IsForced),
   Fun =
     fun(A) ->
-      A_ev = eval_expr(A, M, Cenv, Senv, Servers, Fd),
+      A_ev = eval_expr(A, M, Cenv, Senv, Servers, Fd, IsForced),
       %% Will create closures where appropriate
       case get_concrete(A_ev) of
         {?FUNCTION_PREFIX, {F, Arity}} ->
           %% local func (external func is already in make_fun/3 in core erlang)
-          create_closure(M, F, Arity, local, Servers, Fd);
+          create_closure(M, F, Arity, local, Servers, Fd, IsForced);
         {letrec_func, {Mod, F, Arity, Def, E}} ->
           %% letrec func
           {Ce, Se} = E(),
-          create_closure(Mod, F, Arity, {letrec_func, {Def, Ce, Se}}, Servers, Fd);
+          create_closure(Mod, F, Arity, {letrec_func, {Def, Ce, Se}}, Servers, Fd, IsForced);
         _ ->
           A_ev
       end
@@ -531,31 +536,31 @@ eval_expr({c_apply, _Anno, Op, Args}, M, Cenv, Senv, Servers, Fd) ->
   {CAs, SAs} = cuter_lib:unzip_with(fun to_tuple/1, ZAs),
   case get_concrete(Op_ev) of % See eval_expr(#c_var{}, ...) output for reference
     {?FUNCTION_PREFIX, {Func, _Arity}} ->
-      eval({named, M, Func}, CAs, SAs, local, Servers, Fd);
+      eval({named, M, Func}, CAs, SAs, local, Servers, Fd, IsForced);
     {letrec_func, {Mod, Func, _Arity, Def, E}} ->
-      eval({letrec_func, {Mod, Func, Def, E}}, CAs, SAs, local, Servers, Fd);
+      eval({letrec_func, {Mod, Func, Def, E}}, CAs, SAs, local, Servers, Fd, IsForced);
     Closure ->
       %% Constraint OP_s = OP_c (in case closure is made by make_fun)
-      eval({lambda, Closure, get_symbolic(Op_ev)}, CAs, SAs, local, Servers, Fd)
+      eval({lambda, Closure, get_symbolic(Op_ev)}, CAs, SAs, local, Servers, Fd, IsForced)
   end;
 
 %% c_binary
 %% TODO Use the tags of segments.
-eval_expr({c_binary, _Anno, Segments}, M, Cenv, Senv, Servers, Fd) ->
-  Segs = [eval_expr(S, M, Cenv, Senv, Servers, Fd) || S <- Segments],
+eval_expr({c_binary, _Anno, Segments}, M, Cenv, Senv, Servers, Fd, IsForced) ->
+  Segs = [eval_expr(S, M, Cenv, Senv, Servers, Fd, IsForced) || S <- Segments],
   {Cs, Ss} = cuter_lib:unzip_with(fun to_tuple/1, Segs),
   append_segments(Cs, Ss, Fd);
 
 %% c_bitstr
-eval_expr({c_bitstr, _Anno, Val, Size, Unit, Type, Flags}, M, Cenv, Senv, Servers, Fd) ->
+eval_expr({c_bitstr, _Anno, Val, Size, Unit, Type, Flags}, M, Cenv, Senv, Servers, Fd, IsForced) ->
   %% Evaluate the value and the encoding.
-  Val_ev = eval_expr(Val, M, Cenv, Senv, Servers, Fd),
+  Val_ev = eval_expr(Val, M, Cenv, Senv, Servers, Fd, IsForced),
   Val_c = get_concrete(Val_ev),
   Val_s = get_symbolic(Val_ev),
-  Size_ev = eval_expr(Size, M, Cenv, Senv, Servers, Fd),
-  Unit_ev = eval_expr(Unit, M, Cenv, Senv, Servers, Fd),
-  Type_ev = eval_expr(Type, M, Cenv, Senv, Servers, Fd),
-  Flags_ev = eval_expr(Flags, M, Cenv, Senv, Servers, Fd),
+  Size_ev = eval_expr(Size, M, Cenv, Senv, Servers, Fd, IsForced),
+  Unit_ev = eval_expr(Unit, M, Cenv, Senv, Servers, Fd, IsForced),
+  Type_ev = eval_expr(Type, M, Cenv, Senv, Servers, Fd, IsForced),
+  Flags_ev = eval_expr(Flags, M, Cenv, Senv, Servers, Fd, IsForced),
   Size_c = get_concrete(Size_ev),
   Size_s = get_symbolic(Size_ev),
   %% Log constraints on type mismatch before construction.
@@ -573,21 +578,21 @@ eval_expr({c_bitstr, _Anno, Val, Size, Unit, Type, Flags}, M, Cenv, Senv, Server
   mk_result(Bin_c, Bin_s);
 
 %% c_call
-eval_expr({c_call, _Anno, Mod, Name, Args}, M, Cenv, Senv, Servers, Fd) ->
-  Mod_ev = eval_expr(Mod, M, Cenv, Senv, Servers, Fd),
-  Fv_ev = eval_expr(Name, M, Cenv, Senv, Servers, Fd),
+eval_expr({c_call, _Anno, Mod, Name, Args}, M, Cenv, Senv, Servers, Fd, IsForced) ->
+  Mod_ev = eval_expr(Mod, M, Cenv, Senv, Servers, Fd, IsForced),
+  Fv_ev = eval_expr(Name, M, Cenv, Senv, Servers, Fd, IsForced),
   Fun =
     fun(A) ->
-      A_ev = eval_expr(A, M, Cenv, Senv, Servers, Fd),
+      A_ev = eval_expr(A, M, Cenv, Senv, Servers, Fd, IsForced),
       %% Will create closures where appropriate
       case get_concrete(A_ev) of
         {?FUNCTION_PREFIX, {F, Arity}} ->
           %% local func (external func is already in make_fun/3 in core erlang)
-          create_closure(M, F, Arity, local, Servers, Fd);
+          create_closure(M, F, Arity, local, Servers, Fd, IsForced);
         {letrec_func, {Mod, F, Arity, Def, E}} ->
           %% letrec func
           {Ce, Se} = E(),
-          create_closure(Mod, F, Arity, {letrec_func, {Def, Ce, Se}}, Servers, Fd);
+          create_closure(Mod, F, Arity, {letrec_func, {Def, Ce, Se}}, Servers, Fd, IsForced);
         _ ->
           A_ev
       end
@@ -596,20 +601,25 @@ eval_expr({c_call, _Anno, Mod, Name, Args}, M, Cenv, Senv, Servers, Fd) ->
   {CAs, SAs} = cuter_lib:unzip_with(fun to_tuple/1, ZAs),
   %% Constraints Mod_c = Mod_s and Fv_c = Fv_s
   Mod_c = get_concrete(Mod_ev),
-  eval({named, Mod_c, get_concrete(Fv_ev)}, CAs, SAs, find_call_type(M, Mod_c), Servers, Fd);
+  eval({named, Mod_c, get_concrete(Fv_ev)}, CAs, SAs, find_call_type(M, Mod_c), Servers, Fd, IsForced);
 
 %% c_case
-eval_expr({c_case, _Anno, Arg, Clauses}, M, Cenv, Senv, Servers, Fd) ->
-  Arg_ev = eval_expr(Arg, M, Cenv, Senv, Servers, Fd),
-  {Body, Ce, Se, _Cnt} = find_clause(Clauses, M, 'case', get_concrete(Arg_ev), get_symbolic(Arg_ev), Cenv, Senv, Servers, Fd),
+eval_expr({c_case, Anno, Arg, Clauses}, M, Cenv, Senv, Servers, Fd, IsForced) ->
+  Arg_ev = eval_expr(Arg, M, Cenv, Senv, Servers, Fd, cuter_maybe_error_annotation:get_maybe_error_anno(Anno) or IsForced),
+  {Body, Ce, Se, _Cnt} = find_clause(Clauses, M, 'case', get_concrete(Arg_ev), get_symbolic(Arg_ev), Cenv, Senv, Servers, Fd, IsForced),
+  case not cuter_maybe_error_annotation:get_maybe_error(Body) andalso not IsForced of
+    true ->
+      cuter_log:disable_constraint_logging();
+    _ -> ok
+  end,
   cuter_log:reduce_constraint_counter(), % TODO Should also add this call to c_receive
-  eval_expr(Body, M, Ce, Se, Servers, Fd);
+  eval_expr(Body, M, Ce, Se, Servers, Fd, IsForced);
 
 %% c_catch
 %% Commented code: allow the exceptions to propagate
-eval_expr({c_catch, _Anno, Body}, M, Cenv, Senv, Servers, Fd) ->
+eval_expr({c_catch, _Anno, Body}, M, Cenv, Senv, Servers, Fd, IsForced) ->
   try
-    eval_expr(Body, M, Cenv, Senv, Servers, Fd)
+    eval_expr(Body, M, Cenv, Senv, Servers, Fd, IsForced)
   catch
     throw:Throw ->
       unzip_one(Throw);
@@ -633,22 +643,22 @@ eval_expr({c_catch, _Anno, Body}, M, Cenv, Senv, Servers, Fd) ->
 %%  eval_expr(Body, M, Cenv, Senv, Servers, Fd);
 
 %% c_cons
-eval_expr({c_cons, _Anno, Hd, Tl}, M, Cenv, Senv, Servers, Fd) ->
-  Hd_ev = eval_expr(Hd, M, Cenv, Senv, Servers, Fd),
-  Tl_ev = eval_expr(Tl, M, Cenv, Senv, Servers, Fd),
+eval_expr({c_cons, _Anno, Hd, Tl}, M, Cenv, Senv, Servers, Fd, IsForced) ->
+  Hd_ev = eval_expr(Hd, M, Cenv, Senv, Servers, Fd, IsForced),
+  Tl_ev = eval_expr(Tl, M, Cenv, Senv, Servers, Fd, IsForced),
   Cv = [get_concrete(Hd_ev) | get_concrete(Tl_ev)],
   Sv = cuter_symbolic:cons(get_symbolic(Hd_ev), get_symbolic(Tl_ev), Cv, Fd),
   mk_result(Cv, Sv);
 
 %% c_fun
-eval_expr({c_fun, _Anno, Vars, Body}, M, Cenv, Senv, Servers, Fd) ->
+eval_expr({c_fun, _Anno, Vars, Body}, M, Cenv, Senv, Servers, Fd, IsForced) ->
   Arity = length(Vars),
-  make_fun(Vars, Body, M, Arity, Cenv, Senv, Servers, Fd);
+  make_fun(Vars, Body, M, Arity, Cenv, Senv, Servers, Fd, IsForced);
 
 %% c_let
-eval_expr({c_let, _Anno, Vars, Arg, Body}, M, Cenv, Senv, Servers, Fd) ->
+eval_expr({c_let, _Anno, Vars, Arg, Body}, M, Cenv, Senv, Servers, Fd, IsForced) ->
   Deg = length(Vars),
-  Arg_ev = eval_expr(Arg, M, Cenv, Senv, Servers, Fd),
+  Arg_ev = eval_expr(Arg, M, Cenv, Senv, Servers, Fd, IsForced),
   Arg_c = get_concrete(Arg_ev),
   Arg_s = get_symbolic(Arg_ev),
   case Deg of
@@ -661,10 +671,10 @@ eval_expr({c_let, _Anno, Vars, Arg, Body}, M, Cenv, Senv, Servers, Fd) ->
   end,
   Ce = cuter_env:bind_parameters(CAs, Vars, Cenv),
   Se = cuter_env:bind_parameters(SAs, Vars, Senv),
-  eval_expr(Body, M, Ce, Se, Servers, Fd);
+  eval_expr(Body, M, Ce, Se, Servers, Fd, IsForced);
 
 %% c_letrec
-eval_expr({c_letrec, _Anno, Defs, Body}, M, Cenv, Senv, Servers, Fd) ->
+eval_expr({c_letrec, _Anno, Defs, Body}, M, Cenv, Senv, Servers, Fd, IsForced) ->
   H = fun(F) -> fun() ->
     lists:foldl(
       fun({Func, Def}, {E_c, E_s}) ->
@@ -680,10 +690,10 @@ eval_expr({c_letrec, _Anno, Defs, Body}, M, Cenv, Senv, Servers, Fd) ->
     )
   end end,
   {NCe, NSe} = (y(H))(),
-  eval_expr(Body, M, NCe, NSe, Servers, Fd);
+  eval_expr(Body, M, NCe, NSe, Servers, Fd, IsForced);
 
 %% c_literal
-eval_expr({c_literal, _Anno, V}, _M, _Cenv, _Senv, Servers, Fd) ->
+eval_expr({c_literal, _Anno, V}, _M, _Cenv, _Senv, Servers, Fd, IsForced) ->
   case erlang:is_function(V) of
     false -> mk_result(V, V);
     true ->
@@ -698,15 +708,15 @@ eval_expr({c_literal, _Anno, V}, _M, _Cenv, _Senv, Servers, Fd) ->
 	      mk_result(V, LambdaS);
 	    Mod ->
 	      Func = proplists:get_value(name, Info),
-	      make_fun(Mod, Func, Arity, Servers, Fd)
+	      make_fun(Mod, Func, Arity, Servers, Fd, IsForced)
 	  end
       end
   end;
 
 %% c_primop
-eval_expr({c_primop, _Anno, Name, Args}, M, Cenv, Senv, Servers, Fd) ->
+eval_expr({c_primop, _Anno, Name, Args}, M, Cenv, Senv, Servers, Fd, IsForced) ->
   PrimOp = Name#c_literal.val,
-  ZAs = [eval_expr(A, M, Cenv, Senv, Servers, Fd) || A <- Args],
+  ZAs = [eval_expr(A, M, Cenv, Senv, Servers, Fd, IsForced) || A <- Args],
   {CAs, SAs} = cuter_lib:unzip_with(fun to_tuple/1, ZAs),
   %% TODO need to record and implement more primops
   %% like 'bs_context_to_binary', 'bs_init_writable'
@@ -715,44 +725,44 @@ eval_expr({c_primop, _Anno, Name, Args}, M, Cenv, Senv, Servers, Fd) ->
       [Class_c, Reason_c] = CAs,
       [_Class_s, Reason_s] = SAs,
       %% CONSTRAINT: Class_c = Class_s
-      eval({named, erlang, Class_c}, [Reason_c], [Reason_s], external, Servers, Fd);
+      eval({named, erlang, Class_c}, [Reason_c], [Reason_s], external, Servers, Fd, IsForced);
     match_fail ->
       [Cv] = CAs,
       [Sv] = SAs,
-      eval({named, erlang, error}, [{badmatch, Cv}], [{badmatch, Sv}], external, Servers, Fd);
+      eval({named, erlang, error}, [{badmatch, Cv}], [{badmatch, Sv}], external, Servers, Fd, IsForced);
     _ ->
       exception(error, {primop_not_supported, PrimOp})
   end;
 
 %% c_receive
-eval_expr({c_receive, _Anno, Clauses, Timeout, Action}, M, Cenv, Senv, Servers, Fd) ->
-  Timeout_ev = eval_expr(Timeout, M, Cenv, Senv, Servers, Fd),
+eval_expr({c_receive, _Anno, Clauses, Timeout, Action}, M, Cenv, Senv, Servers, Fd, IsForced) ->
+  Timeout_ev = eval_expr(Timeout, M, Cenv, Senv, Servers, Fd, IsForced),
   Timeout_c = get_concrete(Timeout_ev),
   Timeout_s = get_symbolic(Timeout_ev),
   true = check_timeout(Timeout_c, Timeout_s, Fd),
   Start = os:timestamp(),  %% Start time of timeout timer
   {messages, Mailbox} = erlang:process_info(self(), messages),
-  Message = find_message(Mailbox, Clauses, M, Cenv, Senv, Servers, Fd),
+  Message = find_message(Mailbox, Clauses, M, Cenv, Senv, Servers, Fd, IsForced),
   case Message of
     {Msg, Body, NCenv, NSenv, _Cnt} ->  %% Matched a message already in the mailbox
       receive Msg -> ok end,  %% Just consume the message
-      eval_expr(Body, M, NCenv, NSenv, Servers, Fd);
+      eval_expr(Body, M, NCenv, NSenv, Servers, Fd, IsForced);
     false ->  %% No mailbox message matched, thus need to enter a receive loop
       CurrMsgs = length(Mailbox),
-      find_message_loop(Clauses, Action, Timeout_c, Timeout_s, Start, CurrMsgs, M, Cenv, Senv, Servers, Fd)
+      find_message_loop(Clauses, Action, Timeout_c, Timeout_s, Start, CurrMsgs, M, Cenv, Senv, Servers, Fd, IsForced)
   end;
 
 %% c_seq
-eval_expr({c_seq, _Anno, Arg, Body}, M, Cenv, Senv, Servers, Fd) ->
-  _ = eval_expr(Arg, M, Cenv, Senv, Servers, Fd),
-  eval_expr(Body, M, Cenv, Senv, Servers, Fd);
+eval_expr({c_seq, _Anno, Arg, Body}, M, Cenv, Senv, Servers, Fd, IsForced) ->
+  _ = eval_expr(Arg, M, Cenv, Senv, Servers, Fd, IsForced),
+  eval_expr(Body, M, Cenv, Senv, Servers, Fd, IsForced);
 
 %% c_try
 %% Commented code: allow the exceptions to propagate
-eval_expr({c_try, _Anno, Arg, Vars, Body, Evars, Handler}, M, Cenv, Senv, Servers, Fd) ->
+eval_expr({c_try, _Anno, Arg, Vars, Body, Evars, Handler}, M, Cenv, Senv, Servers, Fd, IsForced) ->
   try
     Deg = length(Vars),
-    A_ev = eval_expr(Arg, M, Cenv, Senv, Servers, Fd),
+    A_ev = eval_expr(Arg, M, Cenv, Senv, Servers, Fd, IsForced),
     A_c = get_concrete(A_ev),
     A_s = get_concrete(A_ev),
     case Deg of
@@ -765,7 +775,7 @@ eval_expr({c_try, _Anno, Arg, Vars, Body, Evars, Handler}, M, Cenv, Senv, Server
     end,
     Ce = cuter_env:bind_parameters(CAs, Vars, Cenv),
     Se = cuter_env:bind_parameters(SAs, Vars, Senv),
-    eval_expr(Body, M, Ce, Se, Servers, Fd)
+    eval_expr(Body, M, Ce, Se, Servers, Fd, IsForced)
   catch
     Class:Reason ->
       Reason1 = unzip_one(Reason),
@@ -783,7 +793,7 @@ eval_expr({c_try, _Anno, Arg, Vars, Body, Evars, Handler}, M, Cenv, Senv, Server
         end,
       ECe = cuter_env:bind_parameters(Cs, Evars, Cenv),
       ESe = cuter_env:bind_parameters(Ss, Evars, Senv),
-      eval_expr(Handler, M, ECe, ESe, Servers, Fd)
+      eval_expr(Handler, M, ECe, ESe, Servers, Fd, IsForced)
   end;
 %%eval_expr({c_try, _Anno, Arg, Vars, Body, _Evars, _Handler}, M, Cenv, Senv, Servers, Fd) ->
 %%  Deg = length(Vars),
@@ -801,24 +811,24 @@ eval_expr({c_try, _Anno, Arg, Vars, Body, Evars, Handler}, M, Cenv, Senv, Server
 %%  eval_expr(Body, M, Ce, Se, Servers, Fd);
 
 %% c_tuple
-eval_expr({c_tuple, _Anno, Es}, M, Cenv, Senv, Servers, Fd) ->
-  Zes = [eval_expr(E, M, Cenv, Senv, Servers, Fd) || E <- Es],
+eval_expr({c_tuple, _Anno, Es}, M, Cenv, Senv, Servers, Fd, IsForced) ->
+  Zes = [eval_expr(E, M, Cenv, Senv, Servers, Fd, IsForced) || E <- Es],
   {Es_c, Es_s} = cuter_lib:unzip_with(fun to_tuple/1, Zes),
   Cv = list_to_tuple(Es_c),
   Sv = cuter_symbolic:make_tuple(Es_s, Cv, Fd),
   mk_result(Cv, Sv);
 
 %% c_values
-eval_expr({c_values, _Anno, Es}, M, Cenv, Senv, Servers, Fd) ->
+eval_expr({c_values, _Anno, Es}, M, Cenv, Senv, Servers, Fd, IsForced) ->
   Deg = length(Es),
-  Zes = [eval_expr(E, M, Cenv, Senv, Servers, Fd) || E <- Es],
+  Zes = [eval_expr(E, M, Cenv, Senv, Servers, Fd, IsForced) || E <- Es],
   {Es_c, Es_s} = cuter_lib:unzip_with(fun to_tuple/1, Zes),
   Cv = #valuelist{values=Es_c, degree=Deg},
   Sv = #valuelist{values=Es_s, degree=Deg},
   mk_result(Cv, Sv);
 
 %% c_var
-eval_expr({c_var, _Anno, Name}, _M, Cenv, Senv, _Servers, _Fd) when is_tuple(Name) ->
+eval_expr({c_var, _Anno, Name}, _M, Cenv, Senv, _Servers, _Fd, _IsForced) when is_tuple(Name) ->
   %% If Name is a function
   case cuter_env:get_value(Name, Cenv) of
     {ok, {letrec_func, {Mod, Def, E}}} ->
@@ -835,13 +845,13 @@ eval_expr({c_var, _Anno, Name}, _M, Cenv, Senv, _Servers, _Fd) when is_tuple(Nam
       R = {?FUNCTION_PREFIX, Name},
       mk_result(R, R)
   end;
-eval_expr({c_var, _Anno, Name}, _M, Cenv, Senv, _Servers, _Fd) ->
+eval_expr({c_var, _Anno, Name}, _M, Cenv, Senv, _Servers, _Fd, _IsForced) ->
   %% If it's a variable then return its value
   {ok, Cv} = cuter_env:get_value(Name, Cenv),
   {ok, Sv} = cuter_env:get_value(Name, Senv),
   mk_result(Cv, Sv);
 
-eval_expr(Cerl, _M, _Cenv, _Senv, _Servers, _Fd) ->
+eval_expr(Cerl, _M, _Cenv, _Senv, _Servers, _Fd, _IsForced) ->
   exception(error, {unknown_cerl, Cerl}).
 
 
@@ -957,16 +967,16 @@ exception(Class, Reason) ->
 %% Enters a loop waiting for a message that will match.
 %% Wraps calls to run_message_loop to check for timeout.
 %% --------------------------------------------------------
-find_message_loop(Clauses, Action, infinity, STimetout, Start, Msgs, M, Cenv, Senv, Servers, Fd) ->
-  run_message_loop(Clauses, Action, infinity, STimetout, Start, Msgs, M, Cenv, Senv, Servers, Fd);
-find_message_loop(Clauses, Action, CTimeout, STimeout, Start, Msgs, M, Cenv, Senv, Servers, Fd) ->
+find_message_loop(Clauses, Action, infinity, STimetout, Start, Msgs, M, Cenv, Senv, Servers, Fd, IsForced) ->
+  run_message_loop(Clauses, Action, infinity, STimetout, Start, Msgs, M, Cenv, Senv, Servers, Fd, IsForced);
+find_message_loop(Clauses, Action, CTimeout, STimeout, Start, Msgs, M, Cenv, Senv, Servers, Fd, IsForced) ->
   Now = os:timestamp(),
   Passed = timer:now_diff(Now, Start) / 1000,
   case Passed >= CTimeout of
     true ->
-      eval_expr(Action, M, Cenv, Senv, Servers, Fd);
+      eval_expr(Action, M, Cenv, Senv, Servers, Fd, IsForced);
     false ->
-      run_message_loop(Clauses, Action, CTimeout, STimeout, Start, Msgs, M, Cenv, Senv, Servers, Fd)
+      run_message_loop(Clauses, Action, CTimeout, STimeout, Start, Msgs, M, Cenv, Senv, Servers, Fd, IsForced)
   end.
 
 %% --------------------------------------------------------
@@ -974,23 +984,23 @@ find_message_loop(Clauses, Action, CTimeout, STimeout, Start, Msgs, M, Cenv, Sen
 %%
 %% Implements the actual waiting receive loop
 %% --------------------------------------------------------
-run_message_loop(Clauses, Action, CTimeout, STimeout, Start, Msgs, M, Cenv, Senv, Servers, Fd) ->
+run_message_loop(Clauses, Action, CTimeout, STimeout, Start, Msgs, M, Cenv, Senv, Servers, Fd, IsForced) ->
   erlang:yield(),
   {message_queue_len, CurrMsgs} = erlang:process_info(self(), message_queue_len),
   %% New messages will appended at the end of the mailbox
   case CurrMsgs > Msgs of
     false -> %% No new messages
-      find_message_loop(Clauses, Action, CTimeout, STimeout, Start, Msgs, M, Cenv, Senv, Servers, Fd);
+      find_message_loop(Clauses, Action, CTimeout, STimeout, Start, Msgs, M, Cenv, Senv, Servers, Fd, IsForced);
     true ->
       {messages, Mailbox} = erlang:process_info(self(), messages),
       NewMsgs = lists:nthtail(Msgs, Mailbox),
-      Message = find_message(NewMsgs, Clauses, M, Cenv, Senv, Servers, Fd),
+      Message = find_message(NewMsgs, Clauses, M, Cenv, Senv, Servers, Fd, IsForced),
       case Message of
         false ->
-          find_message_loop(Clauses, Action, CTimeout, STimeout, Start, CurrMsgs, M, Cenv, Senv, Servers, Fd);
+          find_message_loop(Clauses, Action, CTimeout, STimeout, Start, CurrMsgs, M, Cenv, Senv, Servers, Fd, IsForced);
         {Msg, Body, NCenv, NSenv, _Cnt} ->
           receive Msg -> ok end,  %% Just consume the matched message
-          eval_expr(Body, M, NCenv, NSenv, Servers, Fd)
+          eval_expr(Body, M, NCenv, NSenv, Servers, Fd, IsForced)
       end
   end.
 
@@ -1000,14 +1010,14 @@ run_message_loop(Clauses, Action, CTimeout, STimeout, Start, Msgs, M, Cenv, Senv
 %% Wraps calls to find_clause when trying to match 
 %% a message against a series of patterns
 %% --------------------------------------------------------
-find_message([], _Clauses, _M, _Cenv, _Senv, _Servers, _Fd) ->
+find_message([], _Clauses, _M, _Cenv, _Senv, _Servers, _Fd, _IsForced) ->
   false;
 
-find_message([Msg|Mailbox], Clauses, M, Cenv, Senv, Servers, Fd) ->
+find_message([Msg|Mailbox], Clauses, M, Cenv, Senv, Servers, Fd, IsForced) ->
   {LoggerFun, Msg1} = decode_msg(Msg, Fd),
-  case find_clause(Clauses, M, 'receive', get_concrete(Msg1), get_symbolic(Msg1), Cenv, Senv, Servers, Fd) of
+  case find_clause(Clauses, M, 'receive', get_concrete(Msg1), get_symbolic(Msg1), Cenv, Senv, Servers, Fd, IsForced) of
     false ->
-      find_message(Mailbox, Clauses, M, Cenv, Senv, Servers, Fd);
+      find_message(Mailbox, Clauses, M, Cenv, Senv, Servers, Fd, IsForced);
     {Body, NCenv, NSenv, Cnt} ->
       log_successful_msg_match(LoggerFun),
       %% I can log the received Msg here
@@ -1028,16 +1038,16 @@ log_successful_msg_match({withLogger, Fun}) -> Fun().
 %% compiler adds a catch all clause at the end of every
 %% case statement.
 %% --------------------------------------------------------
-find_clause(Clauses, M, Mode, Cv, Sv, Cenv, Senv, Servers, Fd) ->
-  find_clause(Clauses, M, Mode, Cv, Sv, Cenv, Senv, Servers, Fd, 1).
+find_clause(Clauses, M, Mode, Cv, Sv, Cenv, Senv, Servers, Fd, IsForced) ->
+  find_clause(Clauses, M, Mode, Cv, Sv, Cenv, Senv, Servers, Fd, 1, IsForced).
 
-find_clause([], _M, _Mode, _Cv, _Sv, _Cenv, _Senv, _Servers, _Fd, _Cnt) ->
+find_clause([], _M, _Mode, _Cv, _Sv, _Cenv, _Senv, _Servers, _Fd, _Cnt, _IsForced) ->
   false;
-find_clause([Cl|Cls], M, Mode, Cv, Sv, Cenv, Senv, Servers, Fd, Cnt) ->
-  Match = match_clause(Cl, M, Mode, Cv, Sv, Cenv, Senv, Servers,  Fd, Cnt),
+find_clause([Cl|Cls], M, Mode, Cv, Sv, Cenv, Senv, Servers, Fd, Cnt, IsForced) ->
+  Match = match_clause(Cl, M, Mode, Cv, Sv, Cenv, Senv, Servers,  Fd, Cnt, IsForced),
   case Match of
     false ->
-      find_clause(Cls, M, Mode, Cv, Sv, Cenv, Senv, Servers, Fd, Cnt+1);
+      find_clause(Cls, M, Mode, Cv, Sv, Cenv, Senv, Servers, Fd, Cnt+1, IsForced);
     {true, {_Body, _NCenv, _NSenv, Cnt} = Matched} ->
       Matched
   end.
@@ -1048,7 +1058,7 @@ find_clause([Cl|Cls], M, Mode, Cv, Sv, Cenv, Senv, Servers, Fd, Cnt) ->
 %% Match a pair of concrete & symbolic values against
 %% a specific clause (i.e. with patterns and guard)
 %% --------------------------------------------------------
-match_clause({c_clause, Anno, Pats, Guard, Body}, M, Mode, Cv, Sv, Cenv, Senv, Servers, Fd, Cnt) ->
+match_clause({c_clause, Anno, Pats, Guard, Body}, M, Mode, Cv, Sv, Cenv, Senv, Servers, Fd, Cnt, IsForced) ->
   case is_patlist_compatible(Pats, Cv) of
     false -> false;
     true ->
@@ -1064,7 +1074,7 @@ match_clause({c_clause, Anno, Pats, Guard, Body}, M, Mode, Cv, Sv, Cenv, Senv, S
       %% BitInfo is needed for parameterized bit-syntax patterns
       BitInfo = {M, Cenv, Senv},
       Ss_e = cuter_symbolic:ensure_list(Ss, length(Cs), Fd),
-      Match = pattern_match_all(Pats, BitInfo, Mode, Cs, Ss_e, Servers, Fd),
+      Match = pattern_match_all(Pats, BitInfo, Mode, Cs, Ss_e, Servers, Fd, IsForced),
       case Match of
         false -> false;
         {true, {CMs, SMs}} ->
@@ -1072,7 +1082,7 @@ match_clause({c_clause, Anno, Pats, Guard, Body}, M, Mode, Cv, Sv, Cenv, Senv, S
           Se = cuter_env:add_mappings_to_environment(SMs, Senv),
           %% Make silent guards
           Tags = cuter_cerl:get_tags(Anno),
-          Guard_ev = eval_expr(Guard, M, Ce, Se, Servers, Fd),
+          Guard_ev = eval_expr(Guard, M, Ce, Se, Servers, Fd, IsForced),
           try to_tuple(Guard_ev) of
             {true, SGv} ->
               %% CONSTRAINT: SGv is a True guard
@@ -1097,17 +1107,17 @@ match_clause({c_clause, Anno, Pats, Guard, Body}, M, Mode, Cv, Sv, Cenv, Senv, S
 %% patterns (short-circuited match)
 %% --------------------------------------------------------
 
-pattern_match_all(Pats, BitInfo, Mode, Cs, Ss, Servers, Fd) ->
-  pattern_match_all(Pats, BitInfo, Mode, Cs, Ss, [], [], Servers, Fd).
+pattern_match_all(Pats, BitInfo, Mode, Cs, Ss, Servers, Fd, IsForced) ->
+  pattern_match_all(Pats, BitInfo, Mode, Cs, Ss, [], [], Servers, Fd, IsForced).
 
-pattern_match_all([], _BitInfo, _Mode, [], [], CMaps, SMaps, _Servers, _Fd) ->
+pattern_match_all([], _BitInfo, _Mode, [], [], CMaps, SMaps, _Servers, _Fd, _IsForced) ->
   {true, {CMaps, SMaps}};
-pattern_match_all([P|Ps], BitInfo, Mode, [Cv|Cvs], [Sv|Svs], CMaps, SMaps, Servers, Fd) ->
-  Match = pattern_match(P, BitInfo, Mode, Cv, Sv, CMaps, SMaps, Servers, Fd),
+pattern_match_all([P|Ps], BitInfo, Mode, [Cv|Cvs], [Sv|Svs], CMaps, SMaps, Servers, Fd, IsForced) ->
+  Match = pattern_match(P, BitInfo, Mode, Cv, Sv, CMaps, SMaps, Servers, Fd, IsForced),
   case Match of
     false -> false;
     {true, {CMs, SMs}} ->
-      pattern_match_all(Ps, BitInfo, Mode, Cvs, Svs, CMs, SMs, Servers, Fd)
+      pattern_match_all(Ps, BitInfo, Mode, Cvs, Svs, CMs, SMs, Servers, Fd, IsForced)
   end.
 
 %% --------------------------------------------------------
@@ -1118,7 +1128,7 @@ pattern_match_all([P|Ps], BitInfo, Mode, [Cv|Cvs], [Sv|Svs], CMaps, SMaps, Serve
 %% --------------------------------------------------------
 
 %% AtomicLiteral pattern
-pattern_match({c_literal, Anno, LitVal}, _Bitinfo, _Mode, Cv, Sv, CMaps, SMaps, Servers, Fd) ->
+pattern_match({c_literal, Anno, LitVal}, _Bitinfo, _Mode, Cv, Sv, CMaps, SMaps, Servers, Fd, _IsForced) ->
   Tags = cuter_cerl:get_tags(Anno),
   case LitVal =:= Cv of
     true ->
@@ -1134,13 +1144,13 @@ pattern_match({c_literal, Anno, LitVal}, _Bitinfo, _Mode, Cv, Sv, CMaps, SMaps, 
   end;
 
 %% VariableName pattern
-pattern_match({c_var, _Anno, Name}, _BitInfo, _Mode, Cv, Sv, CMaps, SMaps, _Servers, _Fd) ->
+pattern_match({c_var, _Anno, Name}, _BitInfo, _Mode, Cv, Sv, CMaps, SMaps, _Servers, _Fd, _IsForced) ->
   CMs = [{Name, Cv}|CMaps],
   SMs = [{Name, Sv}|SMaps],
   {true, {CMs, SMs}};
 
 %% Tuple pattern
-pattern_match({c_tuple, Anno, Es}, BitInfo, Mode, Cv, Sv, CMaps, SMaps, Servers, Fd) when is_tuple(Cv) ->
+pattern_match({c_tuple, Anno, Es}, BitInfo, Mode, Cv, Sv, CMaps, SMaps, Servers, Fd, IsForced) when is_tuple(Cv) ->
   Ne = length(Es),
   Tags = cuter_cerl:get_tags(Anno),
   case tuple_size(Cv) =:= Ne of
@@ -1150,14 +1160,14 @@ pattern_match({c_tuple, Anno, Es}, BitInfo, Mode, Cv, Sv, CMaps, SMaps, Servers,
       visit_tag(Servers#svs.code, Tags#tags.this),
       cuter_log:log_tuple(Fd, sz, Sv, Ne, Tags#tags.next),
       Sv_l = cuter_symbolic:tpl_to_list(Sv, Ne, Fd),
-      pattern_match_all(Es, BitInfo, Mode, Cv_l, Sv_l, CMaps, SMaps, Servers, Fd);
+      pattern_match_all(Es, BitInfo, Mode, Cv_l, Sv_l, CMaps, SMaps, Servers, Fd, IsForced);
     false ->
       %% CONSTRAINT: Sv is a tuple of not Ne elements
       visit_tag(Servers#svs.code, Tags#tags.next),
       cuter_log:log_tuple(Fd, not_sz, Sv, Ne, Tags#tags.this),
       false
   end;
-pattern_match({c_tuple, Anno, Es}, _BitInfo, _Mode, _Cv, Sv, _CMaps, _SMaps, Servers, Fd) ->
+pattern_match({c_tuple, Anno, Es}, _BitInfo, _Mode, _Cv, Sv, _CMaps, _SMaps, Servers, Fd, _IsForced) ->
   Ne = length(Es),
   Tags = cuter_cerl:get_tags(Anno),
   %% CONSTRAINT: Sv is not a tuple
@@ -1166,24 +1176,24 @@ pattern_match({c_tuple, Anno, Es}, _BitInfo, _Mode, _Cv, Sv, _CMaps, _SMaps, Ser
   false;
 
 %% List constructor pattern
-pattern_match({c_cons, Anno, _Hd, _Tl}, _BitInfo, _Mode, [], Sv, _CMaps, _SMaps, Servers, Fd) ->
+pattern_match({c_cons, Anno, _Hd, _Tl}, _BitInfo, _Mode, [], Sv, _CMaps, _SMaps, Servers, Fd, _IsForced) ->
   Tags = cuter_cerl:get_tags(Anno),
   %% CONSTRAINT: Sv is an empty list
   visit_tag(Servers#svs.code, Tags#tags.next),
   cuter_log:log_list(Fd, empty, Sv, Tags#tags.this),
   false;
-pattern_match({c_cons, Anno, Hd, Tl}, BitInfo, Mode, [Cv|Cvs], Sv, CMaps, SMaps, Servers, Fd) ->
+pattern_match({c_cons, Anno, Hd, Tl}, BitInfo, Mode, [Cv|Cvs], Sv, CMaps, SMaps, Servers, Fd, IsForced) ->
   Tags = cuter_cerl:get_tags(Anno),
   %% CONSTRAINT: S is a non empty list
   visit_tag(Servers#svs.code, Tags#tags.this),
   cuter_log:log_list(Fd, nonempty, Sv, Tags#tags.next),
   Sv_h = cuter_symbolic:head(Sv, Fd),
   Sv_t = cuter_symbolic:tail(Sv, Fd),
-  case pattern_match(Hd, BitInfo, Mode, Cv, Sv_h, CMaps, SMaps, Servers, Fd) of
+  case pattern_match(Hd, BitInfo, Mode, Cv, Sv_h, CMaps, SMaps, Servers, Fd, IsForced) of
     false -> false;
-    {true, {CMs, SMs}} -> pattern_match(Tl, BitInfo, Mode, Cvs, Sv_t, CMs, SMs, Servers, Fd)
+    {true, {CMs, SMs}} -> pattern_match(Tl, BitInfo, Mode, Cvs, Sv_t, CMs, SMs, Servers, Fd, IsForced)
   end;
-pattern_match({c_cons, Anno, _Hd, _Tl}, _BitInfo, _Mode, _Cv, Sv, _CMaps, _SMaps, Servers, Fd) ->
+pattern_match({c_cons, Anno, _Hd, _Tl}, _BitInfo, _Mode, _Cv, Sv, _CMaps, _SMaps, Servers, Fd, _IsForced) ->
   Tags = cuter_cerl:get_tags(Anno),
   %% CONSTRAINT: Sv is not a list
   visit_tag(Servers#svs.code, Tags#tags.next),
@@ -1191,8 +1201,8 @@ pattern_match({c_cons, Anno, _Hd, _Tl}, _BitInfo, _Mode, _Cv, Sv, _CMaps, _SMaps
   false;
 
 %% Alias pattern
-pattern_match({c_alias, _Anno, Var, Pat}, BitInfo, Mode, Cv, Sv, CMaps, SMaps, Servers, Fd) ->
-  Match = pattern_match(Pat, BitInfo, Mode, Cv, Sv, CMaps, SMaps, Servers, Fd),
+pattern_match({c_alias, _Anno, Var, Pat}, BitInfo, Mode, Cv, Sv, CMaps, SMaps, Servers, Fd, IsForced) ->
+  Match = pattern_match(Pat, BitInfo, Mode, Cv, Sv, CMaps, SMaps, Servers, Fd, IsForced),
   case Match of
     false -> false;
     {true, {CMs, SMs}} ->
@@ -1203,32 +1213,32 @@ pattern_match({c_alias, _Anno, Var, Pat}, BitInfo, Mode, Cv, Sv, CMaps, SMaps, S
   end;
 
 %% Binary pattern
-pattern_match({c_binary, Anno, Segments}, BitInfo, Mode, Cv, Sv, CMaps, SMaps, Servers, Fd) ->
-  bit_pattern_match(Anno, Segments, BitInfo, Mode, Cv, Sv, CMaps, SMaps, Servers, Fd).
+pattern_match({c_binary, Anno, Segments}, BitInfo, Mode, Cv, Sv, CMaps, SMaps, Servers, Fd, IsForced) ->
+  bit_pattern_match(Anno, Segments, BitInfo, Mode, Cv, Sv, CMaps, SMaps, Servers, Fd, IsForced).
 
 %% --------------------------------------------------------
 %% bit_pattern_match
 %% 
 %% --------------------------------------------------------
 
-bit_pattern_match(BinAnno, [], _BitInfo, _Mode, <<>>, Sv, CMaps, SMaps, Servers, Fd) ->
+bit_pattern_match(BinAnno, [], _BitInfo, _Mode, <<>>, Sv, CMaps, SMaps, Servers, Fd, _IsForced) ->
   %% CONSTRAINT: Sv =:= <<>>
   Tags = cuter_cerl:get_tags(BinAnno),
   visit_tag(Servers#svs.code, Tags#tags.this),
   cuter_log:log_equal(Fd, true, <<>>, Sv, Tags#tags.next),
   {true, {CMaps, SMaps}};
-bit_pattern_match(BinAnno, [], _BitInfo, _Mode, _Cv, Sv, _CMaps, _SMaps, Servers, Fd) ->
+bit_pattern_match(BinAnno, [], _BitInfo, _Mode, _Cv, Sv, _CMaps, _SMaps, Servers, Fd, _IsForced) ->
   %% CONSTRAINT: Sv =/= <<>>
   Tags = cuter_cerl:get_tags(BinAnno),
   visit_tag(Servers#svs.code, Tags#tags.next),
   cuter_log:log_equal(Fd, false, <<>>, Sv, Tags#tags.this),
   false;
 
-bit_pattern_match(BinAnno, [{c_bitstr, Anno, {c_literal, _, LVal}, Sz, Unit, Tp, Fgs}|Bs], {M, Cenv, Senv} = Bnfo, Mode, Cv, Sv, CMaps, SMaps, Svs, Fd) ->
-  Size_ev = eval_expr(Sz, M, Cenv, Senv, Svs, Fd),
-  Unit_ev = eval_expr(Unit, M, Cenv, Senv, Svs, Fd),
-  Type_ev = eval_expr(Tp, M, Cenv, Senv, Svs, Fd),
-  Flags_ev = eval_expr(Fgs, M, Cenv, Senv, Svs, Fd),
+bit_pattern_match(BinAnno, [{c_bitstr, Anno, {c_literal, _, LVal}, Sz, Unit, Tp, Fgs}|Bs], {M, Cenv, Senv} = Bnfo, Mode, Cv, Sv, CMaps, SMaps, Svs, Fd, IsForced) ->
+  Size_ev = eval_expr(Sz, M, Cenv, Senv, Svs, Fd, IsForced),
+  Unit_ev = eval_expr(Unit, M, Cenv, Senv, Svs, Fd, IsForced),
+  Type_ev = eval_expr(Tp, M, Cenv, Senv, Svs, Fd, IsForced),
+  Flags_ev = eval_expr(Fgs, M, Cenv, Senv, Svs, Fd, IsForced),
   Size_c = get_concrete(Size_ev),
   Size_s = get_symbolic(Size_ev),
   Enc_s = {Size_s, get_symbolic(Unit_ev), get_symbolic(Type_ev), get_symbolic(Flags_ev)},
@@ -1239,7 +1249,7 @@ bit_pattern_match(BinAnno, [{c_bitstr, Anno, {c_literal, _, LVal}, Sz, Unit, Tp,
     Rest_c ->
       visit_tag(Svs#svs.code, Tags#tags.this),
       Rest_s = cuter_symbolic:match_bitstring_const_true(LVal, Enc_s, Sv, Rest_c, Size_c, Tags#tags.next, Fd),
-      bit_pattern_match(BinAnno, Bs, Bnfo, Mode,  Rest_c, Rest_s, CMaps, SMaps, Svs, Fd)
+      bit_pattern_match(BinAnno, Bs, Bnfo, Mode,  Rest_c, Rest_s, CMaps, SMaps, Svs, Fd, IsForced)
   catch
     error:_e ->
       visit_tag(Svs#svs.code, Tags#tags.next),
@@ -1247,11 +1257,11 @@ bit_pattern_match(BinAnno, [{c_bitstr, Anno, {c_literal, _, LVal}, Sz, Unit, Tp,
       false
   end;
 
-bit_pattern_match(BinAnno, [{c_bitstr, Anno, {c_var, _, VarName}, Sz, Unit, Tp, Fgs}|Bs], {M, Cenv, Senv}, Mode, Cv, Sv, CMaps, SMaps, Svs, Fd) ->
-  Size_ev = eval_expr(Sz, M, Cenv, Senv, Svs, Fd),
-  Unit_ev = eval_expr(Unit, M, Cenv, Senv, Svs, Fd),
-  Type_ev = eval_expr(Tp, M, Cenv, Senv, Svs, Fd),
-  Flags_ev = eval_expr(Fgs, M, Cenv, Senv, Svs, Fd),
+bit_pattern_match(BinAnno, [{c_bitstr, Anno, {c_var, _, VarName}, Sz, Unit, Tp, Fgs}|Bs], {M, Cenv, Senv}, Mode, Cv, Sv, CMaps, SMaps, Svs, Fd, IsForced) ->
+  Size_ev = eval_expr(Sz, M, Cenv, Senv, Svs, Fd, IsForced),
+  Unit_ev = eval_expr(Unit, M, Cenv, Senv, Svs, Fd, IsForced),
+  Type_ev = eval_expr(Tp, M, Cenv, Senv, Svs, Fd, IsForced),
+  Flags_ev = eval_expr(Fgs, M, Cenv, Senv, Svs, Fd, IsForced),
   Size_c = get_concrete(Size_ev),
   Size_s = get_symbolic(Size_ev),
   Enc_s = {Size_s, get_symbolic(Unit_ev), get_symbolic(Type_ev), get_symbolic(Flags_ev)},
@@ -1273,7 +1283,7 @@ bit_pattern_match(BinAnno, [{c_bitstr, Anno, {c_var, _, VarName}, Sz, Unit, Tp, 
         end,
       NCenv = cuter_env:add_binding(VarName, X_c, Cenv),
       NSenv = cuter_env:add_binding(VarName, X_s, Senv),
-      bit_pattern_match(BinAnno, Bs, {M, NCenv, NSenv}, Mode, Rest_c, Rest_s, CMs, SMs, Svs, Fd)
+      bit_pattern_match(BinAnno, Bs, {M, NCenv, NSenv}, Mode, Rest_c, Rest_s, CMs, SMs, Svs, Fd, IsForced)
   catch
     error:_E ->
       visit_tag(Svs#svs.code, Tags#tags.next),
@@ -1287,16 +1297,16 @@ bit_pattern_match(BinAnno, [{c_bitstr, Anno, {c_var, _, VarName}, Sz, Unit, Tp, 
 %% --------------------------------------------------------
 
 %% Create a Closure of a local function
-create_closure(M, F, Arity, local, Servers, Fd) ->
+create_closure(M, F, Arity, local, Servers, Fd, IsForced) ->
   %% Module is already loaded since create_closure is called by eval_expr
   {NM, {Def, _Exported}} = access_mfa_code({M, F, Arity}, Servers),
   Cenv = cuter_env:new_environment(),
   Senv = cuter_env:new_environment(),
-  make_fun(Def#c_fun.vars, Def#c_fun.body, NM, Arity, Cenv, Senv, Servers, Fd);
+  make_fun(Def#c_fun.vars, Def#c_fun.body, NM, Arity, Cenv, Senv, Servers, Fd, IsForced);
 
 %% Create a Closure when the MFA is a function bound in a letrec
-create_closure(M, _F, Arity, {letrec_func, {Def, Cenv, Senv}}, Servers, Fd) ->
-  make_fun(Def#c_fun.vars, Def#c_fun.body, M, Arity, Cenv, Senv, Servers, Fd).
+create_closure(M, _F, Arity, {letrec_func, {Def, Cenv, Senv}}, Servers, Fd, IsForced) ->
+  make_fun(Def#c_fun.vars, Def#c_fun.body, M, Arity, Cenv, Senv, Servers, Fd, IsForced).
 
 %% --------------------------------------------------------
 %% Create closures.
@@ -1309,7 +1319,7 @@ create_closure(M, _F, Arity, {letrec_func, {Def, Cenv, Senv}}, Servers, Fd) ->
 
 %% Creates a closure from Core Erlang code. 
 %% The interpreted code is wrapped in a call to eval_expr.
-make_fun(Vars, Body, Mod, Arity, Cenv, Senv, Servers, Fd) ->
+make_fun(Vars, Body, Mod, Arity, Cenv, Senv, Servers, Fd, IsForced) ->
   Creator = self(),
   LambdaS = cuter_symbolic:fresh_lambda(Arity, Fd),
   add_to_created_closure(LambdaS),
@@ -1317,93 +1327,93 @@ make_fun(Vars, Body, Mod, Arity, Cenv, Senv, Servers, Fd) ->
     case Arity of
       0 ->
         fun() ->
-          make_fun_h1(Mod, [], Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, Fd)
+          make_fun_h1(Mod, [], Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, Fd, IsForced)
         end;
       1 ->
         fun(A) ->
           Args = [A],
-          make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, Fd)
+          make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, Fd, IsForced)
         end;
       2 ->
         fun(A, B) ->
           Args = [A, B],
-          make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, Fd)
+          make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, Fd, IsForced)
         end;
       3 ->
         fun(A, B, C) ->
           Args = [A, B, C],
-          make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, Fd)
+          make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, Fd, IsForced)
         end;
       4 ->
         fun(A, B, C, D) ->
           Args = [A, B, C, D],
-          make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, Fd)
+          make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, Fd, IsForced)
         end;
       5 ->
         fun(A, B, C, D, E) ->
           Args = [A, B, C, D, E],
-          make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, Fd)
+          make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, Fd, IsForced)
         end;
       6 ->
         fun(A, B, C, D, E, F) ->
           Args = [A, B, C, D, E, F],
-          make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, Fd)
+          make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, Fd, IsForced)
         end;
       7 ->
         fun(A, B, C, D, E, F, G) ->
           Args = [A, B, C, D, E, F, G],
-          make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, Fd)
+          make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, Fd, IsForced)
         end;
       8 ->
         fun(A, B, C, D, E, F, G, H) ->
           Args = [A, B, C, D, E, F, G, H],
-          make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, Fd)
+          make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, Fd, IsForced)
         end;
       9 ->
         fun(A, B, C, D, E, F, G, H, I) ->
           Args = [A, B, C, D, E, F, G, H, I],
-          make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, Fd)
+          make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, Fd, IsForced)
         end;
       10 ->
         fun(A, B, C, D, E, F, G, H, I, J) ->
           Args = [A, B, C, D, E, F, G, H, I, J],
-          make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, Fd)
+          make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, Fd, IsForced)
         end;
       11 ->
         fun(A, B, C, D, E, F, G, H, I, J, K) ->
           Args = [A, B, C, D, E, F, G, H, I, J, K],
-          make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, Fd)
+          make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, Fd, IsForced)
         end;
       12 ->
         fun(A, B, C, D, E, F, G, H, I, J, K, L) ->
           Args = [A, B, C, D, E, F, G, H, I, J, K, L],
-          make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, Fd)
+          make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, Fd, IsForced)
         end;
       13 ->
         fun(A, B, C, D, E, F, G, H, I, J, K, L, M) ->
           Args = [A, B, C, D, E, F, G, H, I, J, K, L, M],
-          make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, Fd)
+          make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, Fd, IsForced)
         end;
       14 ->
         fun(A, B, C, D, E, F, G, H, I, J, K, L, M, N) ->
           Args = [A, B, C, D, E, F, G, H, I, J, K, L, M, N],
-          make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, Fd)
+          make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, Fd, IsForced)
         end;
       15 ->
         fun(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O) ->
           Args = [A, B, C, D, E, F, G, H, I, J, K, L, M, N, O],
-          make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, Fd)
+          make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, Fd, IsForced)
         end;
       _ ->
         exception(error, {over_lambda_fun_argument_limit, Arity})
     end,
   mk_result(LambdaC, LambdaS).
 
-make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, FileDescr) ->
+make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, FileDescr, IsForced) ->
   {Ce, Se, SAs} = register_new_environments(Args, Vars, Cenv, Senv),
   NSvs = validate_servers(Servers),
   Fd = validate_file_descriptor(NSvs#svs.monitor, Creator, FileDescr),
-  Ret = eval_expr(Body, Mod, Ce, Se, NSvs, Fd),
+  Ret = eval_expr(Body, Mod, Ce, Se, NSvs, Fd, IsForced),
   cuter_log:log_evaluated_closure(Fd, LambdaS, SAs, get_symbolic(Ret)),
   Ret.
 
@@ -1418,7 +1428,7 @@ register_new_environments(Args, Vars, Cenv, Senv) ->
 
 %% Creates a closure from an MFA (emulates the behaviour
 %% of erlang:make_fun/3) 
-make_fun(Mod, Func, Arity, Servers, Fd) ->
+make_fun(Mod, Func, Arity, Servers, Fd, IsForced) ->
   Creator = self(),
   LambdaS = cuter_symbolic:fresh_lambda(Arity, Fd),
   add_to_created_closure(LambdaS),
@@ -1426,93 +1436,93 @@ make_fun(Mod, Func, Arity, Servers, Fd) ->
     case Arity of
       0 ->
         fun() ->
-          make_fun_h(Mod, Func, [], Servers, Creator, LambdaS, Fd)
+          make_fun_h(Mod, Func, [], Servers, Creator, LambdaS, Fd, IsForced)
         end;
       1 ->
         fun(A) ->
           Args = [A],
-          make_fun_h(Mod, Func, Args, Servers, Creator, LambdaS, Fd)
+          make_fun_h(Mod, Func, Args, Servers, Creator, LambdaS, Fd, IsForced)
         end;
       2 ->
         fun(A, B) ->
           Args = [A, B],
-          make_fun_h(Mod, Func, Args, Servers, Creator, LambdaS, Fd)
+          make_fun_h(Mod, Func, Args, Servers, Creator, LambdaS, Fd, IsForced)
         end;
       3 ->
         fun(A, B, C) ->
           Args = [A, B, C],
-          make_fun_h(Mod, Func, Args, Servers, Creator, LambdaS, Fd)
+          make_fun_h(Mod, Func, Args, Servers, Creator, LambdaS, Fd, IsForced)
         end;
       4 ->
         fun(A, B, C, D) ->
           Args = [A, B, C, D],
-          make_fun_h(Mod, Func, Args, Servers, Creator, LambdaS, Fd)
+          make_fun_h(Mod, Func, Args, Servers, Creator, LambdaS, Fd, IsForced)
         end;
       5 ->
         fun(A, B, C, D, E) ->
           Args = [A, B, C, D, E],
-          make_fun_h(Mod, Func, Args, Servers, Creator, LambdaS, Fd)
+          make_fun_h(Mod, Func, Args, Servers, Creator, LambdaS, Fd, IsForced)
         end;
       6 ->
         fun(A, B, C, D, E, F) ->
           Args = [A, B, C, D, E, F],
-          make_fun_h(Mod, Func, Args, Servers, Creator, LambdaS, Fd)
+          make_fun_h(Mod, Func, Args, Servers, Creator, LambdaS, Fd, IsForced)
         end;
       7 ->
         fun(A, B, C, D, E, F, G) ->
           Args = [A, B, C, D, E, F, G],
-          make_fun_h(Mod, Func, Args, Servers, Creator, LambdaS, Fd)
+          make_fun_h(Mod, Func, Args, Servers, Creator, LambdaS, Fd, IsForced)
         end;
       8 ->
         fun(A, B, C, D, E, F, G, H) ->
           Args = [A, B, C, D, E, F, G, H],
-          make_fun_h(Mod, Func, Args, Servers, Creator, LambdaS, Fd)
+          make_fun_h(Mod, Func, Args, Servers, Creator, LambdaS, Fd, IsForced)
         end;
       9 ->
         fun(A, B, C, D, E, F, G, H, I) ->
           Args = [A, B, C, D, E, F, G, H, I],
-          make_fun_h(Mod, Func, Args, Servers, Creator, LambdaS, Fd)
+          make_fun_h(Mod, Func, Args, Servers, Creator, LambdaS, Fd, IsForced)
         end;
       10 ->
         fun(A, B, C, D, E, F, G, H, I, J) ->
           Args = [A, B, C, D, E, F, G, H, I, J],
-          make_fun_h(Mod, Func, Args, Servers, Creator, LambdaS, Fd)
+          make_fun_h(Mod, Func, Args, Servers, Creator, LambdaS, Fd, IsForced)
         end;
       11 ->
         fun(A, B, C, D, E, F, G, H, I, J, K) ->
           Args = [A, B, C, D, E, F, G, H, I, J, K],
-          make_fun_h(Mod, Func, Args, Servers, Creator, LambdaS, Fd)
+          make_fun_h(Mod, Func, Args, Servers, Creator, LambdaS, Fd, IsForced)
         end;
       12 ->
         fun(A, B, C, D, E, F, G, H, I, J, K, L) ->
           Args = [A, B, C, D, E, F, G, H, I, J, K, L],
-          make_fun_h(Mod, Func, Args, Servers, Creator, LambdaS, Fd)
+          make_fun_h(Mod, Func, Args, Servers, Creator, LambdaS, Fd, IsForced)
         end;
       13 ->
         fun(A, B, C, D, E, F, G, H, I, J, K, L, M) ->
           Args = [A, B, C, D, E, F, G, H, I, J, K, L, M],
-          make_fun_h(Mod, Func, Args, Servers, Creator, LambdaS, Fd)
+          make_fun_h(Mod, Func, Args, Servers, Creator, LambdaS, Fd, IsForced)
         end;
       14 ->
         fun(A, B, C, D, E, F, G, H, I, J, K, L, M, N) ->
           Args = [A, B, C, D, E, F, G, H, I, J, K, L, M, N],
-          make_fun_h(Mod, Func, Args, Servers, Creator, LambdaS, Fd)
+          make_fun_h(Mod, Func, Args, Servers, Creator, LambdaS, Fd, IsForced)
         end;
       15 ->
         fun(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O) ->
           Args = [A, B, C, D, E, F, G, H, I, J, K, L, M, N, O],
-          make_fun_h(Mod, Func, Args, Servers, Creator, LambdaS, Fd)
+          make_fun_h(Mod, Func, Args, Servers, Creator, LambdaS, Fd, IsForced)
         end;
       _ ->
         exception(error, {over_lambda_fun_argument_limit, Arity})
     end,
   mk_result(LambdaC, LambdaS).
 
-make_fun_h(Mod, Func, Args, Servers, Creator, LambdaS, FileDescr) ->
+make_fun_h(Mod, Func, Args, Servers, Creator, LambdaS, FileDescr, IsForced) ->
   {CAs, SAs} = unzip_args(Args), %% If Args =:= [] then unzip_args([]) will return {[], []}
   NSvs = validate_servers(Servers),
   Fd = validate_file_descriptor(NSvs#svs.monitor, Creator, FileDescr),
-  Ret = eval({named, Mod, Func}, CAs, SAs, external, NSvs, Fd),
+  Ret = eval({named, Mod, Func}, CAs, SAs, external, NSvs, Fd, IsForced),
   cuter_log:log_evaluated_closure(Fd, LambdaS, SAs, get_symbolic(Ret)),
   Ret.
 
@@ -1952,3 +1962,4 @@ log_bistr_type_mismatch(Cv, Sv, Type, Fd) ->
           throw({unknown_bitstr_type, Type})
       end
   end.
+

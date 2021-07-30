@@ -40,6 +40,9 @@
   , log_not_lambda_with_arity/4
   , log_fresh_lambda/3
   , log_evaluated_closure/4
+  , disable_constraint_logging/0
+  , enable_constraint_logging/0
+  , is_constraint_logging_enabled/0
 ]).
 -export([supported_mfas/0]).
 
@@ -325,18 +328,23 @@ log_not_lambda_with_arity(Fd, FunS, Arity, Tag) ->
 -spec log(file:io_device(), opcode(), cuter_cerl:tagID(), [any()]) -> ok.
 -ifdef(LOGGING_FLAG).
 log(Fd, OpCode, TagID, Data) ->
-  case get(?DEPTH_PREFIX) of
-    undefined -> throw(depth_undefined_in_pdict);
-    0 -> ok;
-    N when is_integer(N), N > 0 ->
-      IsConstraint = is_constraint(OpCode),
-      try cuter_serial:to_log_entry(OpCode, Data, IsConstraint, TagID) of
-        Jdata ->
-          write_data(Fd, Jdata)
-      catch
-        throw:{unsupported_term, _} -> ok
-      end
+  case is_constraint_logging_enabled() of
+    true ->
+      case get(?DEPTH_PREFIX) of
+	undefined -> throw(depth_undefined_in_pdict);
+	0 -> ok;
+	N when is_integer(N), N > 0 ->
+	  IsConstraint = is_constraint(OpCode),
+	  try cuter_serial:to_log_entry(OpCode, Data, IsConstraint, TagID) of
+	    Jdata ->
+	      write_data(Fd, Jdata)
+	  catch
+	    throw:{unsupported_term, _} -> ok
+	  end
+      end;
+    false-> ok
   end.
+  
 -else.
 log(_, _, _) -> ok.
 -endif.
@@ -509,4 +517,20 @@ safe_read(Fd, Sz, AllowEOF) ->
     eof when AllowEOF -> eof;
     eof -> throw(unexpected_eof);
     {error, Reason} -> throw({file_read_failed, Reason})
+  end.
+
+
+-spec disable_constraint_logging() -> ok.
+disable_constraint_logging() ->
+  put(safe_region, true).
+
+-spec enable_constraint_logging() -> ok.
+enable_constraint_logging() ->
+  put(safe_region, undefined).
+
+-spec is_constraint_logging_enabled() -> atom().
+is_constraint_logging_enabled() ->
+  case get(safe_region) of
+    true -> false;
+    undefined -> true
   end.

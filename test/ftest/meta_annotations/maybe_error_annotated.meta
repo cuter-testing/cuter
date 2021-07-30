@@ -1,0 +1,111 @@
+module foo
+  f/2
+    fun: +
+    VARS
+      var 0: 
+      var 1: 
+    BODY
+      let: +
+      VARS
+        var 957: 
+      ARG
+        apply: 
+        OP
+          var {g,1}: 
+        ARGS
+          var 0: 
+      BODY
+        case: +
+        ARG
+          var 957: 
+        CLAUSES
+          clause: 
+          PATS
+            literal 1
+          GUARD
+            literal true
+          BODY
+            apply: 
+            OP
+              var {g,1}: 
+            ARGS
+              var 1: 
+          clause: +
+          PATS
+            var 472: 
+          GUARD
+            literal true
+          BODY
+            let: 
+            VARS
+              var 5: 
+            ARG
+              var 957: 
+            BODY
+              call: +
+              MOD
+                literal erlang
+              NAME
+                literal error
+              ARGS
+                literal "error"
+  g/1
+    fun: 
+    VARS
+      var 0: 
+    BODY
+      let: 
+      VARS
+        var 600: 
+      ARG
+        var 0: 
+      BODY
+        case: 
+        ARG
+          var 600: 
+        CLAUSES
+          clause: 
+          PATS
+            literal 1
+          GUARD
+            literal true
+          BODY
+            literal 1
+          clause: 
+          PATS
+            literal 2
+          GUARD
+            literal true
+          BODY
+            literal 2
+          clause: 
+          PATS
+            var 414: 
+          GUARD
+            literal true
+          BODY
+            literal 1
+  module_info/0
+    fun: 
+    VARS
+    BODY
+      call: 
+      MOD
+        literal erlang
+      NAME
+        literal get_module_info
+      ARGS
+        literal foo
+  module_info/1
+    fun: 
+    VARS
+      var 0: 
+    BODY
+      call: 
+      MOD
+        literal erlang
+      NAME
+        literal get_module_info
+      ARGS
+        literal foo
+        var 0: 

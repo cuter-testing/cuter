@@ -4,7 +4,7 @@
 
 %% External exports
 -export([retrieve_spec/2, get_tags/1, id_of_tag/1, tag_from_id/1, empty_tag/0,
-         get_stored_types/1, empty_tagId/0, collect_feasible_tags/2]).
+         get_stored_types/1, empty_tagId/0, collect_feasible_tags/2, annotate/2]).
 %% Core AST extraction.
 -export([load/4, get_core/2]).
 %% Node types generators.
@@ -166,11 +166,21 @@ get_stored_types(Cache) ->
 %% {M, Fun, Arity}      {Def :: #c_fun{}, Exported :: boolean()}
 -spec store_module(cuter:mod(), cerl:cerl(), cuter_codeserver:module_cache(), tag_generator()) -> ok.
 store_module(M, AST, Cache, TagGen) ->
-  store_module_info(anno, M, AST, Cache),
-  store_module_info(name, M, AST, Cache),
-  store_module_info(exports, M, AST, Cache),
-  store_module_info(attributes, M, AST, Cache),
-  store_module_funs(M, AST, Cache, TagGen).
+  AST1 = case cuter_config:fetch(?ANNOTATIONS) of
+    {ok, Anns} ->
+      case proplists:get_value(M, Anns) of
+        undefined -> AST;
+        F ->
+          cuter_debug:load_annotations(M, true, F)
+      end;
+    _ ->
+      AST
+  end,
+  store_module_info(anno, M, AST1, Cache),
+  store_module_info(name, M, AST1, Cache),
+  store_module_info(exports, M, AST1, Cache),
+  store_module_info(attributes, M, AST1, Cache),
+  store_module_funs(M, AST1, Cache, TagGen).
 
 %% Gets the Core Erlang AST of a module.
 -spec get_core(cuter:mod(), boolean()) -> {ok, cerl:cerl()} | load_error().
@@ -255,12 +265,13 @@ store_fun(Exps, M, {Fun, Def}, Cache, TagGen) ->
   {FunName, Arity} = Fun#c_var.name,
   MFA = {M, FunName, Arity},
   Exported = lists:member(MFA, Exps),
-%  io:format("===========================================================================~n"),
-%  io:format("BEFORE~n"),
-%  io:format("~p~n", [Def]),
+  %io:format("===========================================================================~n"),
+  %io:format("BEFORE~n"),
+  %io:format("~p~n", [Def]),
   AnnDef = annotate(Def, TagGen),
-%  io:format("AFTER~n"),
-%  io:format("~p~n", [AnnDef]),
+  %io:format("AFTER~n"),
+  %io:format("~p~n", [AnnDef]),
+  %io:format("END~n"),
   cuter_codeserver:insert_in_module_cache(MFA, {AnnDef, Exported}, Cache).
 
 -type type_info() :: {'type', cerl_typedef()}
@@ -299,24 +310,42 @@ classify_attributes([{What, #c_literal{val = Val}}|Attrs], Types, Specs) ->
 %% Annotate the AST with tags.
 %% ----------------------------------------------------------------------------
 
+-spec update_maybe_error_ann(cuter_maybe_error_annotation:maybe_error(), cerl:cerl()) -> cerl:cerl().
+update_maybe_error_ann(Maybe_Error, Tree) ->
+  Anno = cerl:get_ann(Tree),
+  Sf = fun(A, B) ->
+	   case A of
+	     {maybe_error, _} -> true;
+	     _ -> B
+	   end
+       end,
+  case lists:foldl(Sf, false, Anno) of
+    true -> Tree;
+    false -> cerl:add_ann([{maybe_error, Maybe_Error}], Tree)
+  end.
+
 -spec annotate(cerl:cerl(), tag_generator()) -> cerl:cerl().
 annotate(Def, TagGen) -> annotate(Def, TagGen, false).
 
 -spec annotate(cerl:cerl(), tag_generator(), boolean()) -> cerl:cerl().
 annotate(Tree, TagGen, InPats) ->
+  Default_maybe_error = true,
   case cerl:type(Tree) of
     alias ->
       Var = annotate(cerl:alias_var(Tree), TagGen, InPats),
       Pat = annotate(cerl:alias_pat(Tree), TagGen, InPats),
-      cerl:update_c_alias(Tree, Var, Pat);
+      T = cerl:update_c_alias(Tree, Var, Pat),
+      update_maybe_error_ann(Default_maybe_error, T);
     'apply' ->
       % TODO Annotate applications for lambda terms.
       Op = annotate(cerl:apply_op(Tree), TagGen, InPats),
       Args = annotate_all(cerl:apply_args(Tree), TagGen, InPats),
-      cerl:update_c_apply(Tree, Op, Args);
+      T = cerl:update_c_apply(Tree, Op, Args),
+      update_maybe_error_ann(Default_maybe_error, T);
     binary ->
       Segs = annotate_all(cerl:binary_segments(Tree), TagGen, InPats),
-      T = cerl:update_c_binary(Tree, Segs),
+      T1 = cerl:update_c_binary(Tree, Segs),
+      T = update_maybe_error_ann(Default_maybe_error, T1),
       case InPats of
         false -> T;
         true  -> cerl:add_ann(tag_pair(TagGen), T)
@@ -327,7 +356,8 @@ annotate(Tree, TagGen, InPats) ->
       Unit = annotate(cerl:bitstr_unit(Tree), TagGen, InPats),
       Type = annotate(cerl:bitstr_type(Tree), TagGen, InPats),
       Flags = annotate(cerl:bitstr_flags(Tree), TagGen, InPats),
-      T = cerl:update_c_bitstr(Tree, Val, Size, Unit, Type, Flags),
+      T1 = cerl:update_c_bitstr(Tree, Val, Size, Unit, Type, Flags),
+      T = update_maybe_error_ann(Default_maybe_error, T1),
       case InPats of
         false -> T;
         true  -> cerl:add_ann(tag_pair(TagGen), T)
@@ -336,25 +366,30 @@ annotate(Tree, TagGen, InPats) ->
       Mod = annotate(cerl:call_module(Tree), TagGen, InPats),
       Name = annotate(cerl:call_name(Tree), TagGen, InPats),
       Args = annotate_all(cerl:call_args(Tree), TagGen, InPats),
-      cerl:update_c_call(Tree, Mod, Name, Args);
+      T = cerl:update_c_call(Tree, Mod, Name, Args),
+      update_maybe_error_ann(Default_maybe_error, T);
     'case' ->
       Arg = annotate(cerl:case_arg(Tree), TagGen, InPats),
       Clauses0 = annotate_all(cerl:case_clauses(Tree), TagGen, InPats),
       Clauses = mark_last_clause(Clauses0),
-      cerl:update_c_case(Tree, Arg, Clauses);
+      T = cerl:update_c_case(Tree, Arg, Clauses),
+      update_maybe_error_ann(Default_maybe_error, T);
     'catch' ->
       Body = annotate(cerl:catch_body(Tree), TagGen, InPats),
-      cerl:update_c_catch(Tree, Body);
+      T = cerl:update_c_catch(Tree, Body),
+      update_maybe_error_ann(Default_maybe_error, T);
     clause ->
       Pats = annotate_all(cerl:clause_pats(Tree), TagGen, true),
       Guard = annotate(cerl:clause_guard(Tree), TagGen, InPats),
       Body = annotate(cerl:clause_body(Tree), TagGen, InPats),
       T = cerl:update_c_clause(Tree, Pats, Guard, Body),
-      cerl:add_ann(tag_pair(TagGen), T);
+      T1 = cerl:add_ann(tag_pair(TagGen), T),
+      update_maybe_error_ann(Default_maybe_error, T1);
     cons ->
       Hd = annotate(cerl:cons_hd(Tree), TagGen, InPats),
       Tl = annotate(cerl:cons_tl(Tree), TagGen, InPats),
-      T = cerl:update_c_cons_skel(Tree, Hd, Tl),
+      T1 = cerl:update_c_cons_skel(Tree, Hd, Tl),
+      T = update_maybe_error_ann(Default_maybe_error, T1),
       case InPats of
         false -> T;
         true  -> cerl:add_ann(tag_pair(TagGen), T)
@@ -362,57 +397,66 @@ annotate(Tree, TagGen, InPats) ->
     'fun' ->
       Vars = annotate_all(cerl:fun_vars(Tree), TagGen, InPats),
       Body = annotate(cerl:fun_body(Tree), TagGen, InPats),
-      cerl:update_c_fun(Tree, Vars, Body);
+      T = cerl:update_c_fun(Tree, Vars, Body),
+      update_maybe_error_ann(Default_maybe_error, T);
     'let' ->
       Vars = annotate_all(cerl:let_vars(Tree), TagGen, InPats),
       Arg = annotate(cerl:let_arg(Tree), TagGen, InPats),
       Body = annotate(cerl:let_body(Tree), TagGen, InPats),
-      cerl:update_c_let(Tree, Vars, Arg, Body);
+      T = cerl:update_c_let(Tree, Vars, Arg, Body),
+      update_maybe_error_ann(Default_maybe_error, T);
     letrec ->
       Combine = fun(X, Y) -> {annotate(X, TagGen, InPats), annotate(Y, TagGen, InPats)} end,
       Defs = [Combine(N, D) || {N, D} <- cerl:letrec_defs(Tree)],
       Body = annotate(cerl:letrec_body(Tree), TagGen, InPats),
-      cerl:update_c_letrec(Tree, Defs, Body);
+      T = cerl:update_c_letrec(Tree, Defs, Body),
+      update_maybe_error_ann(Default_maybe_error, T);
     literal ->
       case InPats of
-        false -> Tree;
-        true  -> cerl:add_ann(tag_pair(TagGen), Tree)
+        false -> cerl:add_ann([{maybe_error, Default_maybe_error}], Tree);
+        true  -> cerl:add_ann([{maybe_error, Default_maybe_error}], cerl:add_ann(tag_pair(TagGen), Tree))
       end;
     primop ->
       Name = annotate(cerl:primop_name(Tree), TagGen, InPats),
       Args = annotate_all(cerl:primop_args(Tree), TagGen, InPats),
-      cerl:update_c_primop(Tree, Name, Args);
+      T = cerl:update_c_primop(Tree, Name, Args),
+      update_maybe_error_ann(Default_maybe_error, T);
     'receive' ->
       Clauses0 = annotate_all(cerl:receive_clauses(Tree), TagGen, InPats),
       Clauses = mark_last_clause(Clauses0),
       Timeout = annotate(cerl:receive_timeout(Tree), TagGen, InPats),
       Action = annotate(cerl:receive_action(Tree), TagGen, InPats),
-      cerl:update_c_receive(Tree, Clauses, Timeout, Action);
+      T = cerl:update_c_receive(Tree, Clauses, Timeout, Action),
+      update_maybe_error_ann(Default_maybe_error, T);
     seq ->
       Arg = annotate(cerl:seq_arg(Tree), TagGen, InPats),
       Body = annotate(cerl:seq_body(Tree), TagGen, InPats),
-      cerl:update_c_seq(Tree, Arg, Body);
+      T = cerl:update_c_seq(Tree, Arg, Body),
+      update_maybe_error_ann(Default_maybe_error, T);
     'try' ->
       Arg = annotate(cerl:try_arg(Tree), TagGen, InPats),
       Vars = annotate_all(cerl:try_vars(Tree), TagGen, InPats),
       Body = annotate(cerl:try_body(Tree), TagGen, InPats),
       Evars = annotate_all(cerl:try_evars(Tree), TagGen, InPats),
       Handler = annotate(cerl:try_handler(Tree), TagGen, InPats),
-      cerl:update_c_try(Tree, Arg, Vars, Body, Evars, Handler);
+      T = cerl:update_c_try(Tree, Arg, Vars, Body, Evars, Handler),
+      update_maybe_error_ann(Default_maybe_error, T);
     tuple ->
       Es = annotate_all(cerl:tuple_es(Tree), TagGen, InPats),
-      T = cerl:update_c_tuple_skel(Tree, Es),
+      T1 = cerl:update_c_tuple_skel(Tree, Es),
+      T = update_maybe_error_ann(Default_maybe_error, T1),
       case InPats of
         false -> T;
         true  -> cerl:add_ann(tag_pair(TagGen), T)
       end;
     values ->
       Es = annotate_all(cerl:values_es(Tree), TagGen, InPats),
-      cerl:update_c_values(Tree, Es);
+      T = cerl:update_c_values(Tree, Es),
+      update_maybe_error_ann(Default_maybe_error, T);
     var ->
-      Tree;
+      cerl:add_ann([{maybe_error, Default_maybe_error}], Tree);
     _ ->
-      Tree  %% TODO Ignore maps (for now) and modules.
+      cerl:add_ann([{maybe_error, Default_maybe_error}], Tree)  %% TODO Ignore maps (for now) and modules.
   end.
 
 annotate_all(Trees, TagGen, InPats) ->
@@ -424,6 +468,7 @@ mark_last_clause(Clauses) when is_list(Clauses) ->
   [Last|Rvs] = lists:reverse(Clauses),
   AnnLast = cerl:add_ann([last_clause], Last),
   lists:reverse([AnnLast|Rvs]).
+
 
 %% ----------------------------------------------------------------------------
 %% Collect tags from AST for a specific mfa.

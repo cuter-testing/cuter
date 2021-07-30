@@ -122,7 +122,7 @@ visit_tag(CodeServer, Tag) ->
 %% Gets the visited tags.
 -spec get_visited_tags(codeserver()) -> tags().
 get_visited_tags(CodeServer) ->
-  gen_server:call(CodeServer, get_visited_tags).
+  gen_server:call(CodeServer, get_visited_tags, infinity).
 
 %% Gets the logs of the CodeServer.
 -spec get_logs(codeserver()) -> logs().

@@ -274,7 +274,8 @@ enable_runtime_config(Options) ->
   cuter_config:store(?SORTED_ERRORS, proplists:get_bool(?SORTED_ERRORS, Options)),
   cuter_config:store(?WHITELISTED_MFAS, whitelisted_mfas(Options)),
   cuter_config:store(?NUM_SOLVERS, proplists:get_value(?NUM_SOLVERS, Options, ?ONE)),
-  cuter_config:store(?NUM_POLLERS, proplists:get_value(?NUM_POLLERS, Options, ?ONE)).
+  cuter_config:store(?NUM_POLLERS, proplists:get_value(?NUM_POLLERS, Options, ?ONE)),
+  cuter_config:store(?ANNOTATIONS, annotations(Options)).
 
 verbosity_level(Options) ->
   Default = cuter_pp:default_reporting_level(),
@@ -302,3 +303,9 @@ whitelisted_mfas(Options) ->
           cuter_mock:empty_whitelist()
       end
   end.
+
+annotations(Options) -> annotations(Options, []).
+
+annotations([], Acc) -> Acc;
+annotations([{?ANNOTATIONS, M, F}|T], Acc) -> annotations(T, [{M, F}|Acc]);
+annotations([_|T], Acc) -> annotations(T, Acc).

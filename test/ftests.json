@@ -1251,6 +1251,20 @@
               "UNSAT": 6
             },
             "skip": false
-        }
+        },
+	{
+	    "module": "maybe_error_annotated",
+            "function": "f",
+            "args": "[17, 17]",
+            "depth": "25",
+            "errors": true,
+	    "nondeterministic": true,
+            "arity": 2,
+	    "xopts": "-t test/ftest/meta_annotations/maybe_error_annotated.meta",
+            "solutions": [
+                "$1 == 2"
+            ],
+            "skip": false
+	}
     ]
 }

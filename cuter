@@ -38,6 +38,8 @@ def main():
   parser.add_argument("-m", "--metrics", action='store_true', help="report collected metrics")
   parser.add_argument("--debug-keep-traces", action='store_true', help="keep execution traces for debugging")
   parser.add_argument("--debug-solver-fsm", action='store_true', help="output debug logs for the solver FSM")
+  # Temporary parameters
+  parser.add_argument("-t", "--annotations", metavar="T", type=str, help="the file that contains the annotates AST")
 
   # Parse the arguments
   args = parser.parse_args()
@@ -109,6 +111,9 @@ def main():
     opts.append("debug_keep_traces")
   if args.debug_solver_fsm:
     opts.append("debug_solver_fsm")
+  if args.annotations:
+    m = os.path.splitext(os.path.basename(args.annotations))[0]
+    opts.append("{{annotations, {}, '{}'}}".format(m, args.annotations))
   strOpts = ",".join(opts)
 
   # Run CutEr
@@ -119,7 +124,7 @@ def main():
 def getDirectory():
   return os.path.dirname(os.path.realpath(__file__))
 
-def compileModule(module, paths, again = False):
+def compileModule(module, paths, again=False):
   """
   Tries to compile the module.
   It expects that the erl file is located in the current working directory.
