@@ -528,7 +528,7 @@ disable_constraint_logging() ->
 enable_constraint_logging() ->
   put(safe_region, undefined).
 
--spec is_constraint_logging_enabled() -> atom().
+-spec is_constraint_logging_enabled() -> boolean().
 is_constraint_logging_enabled() ->
   case get(safe_region) of
     true -> false;

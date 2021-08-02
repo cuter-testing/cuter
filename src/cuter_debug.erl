@@ -51,7 +51,6 @@ minimal_ast(M, WithPmatch) ->
 ident(N) ->
   string:join([ " " || _ <- lists:seq(1, N)], "").
 
--spec walk(cerl:cerl(), integer()) -> ok.
 walk(T, N) ->
   Id = ident(N),
   F = fun(X) -> walk(X, N + 2) end,
@@ -118,7 +117,9 @@ walk(T, N) ->
       io:format("~sBODY~n", [Id]),
       walk(cerl:letrec_body(T), N + 2);
     primop ->
-      io:format("~sprimop~n", [Id])
+      io:format("~sprimop~n", [Id]);
+    Typ ->
+      throw({unsupported_cerl, Typ})
   end.
 
 %var_or_lit(T) ->
@@ -258,7 +259,7 @@ get_line() ->
 read_lines(Fname) ->
   {ok, D} = file:open(Fname, [read]),
   Lines = get_all_lines(D, []),
-  file:close(D),
+  _ = file:close(D),
   Lines.
 
 get_all_lines(D, Acc) ->
