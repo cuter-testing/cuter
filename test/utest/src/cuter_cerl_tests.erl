@@ -77,11 +77,13 @@ generate_and_collect_tags({M, Cache}) ->
   [{"added tags match collected tags", ?_assertEqual(true, NoDiff)}].
 
 setup_for_tags(M) ->
+  cuter_config:start(),
   Cache = ets:new(M, [ordered_set, protected]),
   cuter_codeserver:init_branch_counter(),
   {M, Cache}.
 
 cleanup_for_tags({_, Cache}) ->
+  cuter_config:stop(),
   ets:delete(Cache).
 
 %%====================================================================
@@ -89,9 +91,11 @@ cleanup_for_tags({_, Cache}) ->
 %%====================================================================
 
 setup(M) ->
+  cuter_config:start(),
   MDb = ets:new(M, [ordered_set, protected]),
   {M, MDb}.
 
 cleanup({_M, MDb}) ->
+  cuter_config:stop(),
   ets:delete(MDb).
 
