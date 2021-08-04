@@ -189,4 +189,4 @@ Have fun with the tool!
 <!-- Links (alphabetically) -->
 [commit]: https://github.com/cuter-testing/cuter/commit/HEAD
 [erlang]: http://www.erlang.org
-[travis]: https://travis-ci.org/cuter-testing/cuter
+[travis]: https://travis-ci.com/cuter-testing/cuter
