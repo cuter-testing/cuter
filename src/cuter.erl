@@ -51,23 +51,17 @@ run(M, F, As, Depth, Options) ->
 -spec run([seed()], options()) -> erroneous_inputs().
 %% Runs CutEr on multiple units.
 run(Seeds, Options) ->
-  State = initialize_app(Options),
-  StateWithSeeds = add_seeds(State, Seeds),
-  Mfas = [{M, F, length(As)} || {M, F, As, _} <- Seeds],
-  case pre_run_checks(Mfas) of
+  State = state_from_options_and_seeds(Options, Seeds),
+  case init(State) of
     error ->
-      stop(StateWithSeeds);
+      stop(State),
+      [];
     ok ->
-      case preprocess(StateWithSeeds, Mfas) of
-        ok ->
-          start(StateWithSeeds);
-        error ->
-          stop(StateWithSeeds)
-      end
+      EndState = start(State),
+      ErroneousInputs = process_results(EndState),
+      stop(State),
+      ErroneousInputs
   end.
-
-add_seeds(State, Seeds) ->
-  State#st{ seeds = Seeds }.
 
 -spec run_from_file(file:name(), options()) -> erroneous_inputs().
 %% Loads the seeds from a file and runs CutEr on all of them.
@@ -82,52 +76,73 @@ run_from_file(File, Options) ->
   end.
 
 %% ----------------------------------------------------------------------------
-%% Pre-run checks
+%% App initializations.
+%%
+%% Perform tasks for validation, pre-processing etc.
+%% Each task should be added to the list in init_tasks/0 and have the following
+%% type signature:
+%%   fun((state()) -> ok | error).
 %% ----------------------------------------------------------------------------
 
--spec pre_run_checks([mfa()]) -> ok | error.
-pre_run_checks([]) ->
+%% The tasks to run during the app initialization.
+init_tasks() ->
+  [fun ensure_exported_entry_points/1,
+   fun compute_callgraph/1].
+
+-spec init(state()) -> ok | error.
+init(State) ->
+  run_init_tasks(init_tasks(), State).
+
+run_init_tasks([], _State) ->
   ok;
-pre_run_checks([{M, F, A}|Rest]) ->
+run_init_tasks([Fn|Fns], State) ->
+  case Fn(State) of
+    error -> error;
+    ok -> run_init_tasks(Fns, State)
+  end.
+
+ensure_exported_entry_points(State) ->
+  Mfas = mfas_from_state(State),
+  case lists:all(fun ensure_exported_entry_point/1, Mfas) of
+    true -> ok;
+    false -> error
+  end.
+
+ensure_exported_entry_point({M, F, A}) ->
   case code:which(M) of
     non_existing ->
       cuter_pp:module_non_existing(M),
-      error;
+      false;
     _ ->
       Exports = M:module_info(exports),
       case lists:member({F, A}, Exports) of
         true ->
-          pre_run_checks(Rest);
+          true;
         false ->
           cuter_pp:mfa_non_existing(M, F, A),
-          error
+          false
       end
   end.
 
-%% ----------------------------------------------------------------------------
-%% Preprocessing
-%% ----------------------------------------------------------------------------
+compute_callgraph(State) ->
+  Mfas = mfas_from_state(State),
+  cuter_codeserver:calculate_callgraph(State#st.codeServer, Mfas).
 
--spec preprocess(state(), [mfa()]) -> ok | error.
-preprocess(State, Mfas) ->
-  case cuter_config:fetch(?CALCULATE_COVERAGE) of
-    {ok, true} ->
-      cuter_codeserver:calculate_callgraph(State#st.codeServer, Mfas);
-    _ ->
-      ok
-  end.
+
+mfas_from_state(State) ->
+  [{M, F, length(As)} || {M, F, As, _} <- State#st.seeds].
 
 %% ----------------------------------------------------------------------------
 %% Manage the concolic executions
 %% ----------------------------------------------------------------------------
 
--spec start(state()) -> erroneous_inputs().
+-spec start(state()) -> state().
 start(State) ->
   start(State#st.seeds, State).
 
--spec start([seed()], state()) -> erroneous_inputs().
+-spec start([seed()], state()) -> state().
 start([], State) ->
-  stop_and_report(State);
+  State;
 start([{M, F, As, Depth}|Seeds], State) ->
   CodeServer = State#st.codeServer,
   Scheduler = State#st.scheduler,
@@ -168,8 +183,8 @@ wait_for_processes(Procs, StopFn) ->
       wait_for_processes(Rest, StopFn)
   end.
 
--spec stop_and_report(state()) -> erroneous_inputs().
-stop_and_report(State) ->
+-spec process_results(state()) -> erroneous_inputs().
+process_results(State) ->
   %% Report solver statistics.
   SolvedModels = cuter_scheduler:get_solved_models(State#st.scheduler),
   NotSolvedModels = cuter_scheduler:get_not_solved_models(State#st.scheduler),
@@ -195,7 +210,7 @@ stop_and_report(State) ->
   %% Report the code logs.
   CodeLogs = cuter_codeserver:get_logs(State#st.codeServer),
   cuter_pp:code_logs(CodeLogs),
-  stop(State, ErroneousInputs).
+  ErroneousInputs.
 
 maybe_sort_errors(ErroneousInputs) ->
   case cuter_config:fetch(?SORTED_ERRORS) of
@@ -205,12 +220,8 @@ maybe_sort_errors(ErroneousInputs) ->
       ErroneousInputs
   end.
 
--spec stop(state()) -> erroneous_inputs().
+-spec stop(state()) -> ok.
 stop(State) ->
-  stop(State, []).
-
--spec stop(state(), erroneous_inputs()) -> erroneous_inputs().
-stop(State, ErroneousInputs) ->
   cuter_scheduler:stop(State#st.scheduler),
   cuter_codeserver:stop(State#st.codeServer),
   cuter_pp:stop(),
@@ -222,15 +233,14 @@ stop(State, ErroneousInputs) ->
       {ok, Dir} = cuter_config:fetch(?WORKING_DIR),
       cuter_lib:clear_and_delete_dir(Dir)
   end,
-  cuter_config:stop(),
-  ErroneousInputs.
+  cuter_config:stop().
 
 %% ----------------------------------------------------------------------------
-%% Initializations
+%% Generate the system state
 %% ----------------------------------------------------------------------------
 
--spec initialize_app(options()) -> state().
-initialize_app(Options) ->
+-spec state_from_options_and_seeds(options(), [seed()]) -> state().
+state_from_options_and_seeds(Options, Seeds) ->
   process_flag(trap_exit, true),
   error_logger:tty(false),  %% disable error_logger
   ok = cuter_config:start(),
@@ -241,7 +251,7 @@ initialize_app(Options) ->
   ok = cuter_pp:start(),
   CodeServer = cuter_codeserver:start(),
   SchedPid = cuter_scheduler:start(?DEFAULT_DEPTH, CodeServer),
-  #st{ codeServer = CodeServer, scheduler = SchedPid }.
+  #st{ codeServer = CodeServer, scheduler = SchedPid, seeds = Seeds }.
 
 define_metrics() ->
   define_distribution_metrics().
