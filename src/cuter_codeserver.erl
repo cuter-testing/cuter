@@ -5,9 +5,10 @@
 -behaviour(gen_server).
 
 %% external exports
--export([start/0, stop/1, load/2, unsupported_mfa/2, retrieve_spec/2,
+-export([start/0, stop/1, unsupported_mfa/2, retrieve_spec/2,
          get_feasible_tags/2, get_logs/1, get_whitelist/1, get_visited_tags/1,
          visit_tag/2, calculate_callgraph/2,
+         mfa_code/2, is_mfa_exported/2,
          %% Work with module cache
          merge_dumped_cached_modules/2, modules_of_dumped_cache/1,
          lookup_in_module_cache/2, insert_in_module_cache/3,
@@ -31,7 +32,7 @@
 -type cached_module_data() :: any().
 -type cached_modules() :: dict:dict(module(), cached_module_data()).
 
--type module_cache() :: ets:tid().
+-type module_cache() :: cuter_cerl:kmodule().
 -type cache() :: ets:tid().
 
 -type modules() :: [cuter:mod()].
@@ -49,7 +50,6 @@
 -type logs() :: #logs{}.
 
 %% Internal type declarations
--type load_reply() :: {ok, module_cache()} | cuter_cerl:compile_error() | {error, (preloaded | cover_compiled | non_existing)}.
 -type spec_reply() :: {ok, cuter_types:erl_spec()} | error.
 -type from() :: {pid(), reference()}.
 
@@ -95,10 +95,13 @@ start() ->
 stop(CodeServer) ->
   gen_server:cast(CodeServer, stop).
 
-%% Requests a module's cache.
--spec load(codeserver(), module()) -> load_reply().
-load(CodeServer, M) ->
-  gen_server:call(CodeServer, {load, M}).
+-spec mfa_code(codeserver(), mfa()) -> {ok, cuter_cerl:code()} | error.
+mfa_code(CodeServer, Mfa) ->
+  gen_server:call(CodeServer, {mfa_code, Mfa}).
+
+-spec is_mfa_exported(codeserver(), mfa()) -> {ok, boolean()} | error.
+is_mfa_exported(CodeServer, Mfa) ->
+  gen_server:call(CodeServer, {is_mfa_exported, Mfa}).
 
 %% Log an MFA that cannot be symbolically evaluated.
 -spec unsupported_mfa(codeserver(), mfa()) -> ok.
@@ -173,16 +176,41 @@ handle_info(_Msg, State) ->
   {noreply, State}.
 
 %% gen_server callback : handle_call/3
--spec handle_call({load, module()}, from(), state()) -> {reply, load_reply(), state()}
-               ; ({get_spec, mfa()}, from(), state()) -> {reply, spec_reply(), state()}
+-spec handle_call({get_spec, mfa()}, from(), state()) -> {reply, spec_reply(), state()}
                ; (get_visited_tags, from(), state()) -> {reply, tags(), state()}
                ; (get_logs, from(), state()) -> {reply, logs(), state()}
                ; (get_whitelist, from(), state()) -> {reply, cuter_mock:whitelist(), state()}
                ; ({get_feasible_tags, cuter_cerl:node_types()}, from(), state()) -> {reply, cuter_cerl:visited_tags(), state()}
                ; ({calculate_callgraph, [mfa()]}, from(), state()) -> {reply, ok, state()}
+               ; ({mfa_code, mfa()}, from(), state()) -> {reply, {ok, cuter_cerl:code()} | error, state()}
+               ; ({is_mfa_exported, mfa()}, from(), state()) -> {reply, {ok, boolean()} | error, state()}
                .
-handle_call({load, M}, _From, State) ->
-  {reply, try_load(M, State), State};
+handle_call({mfa_code, {M, _F, _A}=Mfa}, _From, State) ->
+  case try_load(M, State) of
+    {ok, Kmodule} ->
+      case ets:lookup(Kmodule, Mfa) of
+        [] ->
+          {reply, error, State};
+        [{Mfa, Kfun}] ->
+          {Code, _IsExported} = Kfun,
+          {reply, {ok, Code}, State}
+      end;
+    _ ->
+      {reply, error, State}
+  end;
+handle_call({is_mfa_exported, {M, _F, _A}=Mfa}, _From, State) ->
+  case try_load(M, State) of
+    {ok, Kmodule} ->
+      case ets:lookup(Kmodule, Mfa) of
+        [] ->
+          {reply, error, State};
+        [{Mfa, Kfun}] ->
+          {_Code, IsExported} = Kfun,
+          {reply, {ok, IsExported}, State}
+      end;
+    _ ->
+      {reply, error, State}
+  end;
 handle_call({get_spec, {M, F, A}=MFA}, _From, State) ->
   case try_load(M, State) of
     {ok, MDb} ->
@@ -323,7 +351,7 @@ is_overriding({M,_,_}) ->
 %% Load a module to the cache
 %% ----------------------------------------------------------------------------
 
--spec try_load(module(), state()) -> load_reply().
+-spec try_load(module(), state()) -> {ok, module_cache()} | cuter_cerl:compile_error() | {error, (preloaded | cover_compiled | non_existing)}.
 try_load(M, State) ->
   case is_mod_stored(M, State) of
     {true, Cache}   -> {ok, Cache};

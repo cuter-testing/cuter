@@ -7,47 +7,30 @@
 
 -spec test() -> 'ok' | {'error', term()}.  %% This should be provided by EUnit
 
--define(MODS_LIST, [lists, dict, orddict, ets, os, string, filelib, beam_lib, cerl]).
-
 -type descr() :: nonempty_string().
 -type f_one() :: fun((term()) -> term()).
 -type setup() :: {'setup', fun(() -> term()), f_one(), f_one()}.
 -type ret_t() :: {descr(), setup()}.
 
-%% Load modules
--spec load_modules_test_() -> ret_t().
-load_modules_test_() ->
+-spec load_mfas_test_() -> ret_t().
+load_mfas_test_() ->
   Setup = fun setup/0,
   Cleanup = fun cleanup/1,
   Inst = fun(_) ->
     Cs = cuter_codeserver:start(),
-    As = [load_mod(Cs, M) || M <- ?MODS_LIST],
+    Mfas = [{lists, reverse, 1}, {dict, to_list, 1}, {orddict, new, 0},
+      {ets, lookup, 2}, {os, cmd, 1}, {string, chr, 2}, {filelib, find_file, 2},
+      {beam_lib, chunks, 2}, {cerl, module_attrs, 1}],
+    As = [load_mfa(Cs, Mfa) || Mfa <- Mfas],
     Stop = cuter_codeserver:stop(Cs),
     [{"codeserver termination", ?_assertEqual(ok, Stop)},
-     {"load modules", As}]
+     {"load MFAs", As}]
   end,
-  {"Just query modules once", {setup, Setup, Cleanup, Inst}}.
+  {"load MFAs", {setup, Setup, Cleanup, Inst}}.
 
-load_mod(Cs, M) ->
-  Rep = cuter_codeserver:load(Cs, M),
-  {atom_to_list(M), ?_assertMatch({ok, _}, Rep)}.
-
-%% Load & Retrieve modules
--spec load_and_retrieve_test_() -> ret_t().
-load_and_retrieve_test_() ->
-  Setup = fun setup/0,
-  Cleanup = fun cleanup/1,
-  Inst = fun(_) ->
-    Cs = cuter_codeserver:start(),
-    R1 = cuter_codeserver:load(Cs, lists),
-    R2 = cuter_codeserver:load(Cs, os),
-    R3 = cuter_codeserver:load(Cs, lists),
-    R4 = cuter_codeserver:load(Cs, os),
-    Stop = cuter_codeserver:stop(Cs),
-    [{"codeserver termination", ?_assertEqual(ok, Stop)},
-     {"query modules", ?_assertMatch({{ok,X}, {ok,Y}, {ok,X}, {ok,Y}}, {R1, R2, R3, R4})}]
-  end,
-  {"Query modules multiple times", {setup, Setup, Cleanup, Inst}}.
+load_mfa(Cs, {M, F, A}=Mfa) ->
+  Rep = cuter_codeserver:mfa_code(Cs, Mfa),
+  {atom_to_list(M) ++ ":" ++ atom_to_list(F) ++ "/" ++ integer_to_list(A), ?_assertMatch({ok, _}, Rep)}.
 
 %% Get the specs of mfas.
 -spec get_spec_test_() -> ret_t().
@@ -73,18 +56,17 @@ get_spec_test_() ->
   end,
   {"Get specs of mfas", {setup, Setup, Cleanup, Inst}}.
 
-%% Erroneous modules
 -spec error_load_test_() -> term().
 error_load_test_() ->
   Setup = fun setup/0,
   Cleanup = fun cleanup/1,
   Inst = fun(_) ->
     Cs = cuter_codeserver:start(),
-    R1 = cuter_codeserver:load(Cs, erlang),
-    R2 = cuter_codeserver:load(Cs, foobar),
+    R1 = cuter_codeserver:mfa_code(Cs, {erlang, atom_to_list, 1}),
+    R2 = cuter_codeserver:mfa_code(Cs, {foo, bar, 1}),
     Stop = cuter_codeserver:stop(Cs),
     [{"codeserver termination", ?_assertEqual(ok, Stop)},
-     {"query invalid modules", ?_assertEqual({{error,preloaded}, {error, non_existing}}, {R1, R2})}]
+     {"query invalid modules", ?_assertEqual({error, error}, {R1, R2})}]
   end,
   {"Query invalid modules", {setup, Setup, Cleanup, Inst}}.
 

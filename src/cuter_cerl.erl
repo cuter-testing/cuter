@@ -27,6 +27,12 @@
 	      tagID/0, tag/0, tag_generator/0, visited_tags/0,
 	      type_info/0, spec_info/0]).
 
+-export_type([code/0, kmodule/0, kfun/0]).
+
+-type code() :: cerl:c_fun().
+-type kmodule() :: ets:tid().
+-type kfun() :: {code(), boolean()}.
+
 -type info()          :: 'anno' | 'attributes' | 'exports' | 'name'.
 -type compile_error() :: {'error', string()}.
 -type load_error()    :: {'error', 'preloaded'} | compile_error().
