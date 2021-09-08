@@ -1,4 +1,4 @@
-[![Travis][travis badge]][travis]
+[![Github Actions][github badge]][github]
 [![Erlang Versions][erlang versions badge]][erlang]
 [![Last Commit][commit badge]][commit]
 
@@ -184,9 +184,9 @@ Have fun with the tool!
 <!-- Badges (alphabetically) -->
 [commit badge]: https://img.shields.io/github/last-commit/cuter-testing/cuter.svg?style=flat-square
 [erlang versions badge]: https://img.shields.io/badge/erlang-19.0%20to%2022.3-blue.svg?style=flat-square
-[travis badge]: https://img.shields.io/travis/cuter-testing/cuter.svg?branch=master?style=flat-square
+[github badge]: https://github.com/cuter-testing/cuter/workflows/CI/badge.svg
 
 <!-- Links (alphabetically) -->
 [commit]: https://github.com/cuter-testing/cuter/commit/HEAD
 [erlang]: http://www.erlang.org
-[travis]: https://travis-ci.com/cuter-testing/cuter
+[github]: https://github.com/cuter-testing/cuter/actions
