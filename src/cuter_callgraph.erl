@@ -51,11 +51,9 @@ mk_conf(Whitelist) ->
 -spec get_callgraph([mfa()], cuter_mock:whitelist()) -> {ok, callgraph()} | {error, string()}.
 get_callgraph(Mfas, Whitelist) ->
   try
-    cuter_pp:callgraph_calculation_started(Mfas),
     Conf = mk_conf(Whitelist),
     {VisitedMfas, _} = get_callgraph_all(Mfas, gb_sets:empty(), dict:new(), Conf),
     VisitedMods = visited_modules(VisitedMfas),
-    cuter_pp:callgraph_calculation_succeeded(),
     {ok, #callgraph{visited_modules = VisitedMods, visited_mfas = VisitedMfas}}
   catch
     throw:Reason ->
