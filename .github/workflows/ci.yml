@@ -24,10 +24,9 @@ jobs:
           - "21.3"
           - "21.0"
           - "20.3"
-        z3:
-          - "z3-4.8.8/z3-4.8.8-x64-ubuntu-16.04"
     env:
       GPB_ALLOW_NON_CONFORMING_VSN_FORMAT: 1
+      Z3_RELEASE: "z3-4.8.8/z3-4.8.8-x64-ubuntu-16.04"
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -41,12 +40,7 @@ jobs:
       - name: Build submodules
         run: git submodule foreach make
       - name: Install Z3
-        run: |
-          wget -O /tmp/z3.zip https://github.com/Z3Prover/z3/releases/download/${{ matrix.z3 }}.zip
-          unzip /tmp/z3.zip -d /tmp
-          rm /tmp/z3.zip
-          mv /tmp/z3-* /opt/z3
-          ln -s /opt/z3/bin/z3 /usr/bin/z3
+        run: bash -x fetch_z3.sh
       - name: Install Python modules
         run: |
           apt-get update
