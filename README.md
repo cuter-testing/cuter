@@ -56,10 +56,10 @@ In order to use CutEr, you need the following programs:
 
 3. **Z3 Theorem Prover**
 
-  Download the [v4.8.10 Z3 release](https://github.com/Z3Prover/z3/releases/tag/z3-4.8.10)
-  or clone the `z3-4.8.10` tag of Z3 from its git repository with the following command:
+  Download the [v4.8.12 Z3 release](https://github.com/Z3Prover/z3/releases/tag/z3-4.8.12)
+  or clone the `z3-4.8.12` tag of Z3 from its git repository with the following command:
 
-        git clone -b z3-4.8.10 --depth 1 https://github.com/Z3Prover/z3.git
+        git clone -b z3-4.8.12 --depth 1 https://github.com/Z3Prover/z3.git
 
   For your convenience, we include here a list of commands to build from source and install the above release of Z3:
 
@@ -69,9 +69,7 @@ In order to use CutEr, you need the following programs:
 
   If this sequence of commands does not work for you, follow the instructions in Z3's [GitHub repository](https://github.com/Z3Prover/z3/).
 
-  Note that CutEr *requires* Z3 v4.8.8 or higher.
-  
-  However, also note that CutEr does **not** work properly with the v4.8.9 and v4.8.10 releases of Z3 due to [this issue](https://github.com/Z3Prover/z3/issues/5181).
+  Note that CutEr does **not** work properly with the v4.8.9 and v4.8.10 releases of Z3 due to [this issue](https://github.com/Z3Prover/z3/issues/5181), and does not work properly due to the v4.8.7 release of Z3 due to e.g. [this issue](https://github.com/Z3Prover/z3/issues/3051). It does, however, work well with many previous releases of Z3, for example v4.8.8 or v4.8.6.
 
 4. **Protocol Buffer Compiler**
 
