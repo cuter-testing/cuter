@@ -13,6 +13,8 @@
          node_types_paths/0, node_types_paths_nocomp/0]).
 %% Exported for debugging use.
 -export([classify_attributes/1]).
+%% kfun API.
+-export([kfun/2, kfun_code/1, kfun_is_exported/1]).
 
 %% We are using the records representation of Core Erlang Abstract Syntax Trees
 -include_lib("compiler/src/core_parse.hrl").
@@ -26,6 +28,17 @@
 	      cerl_type_record_field/0, node_types/0,
 	      tagID/0, tag/0, tag_generator/0, visited_tags/0,
 	      type_info/0, spec_info/0]).
+
+-export_type([kfun/0]).
+
+%% kfun() is an ADT that holds the code and metadata for an MFA.
+-type kfun() :: #{
+  %% The code of the MFA.
+  code := code(),
+  %% Whether the MFA is exported or not.
+  is_exported := boolean()
+}.
+-type code() :: cerl:c_fun().
 
 -type info()          :: 'anno' | 'attributes' | 'exports' | 'name'.
 -type compile_error() :: {'error', string()}.
@@ -151,6 +164,20 @@ get_stored_types(Cache) ->
   {ok, Types} = cuter_codeserver:lookup_in_module_cache(types, Cache),
   Types.
 
+%% -------------------------------------------------------------------
+%% kfun API
+%% -------------------------------------------------------------------
+
+-spec kfun(code(), boolean()) -> kfun().
+kfun(Code, IsExported) ->
+  #{code => Code, is_exported => IsExported}.
+
+-spec kfun_is_exported(kfun()) -> boolean().
+kfun_is_exported(#{is_exported := IsExported}) -> IsExported.
+
+-spec kfun_code(kfun()) -> code().
+kfun_code(#{code := Code}) -> Code.
+
 %%====================================================================
 %% Internal functions
 %%====================================================================
@@ -250,18 +277,13 @@ store_module_funs(M, AST, Cache, TagGen) ->
   lists:foreach(fun(X) -> store_fun(Exps, M, X, Cache, TagGen) end, Funs).
 
 %% Store the AST of a function
--spec store_fun([atom()], cuter:mod(), {cerl:c_var(), cerl:c_fun()}, cuter_codeserver:module_cache(), tag_generator()) -> ok.
+-spec store_fun([atom()], cuter:mod(), {cerl:c_var(), code()}, cuter_codeserver:module_cache(), tag_generator()) -> ok.
 store_fun(Exps, M, {Fun, Def}, Cache, TagGen) ->
   {FunName, Arity} = Fun#c_var.name,
   MFA = {M, FunName, Arity},
-  Exported = lists:member(MFA, Exps),
-%  io:format("===========================================================================~n"),
-%  io:format("BEFORE~n"),
-%  io:format("~p~n", [Def]),
+  IsExported = lists:member(MFA, Exps),
   AnnDef = annotate(Def, TagGen),
-%  io:format("AFTER~n"),
-%  io:format("~p~n", [AnnDef]),
-  cuter_codeserver:insert_in_module_cache(MFA, {AnnDef, Exported}, Cache).
+  cuter_codeserver:insert_in_module_cache(MFA, kfun(AnnDef, IsExported), Cache).
 
 -type type_info() :: {'type', cerl_typedef()}
                    | {'record', cerl_recdef()}.

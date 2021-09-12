@@ -62,8 +62,9 @@ generate_and_collect_tags({M, Cache}) ->
   _ = cuter_cerl:load(M, Cache, TagGen, false),
   FoldFn = fun(Elem, Acc) ->
       case Elem of
-        {{_,_,_}, {Def, _}} ->
-          Tags = cuter_cerl:collect_feasible_tags(Def, all),
+        {{_,_,_}, Kfun} ->
+          Code = cuter_cerl:kfun_code(Kfun),
+          Tags = cuter_cerl:collect_feasible_tags(Code, all),
           gb_sets:union(Acc, Tags);
         _ -> Acc
       end
@@ -95,3 +96,14 @@ setup(M) ->
 cleanup({_M, MDb}) ->
   ets:delete(MDb).
 
+%% -------------------------------------------------------------------
+%% kfun API
+%% -------------------------------------------------------------------
+
+-spec construct_and_access_kfun_test() -> ok.
+construct_and_access_kfun_test() ->
+  Code = cerl:c_fun([cerl:c_nil()], cerl:c_nil()),
+  Kfun = cuter_cerl:kfun(Code, true),
+  GotCode = cuter_cerl:kfun_code(Kfun),
+  GotIsExported = cuter_cerl:kfun_is_exported(Kfun),
+  [?assertEqual(Code, GotCode), ?assertEqual(true, GotIsExported)].
