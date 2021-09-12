@@ -74,24 +74,20 @@ get_callgraph_all([Mfa|Rest], Visited, Modules, Conf) ->
   {Visited1, Modules1} = get_callgraph_one(Mfa, Visited, Modules, Conf),
   get_callgraph_all(Rest, Visited1, Modules1, Conf).
 
-get_callgraph_one({M,F,A}=OrigMfa, Visited, ModuleCache, Conf) ->
-  case cuter_mock:simulate_behaviour(M, F, A) of
-    bif ->
-      UpdatedVisited = gb_sets:add_element(OrigMfa, Visited),
+get_callgraph_one(OrigMfa, Visited, ModuleCache, Conf) ->
+  Mfa = {SM, _SF, _SA} = cuter_mock:maybe_override_mfa(OrigMfa),
+  ShouldExpand = not cuter_mock:is_bif(Mfa)
+    andalso not cuter_mock:is_whitelisted(Mfa, Conf#conf.whitelist),
+  UpdatedVisited = gb_sets:add_element(Mfa, Visited),
+  case ShouldExpand of
+    false ->
       {UpdatedVisited, ModuleCache};
-    {ok, {SM,_,_}=Mfa} ->
-      UpdatedVisited = gb_sets:add_element(Mfa, Visited),
-      case cuter_mock:is_whitelisted(Mfa, Conf#conf.whitelist) of
-        %% Do not expand whitelisted mfas.
-        true ->
-          {UpdatedVisited, ModuleCache};
-        false ->
-          case get_definition(Mfa, Visited, ModuleCache) of
-            {nodef, UpdatedModuleCache} ->
-              {UpdatedVisited, UpdatedModuleCache};
-            {def, Def, UpdatedModuleCache} ->
-              expand(SM, Def, UpdatedVisited, UpdatedModuleCache, ordsets:new(), Conf)
-          end
+    true ->
+      case get_definition(Mfa, Visited, ModuleCache) of
+        {nodef, UpdatedModuleCache} ->
+          {UpdatedVisited, UpdatedModuleCache};
+        {def, Def, UpdatedModuleCache} ->
+          expand(SM, Def, UpdatedVisited, UpdatedModuleCache, ordsets:new(), Conf)
       end
   end.
 
