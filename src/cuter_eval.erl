@@ -451,11 +451,12 @@ eval({named, M, F}, CAs_b, SAs_b, CallType, Servers, Fd) ->
   {CAs, SAs} = adjust_arguments(M, F, CAs_b, SAs_b, Fd),
   Arity = length(CAs),
   SAs_e = cuter_symbolic:ensure_list(SAs, Arity, Fd),
-  MFA = {M, F, Arity},
-  case access_mfa_code(MFA, Servers) of
-    error -> evaluate_bif(MFA, CAs, SAs_e, Servers, Fd);
-    {NM, {Def, Exported}} ->
-      check_exported(Exported, CallType, MFA),
+  Mfa = {NM, _NF, _NA} = cuter_mock:maybe_override_mfa({M, F, Arity}),
+  case access_mfa_code(Mfa, Servers) of
+    error ->
+      evaluate_bif(Mfa, CAs, SAs_e, Servers, Fd);
+    {ok, {Def, Exported}} ->
+      check_exported(Exported, CallType, Mfa),
       NCenv = cuter_env:new_environment(),
       NSenv = cuter_env:new_environment(),
       Cenv = cuter_env:bind_parameters(CAs, Def#c_fun.vars, NCenv),
@@ -870,20 +871,20 @@ evaluate_bif_concrete({M, F, _A}=MFA, As) ->
 %% --------------------------------------------------------
 %% Try to retrieve the code of an MFA
 %% --------------------------------------------------------
--spec access_mfa_code(mfa(), servers()) -> {module(), fun_decl()} | error.
-access_mfa_code({Mod, Fun, Arity} = MFA, Servers) ->
-  Whitelist = get_whitelist(Servers#svs.code),
-  case cuter_mock:is_whitelisted(MFA, Whitelist) of
-    true ->
-      error;
+-spec access_mfa_code(mfa(), servers()) -> {ok, fun_decl()} | error.
+access_mfa_code({M, _F, _A}=Mfa, #svs{code = CS}) ->
+  Whitelist = get_whitelist(CS),
+  ShouldAccessCode = not cuter_mock:is_whitelisted(Mfa, Whitelist)
+    andalso not cuter_mock:is_bif(Mfa),
+  case ShouldAccessCode of
     false ->
-      case cuter_mock:simulate_behaviour(Mod, Fun, Arity) of
-        bif -> error;
-        {ok, {M, _F, Arity} = Simulator} ->
-          case get_module_cache(M, Servers#svs.code) of
-            {error, _} -> error;
-            {ok, Cache} -> {M, retrieve_function_code(Simulator, Cache)}
-          end
+      error;
+    true ->
+      case get_module_cache(M, CS) of
+        {error, _} ->
+          error;
+        {ok, Cache} ->
+          {ok, retrieve_function_code(Mfa, Cache)}
       end
   end.
 
@@ -1288,11 +1289,12 @@ bit_pattern_match(BinAnno, [{c_bitstr, Anno, {c_var, _, VarName}, Sz, Unit, Tp, 
 
 %% Create a Closure of a local function
 create_closure(M, F, Arity, local, Servers, Fd) ->
-  %% Module is already loaded since create_closure is called by eval_expr
-  {NM, {Def, _Exported}} = access_mfa_code({M, F, Arity}, Servers),
+  Mfa = {NM, _NF, NA} = cuter_mock:maybe_override_mfa({M, F, Arity}),
+  %% Module is already loaded since create_closure is called by eval_expr.
+  {ok, {Def, _Exported}} = access_mfa_code(Mfa, Servers),
   Cenv = cuter_env:new_environment(),
   Senv = cuter_env:new_environment(),
-  make_fun(Def#c_fun.vars, Def#c_fun.body, NM, Arity, Cenv, Senv, Servers, Fd);
+  make_fun(Def#c_fun.vars, Def#c_fun.body, NM, NA, Cenv, Senv, Servers, Fd);
 
 %% Create a Closure when the MFA is a function bound in a letrec
 create_closure(M, _F, Arity, {letrec_func, {Def, Cenv, Senv}}, Servers, Fd) ->
