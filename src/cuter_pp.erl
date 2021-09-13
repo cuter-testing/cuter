@@ -13,8 +13,7 @@
 %% Report information about solving.
 -export([solving_failed_unsat/0, solving_failed_timeout/0, solving_failed_unknown/0]).
 %% Report callgraph related info.
--export([callgraph_calculation_failed/1, callgraph_calculation_started/1,
-         callgraph_calculation_succeeded/0, loading_visited_module/1]).
+-export([callgraph_calculation_failed/1, loading_visited_module/1]).
 %% Parsing of options.
 -export([loaded_whitelist/2, error_loading_whitelist/2]).
 %% Statistics about the solver.
@@ -115,9 +114,7 @@
               | solving_failed_unknown
               | {errors_found, cuter:erroneous_inputs()}
               | {code_logs, cuter_codeserver:logs(), cuter_mock:whitelist(), boolean()}
-              | {callgraph_calculation_started, [mfa()]}
               | {callgraph_calculation_failed, string()}
-              | callgraph_calculation_succeeded
               | {loading_visited_module, cuter:mod()}
               | {solved_models, non_neg_integer(), non_neg_integer()}
               | coverage_title
@@ -331,17 +328,9 @@ condition_outcome_coverage_nocomp(Visited, All, Coverage) ->
 %% Callgraph related info.
 %% ----------------------------------------------------------------------------
 
--spec callgraph_calculation_started([mfa()]) -> ok.
-callgraph_calculation_started(Mfas) ->
-  gen_server:call(?PRETTY_PRINTER, {callgraph_calculation_started, Mfas}).
-
 -spec callgraph_calculation_failed(string()) -> ok.
 callgraph_calculation_failed(Reason) ->
   gen_server:call(?PRETTY_PRINTER, {callgraph_calculation_failed, Reason}).
-
--spec callgraph_calculation_succeeded() -> ok.
-callgraph_calculation_succeeded() ->
-  gen_server:call(?PRETTY_PRINTER, callgraph_calculation_succeeded).
 
 -spec loading_visited_module(cuter:mod()) -> ok.
 loading_visited_module(M) ->
@@ -459,26 +448,10 @@ handle_call({solved_models, Solved, NotSolved}, _From, State=#st{pplevel = PpLev
 
 %% Callgraph related info.
 
-handle_call({callgraph_calculation_started, Mfas}, _From, State=#st{pplevel = PpLevel}) ->
-  IoDevice =
-    case PpLevel#pp_level.execInfo of
-      ?MINIMAL -> standard_error;
-      _ -> standard_io
-    end,
-  io:format(IoDevice, "Calculating the callgraph of~n", []),
-  Fn = fun({M, F, A}) -> io:format(IoDevice, "  - ~p:~p/:~w~n", [M, F, A]) end,
-  lists:foreach(Fn, Mfas),
-  {reply, ok, State};
 handle_call({callgraph_calculation_failed, Reason}, _From, State=#st{pplevel = PpLevel}) ->
   case PpLevel#pp_level.execInfo of
     ?MINIMAL -> io:format(standard_error, "ERROR~nFailed to calculate the callgraph because~n  ~p~n", [Reason]);
     _ -> io:format("ERROR~nFailed to calculate the callgraph because~n  ~p~n", [Reason])
-  end,
-  {reply, ok, State};
-handle_call(callgraph_calculation_succeeded, _From, State=#st{pplevel = PpLevel}) ->
-  case PpLevel#pp_level.execInfo of
-    ?MINIMAL -> io:format(standard_error, "OK~n", []);
-    _ -> io:format("OK~n")
   end,
   {reply, ok, State};
 handle_call({loading_visited_module, M}, _From, State=#st{pplevel = PpLevel}) ->
