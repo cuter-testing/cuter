@@ -880,11 +880,11 @@ get_kfun({M, _F, _A}=Mfa, #svs{code = CS}) ->
     false ->
       error;
     true ->
-      case get_module_cache(M, CS) of
+      case maybe_get_kmodule_from_cache(M, CS) of
         {error, _} ->
           error;
         {ok, Cache} ->
-          {ok, retrieve_function_code(Mfa, Cache)}
+          {ok, maybe_get_kfun_from_cache(Mfa, Cache)}
       end
   end.
 
@@ -899,21 +899,17 @@ get_whitelist(CodeServer) ->
       Whitelist
   end.
 
-%% --------------------------------------------------------
-%% Interact with the CodeServer and ask for the ETS Table
-%% where the code of the module M is stored.
-%%
-%% Optimization : For caching purposes, the MDb is stored
-%% in the process dictionary for subsequent lookups
-%% --------------------------------------------------------
--spec get_module_cache(atom(), pid()) -> {ok, cuter_codeserver:module_cache()} | {error, (preloaded | cover_compiled)}.
-get_module_cache(M, CodeServer) ->
+%% Retrieves the kmodule() for the given module.
+%% The kmodule() is cached in the pdict for subsequent queries,
+%% as an optimization.
+-spec maybe_get_kmodule_from_cache(atom(), pid()) -> {ok, cuter_cerl:kmodule()} | {error, (preloaded | cover_compiled)}.
+maybe_get_kmodule_from_cache(M, CodeServer) ->
   What = {?CONCOLIC_PREFIX_PDICT, M},
   case get(What) of
     undefined ->
       case cuter_codeserver:load(CodeServer, M) of
         %% Module Code loaded
-        {ok, Cache} = Ok -> put(What, Cache), Ok;
+        {ok, Kmodule} = Ok -> put(What, Kmodule), Ok;
         %% Preloaded Module
         {error, preloaded} = E -> E;
         %% Cover Compiled Module
@@ -923,23 +919,19 @@ get_module_cache(M, CodeServer) ->
         %% Any Error during Code Loading
         {error, Error} -> exception(error, Error)
       end;
-    MDb -> {ok, MDb}
+    Kmodule -> {ok, Kmodule}
   end.
 
-%% --------------------------------------------------------
-%% Retrieves the code and exported type of an MFA
-%%
-%% Optimization : For caching purposes, the function 
-%% definition is stored in the process dictionary for 
-%% subsequent lookups
-%% --------------------------------------------------------
--spec retrieve_function_code(mfa(), cuter_codeserver:module_cache()) -> cuter_cerl:kfun().
-retrieve_function_code(MFA, Cache) ->
-  What = {?CONCOLIC_PREFIX_PDICT, MFA},
+%% Retrieves the kfun() for the given MFA.
+%% The kfun() is cached in the pdict for subsequent queries,
+%% as an optimization.
+-spec maybe_get_kfun_from_cache(mfa(), cuter_cerl:kmodule()) -> cuter_cerl:kfun().
+maybe_get_kfun_from_cache(Mfa, Kmodule) ->
+  What = {?CONCOLIC_PREFIX_PDICT, Mfa},
   case get(What) of
     undefined ->
-      case cuter_codeserver:lookup_in_module_cache(MFA, Cache) of
-        error -> exception(error, {undef, MFA});
+      case cuter_cerl:kmodule_kfun(Kmodule, Mfa) of
+        error -> exception(error, {undef, Mfa});
         {ok, Kfun} -> put(What, Kfun), Kfun
       end;
     Kfun -> Kfun

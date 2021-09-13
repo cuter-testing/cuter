@@ -5,17 +5,11 @@
 -include_lib("eunit/include/eunit.hrl").
 -include_lib("include/cuter_macros.hrl").
 
--spec test() -> 'ok' | {'error', term()}.  %% This should be provided by EUnit
+-spec test() -> ok | {error, any()}.  %% This should be provided by EUnit
 
 -define(MODS_LIST, [lists, dict, orddict, ets, os, string, filelib, beam_lib, cerl]).
 
--type descr() :: nonempty_string().
--type f_one() :: fun((term()) -> term()).
--type setup() :: {'setup', fun(() -> term()), f_one(), f_one()}.
--type ret_t() :: {descr(), setup()}.
-
-%% Load modules
--spec load_modules_test_() -> ret_t().
+-spec load_modules_test_() -> any().
 load_modules_test_() ->
   Setup = fun setup/0,
   Cleanup = fun cleanup/1,
@@ -32,8 +26,8 @@ load_mod(Cs, M) ->
   Rep = cuter_codeserver:load(Cs, M),
   {atom_to_list(M), ?_assertMatch({ok, _}, Rep)}.
 
-%% Load & Retrieve modules
--spec load_and_retrieve_test_() -> ret_t().
+
+-spec load_and_retrieve_test_() -> any().
 load_and_retrieve_test_() ->
   Setup = fun setup/0,
   Cleanup = fun cleanup/1,
@@ -49,9 +43,9 @@ load_and_retrieve_test_() ->
   end,
   {"Query modules multiple times", {setup, Setup, Cleanup, Inst}}.
 
-%% Get the specs of mfas.
--spec get_spec_test_() -> ret_t().
-get_spec_test_() ->
+
+-spec get_mfa_spec_test_() -> any().
+get_mfa_spec_test_() ->
   Setup = fun setup/0,
   Cleanup = fun cleanup/1,
   Inst = fun(_) ->
@@ -73,7 +67,6 @@ get_spec_test_() ->
   end,
   {"Get specs of mfas", {setup, Setup, Cleanup, Inst}}.
 
-%% Erroneous modules
 -spec error_load_test_() -> term().
 error_load_test_() ->
   Setup = fun setup/0,
@@ -88,10 +81,9 @@ error_load_test_() ->
   end,
   {"Query invalid modules", {setup, Setup, Cleanup, Inst}}.
 
-
-%%====================================================================
+%% ===================================================================
 %% Helper functions
-%%====================================================================
+%% ===================================================================
 
 setup() ->
   cuter_config:start(),
