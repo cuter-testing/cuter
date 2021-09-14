@@ -29,7 +29,7 @@ else
 fi
 rm -f test_erlc.erl
 
-if test "$HAS_ERLC" = "0"; then 
+if test "$HAS_ERLC" = "0"; then
    AC_MSG_ERROR([You need the Erlang Compiler. Please download Erlang at http://www.erlang.org/])
 fi
 
@@ -69,9 +69,20 @@ else
 fi
 rm -f test_python.py
 
-if test "$HAS_PYTHON" = "0"; then 
+if test "$HAS_PYTHON" = "0"; then
    AC_MSG_ERROR([You need Python >= 3.6. Please download Python at http://python.org])
 fi
+
+python_exec_prefix=`$PYTHON_PATH -c 'import sys; print(sys.exec_prefix)'`
+if [[ -x "$python_exec_prefix/bin/protoc-gen-mypy" ]]; then
+  PROTOC_GEN_MYPY="$python_exec_prefix/bin/protoc-gen-mypy"
+else
+  PROTOC_GEN_MYPY="`$PYTHON_PATH -m site --user-base`/bin/protoc-gen-mypy"
+  if [[ ! -x $PROTOC_GEN_MYPY ]]; then
+    AC_MSG_ERROR([protoc-gen-mypy binary not found. Please make sure that Python requirements have been setup])
+  fi
+fi
+AC_SUBST(PROTOC_GEN_MYPY)
 
 ###############################################
 #
