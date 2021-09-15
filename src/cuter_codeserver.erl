@@ -311,8 +311,9 @@ get_feasible_tags_of_mfa({M,F,A}=Mfa, NodeTypes, State=#st{whitelist = Whitelist
           gb_sets:new();
         {true, Cache} ->
 %          io:format("Looking Up ~p~n", [Mfa]),
-          {ok, {Def, _}} = lookup_in_module_cache(Mfa, Cache),
-          cuter_cerl:collect_feasible_tags(Def, NodeTypes)
+          {ok, Kfun} = lookup_in_module_cache(Mfa, Cache),
+          Code = cuter_cerl:kfun_code(Kfun),
+          cuter_cerl:collect_feasible_tags(Code, NodeTypes)
       end
   end.
 
