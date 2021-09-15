@@ -32,7 +32,7 @@
 -export_type([kfun/0]).
 
 %% kfun() is an ADT that holds the code and metadata for an MFA.
--type kfun() :: #{
+-opaque kfun() :: #{
   %% The code of the MFA.
   code := code(),
   %% Whether the MFA is exported or not.
