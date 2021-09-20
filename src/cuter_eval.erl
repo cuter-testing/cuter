@@ -842,9 +842,26 @@ eval_expr({c_var, _Anno, Name}, _M, Cenv, Senv, _Servers, _Fd) ->
   {ok, Sv} = cuter_env:get_value(Name, Senv),
   mk_result(Cv, Sv);
 
+% c_map
+eval_expr({c_map, _Anno, Arg, Entries, false}, M, Cenv, Senv, Servers, Fd) ->
+  Entries_ev = [eval_expr({c_map_pair, A, Op, K, V}, M, Cenv, Senv, Servers, Fd) || {c_map_pair, A, Op, K, V} <- Entries],
+  { C_ev, S_ev } = cuter_lib:unzip_with(fun to_tuple/1, Entries_ev),
+  { CArg, SArg } = to_tuple(eval_expr(Arg, M, Cenv, Senv, Servers, Fd)),
+  mk_result(maps:merge(CArg, maps:from_list(C_ev)), maps:merge(SArg, maps:from_list(S_ev)));
+
+% c_map_pair
+eval_expr({c_map_pair, _Anno, Op, K, V}, M, Cenv, Senv, Servers, Fd) ->
+  case Op of
+    {c_literal, _, assoc} -> ok;
+    {c_literal, _, exact} -> exception(error, {bad_c_map_pair_op, not_allowed, Op});
+    _ -> exception(error, {bad_c_map_pair_op, unknown, Op})
+  end,
+  { Ck, Sk } = to_tuple(eval_expr(K, M, Cenv, Senv, Servers, Fd)),
+  { Cv, Sv } = to_tuple(eval_expr(V, M, Cenv, Senv, Servers, Fd)),
+  mk_result({Ck, Cv}, {Sk, Sv});
+
 eval_expr(Cerl, _M, _Cenv, _Senv, _Servers, _Fd) ->
   exception(error, {unknown_cerl, Cerl}).
-
 
 %% --------------------------------------------------------
 %% Evaluates a BIF call
@@ -1201,6 +1218,28 @@ pattern_match({c_alias, _Anno, Var, Pat}, BitInfo, Mode, Cv, Sv, CMaps, SMaps, S
       Cs = [{VName, Cv} | CMs],
       Ss = [{VName, Sv} | SMs],
       {true, {Cs, Ss}}
+  end;
+
+%% Map pattern.
+%% Evaluate symbolic and concrete value of key, and attempt to match with concrete and symbolic value.
+pattern_match({c_map, As, Arg, [{c_map_pair, _Anno, _, Key, Val}|Entries], true}, BitInfo, Mode, Cv, Sv, CMaps, SMaps, Servers, Fd) ->
+  { M, Cenv, Senv } = BitInfo,
+  { CKey, SKey } = to_tuple(eval_expr(Key, M, Cenv, Senv, Servers, Fd)),
+  case { Cv, Sv } of
+    % TODO: symbolic matching for maps
+    { #{ CKey := CVal }, #{ SKey := SVal } } ->
+      case pattern_match(Val, BitInfo, Mode, CVal, SVal, CMaps, SMaps, Servers, Fd) of
+        {true, {CMs, SMs}} -> pattern_match({c_map, As, Arg, Entries, true}, BitInfo, Mode, Cv, Sv, CMs, SMs, Servers, Fd);
+        false -> false
+      end;
+    _ -> false
+  end;
+pattern_match({c_map, _Anno, _Arg, [], true}, _BitInfo, _Mode, Cv, _Sv, CMaps, SMaps, _Servers, _Fd) ->
+  % Empty map pattern matches any map
+  % TODO: symbolic matching for maps
+  case is_map(Cv) of
+    true -> {true, {CMaps, SMaps}};
+    false -> false
   end;
 
 %% Binary pattern

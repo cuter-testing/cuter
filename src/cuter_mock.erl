@@ -78,6 +78,10 @@ override_mfa({erlang, trunc, 1}) -> {ok, {cuter_erlang, trunc, 1}};
 override_mfa({lists, member, 2}) -> {ok, {cuter_erlang, member,  2}};
 override_mfa({lists, reverse, 2}) -> {ok, {cuter_erlang, reverse, 2}};
 override_mfa({lists, keyfind, 3}) -> {ok, {cuter_erlang, keyfind, 3}};
+%% Module maps.
+override_mfa({erlang, is_map, 1}) -> {ok, {cuter_erlang, ismap, 1}};
+override_mfa({maps, get, 2}) -> {ok, {cuter_erlang, maps_get, 2}};
+override_mfa({maps, put, 3}) -> {ok, {cuter_erlang, maps_put, 3}};
 %% Module math.
 override_mfa({math, pi, 0}) -> {ok, {math, pi, 0}};
 %% The rest MFAs are not overriden.

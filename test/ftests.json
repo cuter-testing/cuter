@@ -1251,6 +1251,174 @@
               "UNSAT": 6
             },
             "skip": false
+        },
+        {
+            "module": "map",
+            "function": "simple",
+            "args": "[1]",
+            "depth": "20",
+            "errors": true,
+            "arity": 1,
+            "nondeterministic": true,
+            "xopts": "--disable-pmatch",
+            "solutions": [
+                "$1 == -4"
+            ],
+            "skip": false
+        },
+        {
+            "module": "map",
+            "function": "simple_squared",
+            "args": "[10]",
+            "depth": "40",
+            "errors": true,
+            "arity": 1,
+            "nondeterministic": true,
+            "xopts": "--disable-pmatch",
+            "solutions": [
+                "$1 == -2 or $1 == 2"
+            ],
+            "skip": false
+        },
+        {
+            "module": "map",
+            "function": "simple_extend",
+            "args": "[10]",
+            "depth": "30",
+            "errors": true,
+            "arity": 1,
+            "nondeterministic": true,
+            "xopts": "--disable-pmatch --suppress-unsupported",
+            "solutions": [
+                "$1 == -2 or $1 == 2"
+            ],
+            "skip": false
+        },
+        {
+            "module": "map",
+            "function": "extend_empty",
+            "args": "[10]",
+            "depth": "30",
+            "errors": true,
+            "arity": 1,
+            "nondeterministic": true,
+            "xopts": "--disable-pmatch",
+            "solutions": [
+                "$1 == -2 or $1 == 2"
+            ],
+            "skip": false
+        },
+        {
+            "module": "map",
+            "function": "simple_match",
+            "args": "[10]",
+            "depth": "30",
+            "errors": true,
+            "arity": 1,
+            "nondeterministic": true,
+            "xopts": "--disable-pmatch",
+            "solutions": [
+                "$1 == -2"
+            ],
+            "skip": false
+        },
+        {
+            "module": "map",
+            "function": "match_many",
+            "args": "[10,20]",
+            "depth": "30",
+            "errors": true,
+            "arity": 2,
+            "nondeterministic": true,
+            "xopts": "--disable-pmatch",
+            "solutions": [
+                "$1 == 0 and $2 == -6"
+            ],
+            "skip": false
+        },
+        {
+            "module": "map",
+            "function": "match_cases",
+            "args": "[10]",
+            "depth": "30",
+            "errors": true,
+            "arity": 1,
+            "nondeterministic": true,
+            "xopts": "--disable-pmatch",
+            "solutions": [
+                "$1 == 60 or $1 == 40"
+            ],
+            "skip": false
+        },
+        {
+            "module": "map",
+            "function": "match_lit",
+            "args": "[10]",
+            "depth": "30",
+            "errors": true,
+            "arity": 1,
+            "nondeterministic": true,
+            "xopts": "--disable-pmatch",
+            "solutions": [
+                "$1 == 100"
+            ],
+            "skip": false
+        },
+        {
+            "module": "map",
+            "function": "match_var",
+            "args": "[10]",
+            "depth": "30",
+            "errors": true,
+            "arity": 1,
+            "nondeterministic": true,
+            "xopts": "--disable-pmatch",
+            "solutions": [
+                "$1 == 199"
+            ],
+            "skip": false
+        },
+        {
+            "module": "map",
+            "function": "match_embed",
+            "args": "[10]",
+            "depth": "30",
+            "errors": true,
+            "arity": 1,
+            "nondeterministic": true,
+            "xopts": "--disable-pmatch",
+            "solutions": [
+                "$1 == -20"
+            ],
+            "skip": false
+        },
+        {
+            "module": "map",
+            "function": "maps_get",
+            "args": "[10]",
+            "depth": "30",
+            "errors": true,
+            "arity": 1,
+            "nondeterministic": true,
+            "xopts": "--disable-pmatch",
+            "solutions": [
+                "$1 == -2"
+            ],
+            "skip": false
+        },
+        {
+            "module": "map",
+            "function": "maps_put",
+            "args": "[10]",
+            "depth": "30",
+            "errors": true,
+            "arity": 1,
+            "nondeterministic": true,
+            "xopts": "--disable-pmatch",
+            "solutions": [
+                "$1 == -1"
+            ],
+            "skip": false
         }
     ]
 }
