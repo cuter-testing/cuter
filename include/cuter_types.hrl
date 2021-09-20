@@ -15,6 +15,7 @@
 -define(integer_tag, integer).
 -define(list_tag, list).
 -define(local_tag, local).
+-define(map_tag, map).
 -define(neg_inf, neg_inf).
 -define(nil_tag, nil).
 -define(nonempty_list_tag, nonempty_list).

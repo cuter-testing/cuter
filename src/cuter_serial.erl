@@ -424,10 +424,27 @@ to_type(Type) ->
       Bounds = #'Spec.RangeBounds'{ lower_bound = to_range_bound(Lower)
                                   , upper_bound = to_range_bound(Upper)},
       #'Spec.Type'{type = 'RANGE', arg = {'range_bounds', Bounds}};
+    ?map_tag ->
+      #'Spec.Type'{
+        type = 'MAP',
+        arg = {'association_list', #'Spec.AssociationList'{associations = [
+          #'Spec.Association'{
+            kind = to_type_association_kind(Kind),
+            from_type = to_type(From),
+            to_type = to_type(To)
+          } || {Kind, From, To} <- cuter_types:assocs_of_t_map(Type)
+        ]}}
+      };
     ?function_tag ->
       #'Spec.Type'{type = 'FUN', arg = {'fun', to_typesig(Type)}};
     ?userdef_tag ->
       #'Spec.Type'{type = 'USERDEF', arg = {'type_name', cuter_types:name_of_t_userdef(Type)}}
+  end.
+
+to_type_association_kind(Kind) ->
+  case Kind of
+    map_field_assoc -> 'OPTIONAL';
+    map_field_exact -> 'MANDATORY'
   end.
 
 to_range_bound(Limit) ->

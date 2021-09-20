@@ -99,6 +99,13 @@ def pretty_type(d):
       args = cc.get_parameters_from_complete_fun(d)
       ret = cc.get_rettype_from_fun(d)
       return "fun(({}) -> {})".format(", ".join(map(pretty_type, args)), pretty_type(ret))
+    if cc.is_type_map(d):
+      associations = cc.get_association_list_from_map(d)
+      return "map({})".format(", ".join("{} {} {}".format(
+        pretty_type(assoc.from_type),
+        cc.get_association_symbol(assoc.kind),
+        pretty_type(assoc.to_type),
+      ) for assoc in associations))
 
 def print_cmd(entry, rev):
   tp = entry.type
