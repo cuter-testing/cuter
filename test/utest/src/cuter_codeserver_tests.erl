@@ -4,12 +4,13 @@
 
 -include_lib("eunit/include/eunit.hrl").
 -include_lib("include/cuter_macros.hrl").
+-include_lib("test/utest/include/types.hrl").
 
 -spec test() -> ok | {error, any()}.  %% This should be provided by EUnit
 
 -define(MODS_LIST, [lists, dict, orddict, ets, os, string, filelib, beam_lib, cerl]).
 
--spec load_modules_test_() -> any().
+-spec load_modules_test_() -> tgen().
 load_modules_test_() ->
   Setup = fun setup/0,
   Cleanup = fun cleanup/1,
@@ -27,7 +28,7 @@ load_mod(Cs, M) ->
   {atom_to_list(M), ?_assertMatch({ok, _}, Rep)}.
 
 
--spec load_and_retrieve_test_() -> any().
+-spec load_and_retrieve_test_() -> tgen().
 load_and_retrieve_test_() ->
   Setup = fun setup/0,
   Cleanup = fun cleanup/1,
@@ -44,7 +45,7 @@ load_and_retrieve_test_() ->
   {"Query modules multiple times", {setup, Setup, Cleanup, Inst}}.
 
 
--spec get_mfa_spec_test_() -> any().
+-spec get_mfa_spec_test_() -> tgen().
 get_mfa_spec_test_() ->
   Setup = fun setup/0,
   Cleanup = fun cleanup/1,
@@ -67,7 +68,7 @@ get_mfa_spec_test_() ->
   end,
   {"Get specs of mfas", {setup, Setup, Cleanup, Inst}}.
 
--spec error_load_test_() -> term().
+-spec error_load_test_() -> tgen().
 error_load_test_() ->
   Setup = fun setup/0,
   Cleanup = fun cleanup/1,

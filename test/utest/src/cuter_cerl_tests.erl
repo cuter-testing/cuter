@@ -6,7 +6,7 @@
 -include("include/eunit_config.hrl").
 -include("include/cuter_macros.hrl").
 
--spec test() -> any().
+-spec test() -> ok | {error, any()}.
 
 -spec load_lists_module_test() -> any().
 load_lists_module_test() ->
@@ -65,7 +65,7 @@ generate_and_collect_tags_for_lists_module_test() ->
 %% kfun API
 %% -------------------------------------------------------------------
 
--spec construct_and_access_kfun_test() -> ok.
+-spec construct_and_access_kfun_test() -> any.
 construct_and_access_kfun_test() ->
   Code = cerl:c_fun([cerl:c_nil()], cerl:c_nil()),
   Kfun = cuter_cerl:kfun(Code, true),
@@ -77,7 +77,7 @@ construct_and_access_kfun_test() ->
 %% kmodule API
 %% -------------------------------------------------------------------
 
--spec construct_and_access_kmodule_test() -> ok.
+-spec construct_and_access_kmodule_test() -> any.
 construct_and_access_kmodule_test() ->
   Code = cerl:c_fun([cerl:c_nil()], cerl:c_nil()),
   Kfun = cuter_cerl:kfun(Code, true),
