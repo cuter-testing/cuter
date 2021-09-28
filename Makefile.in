@@ -22,7 +22,7 @@ GPB = $(realpath @GPB@)
 PROTOC-ERL = $(GPB)/bin/protoc-erl
 GPB_INCLUDE = $(GPB)/include
 PROTOC=@PROTOC_PATH@
-PYTHON_USER_BASE = $(shell @PYTHON_PATH@ -m site --user-base)
+PROTOC_GEN_MYPY=@PROTOC_GEN_MYPY@
 
 ###----------------------------------------------------------------------
 ### Set Environment Variables
@@ -171,7 +171,7 @@ $(SRC)/%.erl: %.proto
 
 $(PRIV)/%_pb2.py: %.proto
 	@echo "PROTOC $(notdir  $<)"
-	@$(PROTOC) -I $(SRC) --python_out=$(PRIV) --plugin=$(PYTHON_USER_BASE)/bin/protoc-gen-mypy --mypy_out=$(PRIV) $<
+	@$(PROTOC) -I $(SRC) --python_out=$(PRIV) --plugin=$(PROTOC_GEN_MYPY) --mypy_out=$(PRIV) $<
 
 $(EBIN)/%.beam: %.erl
 	@echo "ERLC $<"
