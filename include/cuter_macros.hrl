@@ -89,6 +89,8 @@
 -define(NUM_SOLVERS, number_of_solvers).
 %% Sets the number of concurrent concolic execution processes.
 -define(NUM_POLLERS, number_of_pollers).
+%% Prune safe paths.
+-define(PRUNE_SAFE, prune_safe).
 
 -type runtime_options() :: {?Z3_TIMEOUT, pos_integer()} 
                          | ?REPORT_METRICS
@@ -104,6 +106,7 @@
                          | {?NUM_SOLVERS, pos_integer()}
                          | {?NUM_POLLERS, pos_integer()}
                          | {?WORKING_DIR, file:filename()}
+			 | ?PRUNE_SAFE
                          .
 
 %%====================================================================
@@ -156,3 +159,10 @@
 
 %% Empty tag ID
 -define(EMPTY_TAG_ID, 0).
+
+%%====================================================================
+%% Miscellaneous stored values in cuter config
+%%====================================================================
+
+%% Entry point for concolic testing
+-define(ENTRY_POINT, entry_point).

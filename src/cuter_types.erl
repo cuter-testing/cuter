@@ -23,6 +23,8 @@
 -export([erl_type_deps_map/2, get_type_name_from_type_dep/1,
 	 get_type_from_type_dep/1, unique_type_name/3]).
 
+-export([parse_specs/1]).
+
 -export_type([erl_type/0, erl_spec_clause/0, erl_spec/0, stored_specs/0,
 	      stored_types/0, stored_spec_value/0, t_range_limit/0]).
 -export_type([erl_type_dep/0, erl_type_deps/0]).
@@ -1209,3 +1211,219 @@ get_type_name_from_type_dep({Name, _Type}) ->
 -spec get_type_from_type_dep(erl_type_dep()) -> erl_type().
 get_type_from_type_dep({_Name, Type}) ->
   Type.
+
+%% ----------------------------------------------------------------------------
+%% API for erl_types:erl_type().
+%% Here a fix point computation is defined which converts all specs in a list
+%% of modules to their erl_type representation
+%% ----------------------------------------------------------------------------
+
+var_name({var, _, X}) ->
+  X.
+
+-spec parse_specs(list({module(), cerl:cerl()})) -> dict:dict().
+parse_specs(CodeList) ->
+  RecDict = ets:new(recdict, []),
+  ExpTypes = sets:from_list(lists:append([lists:append([[{Mod, Tname, Tarity} || {Tname, Tarity} <- T] || {{c_literal, _, export_type}, {c_literal, _, T}} <- cerl:module_attrs(M)]) || {Mod, M} <- CodeList])),
+  Unhandled = lists:foldl(
+		fun ({Mod, M}, Acc) ->
+		    TypesLines = all_types_from_cerl(M),
+		    U = sets:from_list([{TName, length(Vars)} || {{TName, _T, Vars}, _L} <- TypesLines]),
+		    dict:store(Mod, U, Acc)
+		end,
+		dict:new(),
+		CodeList),
+  Ret = parse_specs_fix(CodeList, ExpTypes, RecDict, Unhandled, CodeList, false, dict:new()),
+  ets:delete(RecDict),
+  Ret.
+  
+
+parse_specs_fix([], ExpTypes, RecDict, Unhandled, All, true, GatheredSpecs) -> parse_specs_fix(All, ExpTypes, RecDict, Unhandled, All, false, GatheredSpecs);
+parse_specs_fix([], _ExpTypes, _RecDict, _Unhandled, _All, false, GatheredSpecs) -> GatheredSpecs;
+parse_specs_fix([{Mod, M}|Mods], ExpTypes, RecDict, Unhandled, All, Acc, GatheredSpecs) ->
+  PrevUnhandled = dict:fetch(Mod, Unhandled),
+  {Specs, NewUnhandled} = parse_mod_specs(Mod, M, ExpTypes, RecDict, PrevUnhandled),
+  GatheredSpecs1 = lists:foldl(
+		     fun ({MFA, Spec}, G) ->
+			 dict:store(MFA, Spec, G)
+		     end,
+		     GatheredSpecs,
+		     Specs),
+  case equal_sets(NewUnhandled, PrevUnhandled) of
+    true -> parse_specs_fix(Mods, ExpTypes, RecDict, Unhandled, All, Acc, GatheredSpecs1);
+    false -> parse_specs_fix(Mods, ExpTypes, RecDict, dict:store(Mod, NewUnhandled, Unhandled), All, true, GatheredSpecs1)
+  end.
+
+parse_mod_specs(Mod, M, ExpTypes, RecDict, PrevUnhandled) ->
+  TypesLines = all_types_from_cerl(M),
+  Specs1 = lists:append([Spec || {{c_literal, _, spec}, {c_literal, _, Spec}} <- cerl:module_attrs(M)]),
+  Unhandled = fix_point_type_parse(Mod, RecDict, ExpTypes, TypesLines, PrevUnhandled),
+  Specs = lists:map(
+	    fun ({{F, A}, S1}) ->
+		S = spec_replace_records(spec_replace_bounded(S1)),
+		ErlSpecs = convert_list_to_erl(S, {Mod, F, A}, ExpTypes, RecDict),
+		{{Mod, F, A}, ErlSpecs}
+	    end,
+	    Specs1),
+  {Specs, Unhandled}.
+
+fix_point_type_parse(Mod, RecDict, ExpTypes, TypesLines, PrevUnhandled) ->
+  F = fun ({{Tname, T, Vars}, L}, Acc) ->
+	  A = length(Vars),
+	  {{T1, _C}, D1} = 
+	    try erl_types:t_from_form(T, ExpTypes, {'type', {Mod, Tname, A}}, RecDict, erl_types:var_table__new(), erl_types:cache__new()) of
+	      Ret -> {Ret, false}
+	    catch
+	      _:_ ->
+		{{none, none}, true}
+	    end,
+	  case D1 of
+	    false ->
+	      case ets:lookup(RecDict, Mod) of
+		[{Mod, VT}] ->
+		  ets:insert(RecDict, {Mod, maps:put({'type', Tname, A}, {{Mod, {lists:append(atom_to_list(Mod), ".erl"), L}, T, [var_name(Var) || Var <- Vars]}, T1}, VT)}),
+		  Acc;
+		_ ->
+		  ets:insert(RecDict, {Mod, maps:put({'type', Tname, A}, {{Mod, {lists:append(atom_to_list(Mod), ".erl"), L}, T, [var_name(Var) || Var <- Vars]}, T1}, maps:new())}),
+		  Acc
+	      end;
+	    true ->
+	      sets:add_element({Tname, A}, Acc)
+	  end
+      end,
+  D = lists:foldl(F, sets:new(), TypesLines),
+  case equal_sets(PrevUnhandled, D) of
+    false ->
+      fix_point_type_parse(Mod, RecDict, ExpTypes, TypesLines, D);
+    true ->
+      D
+  end.
+
+convert_list_to_erl(S, MFA, ExpTypes, RecDict) ->
+  convert_list_to_erl(S, MFA, ExpTypes, RecDict, []).
+
+convert_list_to_erl([], _MFA, _ExpTypes, _RecDict, Acc) -> lists:reverse(Acc);
+convert_list_to_erl([Spec|Specs], MFA, ExpTypes, RecDict, Acc) ->
+  ErlSpec = 
+    try erl_types:t_from_form(Spec, ExpTypes, {'spec', MFA}, RecDict, erl_types:var_table__new(), erl_types:cache__new()) of
+      {S, _C} -> S
+    catch
+      _:_ -> nospec
+    end,
+  case ErlSpec of
+    nospec ->
+      convert_list_to_erl(Specs, MFA, ExpTypes, RecDict, Acc);
+    _ ->
+      convert_list_to_erl(Specs, MFA, ExpTypes, RecDict, [ErlSpec|Acc])
+  end.
+
+equal_sets(A, B) ->
+  sets:size(A) == sets:size(B) andalso sets:size(sets:union(A, B)) == sets:size(B).
+
+all_types_from_cerl(M) ->
+  TypesOpaques =  [{type_replace_records(Type), Line} || {{c_literal, _, TypeClass}, {c_literal, [Line|_], [Type]}} <- cerl:module_attrs(M), TypeClass =:= type orelse TypeClass =:= opaque],
+  Records = records_as_types(M),
+  lists:append(TypesOpaques, Records).
+
+type_replace_records({Name, Type, Args}) ->
+  {Name, replace_records(Type), Args}.
+
+spec_replace_records(FunSpecs) ->
+  Fn = fun({type, Line, F, L}) ->
+	   {type, Line, F, lists:map(fun replace_records/1, L)}
+       end,
+  lists:map(Fn, FunSpecs).
+
+replace_records({type, L, record, [{atom, _, Name}]}) ->
+  {user_type, L, record_name(Name), []};
+replace_records({T, L, Type, Args}) when T =:= type orelse T =:= user_type ->
+  case is_list(Args) of
+    true ->
+      {T, L, Type, lists:map(fun replace_records/1, Args)};
+    false ->
+      {T, L, Type, Args}
+  end;
+replace_records(Rest) -> Rest.
+
+records_as_types(M) ->
+  R = [{RecName, Line, RecFields} || {{c_literal, [Line], record}, {c_literal, _, [{RecName, RecFields}]}} <- cerl:module_attrs(M)],  
+  lists:map(fun type_from_record/1, R).
+
+type_from_record({Name, Line, Fields}) ->
+  Fn = fun ({typed_record_field, _, T}) ->
+	   replace_records(T)
+       end,
+  NewFields = lists:map(Fn, Fields),
+  NewName = record_name(Name),
+  RecType = {type, Line, tuple, [{atom, Line, Name} | NewFields]},
+  {{NewName, RecType, []}, Line}.
+
+record_name(Name) ->
+  list_to_atom(atom_to_list(Name) ++ "RECORDTYPE").
+
+spec_replace_bounded(Specs) -> lists:map(fun handle_bounded_fun/1, Specs).
+
+handle_bounded_fun({type, _L, 'fun', _Rest} = S) -> S;
+handle_bounded_fun({type, _, 'bounded_fun', [Spec, Constraints]} = S) ->
+  Fn = fun({type, _, constraint, [{atom, _, is_subtype}, [Key, Value]]}, D) ->
+	   dict:store(element(3, Key), Value, D)
+       end,
+  D = lists:foldl(Fn, dict:new(), Constraints),
+  {D1, Rec} = fix_update_vars(D),
+  case Rec of
+    true ->
+      make_normal_spec(Spec, D1);
+    false ->
+      S
+  end.
+
+replace_vars({type, L, record, R}, _D) -> {{type, L, record, R}, false};
+replace_vars({T, L, Type, Args}, D) when is_list(Args) ->
+  Fn = fun(Arg) -> replace_vars(Arg, D) end,
+  {NewArgs, Changes} = lists:unzip(lists:map(Fn, Args)),
+  Change = lists:foldl(fun erlang:'or'/2, false, Changes),
+  {{T, L, Type, NewArgs}, Change};
+replace_vars({var, _L, Name}, D) ->
+  case dict:find(Name, D) of
+    {ok, T} ->
+      {T, true};
+    error ->
+      {any, true}
+  end;
+replace_vars({ann_type, _L, [_T, T1]}, D) ->
+  {T2, _C} = replace_vars(T1, D),
+  {T2, true};
+replace_vars(Rest, _D) -> {Rest, false}.
+
+fix_update_vars(D) ->
+  fix_update_vars(D, dict:size(D) + 1, 0).
+
+fix_update_vars(D, Lim, Depth) ->
+  Keys = dict:fetch_keys(D),
+  Fn = fun(Key, {Acc1, Acc2}) ->
+	   T = dict:fetch(Key, D),
+	   {NewT, C} = replace_vars(T, D),
+	   case C of
+	     true ->
+	       {dict:store(Key, NewT, Acc1), true};
+	     false ->
+	       {Acc1, Acc2}
+	   end
+       end,
+  {NewD, Change} = lists:foldl(Fn, {D, false}, Keys),
+  case Change of
+    true ->
+      case Depth > Lim of
+	true ->
+	  {rec, false};
+	false ->
+	  fix_update_vars(NewD, Lim, Depth + 1)
+      end;
+    false ->
+      {NewD, true}	  
+  end.
+
+make_normal_spec({type, L, 'fun', [Args, Range]}, D) ->
+  {NewArgs, _C1} = replace_vars(Args, D),
+  {NewRange, _C2} = replace_vars(Range, D),
+  {type, L, 'fun', [NewArgs, NewRange]}.

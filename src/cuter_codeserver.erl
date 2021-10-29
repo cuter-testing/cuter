@@ -10,6 +10,8 @@
          visit_tag/2, calculate_callgraph/2,
          %% Work with module cache
          merge_dumped_cached_modules/2, modules_of_dumped_cache/1,
+	 %% Code annotations
+	 annotate_for_possible_errors/1,
          %% Access logs
          cachedMods_of_logs/1, visitedTags_of_logs/1, tagsAddedNo_of_logs/1,
          unsupportedMfas_of_logs/1, loadedMods_of_logs/1]).
@@ -142,6 +144,11 @@ calculate_callgraph(CodeServer, Mfas) ->
 get_feasible_tags(CodeServer, NodeTypes) ->
   gen_server:call(CodeServer, {get_feasible_tags, NodeTypes}).
 
+%% Annotates the code for possible errors.
+-spec annotate_for_possible_errors(codeserver()) -> ok.
+annotate_for_possible_errors(CodeServer) ->
+  gen_server:call(CodeServer, annotate_for_possible_errors).
+
 %% ----------------------------------------------------------------------------
 %% gen_server callbacks (Server Implementation)
 %% ----------------------------------------------------------------------------
@@ -182,6 +189,7 @@ handle_info(_Msg, State) ->
                ; (get_whitelist, from(), state()) -> {reply, cuter_mock:whitelist(), state()}
                ; ({get_feasible_tags, cuter_cerl:node_types()}, from(), state()) -> {reply, cuter_cerl:visited_tags(), state()}
                ; ({calculate_callgraph, [mfa()]}, from(), state()) -> {reply, ok, state()}
+	       ; (annotate_for_possible_errors, from(), state()) -> {reply, ok, state()}
                .
 handle_call({load, M}, _From, State) ->
   {reply, try_load(M, State), State};
@@ -231,7 +239,28 @@ handle_call({calculate_callgraph, Mfas}, _From, State=#st{whitelist = Whitelist}
                 end,
       cuter_callgraph:foreachModule(LoadFn, Callgraph),
       {reply, ok, State#st{callgraph = Callgraph}}
-  end.
+  end;
+handle_call(annotate_for_possible_errors, _From, State=#st{db = Db}) ->
+  Fn = fun({M, Kmodule}, {KfunAcc, AstAcc}) ->
+      KfunMappings = cuter_cerl:kmodule_mfas_with_kfuns(Kmodule),
+      TrivialMergeFn = fun(_K, V1, _V2) -> V1 end,
+      KfunAcc1 = dict:merge(TrivialMergeFn, KfunAcc, KfunMappings),
+      AstAcc1 = [{M, cuter_cerl:kmodule_ast(Kmodule)}|AstAcc],
+      {KfunAcc1, AstAcc1}
+    end,
+  {ok, EntryPoint} = cuter_config:fetch(?ENTRY_POINT),
+  {MfasToKfuns, CodeList} = ets:foldl(Fn, {dict:new(), []}, Db),
+  %io:format("Before Specs~n"),
+  MfasToSpecs = cuter_types:parse_specs(CodeList),
+  UpdatedKfuns = cuter_maybe_error_annotation:preprocess(EntryPoint, MfasToKfuns, MfasToSpecs, true),
+  RFn = fun({M, F, A}, Kfun, _Acc) ->
+	   [{_M, Kmodule}] = ets:lookup(Db, M),
+	    cuter_cerl:kmodule_update_kfun(Kmodule, {M, F, A}, Kfun)
+	end,
+  dict:fold(RFn, ok, UpdatedKfuns),
+  %io:format("ast: ~p~n", [cuter_cerl:kfun_code(dict:fetch(EntryPoint, UpdatedKfuns))]),
+  {reply, ok, State}.
+
 
 %% gen_server callback : handle_cast/2
 -spec handle_cast(stop, state()) -> {stop, normal, state()} | {noreply, state()}

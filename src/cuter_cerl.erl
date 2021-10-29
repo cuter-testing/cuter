@@ -14,10 +14,11 @@
 %% Exported for debugging use.
 -export([classify_attributes/1]).
 %% kfun API.
--export([kfun/2, kfun_code/1, kfun_is_exported/1]).
+-export([kfun/2, kfun_code/1, kfun_is_exported/1, kfun_update_code/2]).
 %% kmodule API.
--export([destroy_kmodule/1, kmodule/4, kmodule_kfun/2, kmodule_mfa_spec/2, 
-  kmodule_specs/1, kmodule_types/1]).
+-export([destroy_kmodule/1, kmodule/6, kmodule_kfun/2, kmodule_mfa_spec/2,
+  kmodule_specs/1, kmodule_types/1, kmodule_ast/1, kmodule_update_kfun/3, kmodule_mfas_with_kfuns/1, kmodule_specs_forms/1,
+  kmodule_mfas_with_specs_forms/1]).
 
 %% We are using the records representation of Core Erlang Abstract Syntax Trees
 -include_lib("compiler/src/core_parse.hrl").
@@ -169,7 +170,7 @@ load(M, TagGen, WithPmatch) ->
       Specs = cuter_types:retrieve_specs(SpecAttrs),
       Defs = cerl:module_defs(AST),
       Funs = [process_fundef(D, Exports, M, TagGen) || D <- Defs],
-      {ok, kmodule(M, Types, Specs, Funs)};
+      {ok, kmodule(M, AST, Types, Specs, Funs, SpecAttrs)};
     {error, _} = Error -> Error
   end.
 
@@ -177,13 +178,21 @@ load(M, TagGen, WithPmatch) ->
 %% kmodule API
 %% -------------------------------------------------------------------
 
--spec kmodule(module(), cuter_types:stored_types(), cuter_types:stored_specs(), [{mfa(), kfun()}]) -> kmodule().
-kmodule(M, Types, Specs, Funs) ->
+-spec kmodule(module(), cerl:cerl(), cuter_types:stored_types(), cuter_types:stored_specs(), [{mfa(), kfun()}], [spec_info()]) -> kmodule().
+kmodule(M, AST, Types, Specs, Funs, SpecsForms) ->
   Kmodule = ets:new(M, [ordered_set, protected]),
+  ets:insert(Kmodule, {ast, AST}),
+  ets:insert(Kmodule, {name, M}),
   ets:insert(Kmodule, {types, Types}),
   ets:insert(Kmodule, {specs, Specs}),
+  ets:insert(Kmodule, {specs_forms, SpecsForms}),
   lists:foreach(fun({Mfa, Kfun}) -> ets:insert(Kmodule, {Mfa, Kfun}) end, Funs),
   Kmodule.
+
+-spec kmodule_ast(kmodule()) -> cerl:cerl().
+kmodule_ast(Kmodule) ->
+  [{ast, AST}] = ets:lookup(Kmodule, ast),
+  AST.
 
 -spec kmodule_specs(kmodule()) -> cuter_types:stored_specs().
 kmodule_specs(Kmodule) ->
@@ -214,6 +223,37 @@ destroy_kmodule(Kmodule) ->
   ets:delete(Kmodule),
   ok.
 
+-spec kmodule_mfas_with_kfuns(kmodule()) -> dict:dict(mfa(), kfun()).
+kmodule_mfas_with_kfuns(Kmodule) ->
+  Fn = fun({Key, Val}, Acc) ->
+      case is_mfa(Key) of
+        true -> dict:store(Key, Val, Acc);
+        false -> Acc
+      end
+    end,
+  ets:foldl(Fn, dict:new(), Kmodule).
+
+is_mfa({M, F, A}) when is_atom(M), is_atom(F), is_integer(A), A >= 0 -> true;
+is_mfa(_Mfa) -> false.
+
+-spec kmodule_specs_forms(kmodule()) -> [spec_info()].
+kmodule_specs_forms(Kmodule) ->
+  [{specs_forms, SpecsForms}] = ets:lookup(Kmodule, specs_forms),
+  SpecsForms.
+
+-spec kmodule_mfas_with_specs_forms(kmodule()) -> dict:dict(mfa(), any()).
+kmodule_mfas_with_specs_forms(Kmodule) ->
+  [{name, M}] = ets:lookup(Kmodule, name),
+  SpecsForms = kmodule_specs_forms(Kmodule),
+  Fn = fun({{F, A}, Spec}, Acc) ->
+    dict:store({M, F, A}, Spec, Acc)
+  end,
+  lists:foldl(Fn, dict:new(), SpecsForms).
+
+% updates the kfun of the given MFa
+-spec kmodule_update_kfun(kmodule(), mfa(), kfun()) -> true.
+kmodule_update_kfun(Kmodule, MFa, Kfun) -> ets:insert(Kmodule, {MFa, Kfun}).
+
 %% -------------------------------------------------------------------
 %% kfun API
 %% -------------------------------------------------------------------
@@ -227,6 +267,9 @@ kfun_is_exported(#{is_exported := IsExported}) -> IsExported.
 
 -spec kfun_code(kfun()) -> code().
 kfun_code(#{code := Code}) -> Code.
+
+-spec kfun_update_code(kfun(), code()) -> kfun().
+kfun_update_code(Fun, Code) -> Fun#{code=>Code}.
 
 %% ===================================================================
 %% Internal functions

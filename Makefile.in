@@ -82,7 +82,11 @@ SRC_MODULES = \
 	cuter_strategy \
 	cuter_bfs_strategy \
 	cuter_metrics \
-	cuter_config
+	cuter_config \
+	cuter_spec_checker \
+	cuter_graphs \
+	cuter_maybe_error_annotation \
+	cuter_type_dependent_functions
 
 UTEST_MODULES = \
 	cuter_tests_lib \
