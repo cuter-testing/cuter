@@ -415,6 +415,10 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		elif cc.is_type_userdef(spec):
 			type_name = cc.get_type_name_of_userdef(spec)
 			return ["|{}|".format(type_name), var]
+		elif cc.is_type_map(spec):
+			# TODO(neoaggelos): https://github.com/cuter-testing/cuter/issues/183
+			# Support map types
+			pass
 		clg.debug_info("unknown spec: " + str(spec))
 		assert False
 

@@ -58,6 +58,19 @@ parse_types({types_and_specs, Attrs}) ->
         ])
       , []
       }
+    },
+    {"t8()"
+    , {type, t8, 0}
+    , { cuter_types:t_map(), [] }
+    },
+    {"t9()"
+    , {type, t9, 0}
+    , { cuter_types:t_map([
+        { map_field_assoc, cuter_types:t_atom(), cuter_types:t_list(cuter_types:t_integer()) },
+        { map_field_exact, cuter_types:t_float(), cuter_types:t_float() }
+        ])
+      , []
+    }
     }
   ],
   [{Txt, ?_assertEqual(Expected, dict:fetch(Key, Types))} || {Txt, Key, Expected} <- Ts].
