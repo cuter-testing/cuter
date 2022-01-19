@@ -10,7 +10,6 @@
          visit_tag/2, calculate_callgraph/2,
          %% Work with module cache
          merge_dumped_cached_modules/2, modules_of_dumped_cache/1,
-         lookup_in_module_cache/2, insert_in_module_cache/3,
          %% Access logs
          cachedMods_of_logs/1, visitedTags_of_logs/1, tagsAddedNo_of_logs/1,
          unsupportedMfas_of_logs/1, loadedMods_of_logs/1]).
@@ -22,7 +21,7 @@
 
 -include("include/cuter_macros.hrl").
 
--export_type([cached_modules/0, codeserver/0, counter/0, module_cache/0, logs/0]).
+-export_type([cached_modules/0, codeserver/0, counter/0, logs/0]).
 
 %% Macros
 -define(BRANCH_COUNTER_PREFIX, '__branch_count').
@@ -31,7 +30,6 @@
 -type cached_module_data() :: any().
 -type cached_modules() :: dict:dict(module(), cached_module_data()).
 
--type module_cache() :: ets:tid().
 -type cache() :: ets:tid().
 
 -type modules() :: [cuter:mod()].
@@ -49,7 +47,7 @@
 -type logs() :: #logs{}.
 
 %% Internal type declarations
--type load_reply() :: {ok, module_cache()} | cuter_cerl:compile_error() | {error, (preloaded | cover_compiled | non_existing)}.
+-type load_reply() :: {ok, cuter_cerl:kmodule()} | cuter_cerl:compile_error() | {error, (preloaded | cover_compiled | non_existing)}.
 -type spec_reply() :: {ok, cuter_types:erl_spec()} | error.
 -type from() :: {pid(), reference()}.
 
@@ -159,7 +157,11 @@ init(_Args) ->
 %% gen_server callback : terminate/2
 -spec terminate(any(), state()) -> ok.
 terminate(_Reason, #st{db = Db}) ->
-  _ = drop_module_cache(Db),
+  Fn = fun({_M, Kmodule}, ok) ->
+      cuter_cerl:destroy_kmodule(Kmodule)
+    end,
+  ok = ets:foldl(Fn, ok, Db),
+  ets:delete(Db),
   ok.
 
 %% gen_server callback : code_change/3
@@ -183,27 +185,27 @@ handle_info(_Msg, State) ->
                .
 handle_call({load, M}, _From, State) ->
   {reply, try_load(M, State), State};
-handle_call({get_spec, {M, F, A}=MFA}, _From, State) ->
+handle_call({get_spec, {M, _F, _A}=Mfa}, _From, State) ->
   case try_load(M, State) of
-    {ok, MDb} ->
-      case cuter_cerl:retrieve_spec(MDb, {F, A}) of
+    {ok, Kmodule} ->
+      case cuter_cerl:kmodule_mfa_spec(Kmodule, Mfa) of
         error ->
-          cuter_pp:error_retrieving_spec(MFA, not_found),
+          cuter_pp:error_retrieving_spec(Mfa, not_found),
           {reply, error, State};
         {ok, CerlSpec} ->
-          DepMods = load_all_deps_of_spec(CerlSpec, M, MDb, State),
+          DepMods = load_all_deps_of_spec(CerlSpec, M, Kmodule, State),
           Fn = fun(Mod) ->
-              {ok, ModDb} = try_load(Mod, State),
-              StoredTypes = cuter_cerl:get_stored_types(ModDb),
+              {ok, KM} = try_load(Mod, State),
+              StoredTypes = cuter_cerl:kmodule_types(KM),
               {Mod, StoredTypes}
             end,
           ManyStoredTypes = [Fn(Mod) || Mod <- DepMods],
-          Parsed = cuter_types:parse_spec(MFA, CerlSpec, ManyStoredTypes),
+          Parsed = cuter_types:parse_spec(Mfa, CerlSpec, ManyStoredTypes),
           cuter_pp:parsed_spec(Parsed),
           {reply, {ok, Parsed}, State}
       end;
     Msg ->
-      cuter_pp:error_retrieving_spec(MFA, Msg),
+      cuter_pp:error_retrieving_spec(Mfa, Msg),
       {reply, error, State}
   end;
 handle_call(get_visited_tags, _From, State=#st{tags = Tags}) ->
@@ -249,9 +251,9 @@ handle_cast({visit_tag, Tag}, State=#st{tags = Tags}) ->
 %% of remote types). Then return a list of these modules.
 %% ----------------------------------------------------------------------------
 
--spec load_all_deps_of_spec(cuter_types:stored_spec_value(), cuter:mod(), module_cache(), state()) -> [cuter:mod()].
-load_all_deps_of_spec(CerlSpec, Module, MDb, State) ->
-  LocalTypesCache = cuter_cerl:get_stored_types(MDb),
+-spec load_all_deps_of_spec(cuter_types:stored_spec_value(), module(), cuter_cerl:kmodule(), state()) -> [cuter:mod()].
+load_all_deps_of_spec(CerlSpec, Module, Kmodule, State) ->
+  LocalTypesCache = cuter_cerl:kmodule_types(Kmodule),
   % Get the remote dependencies of the spec.
   ToBeVisited = cuter_types:find_remote_deps_of_spec(CerlSpec, LocalTypesCache),
   InitDepMods = ordsets:add_element(Module, ordsets:new()),
@@ -270,10 +272,10 @@ load_all_deps([Remote={M, TypeName, Arity}|Rest], State, VisitedRemotes, DepMods
       load_all_deps(Rest, State, VisitedRemotes, DepMods);
     false ->
       case try_load(M, State) of
-        {ok, MDb} ->
+        {ok, Kmodule} ->
           DepMods1 = ordsets:add_element(M, DepMods),
           VisitedRemotes1 = ordsets:add_element(Remote, VisitedRemotes),
-          LocalTypesCache = cuter_cerl:get_stored_types(MDb),
+          LocalTypesCache = cuter_cerl:kmodule_types(Kmodule),
           case dict:find({type, TypeName, Arity}, LocalTypesCache) of
             error ->
               %% TODO Report that we cannot access the definition of the type.
@@ -307,11 +309,9 @@ get_feasible_tags_of_mfa({M,F,A}=Mfa, NodeTypes, State=#st{whitelist = Whitelist
     false ->
       case is_mod_stored(M, State) of
         {false, _} ->
-%          io:format("MODULE NOT FOUND MODULE ~p!~n", [M]),
           gb_sets:new();
-        {true, Cache} ->
-%          io:format("Looking Up ~p~n", [Mfa]),
-          {ok, Kfun} = lookup_in_module_cache(Mfa, Cache),
+        {true, Kmodule} ->
+          {ok, Kfun} = cuter_cerl:kmodule_kfun(Kmodule, Mfa),
           Code = cuter_cerl:kfun_code(Kfun),
           cuter_cerl:collect_feasible_tags(Code, NodeTypes)
       end
@@ -333,10 +333,8 @@ try_load(M, State) ->
   end.
 
 %% Load a module's code
--spec load_mod(module(), state()) -> {ok, module_cache()} | cuter_cerl:compile_error().
+-spec load_mod(module(), state()) -> {ok, cuter_cerl:kmodule()} | cuter_cerl:compile_error().
 load_mod(M, #st{db = Db}) ->
-  Cache = ets:new(M, [ordered_set, protected]),  %% Create an ETS table to store the code of the module
-  ets:insert(Db, {M, Cache}),                    %% Store the tid of the ETS table
   WithPmatch =
     case cuter_config:fetch(?DISABLE_PMATCH) of
       {ok, true} ->
@@ -344,17 +342,21 @@ load_mod(M, #st{db = Db}) ->
       _ ->
         true
     end,
-  Reply = cuter_cerl:load(M, Cache, fun generate_tag/0, WithPmatch),  %% Load the code of the module
+  Reply = cuter_cerl:load(M, fun generate_tag/0, WithPmatch),  %% Load the code of the module
   case Reply of
-    {ok, M} -> {ok, Cache};
-    _ -> Reply
+    {ok, Kmodule} ->
+      ets:insert(Db, {M, Kmodule}),
+      {ok, Kmodule};
+    _ ->
+      Reply
   end.
 
 %% Check if a Module is stored in the Db
--spec is_mod_stored(module(), state()) -> {true, module_cache()} | {false, eexist | loaded_ret_atoms()}.
+-spec is_mod_stored(module(), state()) -> {true, cuter_cerl:kmodule()} | {false, eexist | loaded_ret_atoms()}.
 is_mod_stored(M, #st{db = Db}) ->
   case ets:lookup(Db, M) of
-    [{M, Cache}] -> {true, Cache};
+    [{M, Kmodule}] ->
+      {true, Kmodule};
     [] ->
       case code:which(M) of
         non_existing   -> {false, non_existing};
@@ -400,32 +402,10 @@ unsupportedMfas_of_logs(Logs) ->
 %% Manage module cache
 %% ----------------------------------------------------------------------------
 
-%% Looks up data in a module's cache.
--spec lookup_in_module_cache(any(), module_cache()) -> {ok, any()} | error.
-lookup_in_module_cache(Key, Cache) ->
-  case ets:lookup(Cache, Key) of
-    [] -> error;
-    [{Key, Value}] -> {ok, Value}
-  end.
-
-%% Inserts data in a module's cache.
--spec insert_in_module_cache(any(), any(), module_cache()) -> ok.
-insert_in_module_cache(Key, Data, Cache) ->
-  true = ets:insert(Cache, {Key, Data}),
-  ok.
-
-%% Drops the cache of the CodeServer.
-%% Deletes all modules' caches and the mapping of a module to its cache.
--spec drop_module_cache(cache()) -> [module()].
-drop_module_cache(Db) ->
-  ModNames = ets:foldl(fun({M, MDb}, Ms) -> ets:delete(MDb), [M|Ms] end, [], Db),
-  ets:delete(Db),
-  ModNames.
-
 %% Returns the names of all the modules in the cache.
 -spec modules_in_cache(cache()) -> [module()].
 modules_in_cache(Db) ->
-  ets:foldl(fun({M, _MDb}, Ms) -> [M|Ms] end, [], Db).
+  ets:foldl(fun({M, _Kmodule}, Ms) -> [M|Ms] end, [], Db).
 
 %% Dumps the cached modules' info into a dict.
 -spec dump_cached_modules(cache()) -> cached_modules().

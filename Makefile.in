@@ -12,6 +12,7 @@ EBIN = ebin
 PRIV = $(PWD)/priv
 TEST = test
 UTEST_SRC = $(TEST)/utest/src
+UTEST_INCLUDE = $()/utest/include
 UTEST_EBIN = $(TEST)/utest/ebin
 FTEST_SRC = $(TEST)/ftest/src
 FTEST_EBIN = $(TEST)/ftest/ebin
@@ -183,7 +184,7 @@ $(EBIN)/%.beam: %.erl
 
 $(UTEST_EBIN)/%.beam: %.erl
 	@echo "ERLC $<"
-	@$(ERLC) $(ERLC_INCLUDE) $(ERLC_FLAGS) $(ERLC_MACROS) -o $(UTEST_EBIN) $<
+	@$(ERLC) $(ERLC_INCLUDE) -I $(UTEST_INCLUDE) $(ERLC_FLAGS) $(ERLC_MACROS) -o $(UTEST_EBIN) $<
 
 $(FTEST_EBIN)/no_debug_info.beam: no_debug_info.erl
 	@echo "ERLC $<"
