@@ -9,24 +9,8 @@
 %%   erl -noshell -eval "cuter_debug:parse_module_specs(crypto, true)" -s init stop
 
 -spec parse_module_specs(module(), boolean()) -> ok.
-parse_module_specs(Module, WithPmatch) ->
-  Attrs = get_module_attrs(Module, WithPmatch),
-  {TypeAttrs, SpecAttrs} = cuter_cerl:classify_attributes(Attrs),
-  io:format("[**] Classified Attributes~n"),
-  _Types = cuter_types:retrieve_types(TypeAttrs),
-  io:format("[**] Retrieved Types~n"),
-  _Specs = cuter_types:retrieve_specs(SpecAttrs),
-  io:format("[**] Retrieved Specs~n"),
+parse_module_specs(_Module, _WithPmatch) ->
   ok.
-
-get_module_attrs(Module, WithPmatch) ->
-  Beam = code:which(Module),
-  {ok, {Module, [{abstract_code, {_, AbstractCode}}]}} = beam_lib:chunks(Beam, [abstract_code]),
-  {ok, Module, AST} = compile:forms(AbstractCode, compile_options(WithPmatch)),
-  cerl:module_attrs(AST).
-
-compile_options(true) -> [to_core, {core_transform, cerl_pmatch}];
-compile_options(false) -> [to_core].
 
 %% Prints the AST of a module.
 %% Run as:

@@ -214,12 +214,12 @@ kmodule_types(Kmodule) ->
   [{types, Types}] = ets:lookup(Kmodule, types),
   Types.
 
--spec kmodule_type_forms(kmodule()) -> [cerl:cerl()].
+-spec kmodule_type_forms(kmodule()) -> [{integer(), cerl:cerl()}].
 kmodule_type_forms(Kmodule) ->
   [{type_forms, TypeForms}] = ets:lookup(Kmodule, type_forms),
   TypeForms.
 
--spec kmodule_record_forms(kmodule()) -> [cerl:cerl()].
+-spec kmodule_record_forms(kmodule()) -> [{integer(), {atom(), [cerl:cerl()]}}].
 kmodule_record_forms(Kmodule) ->
   [{record_forms, RecordForms}] = ets:lookup(Kmodule, record_forms),
   RecordForms.
