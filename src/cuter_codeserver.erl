@@ -260,6 +260,7 @@ handle_call(annotate_for_possible_errors, _From, State=#st{db = Db}) ->
 	    cuter_cerl:kmodule_update_kfun(Kmodule, {M, F, A}, Kfun)
 	end,
   dict:fold(RFn, ok, UpdatedKfuns),
+  %io:format("spec: ~p~n", [dict:find(EntryPoint, MfasToSpecs)]),
   %io:format("ast: ~p~n", [cuter_cerl:kfun_code(dict:fetch(EntryPoint, UpdatedKfuns))]),
   {reply, ok, State}.
 
