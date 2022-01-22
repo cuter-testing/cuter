@@ -250,7 +250,7 @@ kmodule_mfas_with_specs_forms(Kmodule) ->
   end,
   lists:foldl(Fn, dict:new(), SpecsForms).
 
-% updates the kfun of the given MFa
+% Updates the kfun of the given MFa
 -spec kmodule_update_kfun(kmodule(), mfa(), kfun()) -> true.
 kmodule_update_kfun(Kmodule, MFa, Kfun) -> ets:insert(Kmodule, {MFa, Kfun}).
 
