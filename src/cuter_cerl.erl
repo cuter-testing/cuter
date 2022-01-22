@@ -15,7 +15,7 @@
 -export([kfun/2, kfun_code/1, kfun_is_exported/1, kfun_update_code/2]).
 %% kmodule API.
 -export([kmodule_spec_forms/1, kmodule_record_forms/1, kmodule_type_forms/1, kmodule_exported_types/1, kmodule_name/1, destroy_kmodule/1, kmodule/3, kmodule_kfun/2, kmodule_mfa_spec/2,
-  kmodule_specs/1, kmodule_types/1, kmodule_ast/1, kmodule_update_kfun/3, kmodule_mfas_with_kfuns/1,
+  kmodule_specs/1, kmodule_types/1, kmodule_update_kfun/3, kmodule_mfas_with_kfuns/1,
   kmodule_mfas_with_spec_forms/1]).
 
 %% We are using the records representation of Core Erlang Abstract Syntax Trees
@@ -178,7 +178,6 @@ kmodule(M, AST, TagGen) ->
   Specs = cuter_types:retrieve_specs(SpecForms),
   Defs = cerl:module_defs(AST),
   Funs = [process_fundef(D, Exports, M, TagGen) || D <- Defs],
-  ets:insert(Kmodule, {ast, AST}),
   ets:insert(Kmodule, {name, M}),
   ets:insert(Kmodule, {types, Types}),
   ets:insert(Kmodule, {specs, Specs}),
@@ -193,11 +192,6 @@ kmodule(M, AST, TagGen) ->
 kmodule_exported_types(Kmodule) ->
   [{exported_types, ExpTypes}] = ets:lookup(Kmodule, exported_types),
   ExpTypes.
-
--spec kmodule_ast(kmodule()) -> cerl:cerl().
-kmodule_ast(Kmodule) ->
-  [{ast, AST}] = ets:lookup(Kmodule, ast),
-  AST.
 
 -spec kmodule_name(kmodule()) -> module().
 kmodule_name(Kmodule) ->
