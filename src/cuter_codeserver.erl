@@ -241,17 +241,19 @@ handle_call({calculate_callgraph, Mfas}, _From, State=#st{whitelist = Whitelist}
       {reply, ok, State#st{callgraph = Callgraph}}
   end;
 handle_call(annotate_for_possible_errors, _From, State=#st{db = Db}) ->
-  Fn = fun({M, Kmodule}, {KfunAcc, AstAcc}) ->
+  Fn = fun({_M, Kmodule}, KfunAcc) ->
       KfunMappings = cuter_cerl:kmodule_mfas_with_kfuns(Kmodule),
       TrivialMergeFn = fun(_K, V1, _V2) -> V1 end,
-      KfunAcc1 = dict:merge(TrivialMergeFn, KfunAcc, KfunMappings),
-      AstAcc1 = [{M, cuter_cerl:kmodule_ast(Kmodule)}|AstAcc],
-      {KfunAcc1, AstAcc1}
+      dict:merge(TrivialMergeFn, KfunAcc, KfunMappings)
     end,
+  Fn2 = fun({_M, Kmodule}, Acc) ->
+	    [Kmodule|Acc]
+	end,
+  Kmodules = ets:foldl(Fn2, [], Db),
   {ok, EntryPoint} = cuter_config:fetch(?ENTRY_POINT),
-  {MfasToKfuns, CodeList} = ets:foldl(Fn, {dict:new(), []}, Db),
+  MfasToKfuns = ets:foldl(Fn, dict:new(), Db),
   %io:format("Before Specs~n"),
-  MfasToSpecs = cuter_types:parse_specs(CodeList),
+  MfasToSpecs = cuter_types:parse_specs(Kmodules),
   UpdatedKfuns = cuter_maybe_error_annotation:preprocess(EntryPoint, MfasToKfuns, MfasToSpecs, true),
   RFn = fun({M, F, A}, Kfun, _Acc) ->
 	   [{_M, Kmodule}] = ets:lookup(Db, M),

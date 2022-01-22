@@ -1221,28 +1221,29 @@ get_type_from_type_dep({_Name, Type}) ->
 var_name({var, _, X}) ->
   X.
 
--spec parse_specs(list({module(), cerl:cerl()})) -> dict:dict().
-parse_specs(CodeList) ->
+-spec parse_specs([cuter_cerl:kmodule()]) -> dict:dict().
+parse_specs(Kmodules) ->
   RecDict = ets:new(recdict, []),
-  ExpTypes = sets:from_list(lists:append([lists:append([[{Mod, Tname, Tarity} || {Tname, Tarity} <- T] || {{c_literal, _, export_type}, {c_literal, _, T}} <- cerl:module_attrs(M)]) || {Mod, M} <- CodeList])),
+  ExpTypes = sets:union([cuter_cerl:kmodule_exported_types(M) || M <- Kmodules]),
   Unhandled = lists:foldl(
-		fun ({Mod, M}, Acc) ->
-		    TypesLines = all_types_from_cerl(M),
+		fun (Kmodule, Acc) ->
+		    Mod = cuter_cerl:kmodule_name(Kmodule),
+		    TypesLines = all_types_from_cerl(Kmodule),
 		    U = sets:from_list([{TName, length(Vars)} || {{TName, _T, Vars}, _L} <- TypesLines]),
 		    dict:store(Mod, U, Acc)
 		end,
 		dict:new(),
-		CodeList),
-  Ret = parse_specs_fix(CodeList, ExpTypes, RecDict, Unhandled, CodeList, false, dict:new()),
+		Kmodules),
+  Ret = parse_specs_fix(Kmodules, ExpTypes, RecDict, Unhandled, Kmodules, false, dict:new()),
   ets:delete(RecDict),
   Ret.
-  
 
 parse_specs_fix([], ExpTypes, RecDict, Unhandled, All, true, GatheredSpecs) -> parse_specs_fix(All, ExpTypes, RecDict, Unhandled, All, false, GatheredSpecs);
 parse_specs_fix([], _ExpTypes, _RecDict, _Unhandled, _All, false, GatheredSpecs) -> GatheredSpecs;
-parse_specs_fix([{Mod, M}|Mods], ExpTypes, RecDict, Unhandled, All, Acc, GatheredSpecs) ->
+parse_specs_fix([Kmodule|Kmodules], ExpTypes, RecDict, Unhandled, All, Acc, GatheredSpecs) ->
+  Mod = cuter_cerl:kmodule_name(Kmodule),
   PrevUnhandled = dict:fetch(Mod, Unhandled),
-  {Specs, NewUnhandled} = parse_mod_specs(Mod, M, ExpTypes, RecDict, PrevUnhandled),
+  {Specs, NewUnhandled} = parse_mod_specs(Kmodule, ExpTypes, RecDict, PrevUnhandled),
   GatheredSpecs1 = lists:foldl(
 		     fun ({MFA, Spec}, G) ->
 			 dict:store(MFA, Spec, G)
@@ -1250,13 +1251,14 @@ parse_specs_fix([{Mod, M}|Mods], ExpTypes, RecDict, Unhandled, All, Acc, Gathere
 		     GatheredSpecs,
 		     Specs),
   case equal_sets(NewUnhandled, PrevUnhandled) of
-    true -> parse_specs_fix(Mods, ExpTypes, RecDict, Unhandled, All, Acc, GatheredSpecs1);
-    false -> parse_specs_fix(Mods, ExpTypes, RecDict, dict:store(Mod, NewUnhandled, Unhandled), All, true, GatheredSpecs1)
+    true -> parse_specs_fix(Kmodules, ExpTypes, RecDict, Unhandled, All, Acc, GatheredSpecs1);
+    false -> parse_specs_fix(Kmodules, ExpTypes, RecDict, dict:store(Mod, NewUnhandled, Unhandled), All, true, GatheredSpecs1)
   end.
 
-parse_mod_specs(Mod, M, ExpTypes, RecDict, PrevUnhandled) ->
-  TypesLines = all_types_from_cerl(M),
-  Specs1 = lists:append([Spec || {{c_literal, _, spec}, {c_literal, _, Spec}} <- cerl:module_attrs(M)]),
+parse_mod_specs(Kmodule, ExpTypes, RecDict, PrevUnhandled) ->
+  TypesLines = all_types_from_cerl(Kmodule),
+  Mod = cuter_cerl:kmodule_name(Kmodule),
+  Specs1 = lists:append([Spec || {_, {c_literal, _, Spec}} <- cuter_cerl:kmodule_spec_forms(Kmodule)]),
   Unhandled = fix_point_type_parse(Mod, RecDict, ExpTypes, TypesLines, PrevUnhandled),
   Specs = lists:map(
 	    fun ({{F, A}, S1}) ->
@@ -1320,9 +1322,9 @@ convert_list_to_erl([Spec|Specs], MFA, ExpTypes, RecDict, Acc) ->
 equal_sets(A, B) ->
   sets:size(A) == sets:size(B) andalso sets:size(sets:union(A, B)) == sets:size(B).
 
-all_types_from_cerl(M) ->
-  TypesOpaques =  [{type_replace_records(Type), Line} || {{c_literal, _, TypeClass}, {c_literal, [Line|_], [Type]}} <- cerl:module_attrs(M), TypeClass =:= type orelse TypeClass =:= opaque],
-  Records = records_as_types(M),
+all_types_from_cerl(Kmodule) ->
+  TypesOpaques =  [{type_replace_records(Type), Line} || {_, {c_literal, [Line|_], [Type]}} <- cuter_cerl:kmodule_type_forms(Kmodule)],
+  Records = records_as_types(Kmodule),
   lists:append(TypesOpaques, Records).
 
 type_replace_records({Name, Type, Args}) ->
@@ -1345,8 +1347,8 @@ replace_records({T, L, Type, Args}) when T =:= type orelse T =:= user_type ->
   end;
 replace_records(Rest) -> Rest.
 
-records_as_types(M) ->
-  R = [{RecName, Line, RecFields} || {{c_literal, [Line], record}, {c_literal, _, [{RecName, RecFields}]}} <- cerl:module_attrs(M)],  
+records_as_types(Kmodule) ->
+  R = [{RecName, Line, RecFields} || {{c_literal, [Line], record}, {c_literal, _, [{RecName, RecFields}]}} <- cuter_cerl:kmodule_record_forms(Kmodule)],  
   lists:map(fun type_from_record/1, R).
 
 type_from_record({Name, Line, Fields}) ->

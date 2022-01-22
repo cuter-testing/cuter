@@ -16,7 +16,7 @@
 %% kfun API.
 -export([kfun/2, kfun_code/1, kfun_is_exported/1, kfun_update_code/2]).
 %% kmodule API.
--export([destroy_kmodule/1, kmodule/6, kmodule_kfun/2, kmodule_mfa_spec/2,
+-export([kmodule_spec_forms/1, kmodule_record_forms/1, kmodule_type_forms/1, kmodule_exported_types/1, kmodule_name/1, destroy_kmodule/1, kmodule/3, kmodule_kfun/2, kmodule_mfa_spec/2,
   kmodule_specs/1, kmodule_types/1, kmodule_ast/1, kmodule_update_kfun/3, kmodule_mfas_with_kfuns/1, kmodule_specs_forms/1,
   kmodule_mfas_with_specs_forms/1]).
 
@@ -164,13 +164,7 @@
 load(M, TagGen, WithPmatch) ->
   case get_core(M, WithPmatch) of
     {ok, #c_module{}=AST} -> % just a sanity check that we get back a module
-      Exports = extract_exports(M, AST),
-      {TypeAttrs, SpecAttrs} = classify_attributes(cerl:module_attrs(AST)),
-      Types = cuter_types:retrieve_types(TypeAttrs),
-      Specs = cuter_types:retrieve_specs(SpecAttrs),
-      Defs = cerl:module_defs(AST),
-      Funs = [process_fundef(D, Exports, M, TagGen) || D <- Defs],
-      {ok, kmodule(M, AST, Types, Specs, Funs, SpecAttrs)};
+      {ok, kmodule(M, AST, TagGen)};
     {error, _} = Error -> Error
   end.
 
@@ -178,21 +172,44 @@ load(M, TagGen, WithPmatch) ->
 %% kmodule API
 %% -------------------------------------------------------------------
 
--spec kmodule(module(), cerl:cerl(), cuter_types:stored_types(), cuter_types:stored_specs(), [{mfa(), kfun()}], [spec_info()]) -> kmodule().
-kmodule(M, AST, Types, Specs, Funs, SpecsForms) ->
+-spec kmodule(module(), cerl:cerl(), tag_generator()) -> kmodule().
+kmodule(M, AST, TagGen) ->
   Kmodule = ets:new(M, [ordered_set, protected]),
+  Exports = extract_exports(M, AST),
+  {TypeAttrs, SpecAttrs} = classify_attributes(cerl:module_attrs(AST)),
+  Types = cuter_types:retrieve_types(TypeAttrs),
+  Specs = cuter_types:retrieve_specs(SpecAttrs),
+  Defs = cerl:module_defs(AST),
+  Funs = [process_fundef(D, Exports, M, TagGen) || D <- Defs],
   ets:insert(Kmodule, {ast, AST}),
   ets:insert(Kmodule, {name, M}),
   ets:insert(Kmodule, {types, Types}),
   ets:insert(Kmodule, {specs, Specs}),
-  ets:insert(Kmodule, {specs_forms, SpecsForms}),
+  ets:insert(Kmodule, {specs_forms, SpecAttrs}),
   lists:foreach(fun({Mfa, Kfun}) -> ets:insert(Kmodule, {Mfa, Kfun}) end, Funs),
   Kmodule.
+
+-spec kmodule_exported_types(kmodule()) -> sets:set({module(), atom(), arity()}).
+kmodule_exported_types(Kmodule) ->
+  M = kmodule_ast(Kmodule),
+  Mod = kmodule_name(Kmodule),
+  Filtered = [T || {{c_literal, _, export_type}, {c_literal, _, T}} <- cerl:module_attrs(M)],
+  sets:from_list(lists:append([{Mod, Tname, Tarity} || {Tname, Tarity} <- Filtered])).
+
+-spec kmodule_spec_forms(kmodule()) -> [cerl:cerl()].
+kmodule_spec_forms(Kmodule) ->
+  M = kmodule_ast(Kmodule),
+  [S || {{c_literal, _, spec}, _}=S <- cerl:module_attrs(M)].
 
 -spec kmodule_ast(kmodule()) -> cerl:cerl().
 kmodule_ast(Kmodule) ->
   [{ast, AST}] = ets:lookup(Kmodule, ast),
   AST.
+
+-spec kmodule_name(kmodule()) -> module().
+kmodule_name(Kmodule) ->
+  [{name, Name}] = ets:lookup(Kmodule, name),
+  Name.
 
 -spec kmodule_specs(kmodule()) -> cuter_types:stored_specs().
 kmodule_specs(Kmodule) ->
@@ -203,6 +220,16 @@ kmodule_specs(Kmodule) ->
 kmodule_types(Kmodule) ->
   [{types, Types}] = ets:lookup(Kmodule, types),
   Types.
+
+-spec kmodule_type_forms(kmodule()) -> [cerl:cerl()].
+kmodule_type_forms(Kmodule) ->
+  AST = kmodule_ast(Kmodule),
+  [T || {{c_literal, _, TC}, _}=T <- cerl:module_attrs(AST), TC =:= type orelse TC =:= opaque].
+
+-spec kmodule_record_forms(kmodule()) -> [cerl:cerl()].
+kmodule_record_forms(Kmodule) ->
+  AST = kmodule_ast(Kmodule),
+  [R || {{c_literal, _, record}, _}=R <- cerl:module_attrs(AST)].
 
 %% Retrieves the kfun() for the given MFA.
 -spec kmodule_kfun(kmodule(), mfa()) -> {ok, kfun()} | error.
