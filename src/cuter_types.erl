@@ -2,7 +2,7 @@
 %%------------------------------------------------------------------------------
 -module(cuter_types).
 
--export([parse_spec/3, retrieve_types/1, retrieve_specs/1, find_spec/2,
+-export([parse_spec/3, retrieve_types/2, retrieve_specs/1, find_spec/2,
 	 get_kind/1, find_remote_deps_of_type/2, find_remote_deps_of_spec/2]).
 
 -export([params_of_t_function_det/1, ret_of_t_function/1, atom_of_t_atom_lit/1,
@@ -212,27 +212,29 @@
 %% ============================================================================
 
 %% Pre-processes the type & record declarations.
--spec retrieve_types([cuter_cerl:type_info()]) -> stored_types().
-retrieve_types(TypeAttrs) ->
-  lists:foldl(fun process_type_attr/2, dict:new(), TypeAttrs).
+-spec retrieve_types([cuter_cerl:type_info()], any()) -> stored_types().
+retrieve_types(TypeAttrs, RecordAttrs) ->
+  T = lists:foldl(fun process_type_attr/2, dict:new(), TypeAttrs),
+  R = lists:foldl(fun process_record_attr/2, dict:new(), RecordAttrs),
+  dict:merge(fun (_Key, V1, _V2) -> V1 end, T, R).
 
 -spec process_type_attr(cuter_cerl:type_info(), stored_types()) -> stored_types().
-%% Processes the declaration of a record.
-process_type_attr({record, _Line, {Name, Fields}}, Processed) ->
-  %% Process each field of the record.
-  Fs = [t_field_from_form(Field) || Field <- Fields],
-  %% Construct the representation of the record.
-  Record = t_record(Name, Fs),
-  %% Store the record in the proccessed dict.
-  dict:store({record, Name}, Record, Processed);
 %% Processes the declaration of a type.
-process_type_attr({type, _Line, {Name, Repr, Vars}}, Processed) ->
+process_type_attr({_Line, {Name, Repr, Vars}}, Processed) ->
   %% Process the type's representation.
   Type = safe_t_from_form(Repr),
   %% Parse the type parameters.
   Vs = [{?type_var, Var} || {var, _, Var} <- Vars],
   %% Store the type in the processed dict.
   dict:store({type, Name, length(Vs)}, {Type, Vs}, Processed).
+
+process_record_attr({_Line, {Name, Fields}}, Processed) ->
+  %% Process each field of the record.
+  Fs = [t_field_from_form(Field) || Field <- Fields],
+  %% Construct the representation of the record.
+  Record = t_record(Name, Fs),
+  %% Store the record in the proccessed dict.
+  dict:store({record, Name}, Record, Processed).
 
 %% Processes the declaration of a record's field.
 -spec t_field_from_form(cuter_cerl:cerl_record_field()) -> record_field_type().
@@ -1322,7 +1324,7 @@ equal_sets(A, B) ->
   sets:size(A) == sets:size(B) andalso sets:size(sets:union(A, B)) == sets:size(B).
 
 all_types_from_cerl(Kmodule) ->
-  TypesOpaques = [{type_replace_records(Type), Line} || {type, Line, Type} <- cuter_cerl:kmodule_type_forms(Kmodule)],
+  TypesOpaques = [{type_replace_records(Type), Line} || {Line, Type} <- cuter_cerl:kmodule_type_forms(Kmodule)],
   Records = records_as_types(Kmodule),
   lists:append(TypesOpaques, Records).
 
@@ -1347,7 +1349,7 @@ replace_records({T, L, Type, Args}) when T =:= type orelse T =:= user_type ->
 replace_records(Rest) -> Rest.
 
 records_as_types(Kmodule) ->
-  R = [{RecName, Line, RecFields} || {record, Line, {RecName, RecFields}} <- cuter_cerl:kmodule_record_forms(Kmodule)],  
+  R = [{RecName, Line, RecFields} || {Line, {RecName, RecFields}} <- cuter_cerl:kmodule_record_forms(Kmodule)],  
   lists:map(fun type_from_record/1, R).
 
 type_from_record({Name, Line, Fields}) ->

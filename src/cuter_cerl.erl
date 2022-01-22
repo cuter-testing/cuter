@@ -11,8 +11,6 @@
 -export([node_types_branches/0, node_types_branches_nocomp/0, node_types_all/0,
          node_types_conditions/0, node_types_conditions_nocomp/0,
          node_types_paths/0, node_types_paths_nocomp/0]).
-%% Exported for debugging use.
--export([classify_attributes/1]).
 %% kfun API.
 -export([kfun/2, kfun_code/1, kfun_is_exported/1, kfun_update_code/2]).
 %% kmodule API.
@@ -67,10 +65,6 @@
 -type lineno() :: integer().
 -type name() :: atom().
 -type fa() :: {name(), arity()}.
--type cerl_attr() :: {#c_literal{val :: 'type' | opaque}, #c_literal{val :: cerl_attr_type()}}
-                   | {#c_literal{val :: 'record'}, #c_literal{val :: cerl_recdef()}} % for OTP 19.x
-                   | {#c_literal{val :: 'spec'}, #c_literal{val :: cerl_attr_spec()}}
-                   | {#c_literal{val :: 'export_type' | 'behaviour'}, cerl:c_literal()}.
 -type cerl_attr_type() :: cerl_recdef() | cerl_typedef().
 -type cerl_attr_spec() :: cerl_specdef().
 
@@ -177,18 +171,21 @@ kmodule(M, AST, TagGen) ->
   Kmodule = ets:new(M, [ordered_set, protected]),
   Exports = extract_exports(M, AST),
   Attrs = cerl:module_attrs(AST),
-  {TypeAttrs, SpecAttrs} = classify_attributes(cerl:module_attrs(AST)),
-  Types = cuter_types:retrieve_types(TypeAttrs),
-  Specs = cuter_types:retrieve_specs(SpecAttrs),
+  RecordForms = extract_record_forms(Attrs),
+  TypeForms = extract_type_forms(Attrs),
+  SpecForms = extract_spec_forms(Attrs),
+  Types = cuter_types:retrieve_types(TypeForms, RecordForms),
+  Specs = cuter_types:retrieve_specs(SpecForms),
   Defs = cerl:module_defs(AST),
   Funs = [process_fundef(D, Exports, M, TagGen) || D <- Defs],
   ets:insert(Kmodule, {ast, AST}),
   ets:insert(Kmodule, {name, M}),
   ets:insert(Kmodule, {types, Types}),
   ets:insert(Kmodule, {specs, Specs}),
-  ets:insert(Kmodule, {spec_forms, SpecAttrs}),
+  ets:insert(Kmodule, {spec_forms, SpecForms}),
   ets:insert(Kmodule, {exported_types, extract_exported_types(M, Attrs)}),
-  ets:insert(Kmodule, {type_forms, TypeAttrs}),
+  ets:insert(Kmodule, {type_forms, TypeForms}),
+  ets:insert(Kmodule, {record_forms, RecordForms}),
   lists:foreach(fun({Mfa, Kfun}) -> ets:insert(Kmodule, {Mfa, Kfun}) end, Funs),
   Kmodule.
 
@@ -224,8 +221,8 @@ kmodule_type_forms(Kmodule) ->
 
 -spec kmodule_record_forms(kmodule()) -> [cerl:cerl()].
 kmodule_record_forms(Kmodule) ->
-  [{type_forms, TypeForms}] = ets:lookup(Kmodule, type_forms),
-  TypeForms.
+  [{record_forms, RecordForms}] = ets:lookup(Kmodule, record_forms),
+  RecordForms.
 
 %% Retrieves the kfun() for the given MFA.
 -spec kmodule_kfun(kmodule(), mfa()) -> {ok, kfun()} | error.
@@ -362,35 +359,62 @@ get_abstract_code(Mod, Beam) ->
 -type type_info() :: {'type', integer(), cerl_typedef()}
                    | {'record', cerl_recdef()}.
 -type spec_info() :: cerl_attr_spec().
--type classify_attr_ret() :: {[type_info()], [spec_info()]}.
 
--spec classify_attributes([cerl_attr()]) -> classify_attr_ret().
-classify_attributes(Attrs) ->
-  classify_attributes(Attrs, [], []).
+extract_record_forms(Attrs) ->
+  extract_record_forms(Attrs, []).
 
--spec classify_attributes([cerl_attr()], [type_info()], [spec_info()]) -> classify_attr_ret().
-classify_attributes([], Types, Specs) ->
-  {lists:reverse(Types), lists:reverse(Specs)};
-classify_attributes([{What, #c_literal{val = Val}=A}|Attrs], Types, Specs) ->
+extract_record_forms([], Acc) -> lists:reverse(Acc);
+extract_record_forms([{What, #c_literal{val = Val}=A}|Attrs], Acc) ->
   case cerl:atom_val(What) of
     Tp when Tp =:= type orelse Tp =:= opaque ->
       [V] = Val,
       Line = hd(cerl:get_ann(A)),
       case V of
         {{record, Name}, Fields, []} -> % for OTP 18.x and earlier
-          classify_attributes(Attrs, [{record, Line, {Name, Fields}}|Types], Specs);
+          extract_record_forms(Attrs, [{Line, {Name, Fields}}|Acc]);
         _ ->
-          classify_attributes(Attrs, [{type, Line, V}|Types], Specs)
+          extract_record_forms(Attrs, Acc)
       end;
     record -> % for OTP 19.x and newer
       Line = hd(cerl:get_ann(A)),
       [V] = Val,
-      classify_attributes(Attrs, [{record, Line, V}|Types], Specs);
+      extract_record_forms(Attrs, [{Line, V}|Acc]);
+    _ ->
+      extract_record_forms(Attrs, Acc)
+  end.
+
+extract_type_forms(Attrs) ->
+  extract_type_forms(Attrs, []).
+
+extract_type_forms([], Acc) ->
+  lists:reverse(Acc);
+extract_type_forms([{What, #c_literal{val = Val}=A}|Attrs], Acc) ->
+  case cerl:atom_val(What) of
+    Tp when Tp =:= type orelse Tp =:= opaque ->
+      [V] = Val,
+      Line = hd(cerl:get_ann(A)),
+      case V of
+        {{record, _Name}, _Fields, []} -> % for OTP 18.x and earlier
+	  extract_type_forms(Attrs, Acc);
+        _ ->
+          extract_type_forms(Attrs, [{Line, V}|Acc])
+      end;
+    _ ->
+      extract_type_forms(Attrs, Acc)
+  end.
+
+extract_spec_forms(Attrs) ->
+  extract_spec_forms(Attrs, []).
+
+extract_spec_forms([], Acc) ->
+  lists:reverse(Acc);
+extract_spec_forms([{What, #c_literal{val = Val}}|Attrs], Acc) ->
+  case cerl:atom_val(What) of
     spec ->
       [V] = Val,
-      classify_attributes(Attrs, Types, [V|Specs]);
-    _Ignore ->
-      classify_attributes(Attrs, Types, Specs)
+      extract_spec_forms(Attrs, [V|Acc]);
+    _ ->
+      extract_spec_forms(Attrs, Acc)
   end.
 
 %% ----------------------------------------------------------------------------
