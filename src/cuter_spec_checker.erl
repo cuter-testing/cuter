@@ -108,6 +108,19 @@ update_type([], _, Acc, true) -> Acc;
 update_type([{node_type, _}|T], Type, Acc, _) -> update_type(T, Type, [{node_type, Type}|Acc], true);
 update_type([H|T], Type, Acc, Found) -> update_type(T, Type, [H|Acc], Found).
 
+mark_as_unreachable(Clause) ->
+  Anno = cerl:get_ann(Clause),
+  case cuter_graphs:list_contains(type_dependent_unreachable, Anno) of
+    false ->
+      cerl:add_ann([type_dependent_unreachable], Clause);
+    true ->
+      Clause
+  end.
+
+mark_as_reachable(Clause) ->
+  Anno = [T || T <- cerl:get_ann(Clause), T =/= type_dependent_unreachable],
+  cerl:set_ann(Clause, Anno).
+
 has_type(Tree) ->
   Anno = cerl:get_ann(Tree),
   lists:foldl(
@@ -560,9 +573,9 @@ mark_unreachable_clauses([Clause|Clauses], ArgType, TSM, Arg, NewClauses) ->
   NewClause =
     case erl_types:t_is_none(ArgType) of
       true ->
-	cerl:add_ann([type_dependent_unreachable], Clause);
+	mark_as_unreachable(Clause);
       false ->
-	Clause
+	mark_as_reachable(Clause)
     end,
   SafeSub = fun(A, B) ->
 		try erl_types:t_subtract(A, B) of
