@@ -20,29 +20,28 @@ annotate_types(FunctionASTS, Sigs, FSet) ->
   annotate_types_helper(FunctionASTS, TSM, OpenSet, NoSpec).
 
 annotate_types_helper(FunctionASTS, TSM, OpenSet, NoSpec) ->
-  case sets:size(OpenSet) of
+  case length(OpenSet) of
     0 -> FunctionASTS;
     _ ->
-      O = sets:to_list(OpenSet),
-      {FASTS1, TSM1, OpenSet1} = annotate_types_helper_pass(FunctionASTS, TSM, O, NoSpec),
+      {FASTS1, TSM1, OpenSet1} = annotate_types_helper_pass(FunctionASTS, TSM, OpenSet, NoSpec),
       annotate_types_helper(FASTS1, TSM1, OpenSet1, NoSpec)
   end.
 
 annotate_types_helper_pass(FunctionASTS, TSM, OpenSet, NoSpec) ->
-  annotate_types_helper_pass(FunctionASTS, TSM, OpenSet, NoSpec, sets:new()).
+  annotate_types_helper_pass(FunctionASTS, TSM, OpenSet, NoSpec, []).
 
-annotate_types_helper_pass(FunctionASTS, TSM, [], _NoSpec, OpenSet1) -> {FunctionASTS, TSM, OpenSet1};
+annotate_types_helper_pass(FunctionASTS, TSM, [], _NoSpec, OpenSet1) -> {FunctionASTS, TSM, lists:reverse(OpenSet1)};
 annotate_types_helper_pass(FunctionASTS, TSM, [Mfa|Mfas], NoSpec, OpenSet1) -> 
   AST = dict:fetch(Mfa, FunctionASTS),
   Spec = dict:fetch(Mfa, TSM),
   {NewAST, D, C} = pass_down_fun_types(Mfa, AST, Spec, TSM, NoSpec),
+  {TSM1, OpenSet2} = update_from_detected(D, TSM, OpenSet1),
   case C or (length(D) > 0) of
     true ->
-      OpenSet2 = sets:add_element(Mfa, OpenSet1);
+      OpenSet3 = [Mfa|OpenSet2];
     false ->
-      OpenSet2 = OpenSet1
+      OpenSet3 = OpenSet2
   end,
-  {TSM1, OpenSet3} = update_from_detected(D, TSM, OpenSet2),
   case sets:is_element(Mfa, NoSpec) of
     true ->
       T = get_cerl_type(NewAST),
@@ -61,7 +60,7 @@ annotate_types_helper_pass(FunctionASTS, TSM, [Mfa|Mfas], NoSpec, OpenSet1) ->
 
 update_from_detected([], TSM, OpenSet) -> {TSM, OpenSet};
 update_from_detected([{Mfa, Spec}|Rest], TSM, OpenSet) ->
-  OpenSet1 = sets:add_element(Mfa, OpenSet),
+  OpenSet1 = [Mfa|OpenSet],
   case dict:find(Mfa, TSM) of
     {ok, [Cur]} ->
       TSM1 = dict:store(Mfa, [erl_types:t_sup(Cur, Spec)], TSM);
@@ -81,7 +80,7 @@ make_open_set(FSet, Sigs) ->
 	     false -> false
 	   end
        end,
-  sets:filter(Fn, FSet).
+  sets:to_list(sets:filter(Fn, FSet)).
 
 %% ==========================
 %% single function annotation
