@@ -253,6 +253,7 @@ handle_call(annotate_for_possible_errors, _From, State=#st{db = Db}) ->
   {ok, EntryPoint} = cuter_config:fetch(?ENTRY_POINT),
   MfasToKfuns = ets:foldl(Fn, dict:new(), Db),
   %io:format("Before Specs~n"),
+  %io:format("ast: ~p~n", [cuter_cerl:kfun_code(dict:fetch({lists, unzip, 3}, MfasToKfuns))]),
   MfasToSpecs = cuter_types:parse_specs(Kmodules),
   UpdatedKfuns = cuter_maybe_error_annotation:preprocess(EntryPoint, MfasToKfuns, MfasToSpecs, true),
   RFn = fun({M, F, A}, Kfun, _Acc) ->
@@ -261,7 +262,10 @@ handle_call(annotate_for_possible_errors, _From, State=#st{db = Db}) ->
 	end,
   dict:fold(RFn, ok, UpdatedKfuns),
   %io:format("spec: ~p~n", [dict:find(EntryPoint, MfasToSpecs)]),
+  %io:format("spec unzip 3: ~p~n", [dict:find({lists, unzip, 3}, MfasToSpecs)]),
   %io:format("ast: ~p~n", [cuter_cerl:kfun_code(dict:fetch(EntryPoint, UpdatedKfuns))]),
+  %io:format("ast unzip3 ~p~n", [cuter_cerl:kfun_code(dict:fetch({lists, unzip, 3}, UpdatedKfuns))]),
+  %io:format("ast: reverse ~p~n", [cuter_cerl:kfun_code(dict:fetch({lists, reverse, 1}, UpdatedKfuns))]),
   {reply, ok, State}.
 
 

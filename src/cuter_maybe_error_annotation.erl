@@ -352,7 +352,15 @@ annotate_maybe_error_pattern(Tree, SM, Force) ->
     tuple ->
       {Es, C, Found, SM1} = annotate_maybe_error_pattern_all(cerl:tuple_es(Tree), SM, Force),
       NewMaybe_Error = get_all_maybe_error(Es),
-      {cerl:update_c_tuple(update_ann(Tree, NewMaybe_Error), Es), C, Found, SM1}
+      {cerl:update_c_tuple(update_ann(Tree, NewMaybe_Error), Es), C, Found, SM1};
+    alias ->
+      {Pat, C1, Found, SM1} = annotate_maybe_error_pattern(cerl:alias_pat(Tree), SM, Force),
+      Var = cerl:alias_var(Tree),
+      SM2 = put_vars([Var], [{type_dependent, 'var'}], SM1),
+      Var1 = update_ann(Var, type_dependent),
+      Tree1 = update_ann(Tree, type_dependent),
+      C2 = CurMaybe_Error =/= type_dependent,
+      {cerl:update_c_alias(Tree1, Var1, Pat), C1 or C2, Found, SM2}
   end.
   
 -spec get_arg_maybe_errors(cerl:cerl()) -> [{maybe_error(), atom()}].

@@ -69,12 +69,13 @@ update_from_detected([{Mfa, Spec}|Rest], TSM, OpenSet) ->
       TSM1 = dict:store(Mfa, [Spec], TSM)
   end,
   update_from_detected(Rest, TSM1, OpenSet1).
+
 find_nospec(FSet, Sigs) ->
   Fn = fun(F) -> not dict:is_key(F, Sigs) end,
   sets:filter(Fn, FSet).
 
 make_open_set(FSet, Sigs) ->
-  Fn = fun(F) -> 
+  Fn = fun(F) ->
 	   case dict:is_key(F, Sigs) of
 	     true -> length(dict:fetch(F, Sigs)) =:= 1;
 	     false -> false
@@ -177,6 +178,9 @@ t_from_pattern(Tree, TSM, TSM2) ->
     tuple ->
       Es = lists:map(fun(E) -> t_from_pattern(E, TSM, TSM2) end, cerl:tuple_es(Tree)),
       erl_types:t_tuple(Es);
+    alias ->
+      Pat = cerl:alias_pat(Tree),
+      t_from_pattern(Pat, TSM, TSM2);
     _ -> erl_types:t_none()
   end.
 
@@ -285,7 +289,14 @@ pass_down_types_helper(Fun, Spec, TSM, Mod, NoSpec) ->
 pass_down_types(Tree, TSM, Mod, ArgType, NoSpec) ->
   CurType = get_cerl_type(Tree),
   case cerl:type(Tree) of
-    %%alias ->
+    alias ->
+      {Pat, D1, C1} = pass_down_types(cerl:alias_pat(Tree), TSM, Mod, ArgType, NoSpec),
+      Var = cerl:alias_var(Tree),
+      T = get_cerl_type(Pat),
+      Var1 = update_type(Var, T),
+      Change = C1 or (CurType =/= T),
+      Tree1 = update_type(Tree, T),
+      {cerl:update_c_alias(Tree1, Var1, Pat), D1, Change};
     'apply' ->
       {Args, D1, C1} = pass_down_types_all(cerl:apply_args(Tree), TSM, Mod, ArgType, NoSpec),
       Op = cerl:apply_op(Tree),
@@ -539,13 +550,7 @@ mark_unreachable_clauses(Clauses, ArgType, TSM, Arg) ->
   end,
   case ArgType =:= notype of
     false ->
-      Fn = fun(C) -> valid_guard(C, TSM, ArgList) end,
-      case lists:all(Fn, Clauses) of
-	true ->
-	  mark_unreachable_clauses(Clauses, ArgType, TSM, ArgList, []);
-	false ->
-	  Clauses
-      end;
+      mark_unreachable_clauses(Clauses, ArgType, TSM, ArgList, []);
     true -> Clauses
   end.
 
@@ -566,7 +571,7 @@ mark_unreachable_clauses([Clause|Clauses], ArgType, TSM, Arg, NewClauses) ->
 		  _:_ -> A
 		end
 	    end,
-  {A, TSMorT} = update_tsm_from_guard(cerl:clause_guard(Clause), TSM, Arg),
+  {A, TSMorT} = update_tsm_from_guard(Clause, TSM, Arg),
   case A of
     {argtype, ArgName} ->
       PatTypes1 = lists:map(fun (X) -> t_from_pattern(X, TSM, dict:new()) end, Pats),
@@ -600,7 +605,9 @@ mark_unreachable_clauses([Clause|Clauses], ArgType, TSM, Arg, NewClauses) ->
 	  end;
 	false ->
 	  T = ArgType
-      end
+      end;
+    invalid ->
+      T = ArgType
   end,
   mark_unreachable_clauses(Clauses, T, TSM, Arg, [NewClause|NewClauses]).
 
@@ -697,31 +704,37 @@ is_right_call(Call, LetVar) ->
     false -> false
   end.
 
-update_tsm_from_guard(Guard, TSM, ArgList) ->
-  case cerl:type(Guard) of
-    literal when element(3, Guard) =:= true -> {tsm, TSM};
-    call ->
-      Args = cerl:call_args(Guard),
-      case get_call_mfa(Guard) of
-	{erlang, is_integer, 1} ->
-	  update_tsm_from_guard_helper(Args, ArgList, erl_types:t_integer());
-	{erlang, is_atom, 1} -> 
-	  update_tsm_from_guard_helper(Args, ArgList, erl_types:t_atom());
-	{erlang, is_function, 1} ->
-	  update_tsm_from_guard_helper(Args, ArgList, erl_types:t_fun());
-	{erlang, is_function, 2}->
-	  Arity = element(3, lists:nth(2, Args)),
-	  update_tsm_from_guard_helper(Args, ArgList, erl_types:t_fun(Arity, erl_types:t_any()))
+update_tsm_from_guard(Clause, TSM, ArgList) ->
+  case valid_guard(Clause, TSM, ArgList) of
+    true ->
+      Guard = cerl:clause_guard(Clause),
+      case cerl:type(Guard) of
+	literal when element(3, Guard) =:= true -> {tsm, TSM};
+	call ->
+	  Args = cerl:call_args(Guard),
+	  case get_call_mfa(Guard) of
+	    {erlang, is_integer, 1} ->
+	      update_tsm_from_guard_helper(Args, ArgList, erl_types:t_integer());
+	    {erlang, is_atom, 1} -> 
+	      update_tsm_from_guard_helper(Args, ArgList, erl_types:t_atom());
+	    {erlang, is_function, 1} ->
+	      update_tsm_from_guard_helper(Args, ArgList, erl_types:t_fun());
+	    {erlang, is_function, 2}->
+	      Arity = element(3, lists:nth(2, Args)),
+	      update_tsm_from_guard_helper(Args, ArgList, erl_types:t_fun(Arity, erl_types:t_any()))
+	  end;
+	'try' ->
+	  TryArg = cerl:try_arg(Guard),
+	  LetArg = cerl:let_arg(TryArg),
+	  Args = cerl:call_args(LetArg),
+	  case get_call_mfa(LetArg) of
+	    {erlang, is_function, 2} ->
+	      Arity = element(3, lists:nth(2, Args)),
+	      update_tsm_from_guard_helper(Args, ArgList, erl_types:t_fun(Arity, erl_types:t_any()))
+	  end
       end;
-    'try' ->
-      TryArg = cerl:try_arg(Guard),
-      LetArg = cerl:let_arg(TryArg),
-      Args = cerl:call_args(LetArg),
-      case get_call_mfa(LetArg) of
-	{erlang, is_function, 2} ->
-	  Arity = element(3, lists:nth(2, Args)),
-	  update_tsm_from_guard_helper(Args, ArgList, erl_types:t_fun(Arity, erl_types:t_any()))
-      end
+    false ->
+      {invalid, none}
   end.
 
 update_tsm_from_guard_helper(Args, ArgList, Type) ->
