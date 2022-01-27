@@ -227,7 +227,7 @@ t_union(Types) ->
 t_union([], T) -> T;
 t_union([Type|Types], T) -> t_union(Types, erl_types:t_sup(Type, T)).
 
-unify_pattern(Tree, TSM, Type) ->
+unify_pattern(Tree, TSM, TSM2, Type) ->
   case cerl:type(Tree) of
     literal ->
       {ok, TSM};
@@ -237,54 +237,76 @@ unify_pattern(Tree, TSM, Type) ->
 	  try erl_types:t_unify(VarType, Type) of
 	    _ -> {ok, TSM}
 	  catch
-	    _ -> {error, mismatch}
+	    _ -> 
+	      {error, mismatch}
 	  end;
 	error ->
-	  {ok, dict:store(cerl:var_name(Tree), Type, TSM)}
+	  case dict:find(cerl:var_name(Tree), TSM2) of
+	    {ok, VarGuardType} ->
+	      case erl_types:t_is_subtype(VarGuardType, Type) of
+		true -> {ok, dict:store(cerl:var_name(Tree), VarGuardType, TSM)};
+		false -> {error, mismatch}
+	      end;
+	    error ->
+	      {ok, dict:store(cerl:var_name(Tree), Type, TSM)}
+	  end
       end;
     cons ->
       case erl_types:t_is_list(Type) of
 	true ->
 	  NewType = erl_types:t_nonempty_list(erl_types:t_list_elements(Type)),
-	  Hdt = unify_pattern(cerl:cons_hd(Tree), TSM, erl_types:t_cons_hd(NewType)),
+	  Hdt = unify_pattern(cerl:cons_hd(Tree), TSM, TSM2, erl_types:t_cons_hd(NewType)),
 	  case Hdt of
 	    {ok, TSM1} ->
-	      Tlt = unify_pattern(cerl:cons_tl(Tree), TSM1, erl_types:t_cons_tl(NewType)),
+	      Tlt = unify_pattern(cerl:cons_tl(Tree), TSM1, TSM2, erl_types:t_cons_tl(NewType)),
 	      case Tlt of
-		{ok, TSM2} -> {ok, TSM2};
-		_ ->{error, mismatch}
+		{ok, TSMnew} -> {ok, TSMnew};
+		_ -> {error, mismatch}
 	      end;
 	    _  ->
 	      {error, mismatch}
 	  end;
 	false ->
-	  {error, mismatch}
+	  try_to_handle_union(Tree, TSM, TSM2, Type, erl_types:t_list())
       end;
     tuple ->
       case erl_types:t_is_tuple(Type) of
 	true ->
-	  case length(cerl:tuple_es(Tree)) == erl_types:t_tuple_size(Type) of
+	  Type1 = 
+	    try erl_types:t_tuple_size(Type) of
+	      _ -> Type
+	    catch
+	      _:_ -> erl_types:t_tuple(length(cerl:tuple_es(Tree)))
+	    end,
+	  case length(cerl:tuple_es(Tree)) == erl_types:t_tuple_size(Type1) of
 	    true -> 
 	      lists:foldl(
 		fun({E, Et}, V) ->
 		    case V of
 		      {ok, V1} ->
-			unify_pattern(E, V1, Et);
+			unify_pattern(E, V1, TSM2, Et);
 		      {error, _} ->
 			{error, mismatch}
 		    end
 		end,
 		{ok, TSM},
-		lists:zip(cerl:tuple_es(Tree), erl_types:t_tuple_args(Type))
+		lists:zip(cerl:tuple_es(Tree), erl_types:t_tuple_args(Type1))
 	       );
 	    false -> {error, mismatch}
 	  end;
-	false -> {error, mismatch}
+	false -> 
+	  try_to_handle_union(Tree, TSM, TSM2, Type, erl_types:t_tuple())
       end;
     _ ->
       {ok, TSM}
   end.
 
+try_to_handle_union(Tree, TSM, TSM2, Type, T) ->
+  H = erl_types:t_subtract(Type, (erl_types:t_subtract(Type, T))),
+  case erl_types:t_is_none(H) of
+    true -> {error, mismatch};
+    false -> unify_pattern(Tree, TSM, TSM2, H)
+  end.
 
 %% ==================
 %% passing down types
@@ -409,7 +431,13 @@ pass_down_types(Tree, TSM, Mod, ArgType, NoSpec) ->
       Fn = fun({Pat, AType}, V) ->
 	       case V of
 		 {ok, V1} ->
-		   unify_pattern(Pat, V1, AType);
+		   {A, TSMorT} = update_tsm_from_guard(Tree, V1, []),
+		   case A of
+		     tsm ->
+		       unify_pattern(Pat, V1, TSMorT, AType);
+		     _ ->
+		       unify_pattern(Pat, V1, dict:new(), AType)
+		     end;
 		 {error, mismatch} -> {error, mismatch}
 	       end
 	   end,
@@ -641,7 +669,8 @@ valid_guard(Clause, TSM, ArgList) ->
   Guard = cerl:clause_guard(Clause),
   case cerl:type(Guard) of
     literal when element(3, Guard) =:= true -> true;
-    call ->      Args = cerl:call_args(Guard),
+    call ->
+      Args = cerl:call_args(Guard),
       case get_call_mfa(Guard) of
 	{erlang, is_integer, 1} -> is_unknown_var(hd(Args), TSM, ArgList);
 	{erlang, is_atom, 1} -> is_unknown_var(hd(Args), TSM, ArgList);
@@ -721,13 +750,13 @@ update_tsm_from_guard(Clause, TSM, ArgList) ->
     true ->
       Guard = cerl:clause_guard(Clause),
       case cerl:type(Guard) of
-	literal when element(3, Guard) =:= true -> {tsm, TSM};
+	literal when element(3, Guard) =:= true -> {tsm, dict:new()};
 	call ->
 	  Args = cerl:call_args(Guard),
 	  case get_call_mfa(Guard) of
 	    {erlang, is_integer, 1} ->
 	      update_tsm_from_guard_helper(Args, ArgList, erl_types:t_integer());
-	    {erlang, is_atom, 1} -> 
+	    {erlang, is_atom, 1} ->
 	      update_tsm_from_guard_helper(Args, ArgList, erl_types:t_atom());
 	    {erlang, is_function, 1} ->
 	      update_tsm_from_guard_helper(Args, ArgList, erl_types:t_fun());
