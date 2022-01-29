@@ -31,14 +31,15 @@ annotate_types_helper_pass(FunctionASTS, TSM, OpenSet, NoSpec) ->
   annotate_types_helper_pass(FunctionASTS, TSM, OpenSet, NoSpec, []).
 
 annotate_types_helper_pass(FunctionASTS, TSM, [], _NoSpec, OpenSet1) -> {FunctionASTS, TSM, lists:reverse(OpenSet1)};
-annotate_types_helper_pass(FunctionASTS, TSM, [Mfa|Mfas], NoSpec, OpenSet1) -> 
+annotate_types_helper_pass(FunctionASTS, TSM, [{Mfa, Persistence}|Mfas], NoSpec, OpenSet1) -> 
   AST = dict:fetch(Mfa, FunctionASTS),
   Spec = dict:fetch(Mfa, TSM),
-  {NewAST, D, C} = pass_down_fun_types(Mfa, AST, Spec, TSM, NoSpec),
+  TSMP = merge_all_dicts([TSM, Persistence]),
+  {NewAST, D, C, P} = pass_down_fun_types(Mfa, AST, Spec, TSMP, NoSpec),
   {TSM1, OpenSet2} = update_from_detected(D, TSM, OpenSet1),
   case C or (length(D) > 0) of
     true ->
-      OpenSet3 = [Mfa|OpenSet2];
+      OpenSet3 = update_open_set(Mfa, P, OpenSet2);
     false ->
       OpenSet3 = OpenSet2
   end,
@@ -58,9 +59,18 @@ annotate_types_helper_pass(FunctionASTS, TSM, [Mfa|Mfas], NoSpec, OpenSet1) ->
   NewASTS = dict:store(Mfa, NewAST, FunctionASTS),
   annotate_types_helper_pass(NewASTS, TSM2, Mfas, NoSpec, OpenSet3).
 
+update_open_set(Mfa, P, OpenSet) ->
+  lists:reverse([{Mfa, P}|update_open_set1(Mfa, OpenSet, [])]).
+
+update_open_set1(_Mfa, [], Acc) -> Acc;
+update_open_set1(Mfa, [{Mfa, _P}|Rest], Acc) ->
+  update_open_set1(Mfa, Rest, Acc);
+update_open_set1(Mfa, [A|R], Acc) ->
+  update_open_set1(Mfa, R, [A|Acc]).
+
 update_from_detected([], TSM, OpenSet) -> {TSM, OpenSet};
 update_from_detected([{Mfa, Spec}|Rest], TSM, OpenSet) ->
-  OpenSet1 = [Mfa|OpenSet],
+  OpenSet1 = [{Mfa, dict:new()}|OpenSet],
   case dict:find(Mfa, TSM) of
     {ok, [Cur]} ->
       TSM1 = dict:store(Mfa, [erl_types:t_sup(Cur, Spec)], TSM);
@@ -80,7 +90,8 @@ make_open_set(FSet, Sigs) ->
 	     false -> false
 	   end
        end,
-  sets:to_list(sets:filter(Fn, FSet)).
+  O1 = sets:to_list(sets:filter(Fn, FSet)),
+  [{X, dict:new()} || X <- O1].
 
 %% ==========================
 %% single function annotation
@@ -302,10 +313,15 @@ unify_pattern(Tree, TSM, TSM2, Type) ->
   end.
 
 try_to_handle_union(Tree, TSM, TSM2, Type, T) ->
-  H = erl_types:t_subtract(Type, (erl_types:t_subtract(Type, T))),
-  case erl_types:t_is_none(H) of
-    true -> {error, mismatch};
-    false -> unify_pattern(Tree, TSM, TSM2, H)
+  case erl_types:is_erl_type(Type) andalso erl_types:is_erl_type(T) of
+    true ->
+      H = erl_types:t_subtract(Type, (erl_types:t_subtract(Type, T))),
+      case erl_types:t_is_none(H) of
+	true -> {error, mismatch};
+	false -> unify_pattern(Tree, TSM, TSM2, H)
+      end;
+    false ->
+      {error, mismatch}
   end.
 
 %% ==================
@@ -317,20 +333,20 @@ pass_down_fun_types({M, _F, _A}, AST, Spec, TSM, NoSpec) ->
 
 pass_down_types_helper(Fun, Spec, TSM, Mod, NoSpec) ->
   TSM2 = put_vars(cerl:fun_vars(Fun), erl_types:t_fun_args(hd(Spec)), TSM),
-  {Body, D, C, _DC} = pass_down_types(cerl:fun_body(Fun), TSM2, Mod, notype, NoSpec, sets:new()),
-  {cerl:update_c_fun(Fun, cerl:fun_vars(Fun), Body), D, C}.
+  {Body, D, C, _DC, P} = pass_down_types(cerl:fun_body(Fun), TSM2, Mod, notype, NoSpec, sets:new()),
+  {cerl:update_c_fun(Fun, cerl:fun_vars(Fun), Body), D, C, P}.
 
 pass_down_types(Tree, TSM, Mod, ArgType, NoSpec, Closures) ->
   CurType = get_cerl_type(Tree),
   case cerl:type(Tree) of
     alias ->
-      {Pat, D1, C1, CD1} = pass_down_types(cerl:alias_pat(Tree), TSM, Mod, ArgType, NoSpec, Closures),
+      {Pat, D1, C1, CD1, P1} = pass_down_types(cerl:alias_pat(Tree), TSM, Mod, ArgType, NoSpec, Closures),
       Var = cerl:alias_var(Tree),
       T = get_cerl_type(Pat),
       Var1 = update_type(Var, T),
       Change = C1 or (CurType =/= T),
       Tree1 = update_type(Tree, T),
-      {cerl:update_c_alias(Tree1, Var1, Pat), D1, Change, CD1};
+      {cerl:update_c_alias(Tree1, Var1, Pat), D1, Change, CD1, P1};
     'apply' ->
       pass_down_types_apply(Tree, TSM, Mod, ArgType, NoSpec, Closures, CurType);
     call ->
@@ -340,17 +356,18 @@ pass_down_types(Tree, TSM, Mod, ArgType, NoSpec, Closures) ->
     clause ->
       pass_down_types_clause(Tree, TSM, Mod, ArgType, NoSpec, Closures, CurType);
     cons ->
-      {Hd, D1, C1, CD1} = pass_down_types(cerl:cons_hd(Tree), TSM, Mod, ArgType, NoSpec, Closures),
-      {Tl, D2, C2, CD2} = pass_down_types(cerl:cons_tl(Tree), TSM, Mod, ArgType, NoSpec, Closures),
+      {Hd, D1, C1, CD1, P1} = pass_down_types(cerl:cons_hd(Tree), TSM, Mod, ArgType, NoSpec, Closures),
+      {Tl, D2, C2, CD2, P2} = pass_down_types(cerl:cons_tl(Tree), TSM, Mod, ArgType, NoSpec, Closures),
       Tree1 = 
 	case {get_cerl_type(Hd), get_cerl_type(Tl)} of
 	  {X, Y} when X =:= notype orelse Y =:= notype -> update_type(Tree, notype);
 	  _ -> update_type(Tree, erl_types:t_cons(get_cerl_type(Hd), get_cerl_type(Tl)))
 	end,
       Change = C1 or C2 or (CurType =/= get_cerl_type(Tree1)),
-      {cerl:update_c_cons(Tree1, Hd, Tl), D1 ++ D2, Change, CD1 ++ CD2};
+      P = merge_all_dicts([P1, P2]),
+      {cerl:update_c_cons(Tree1, Hd, Tl), D1 ++ D2, Change, CD1 ++ CD2, P};
     tuple ->
-      {Es, D, C, CD} = pass_down_types_all(cerl:tuple_es(Tree), TSM, Mod, ArgType, NoSpec, Closures),
+      {Es, D, C, CD, P} = pass_down_types_all(cerl:tuple_es(Tree), TSM, Mod, ArgType, NoSpec, Closures),
       Tree1 =
 	case lists:foldl(fun(X, Y) -> Y orelse (get_cerl_type(X) =:= notype) end, false, Es) of
 	  true ->
@@ -358,7 +375,7 @@ pass_down_types(Tree, TSM, Mod, ArgType, NoSpec, Closures) ->
 	  false -> update_type(Tree, erl_types:t_tuple(lists:map(fun get_cerl_type/1, Es)))
 	end,
       Change = C or (CurType =/= get_cerl_type(Tree1)),
-      {cerl:update_c_tuple(Tree1, Es), D, Change, CD};
+      {cerl:update_c_tuple(Tree1, Es), D, Change, CD, P};
     'fun' ->
       pass_down_types_fun(Tree, TSM, Mod, ArgType, NoSpec, Closures, CurType);
     'let' ->
@@ -366,44 +383,46 @@ pass_down_types(Tree, TSM, Mod, ArgType, NoSpec, Closures) ->
     letrec ->
       pass_down_types_letrec(Tree, TSM, Mod, ArgType, NoSpec, Closures, CurType);
     literal ->
-      {update_type(Tree, erl_types:t_from_term(element(3, Tree))), [], false, []};
+      {update_type(Tree, erl_types:t_from_term(element(3, Tree))), [], false, [], dict:new()};
     seq ->
-      {Arg, D1, C1, CD1} = pass_down_types(cerl:seq_arg(Tree), TSM, Mod, ArgType, NoSpec, Closures),
-      {Body, D2, C2, CD2} = pass_down_types(cerl:seq_body(Tree), TSM, Mod, ArgType, NoSpec, Closures),
+      {Arg, D1, C1, CD1, P1} = pass_down_types(cerl:seq_arg(Tree), TSM, Mod, ArgType, NoSpec, Closures),
+      {Body, D2, C2, CD2, P2} = pass_down_types(cerl:seq_body(Tree), TSM, Mod, ArgType, NoSpec, Closures),
       Change = C1 or C2 or (CurType =/= get_cerl_type(Body)),
-      {cerl:update_c_seq(update_type(Tree, get_cerl_type(Body)), Arg, Body), D1 ++ D2, Change, CD1 ++ CD2};
+      P = merge_all_dicts([P1, P2]),
+      {cerl:update_c_seq(update_type(Tree, get_cerl_type(Body)), Arg, Body), D1 ++ D2, Change, CD1 ++ CD2, P};
     'try' ->
-      {Arg, D1, C1, CD1} = pass_down_types(cerl:try_arg(Tree), TSM, Mod, ArgType, NoSpec, Closures),
-      {Vars, D2, C2, CD2} = pass_down_types_all(cerl:try_vars(Tree), TSM, Mod, ArgType, NoSpec, Closures),
-      {Body, D3, C3, CD3} = pass_down_types(cerl:try_body(Tree), TSM, Mod, ArgType, NoSpec, Closures),
-      {Evars, D4, C4, CD4} = pass_down_types_all(cerl:try_evars(Tree), TSM, Mod, ArgType, NoSpec, Closures),
-      {Handler, D5, C5, CD5} = pass_down_types(cerl:try_handler(Tree), TSM, Mod, ArgType, NoSpec, Closures),
+      {Arg, D1, C1, CD1, P1} = pass_down_types(cerl:try_arg(Tree), TSM, Mod, ArgType, NoSpec, Closures),
+      {Vars, D2, C2, CD2, P2} = pass_down_types_all(cerl:try_vars(Tree), TSM, Mod, ArgType, NoSpec, Closures),
+      {Body, D3, C3, CD3, P3} = pass_down_types(cerl:try_body(Tree), TSM, Mod, ArgType, NoSpec, Closures),
+      {Evars, D4, C4, CD4, P4} = pass_down_types_all(cerl:try_evars(Tree), TSM, Mod, ArgType, NoSpec, Closures),
+      {Handler, D5, C5, CD5, P5} = pass_down_types(cerl:try_handler(Tree), TSM, Mod, ArgType, NoSpec, Closures),
       Change = C1 or C2 or C3 or C4 or C5 or (CurType =/= get_cerl_type(Body)),
       D = lists:append([D1, D2, D3, D4, D5]),
       CD = lists:append([CD1, CD2, CD3, CD4, CD5]),
-      {cerl:update_c_try(update_type(Tree, get_cerl_type(Body)), Arg, Vars, Body, Evars, Handler), D, Change, CD};
+      P = merge_all_dicts([P1, P2, P3, P4, P5]),
+      {cerl:update_c_try(update_type(Tree, get_cerl_type(Body)), Arg, Vars, Body, Evars, Handler), D, Change, CD, P};
     primop ->
-      {update_type(Tree, notype), [], false, []};
+      {update_type(Tree, notype), [], false, [], dict:new()};
     values ->
-      {Es, D1, C1, CD1} = pass_down_types_all(cerl:values_es(Tree), TSM, Mod, ArgType, NoSpec, Closures),
+      {Es, D1, C1, CD1, P1} = pass_down_types_all(cerl:values_es(Tree), TSM, Mod, ArgType, NoSpec, Closures),
       case lists:all(fun has_type/1, Es) of
 	true ->
-	  {cerl:update_c_values(update_type(Tree, erl_types:t_tuple([get_cerl_type(T) || T <- Es])), Es), D1, C1, CD1};
+	  {cerl:update_c_values(update_type(Tree, erl_types:t_tuple([get_cerl_type(T) || T <- Es])), Es), D1, C1, CD1, P1};
 	false ->
-	  {cerl:update_c_values(update_type(Tree, notype), Es), D1, C1 or (CurType =/= notype), CD1}
+	  {cerl:update_c_values(update_type(Tree, notype), Es), D1, C1 or (CurType =/= notype), CD1, P1}
       end;
     var ->
       case dict:find(cerl:var_name(Tree), TSM) of
 	{ok, Type} ->
-	  {update_type(Tree, Type), [], false, []};
-	_ -> {update_type(Tree, notype), [], false, []}
+	  {update_type(Tree, Type), [], false, [], dict:new()};
+	_ -> {update_type(Tree, notype), [], false, [], dict:new()}
       end;
     _ -> 
-      {Tree, [], false, []}
+      {Tree, [], false, [], dict:new()}
   end.
 
 pass_down_types_apply(Tree, TSM, Mod, ArgType, NoSpec, Closures, CurType) ->
-  {Args, D1, C1, CD1} = pass_down_types_all(cerl:apply_args(Tree), TSM, Mod, ArgType, NoSpec, Closures),
+  {Args, D1, C1, CD1, P1} = pass_down_types_all(cerl:apply_args(Tree), TSM, Mod, ArgType, NoSpec, Closures),
   Op = cerl:apply_op(Tree),
   {Tree1, D2, C2, CD2} =
     case lists:all(fun has_type/1, Args) of
@@ -450,10 +469,10 @@ pass_down_types_apply(Tree, TSM, Mod, ArgType, NoSpec, Closures, CurType) ->
       _ -> {Tree, D1, false, CD1}
     end,
   Change = C1 or C2 or (CurType =/= get_cerl_type(Tree1)),
-  {cerl:update_c_apply(Tree1, Op, Args), D2, Change, CD2}.
+  {cerl:update_c_apply(Tree1, Op, Args), D2, Change, CD2, P1}.
 
 pass_down_types_call(Tree, TSM, Mod, ArgType, NoSpec, Closures, CurType) ->
-  {Args, D1, C1, CD1} = pass_down_types_all(cerl:call_args(Tree), TSM, Mod, ArgType, NoSpec, Closures),
+  {Args, D1, C1, CD1, P1} = pass_down_types_all(cerl:call_args(Tree), TSM, Mod, ArgType, NoSpec, Closures),
   ModName = cerl:call_module(Tree),
   Name = cerl:call_name(Tree),
   Arity = length(cerl:call_args(Tree)),
@@ -489,18 +508,18 @@ pass_down_types_call(Tree, TSM, Mod, ArgType, NoSpec, Closures, CurType) ->
       _ -> {Tree, D1, false}
     end,
   Change = C1 or C2 or (CurType =/= get_cerl_type(Tree1)),
-  {cerl:update_c_call(Tree1, ModName, Name, Args), D2, Change, CD1}.
+  {cerl:update_c_call(Tree1, ModName, Name, Args), D2, Change, CD1, P1}.
 
 pass_down_types_case(Tree, TSM, Mod, ArgType, NoSpec, Closures, CurType) ->
-  {Arg, D1, C1, CD1} = pass_down_types(cerl:case_arg(Tree), TSM, Mod, ArgType, NoSpec, Closures),
-  {Clauses1, D2, C2, CD2} = pass_down_types_all(cerl:case_clauses(Tree), TSM, Mod, get_cerl_type(Arg), NoSpec, Closures),
+  {Arg, D1, C1, CD1, P1} = pass_down_types(cerl:case_arg(Tree), TSM, Mod, ArgType, NoSpec, Closures),
+  {Clauses1, D2, C2, CD2, P2} = pass_down_types_all(cerl:case_clauses(Tree), TSM, Mod, get_cerl_type(Arg), NoSpec, Closures),
   Clauses = mark_unreachable_clauses(Clauses1, get_cerl_type(Arg), TSM, Arg),
   Clauses2 = [Clause || Clause <- Clauses, not get_type_dependent_unreachable(Clause)],
   Type = 
     case lists:all(fun has_type/1, Clauses2) of
       true ->
 	T = arg_types(Clauses2),
-	case listcontains(notype, T) of
+	case cuter_graphs:list_contains(notype, T) of
 	  true -> notype;
 	  false -> t_union(T)
 	end;
@@ -508,7 +527,8 @@ pass_down_types_case(Tree, TSM, Mod, ArgType, NoSpec, Closures, CurType) ->
 	notype
     end,
   Change = C1 or C2 or (CurType =/= Type),
-  {cerl:update_c_case(update_type(Tree, Type), Arg, Clauses), D1 ++ D2, Change, CD1 ++ CD2}.
+  P = merge_all_dicts([P1, P2]),
+  {cerl:update_c_case(update_type(Tree, Type), Arg, Clauses), D1 ++ D2, Change, CD1 ++ CD2, P}.
 
 pass_down_types_clause(Tree, TSM, Mod, ArgType, NoSpec, Closures, CurType) ->
   Fn = fun({Pat, AType}, V) ->
@@ -551,18 +571,19 @@ pass_down_types_clause(Tree, TSM, Mod, ArgType, NoSpec, Closures, CurType) ->
     {error, _} ->
       TSM1 = TSM
   end,
-  {Pats, D1, C1, CD1} = pass_down_types_all(cerl:clause_pats(Tree), TSM1, Mod, ArgType, NoSpec, Closures),
-  {Guard, D2, C2, CD2} = pass_down_types(cerl:clause_guard(Tree), TSM1, Mod, ArgType, NoSpec, Closures),
-  {Body, D3, C3, CD3} = pass_down_types(cerl:clause_body(Tree), TSM1, Mod, ArgType, NoSpec, Closures),
+  {Pats, D1, C1, CD1, P1} = pass_down_types_all(cerl:clause_pats(Tree), TSM1, Mod, ArgType, NoSpec, Closures),
+  {Guard, D2, C2, CD2, P2} = pass_down_types(cerl:clause_guard(Tree), TSM1, Mod, ArgType, NoSpec, Closures),
+  {Body, D3, C3, CD3, P3} = pass_down_types(cerl:clause_body(Tree), TSM1, Mod, ArgType, NoSpec, Closures),
   Change = C1 or C2 or C3 or (CurType =/= get_cerl_type(Body)),
   D = lists:append([D1, D2, D3]),
   CD = lists:append([CD1, CD2, CD3]),
-  {cerl:update_c_clause(update_type(Tree, get_cerl_type(Body)), Pats, Guard, Body), D, Change, CD}.
+  P = merge_all_dicts([P1, P2, P3]),
+  {cerl:update_c_clause(update_type(Tree, get_cerl_type(Body)), Pats, Guard, Body), D, Change, CD, P}.
 
 pass_down_types_fun(Tree, TSM, Mod, ArgType, NoSpec, Closures, CurType) ->
   TSM1 = put_vars(cerl:fun_vars(Tree), [erl_types:t_any() || _ <- cerl:fun_vars(Tree)], TSM),
-  {Vars, _D1, _C1, _CD1} = pass_down_types_all(cerl:fun_vars(Tree), TSM1, Mod, ArgType, NoSpec, Closures),
-  {Body, D1, C1, CD1} = pass_down_types(cerl:fun_body(Tree), TSM1, Mod, ArgType, NoSpec, Closures),
+  {Vars, _D1, _C1, _CD1, _P1} = pass_down_types_all(cerl:fun_vars(Tree), TSM1, Mod, ArgType, NoSpec, Closures),
+  {Body, D1, C1, CD1, P1} = pass_down_types(cerl:fun_body(Tree), TSM1, Mod, ArgType, NoSpec, Closures),
   Tree1 =
     case has_type(Body) of
       true ->
@@ -575,13 +596,13 @@ pass_down_types_fun(Tree, TSM, Mod, ArgType, NoSpec, Closures, CurType) ->
       _ -> update_type(Tree, notype)
     end,
   Change = C1 or (CurType =/= get_cerl_type(Tree1)),
-  {cerl:update_c_fun(Tree1, Vars, Body), D1, Change, CD1}.
+  {cerl:update_c_fun(Tree1, Vars, Body), D1, Change, CD1, P1}.
 
 pass_down_types_let(Tree, TSM, Mod, ArgType, NoSpec, Closures, CurType) ->
-  {Arg, D1, C1, CD1} = pass_down_types(cerl:let_arg(Tree), TSM, Mod, ArgType, NoSpec, Closures),
+  {Arg, D1, C1, CD1, P1} = pass_down_types(cerl:let_arg(Tree), TSM, Mod, ArgType, NoSpec, Closures),
   TSM1 = put_vars(cerl:let_vars(Tree), let_arg_types(Arg), TSM),
-  {Vars, D2, C2, CD2} = pass_down_types_all(cerl:let_vars(Tree), TSM1, Mod, ArgType, NoSpec, Closures),
-  {Body, D3, C3, CD3} = pass_down_types(cerl:let_body(Tree), TSM1, Mod, ArgType, NoSpec, Closures),
+  {Vars, D2, C2, CD2, P2} = pass_down_types_all(cerl:let_vars(Tree), TSM1, Mod, ArgType, NoSpec, Closures),
+  {Body, D3, C3, CD3, P3} = pass_down_types(cerl:let_body(Tree), TSM1, Mod, ArgType, NoSpec, Closures),
   Tree1 =
     case has_type(Body) of
       true ->
@@ -592,33 +613,72 @@ pass_down_types_let(Tree, TSM, Mod, ArgType, NoSpec, Closures, CurType) ->
   Change = C1 or C2 or C3 or (CurType =/= get_cerl_type(Tree1)),
   D = lists:append([D1, D2, D3]),
   CD = lists:append([CD1, CD2, CD3]),
-  {cerl:update_c_let(Tree1, Vars, Arg, Body), D, Change, CD}.
+  P = merge_all_dicts([P1, P2, P3]),
+  {cerl:update_c_let(Tree1, Vars, Arg, Body), D, Change, CD, P}.
 
 pass_down_types_letrec(Tree, TSM, Mod, ArgType, NoSpec, Closures, CurType) ->
   {Names, Funsb} = lists:unzip(cerl:letrec_defs(Tree)),
-  {Funs, D1, C1, CD1} = pass_down_types_all(Funsb, TSM, Mod, ArgType, NoSpec, Closures),
-  TSM1 = put_vars(Names, [[get_cerl_type(F)] || F <- Funs], TSM),
-  {Body, D2, C2, CD2} = pass_down_types(cerl:letrec_body(Tree), TSM1, Mod, ArgType, NoSpec, Closures),
-  Change = C1 or C2 or (CurType =/= get_cerl_type(Body)),
-  {cerl:update_c_letrec(update_type(Tree, get_cerl_type(Body)), lists:zip(Names, Funs), Body), D1 ++ D2, Change, CD1 ++ CD2}.
+  FunNames = [cerl:var_name(Name) || Name <- Names],
+  FunNames1 = sets:from_list([{Mod, F, A} || {F, A} <- FunNames]),
+  NewClosures = sets:union(Closures, FunNames1),
+  {Funs, Body, D, C, CD, TSM1} = pass_down_types_letrec_fix(Names, Funsb, cerl:letrec_body(Tree), TSM, Mod, ArgType, NoSpec, NewClosures),
+  FilterFun = fun(Key, _Value) -> sets:is_element(Key, FunNames1) end,
+  Persistence = dict:filter(FilterFun, TSM1),
+  Change = C or (CurType =/= get_cerl_type(Body)),  
+  {cerl:update_c_letrec(update_type(Tree, get_cerl_type(Body)), lists:zip(Names, Funs), Body), D, Change, CD, Persistence}.
+
+pass_down_types_letrec_fix(Names, Funsb, Body, TSM, Mod, ArgType, NoSpec, Closures) ->
+  FunNames1 = [cerl:var_name(Name) || Name <- Names],
+  FunNames2 = [{Mod, F, A} || {F, A} <- FunNames1],
+  FunNames = sets:from_list(FunNames2),
+  {Funs, D1, C1, CD1} = pass_down_types_letrec_fix_pass(FunNames2, Funsb, TSM, Mod, ArgType, NoSpec, Closures, []),
+  {Body1, D2, C2, CD2, _P2} = pass_down_types(Body, TSM, Mod, ArgType, NoSpec, Closures),
+  CD = CD1 ++ CD2,
+  RelevantCD = [D || {OpN, _NewSpec}=D <- CD, sets:is_element(OpN, FunNames)],
+  case length(RelevantCD) of
+    0 ->
+      RestCD = [D || {OpN, _NewSpec}=D <- CD, not sets:is_element(OpN, FunNames)],
+      {Funs, Body1, D1 ++ D2, C1 or C2, RestCD, TSM};
+    _ ->
+      {TSM1, _} = update_from_detected(RelevantCD, TSM, []),
+      pass_down_types_letrec_fix(Names, Funs, Body1, TSM1, Mod, ArgType, NoSpec, Closures)
+  end.
+
+pass_down_types_letrec_fix_pass([], _Funsb, _TSM, _Mod, _ArgType, _NoSpec, _Closures, Acc) ->
+  {Funs, D, C, CD, _P} = unzip5(Acc),
+  {lists:reverse(Funs), lists:append(D), lists:foldl(fun erlang:'or'/2, false, C), lists:append(CD)};
+pass_down_types_letrec_fix_pass([Name|Names], [Funb|Funsb], TSM, Mod, ArgType, NoSpec, Closures, Acc) ->
+  case dict:find(Name, TSM) of
+    {ok, [Spec]} ->
+      TSM1 = put_vars(cerl:fun_vars(Funb), erl_types:t_fun_args(Spec), TSM);
+    error ->
+      TSM1 = TSM
+  end,
+  {Args, _, _, _, _} = pass_down_types_all(cerl:fun_vars(Funb), TSM1, Mod, ArgType, NoSpec, Closures),
+  {Body, D, C, CD, P} = pass_down_types(cerl:fun_body(Funb), TSM1, Mod, ArgType, NoSpec, Closures),
+  Fun = cerl:update_c_fun(Funb, Args, Body),  
+  pass_down_types_letrec_fix_pass(Names, Funsb, TSM, Mod, ArgType, NoSpec, Closures, [{Fun, D, C, CD, P}|Acc]).
 
 pass_down_types_all(Trees, TSM, Mod, ArgType, NoSpec, Closures) ->
   R = lists:map(fun(A) -> pass_down_types(A, TSM, Mod, ArgType, NoSpec, Closures) end, Trees),
-  {NewTrees, AllDetected, Changes, ClosuresDetected} = unzip4(R),
-  {NewTrees, lists:append(AllDetected), lists:foldl(fun erlang:'or'/2, false, Changes), lists:append(ClosuresDetected)}.
+  {NewTrees, AllDetected, Changes, ClosuresDetected, Persistence} = unzip5(R),
+  {NewTrees, lists:append(AllDetected), lists:foldl(fun erlang:'or'/2, false, Changes), lists:append(ClosuresDetected), merge_all_dicts(Persistence)}.
 
-unzip4(L) -> unzip4(L, [], [], [], []).
+unzip5(L) -> unzip5(L, [], [], [], [], []).
 
-unzip4([], Acc1, Acc2, Acc3, Acc4) -> 
+unzip5([], Acc1, Acc2, Acc3, Acc4, Acc5) -> 
   {lists:reverse(Acc1),
    lists:reverse(Acc2),
    lists:reverse(Acc3),
-   lists:reverse(Acc4)};
-unzip4([{A, B, C, D}|Rest], Acc1, Acc2, Acc3, Acc4) ->
-  unzip4(Rest, [A|Acc1], [B|Acc2], [C|Acc3], [D|Acc4]).
+   lists:reverse(Acc4),
+   lists:reverse(Acc5)};
+unzip5([{A, B, C, D, E}|Rest], Acc1, Acc2, Acc3, Acc4, Acc5) ->
+  unzip5(Rest, [A|Acc1], [B|Acc2], [C|Acc3], [D|Acc4], [E|Acc5]).
 
 rewrite_spec(ArgTypes, [Spec]) ->
-  erl_types:t_fun(ArgTypes, erl_types:t_fun_range(Spec)).
+  SupArgs = fun({A, B}) -> erl_types:t_sup(A, B) end,
+  ArgTypes1 = lists:map(SupArgs, lists:zip(ArgTypes, erl_types:t_fun_args(Spec))),
+  erl_types:t_fun(ArgTypes1, erl_types:t_fun_range(Spec)).
 
 mark_unreachable_clauses(Clauses, ArgType, TSM, Arg) ->
   case cerl:type(Arg) =:= values of
@@ -767,7 +827,7 @@ is_unknown_var(X, TSM, ArgList) ->
     var ->
       ArgVarNames = [cerl:var_name(Var) || Var <- ArgList, cerl:type(Var) =:= var],
       case dict:find(cerl:var_name(X), TSM) of
-	{ok, _} -> listcontains(cerl:var_name(X), ArgVarNames);
+	{ok, _} -> cuter_graphs:list_contains(cerl:var_name(X), ArgVarNames);
 	error ->true
       end;
     _ -> false
@@ -820,7 +880,7 @@ update_tsm_from_guard(Clause, TSM, ArgList) ->
 update_tsm_from_guard_helper(Args, ArgList, Type) ->
   FunArgName = cerl:var_name(hd(Args)),
   ArgVarNames = [cerl:var_name(Var) || Var <- ArgList, cerl:type(Var) =:= var],
-  case listcontains(FunArgName, ArgVarNames) of
+  case cuter_graphs:list_contains(FunArgName, ArgVarNames) of
     true -> {{argtype, FunArgName}, Type};
     _ -> {tsm, dict:store(FunArgName, Type, dict:new())}
   end.
@@ -835,8 +895,9 @@ get_ann_type_dependent_unreachable([Hd|Tl]) ->
   end.
 
 -spec get_type_dependent_unreachable(cerl:cerl()) -> boolean().
-get_type_dependent_unreachable(T) -> get_ann_type_dependent_unreachable(cerl:get_ann(T)).  
+get_type_dependent_unreachable(T) -> get_ann_type_dependent_unreachable(cerl:get_ann(T)).
 
-listcontains(_, []) -> false;
-listcontains(X, [H|_]) when X =:= H -> true;
-listcontains(X, [H|T]) when X =/= H -> listcontains(X, T).
+merge_all_dicts(D) ->
+  F = fun(_Key, Value1, _Value2) -> Value1 end,
+  F1 = fun(D1, D2) -> dict:merge(F, D1, D2) end,
+  lists:foldl(F1, dict:new(), D).

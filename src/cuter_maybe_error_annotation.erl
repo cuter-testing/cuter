@@ -117,112 +117,12 @@ annotate_maybe_error(AST, ST, Ignored, Mod, CheckTypes) ->
 annotate_maybe_error(Tree, SM, Force, Ignored, Mod, CheckTypes) ->
   CurMaybe_Error = get_maybe_error(Tree),
   case cerl:type(Tree) of
-%    alias ->
     'apply' ->
-      Op = cerl:apply_op(Tree),
-      {Op1, C1, IgnoreFound1} = 
-	case cerl:type(Op) of
-	  var ->
-	    case cerl:var_name(Op) of
-	      {F, A} ->
-		case dict:find({Mod, F, A}, SM) of
-		  {ok, {Value, 'fun'}} ->
-		    case Value of
-		      type_dependent when CheckTypes ->
-			case cuter_spec_checker:get_cerl_type(Tree) of
-			  notype -> {update_ann(Op, true), true =/= CurMaybe_Error, false};
-			  _ -> {update_ann(Op, type_dependent), type_dependent =/= CurMaybe_Error, false}
-			end;
-		      _ -> {update_ann(Op, Value), Value =/= CurMaybe_Error, false}
-		    end;
-		  _ ->
-		    case dict:find({F, A}, SM) of
-		      {ok, {Value, FunType}} when FunType =:= 'fun' orelse FunType =:= letvar ->
-			case Value of
-			  type_dependent when CheckTypes ->
-			    case cuter_spec_checker:get_cerl_type(Tree) of
-			      notype -> {update_ann(Op, true), true =/= CurMaybe_Error, false};
-			      _ -> {update_ann(Op, type_dependent), type_dependent =/= CurMaybe_Error, false}
-			    end;
-			  _ -> 
-			    {update_ann(Op, Value), Value =/= CurMaybe_Error, false}
-			end;
-		      _ ->
-			case sets:is_element({Mod, F, A}, Ignored) of
-			  false ->
-			    {update_ann(Op, true), true =/= CurMaybe_Error, false};
-			  true ->
-			    {update_ann(Op, false), true =/= CurMaybe_Error, true}
-			end
-		    end
-		end;
-	      Name ->
-		case dict:find(Name, SM) of
-		  {ok, {Value, _FunType}} -> %when FunType =:= 'fun' orelse FunType =:= letvar ->
-		    case Value of
-		      type_dependent when CheckTypes ->
-			case cuter_spec_checker:get_cerl_type(Tree) of
-			  notype -> {update_ann(Op, true), true =/= CurMaybe_Error, false};
-			  _ -> {update_ann(Op, type_dependent), type_dependent =/= CurMaybe_Error, false}
-			end;
-		      _ -> 
-			{update_ann(Op, Value), Value =/= CurMaybe_Error, false}
-		    end;
-		  _ ->
-		    {update_ann(Op, true), true =/= CurMaybe_Error, false}
-		end
-	    end;
-	  _ ->
-	    error("unhandled op")
-	end,
-      {Args, C2, Found, IgnoreFound2} = annotate_maybe_error_all(cerl:apply_args(Tree), SM, Force, Ignored, Mod, CheckTypes),
-      NewMaybe_Error = maybe_error_or([get_maybe_error(Op1), get_all_maybe_error(Args)]),
-      case get_all_maybe_error(Args) of 
-	true ->
-	  Tree1 = add_distrust_type_dependent(Tree);
-	_ -> 
-	  Tree1 = Tree
-      end,
-      {cerl:update_c_apply(update_ann(Tree1, NewMaybe_Error), Op1, Args), C1 or C2, Found, IgnoreFound1 or IgnoreFound2};
+      annotate_maybe_error_apply(Tree, SM, Force, Ignored, Mod, CheckTypes, CurMaybe_Error);
 %    binary -> meta
 %    bitstr -> meta
     call ->
-      ModName = cerl:call_module(Tree),
-      Name = cerl:call_name(Tree),
-      Arity = length(cerl:call_args(Tree)),
-      {NewAnn, IgnoreFound1} = 
-	case cerl:is_literal(ModName) andalso cerl:is_literal(Name) of
-	  true ->
-	    case dict:find({element(3, ModName), element(3, Name), Arity}, SM) of
-	      {ok, {Value, 'fun'}} ->
-		case Value of
-		  type_dependent when CheckTypes ->
-		    case cuter_spec_checker:get_cerl_type(Tree) of
-		      notype -> {true,  false};
-		      _ -> {type_dependent, false}
-		    end;
-		  _ -> {Value, false}
-		end;
-	      _ ->
-		case sets:is_element({element(3, ModName), element(3, Name), Arity}, Ignored) of
-		  false ->
-		    {true, false};
-		  true ->
-		    {true, true}
-		end
-	    end;
-	  _ -> throw("Unsupported call")
-	end,
-      {Args, C1, Found, IgnoreFound2} = annotate_maybe_error_all(cerl:call_args(Tree), SM, Force, Ignored, Mod, CheckTypes),
-      NewMaybe_Error = maybe_error_or([NewAnn, get_all_maybe_error(Args)]),
-      C2 = NewMaybe_Error =/= CurMaybe_Error,
-      case get_all_maybe_error(Args) of
-	true ->
-	  Tree1 = add_distrust_type_dependent(Tree);
-	_ -> 
-	  Tree1 = Tree
-      end,
-      {cerl:update_c_call(update_ann(Tree1, NewMaybe_Error), ModName, Name, Args), C1 or C2, Found, IgnoreFound1 or IgnoreFound2};
+      annotate_maybe_error_call(Tree, SM, Force, Ignored, Mod, CheckTypes, CurMaybe_Error);
     'case' ->
       {Clauses, C1, Found1, IgnoreFound1} = annotate_maybe_error_all(cerl:case_clauses(Tree), SM, Force, Ignored, Mod, CheckTypes),
       ClausesError1 = get_all_maybe_error(Clauses),
@@ -276,12 +176,7 @@ annotate_maybe_error(Tree, SM, Force, Ignored, Mod, CheckTypes) ->
       NewIgnoreFound = IgnoreFound1 or IgnoreFound2 or IgnoreFound3,
       {cerl:update_c_let(update_ann(Tree1, NewMaybe_Error), Vars, Arg, Body), C1 or C2 or C3, sets:union([Found1, Found2, Found3]), NewIgnoreFound};
     letrec ->
-      {Names, Funsb} = lists:unzip(cerl:letrec_defs(Tree)),
-      {Funs, C1, Found1, IgnoreFound1} = annotate_maybe_error_all(Funsb, SM, Force, Ignored, Mod, CheckTypes),
-      SM1 = put_vars(Names, [{get_maybe_error_pessimistic(A), letvar} || A <- Funs], SM),
-      {Body, C2, Found2, IgnoreFound2} = annotate_maybe_error(cerl:letrec_body(Tree), SM1, Force, Ignored, Mod, CheckTypes),
-      NewMaybe_Error = get_maybe_error(Body),
-      {cerl:update_c_letrec(update_ann(Tree, NewMaybe_Error), lists:zip(Names, Funs), Body), C1 or C2, sets:union([Found1, Found2]), IgnoreFound1 or IgnoreFound2};
+      annotate_maybe_error_letrec(Tree, SM, Force, Ignored, Mod, CheckTypes, CurMaybe_Error);
     literal ->
       {update_ann(Tree, false), true == CurMaybe_Error, sets:new(), false};
     primop ->
@@ -326,6 +221,123 @@ annotate_maybe_error(Tree, SM, Force, Ignored, Mod, CheckTypes) ->
     _ ->
       {update_ann(Tree, true), true =/= CurMaybe_Error, sets:new(), false}
   end.
+
+annotate_maybe_error_apply(Tree, SM, Force, Ignored, Mod, CheckTypes, CurMaybe_Error) ->
+  Op = cerl:apply_op(Tree),
+  {Op1, C1, IgnoreFound1} = 
+    case cerl:type(Op) of
+      var ->
+	case cerl:var_name(Op) of
+	  {F, A} ->
+	    case dict:find({Mod, F, A}, SM) of
+	      {ok, {Value, 'fun'}} ->
+		case Value of
+		  type_dependent when CheckTypes ->
+		    case cuter_spec_checker:get_cerl_type(Tree) of
+		      notype -> {update_ann(Op, true), true =/= CurMaybe_Error, false};
+		      _ -> {update_ann(Op, type_dependent), type_dependent =/= CurMaybe_Error, false}
+		    end;
+		  _ -> {update_ann(Op, Value), Value =/= CurMaybe_Error, false}
+		end;
+	      _ ->
+		case dict:find({F, A}, SM) of
+		  {ok, {Value, FunType}} when FunType =:= 'fun' orelse FunType =:= letvar ->
+		    case Value of
+		      type_dependent when CheckTypes ->
+			case cuter_spec_checker:get_cerl_type(Tree) of
+			  notype -> {update_ann(Op, true), true =/= CurMaybe_Error, false};
+			  _ -> {update_ann(Op, type_dependent), type_dependent =/= CurMaybe_Error, false}
+			end;
+		      _ -> 
+			{update_ann(Op, Value), Value =/= CurMaybe_Error, false}
+		    end;
+		  _ ->
+		    case sets:is_element({Mod, F, A}, Ignored) of
+		      false ->
+			{update_ann(Op, true), true =/= CurMaybe_Error, false};
+		      true ->
+			{update_ann(Op, false), true =/= CurMaybe_Error, true}
+		    end
+		end
+	    end;
+	  Name ->
+	    case dict:find(Name, SM) of
+	      {ok, {Value, _FunType}} -> %when FunType =:= 'fun' orelse FunType =:= letvar ->
+		case Value of
+		  type_dependent when CheckTypes ->
+		    case cuter_spec_checker:get_cerl_type(Tree) of
+		      notype -> {update_ann(Op, true), true =/= CurMaybe_Error, false};
+		      _ -> {update_ann(Op, type_dependent), type_dependent =/= CurMaybe_Error, false}
+		    end;
+		  _ -> 
+		    {update_ann(Op, Value), Value =/= CurMaybe_Error, false}
+		end;
+	      _ ->
+		{update_ann(Op, true), true =/= CurMaybe_Error, false}
+	    end
+	end;
+      _ ->
+	error("unhandled op")
+    end,
+  {Args, C2, Found, IgnoreFound2} = annotate_maybe_error_all(cerl:apply_args(Tree), SM, Force, Ignored, Mod, CheckTypes),
+  NewMaybe_Error = maybe_error_or([get_maybe_error(Op1), get_all_maybe_error(Args)]),
+  case get_all_maybe_error(Args) of 
+    true ->
+      Tree1 = add_distrust_type_dependent(Tree);
+    _ -> 
+      Tree1 = Tree
+  end,
+  {cerl:update_c_apply(update_ann(Tree1, NewMaybe_Error), Op1, Args), C1 or C2, Found, IgnoreFound1 or IgnoreFound2}.
+
+annotate_maybe_error_call(Tree, SM, Force, Ignored, Mod, CheckTypes, CurMaybe_Error) ->
+      ModName = cerl:call_module(Tree),
+      Name = cerl:call_name(Tree),
+      Arity = length(cerl:call_args(Tree)),
+      {NewAnn, IgnoreFound1} = 
+	case cerl:is_literal(ModName) andalso cerl:is_literal(Name) of
+	  true ->
+	    case dict:find({element(3, ModName), element(3, Name), Arity}, SM) of
+	      {ok, {Value, 'fun'}} ->
+		case Value of
+		  type_dependent when CheckTypes ->
+		    case cuter_spec_checker:get_cerl_type(Tree) of
+		      notype -> {true,  false};
+		      _ -> {type_dependent, false}
+		    end;
+		  _ -> {Value, false}
+		end;
+	      _ ->
+		case sets:is_element({element(3, ModName), element(3, Name), Arity}, Ignored) of
+		  false ->
+		    {true, false};
+		  true ->
+		    {true, true}
+		end
+	    end;
+	  _ -> throw("Unsupported call")
+	end,
+      {Args, C1, Found, IgnoreFound2} = annotate_maybe_error_all(cerl:call_args(Tree), SM, Force, Ignored, Mod, CheckTypes),
+      NewMaybe_Error = maybe_error_or([NewAnn, get_all_maybe_error(Args)]),
+      C2 = NewMaybe_Error =/= CurMaybe_Error,
+      case get_all_maybe_error(Args) of
+	true ->
+	  Tree1 = add_distrust_type_dependent(Tree);
+	_ -> 
+	  Tree1 = Tree
+      end,
+      {cerl:update_c_call(update_ann(Tree1, NewMaybe_Error), ModName, Name, Args), C1 or C2, Found, IgnoreFound1 or IgnoreFound2}.
+
+annotate_maybe_error_letrec(Tree, SM, Force, Ignored, Mod, CheckTypes, CurMaybe_Error) ->
+  {Names, Funsb} = lists:unzip(cerl:letrec_defs(Tree)),
+  %FunNames = [cerl:var_name(Name) || Name <- Names],
+  %FunNames1 = sets:from_list([{Mod, F, A} || {F, A} <- FunNames]),
+  %NewIgnored = sets:union(Ignored, FunNames1),
+  {Funs, C1, Found1, IgnoreFound1} = annotate_maybe_error_all(Funsb, SM, Force, Ignored, Mod, CheckTypes),
+  SM1 = put_vars(Names, [{get_maybe_error_pessimistic(A), letvar} || A <- Funs], SM),
+  {Body, C2, Found2, IgnoreFound2} = annotate_maybe_error(cerl:letrec_body(Tree), SM1, Force, Ignored, Mod, CheckTypes),
+  NewMaybe_Error = get_maybe_error(Body),
+  Change = C1 or C2 or (CurMaybe_Error =/= NewMaybe_Error),
+  {cerl:update_c_letrec(update_ann(Tree, NewMaybe_Error), lists:zip(Names, Funs), Body), Change, sets:union([Found1, Found2]), IgnoreFound1 or IgnoreFound2}.
 
 annotate_maybe_error_pattern(Tree, SM, Force) ->
   CurMaybe_Error = get_maybe_error(Tree),
