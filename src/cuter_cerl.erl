@@ -421,7 +421,7 @@ annotate(Tree, TagGen, InPats) ->
       Value = annotate(cerl:map_pair_val(Tree), TagGen, InPats),
       cerl:update_c_map_pair(Tree, Op, Key, Value);
     _ ->
-      Tree  %% TODO Ignore modules (for now).
+      Tree  %% TODO Ignore modules.
   end.
 
 annotate_all(Trees, TagGen, InPats) ->
