@@ -14,16 +14,17 @@ defaults:
 
 jobs:
   otps:
-    name: OTP ${{ matrix.otp }}
-    runs-on: ubuntu-latest
-    container: aggelgian/erlang:${{ matrix.otp }}
     strategy:
       matrix:
+        platformn: ubuntu-latest
         otp:
           - "22.3"
           - "21.3"
           - "21.0"
           - "20.3"
+    runs-on: ${{ matrix.platform }}
+    name: OTP ${{ matrix.otp }}
+    container: aggelgian/erlang:${{ matrix.otp }}
     env:
       GPB_ALLOW_NON_CONFORMING_VSN_FORMAT: 1
       Z3_RELEASE: "z3-4.8.14/z3-4.8.14-x64-glibc-2.31"
