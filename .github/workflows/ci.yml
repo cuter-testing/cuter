@@ -16,7 +16,7 @@ jobs:
   otps:
     strategy:
       matrix:
-        platform: ubuntu-latest
+        platform: [ubuntu-latest]
         otp:
           - "22.3"
           - "21.3"
