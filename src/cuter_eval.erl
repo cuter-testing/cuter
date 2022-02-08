@@ -842,14 +842,14 @@ eval_expr({c_var, _Anno, Name}, _M, Cenv, Senv, _Servers, _Fd) ->
   {ok, Sv} = cuter_env:get_value(Name, Senv),
   mk_result(Cv, Sv);
 
-% c_map
+%% c_map
 eval_expr({c_map, _Anno, Arg, Entries, false}, M, Cenv, Senv, Servers, Fd) ->
   Entries_ev = [eval_expr({c_map_pair, A, Op, K, V}, M, Cenv, Senv, Servers, Fd) || {c_map_pair, A, Op, K, V} <- Entries],
   { C_ev, S_ev } = cuter_lib:unzip_with(fun to_tuple/1, Entries_ev),
   { CArg, SArg } = to_tuple(eval_expr(Arg, M, Cenv, Senv, Servers, Fd)),
   mk_result(maps:merge(CArg, maps:from_list(C_ev)), maps:merge(SArg, maps:from_list(S_ev)));
 
-% c_map_pair
+%% c_map_pair
 eval_expr({c_map_pair, _Anno, Op, K, V}, M, Cenv, Senv, Servers, Fd) ->
   case Op of
     {c_literal, _, assoc} -> ok;
