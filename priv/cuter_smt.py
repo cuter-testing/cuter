@@ -14,16 +14,16 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		self.library = []
 		self.commands: List[Log] = []
 		self.commands.append(Log(
-		  expr=["set-option", ":produce-models", "true"]))
+			expr=["set-option", ":produce-models", "true"]))
 		self.commands.append(Log(
-		  comment="Erlang types.",
-		  expr=["declare-datatypes", [], datatypes]))
+			comment="Erlang types.",
+			expr=["declare-datatypes", [], datatypes]))
 		self.commands.append(Log(
-		  comment="Function that maps funs to their arity.",
-		  expr=["declare-fun", "fa", ["Int"], "Int"]))
+			comment="Function that maps funs to their arity.",
+			expr=["declare-fun", "fa", ["Int"], "Int"]))
 		self.commands.append(Log(
-		  comment="Function that maps funs to their definition.",
-		  expr=["declare-fun", "fm", ["Int"], "FList"]))
+			comment="Function that maps funs to their definition.",
+			expr=["declare-fun", "fm", ["Int"], "FList"]))
 		self.commands = []
 		# fnp(f, t) = true => t is not defined for f.
 		self.commands.append([
