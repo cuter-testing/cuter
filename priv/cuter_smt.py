@@ -24,7 +24,6 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		self.commands.append(Log(
 			comment="Function that maps funs to their definition.",
 			expr=["declare-fun", "fm", ["Int"], "FList"]))
-		self.commands = []
 		# fnp(f, t) = true => t is not defined for f.
 		self.commands.append([
 			"define-fun-rec",
