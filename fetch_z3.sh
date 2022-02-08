@@ -12,6 +12,7 @@ unzip /tmp/z3.zip -d /tmp
 rm /tmp/z3.zip
 mv /tmp/z3-* /opt/z3
 ln -s /opt/z3/bin/z3 /usr/bin/z3
+uname -a
 ldd --version
 strings /usr/lib/x86_64-linux-gnu/libstdc++.so.6 | grep GLIBCXX
 which z3
