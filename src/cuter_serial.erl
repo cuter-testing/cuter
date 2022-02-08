@@ -40,7 +40,6 @@ to_term(Msg) ->
 solver_command(Command) -> solver_command(Command, none).
 
 -spec solver_command(load_trace_file, {file:name(), integer()}) -> binary()
-                  ; (fix_variable, {cuter_symbolic:symbolic(), any()}) -> binary()
                   ; (commands_no_opts(), none) -> binary().
 solver_command(Command, Options) ->
   Msg = to_solver_command(Command, Options),
@@ -349,10 +348,6 @@ to_solver_command(get_model, none) ->
   #'SolverCommand'{type='GET_MODEL'};
 to_solver_command(add_axioms, none) ->
   #'SolverCommand'{type='ADD_AXIOMS'};
-to_solver_command(fix_variable, {SymbVar, Value}) ->
-  #'SolverCommand'{type='FIX_VARIABLE',
-                   symbvar=to_erlang_term(SymbVar),
-                   symbvar_value=to_erlang_term(Value)};
 to_solver_command(reset_solver, none) ->
   #'SolverCommand'{type='RESET_SOLVER'};
 to_solver_command(stop, none) ->
@@ -429,10 +424,27 @@ to_type(Type) ->
       Bounds = #'Spec.RangeBounds'{ lower_bound = to_range_bound(Lower)
                                   , upper_bound = to_range_bound(Upper)},
       #'Spec.Type'{type = 'RANGE', arg = {'range_bounds', Bounds}};
+    ?map_tag ->
+      #'Spec.Type'{
+        type = 'MAP',
+        arg = {'association_list', #'Spec.AssociationList'{associations = [
+          #'Spec.Association'{
+            kind = to_type_association_kind(Kind),
+            from_type = to_type(From),
+            to_type = to_type(To)
+          } || {Kind, From, To} <- cuter_types:assocs_of_t_map(Type)
+        ]}}
+      };
     ?function_tag ->
       #'Spec.Type'{type = 'FUN', arg = {'fun', to_typesig(Type)}};
     ?userdef_tag ->
       #'Spec.Type'{type = 'USERDEF', arg = {'type_name', cuter_types:name_of_t_userdef(Type)}}
+  end.
+
+to_type_association_kind(Kind) ->
+  case Kind of
+    map_field_assoc -> 'OPTIONAL';
+    map_field_exact -> 'MANDATORY'
   end.
 
 to_range_bound(Limit) ->

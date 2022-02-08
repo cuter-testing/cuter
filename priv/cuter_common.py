@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 from cuter_global import *
@@ -818,3 +817,29 @@ def get_typedef_definition(tdef):
         tdef : Spec.TypeDef
     """
     return tdef.definition
+
+def is_type_map(t):
+    """
+    Parameters
+        t : Spec.Type
+    """
+    return t.type == Spec.MAP
+
+def get_association_list_from_map(t):
+    """
+    Parameters
+        t : Spec.Type
+    """
+    assert is_type_map(t)
+    return t.association_list.associations
+
+def get_association_symbol(t):
+    """
+    Parameters
+        t : Spec.Association.Kind
+    """
+    return {
+        Spec.Association.Kind.UNKNOWN: "??",
+        Spec.Association.Kind.MANDATORY: ":=",
+        Spec.Association.Kind.OPTIONAL: "=>",
+    }[t]

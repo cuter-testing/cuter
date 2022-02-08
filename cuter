@@ -1,10 +1,11 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 import sys, argparse, os
 import subprocess as subp
 
 def main():
+  available_strategies = [i.replace(".erl", "") for i in os.listdir("src/strategies") if i != "cuter_strategy_behaviour.erl"]
   parser = argparse.ArgumentParser(description="Run the CutEr tool.")
   # Add positional arguments.
   parser.add_argument("module", metavar="M", help="the module")
@@ -14,6 +15,8 @@ def main():
   parser.add_argument("-pa", nargs='+', default=[], metavar="Dir", help="preppends each Dir to Erlang's code path")
   parser.add_argument("-pz", nargs='+', default=[], metavar="Dir", help="appends each Dir to Erlang's code path")
   parser.add_argument("-d", "--depth", metavar="D", type=int, default=25, help="the depth limit D of the search")
+  parser.add_argument("-st", "--strategy", metavar="S", type=str, default='cuter_bfs_strategy', 
+    help="the search strategy (default: %(default)s)", choices=available_strategies)
   parser.add_argument("-p", "--pollers", metavar="N", type=int, default=1,
     help="use N pollers (default: %(default)s)")
   parser.add_argument("-s", "--solvers", metavar="N", type=int, default=1,
@@ -27,9 +30,14 @@ def main():
   parser.add_argument("--disable-pmatch", action='store_true', help="disable the pattern matching compilation")
   parser.add_argument("--sorted-errors", action='store_true', help="report the erroneous inputs in a sorted order")
   parser.add_argument("--suppress-unsupported", action='store_true', help="suppresses the reporting of unsupported MFAs")
-  parser.add_argument("--no-type-normalization", action='store_true', help="disable the normalization specifications & types")
+  parser.add_argument("--disable-type-normalization", action='store_true',
+    help="disable the normalization specifications & types")
   parser.add_argument("--z3-timeout", metavar="N", type=int, default=2,
     help="set the timeout N for the Z3 SMT solver (default: %(default)s)")
+  parser.add_argument("-ds", "--debug-smt", action='store_true', help="store debug information for SMT solving")
+  parser.add_argument("-m", "--metrics", action='store_true', help="report collected metrics")
+  parser.add_argument("--debug-keep-traces", action='store_true', help="keep execution traces for debugging")
+  parser.add_argument("--debug-solver-fsm", action='store_true', help="output debug logs for the solver FSM")
 
   # Parse the arguments
   args = parser.parse_args()
@@ -56,8 +64,9 @@ def main():
   cmd = "erl -noshell {} -eval \"erlang:display(code:which({})),halt()\"".format(paths, args.module)
   p = subp.Popen(cmd, shell=True, stdin=subp.PIPE, stdout=subp.PIPE, stderr=subp.STDOUT, close_fds=True)
   out, err = p.communicate()
+  out = out.decode()
   if err:
-    print "Error in searching for {}: {} ...".format(args.module, err)
+    print ("Error in searching for {}: {} ...".format(args.module, err))
     sys.exit(1)
   out = out.strip().strip("\"")
 
@@ -66,7 +75,7 @@ def main():
     if compileModule(args.module, paths) == 1:
       sys.exit(1)
   elif len(out) < 4 or out[-4:] != "beam":
-    print "Module {} is {} ...".format(args.module, out)
+    print ("Module {} is {} ...".format(args.module, out))
     sys.exit(1)
 
   # We only get here if the module is either compiled, or found in the code path.
@@ -75,26 +84,35 @@ def main():
   opts.append("{{number_of_pollers, {}}}".format(args.pollers))
   opts.append("{{number_of_solvers, {}}}".format(args.solvers))
   opts.append("{{z3_timeout, {}}}".format(args.z3_timeout))
+  opts.append("{{strategy, {}}}".format(args.strategy))
   if args.verbose:
-    opts.append("verbose_execution_info")
+    opts.append("verbose_execution")
   if args.coverage:
     opts.append("coverage")
   if args.fully_verbose:
-    opts.append("fully_verbose_execution_info")
+    opts.append("fully_verbose_execution")
   if args.disable_pmatch:
     opts.append("disable_pmatch")
   if args.sorted_errors:
     opts.append("sorted_errors")
   if args.suppress_unsupported:
     opts.append("suppress_unsupported")
-  if args.no_type_normalization:
-    opts.append("no_type_normalization")
+  if args.disable_type_normalization:
+    opts.append("disable_type_normalization")
   if args.w != None:
       opts.append("{{whitelist, '{}'}}".format(args.w))
+  if args.debug_smt:
+    opts.append("debug_smt")
+  if args.metrics:
+    opts.append("report_metrics")
+  if args.debug_keep_traces:
+    opts.append("debug_keep_traces")
+  if args.debug_solver_fsm:
+    opts.append("debug_solver_fsm")
   strOpts = ",".join(opts)
 
   # Run CutEr
-  cmd = "erl -noshell {} -eval \"cuter:run({}, {}, {}, {}, [{}])\" -s init stop".format(
+  cmd = "erl -noshell {} -eval \"cuter:run({}, {}, {}, {}, [{}]), halt()\"".format(
     paths, args.module, args.fun, args.args, args.depth, strOpts)
   sys.exit(subp.call(cmd, shell=True))
 
@@ -110,9 +128,9 @@ def compileModule(module, paths, again = False):
   if again or not exists:
     erl = module + ".erl"
     if not os.path.isfile(erl):
-      print "Cannot locate {} ...  ".format(erl)
+      print ("Cannot locate {} ...  ".format(erl))
       return 1
-    print "\033[00;34mCompiling {} ...\033[00m".format(erl),
+    print ("\033[00;34mCompiling {} ...\033[00m".format(erl))
     if len(paths) > 0:
       pathParts = paths.split(" ")
       cmdParts = ["erlc"] + pathParts + ["+debug_info", erl]
@@ -120,8 +138,8 @@ def compileModule(module, paths, again = False):
       cmdParts = ["erlc", "+debug_info", erl]
     p = subp.Popen(cmdParts, stdout=subp.PIPE, stderr=subp.PIPE)
     out, err = p.communicate()
-    print "\033[01;32mok\033[00m" if p.returncode == 0 else "ERROR"
-    return p.returncode, "\n".join([out.strip(), err.strip()]).strip()
+    print ("\033[01;32mok\033[00m") if p.returncode == 0 else "ERROR"
+    return p.returncode, b"\n".join([out.strip(), err.strip()]).strip()
   return 0
 
 if __name__ == "__main__":

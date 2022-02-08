@@ -3,7 +3,8 @@
 -module(cuter_analyzer).
 
 -export([get_result/1, get_mapping/1, get_traces/1, is_runtime_error/1, solving_stats/2,
-         get_int_process/1, process_raw_execution_info/1, calculate_coverage/3,
+         get_int_process/1, process_raw_execution_info/1, calculate_coverage/2,
+         report_metrics/0,
          %% Constructor & accessors for #raw{}
          mk_raw_info/5, traces_of_raw_info/1, int_of_raw_info/1,
          %% Accessors for #info{}
@@ -11,6 +12,7 @@
          dir_of_info/1, pathVertex_of_info/1]).
 
 -include("include/cuter_macros.hrl").
+-include("include/cuter_metrics.hrl").
 
 -export_type([execution_result/0, node_trace/0, path_vertex/0,
               raw_info/0, info/0, reversible_with_tags/0, reversible_with_tag/0]).
@@ -83,7 +85,12 @@ process_raw_execution_info(Info) ->
   DataDir = Info#raw.dir,
   MergedTraceFile = cuter_lib:get_merged_tracefile(DataDir),
   cuter_merger:merge_traces(Info, MergedTraceFile),
-  cuter_lib:clear_and_delete_dir(Info#raw.dir, MergedTraceFile),
+  case cuter_config:fetch(?DEBUG_KEEP_TRACES) of
+    {ok, true} ->
+      ok;
+    _ ->
+      cuter_lib:clear_and_delete_dir(Info#raw.dir, MergedTraceFile)
+  end,
   PathVertex = cuter_log:path_vertex(MergedTraceFile),
   Rvs = cuter_log:locate_reversible(MergedTraceFile),
   RvsCnt = length(Rvs),
@@ -159,37 +166,37 @@ solving_stats(Solved, NotSolved) ->
 %% Calculate coverage.
 %% ----------------------------------------------------------------------------
 
--spec calculate_coverage(boolean(), pid(), cuter_cerl:visited_tags()) -> ok.
-calculate_coverage(false, _, _) -> ok;
-calculate_coverage(true, CodeServer, VisitedTags) ->
+-spec calculate_coverage(pid(), cuter_cerl:visited_tags()) -> ok.
+calculate_coverage(CodeServer, VisitedTags) ->
   cuter_pp:coverage_title(),
   %% Calculate the branch coverage.
   FeasibleTags = cuter_codeserver:get_feasible_tags(CodeServer, cuter_cerl:node_types_branches()),
-  {Visited1, All1, Coverage1} = calculate_coverage(FeasibleTags, VisitedTags),
+  {Visited1, All1, Coverage1} = calculate_coverage_h(FeasibleTags, VisitedTags),
   cuter_pp:branch_coverage(Visited1, All1, Coverage1),
   %% Calculate the branch coverage (without compiler generated clauses).
   FeasibleTagsNoComp = cuter_codeserver:get_feasible_tags(CodeServer, cuter_cerl:node_types_branches_nocomp()),
-  {Visited2, All2, Coverage2} = calculate_coverage(FeasibleTagsNoComp, VisitedTags),
+  {Visited2, All2, Coverage2} = calculate_coverage_h(FeasibleTagsNoComp, VisitedTags),
   cuter_pp:branch_coverage_nocomp(Visited2, All2, Coverage2),
   %% Calculate the conditions coverage.
   FeasibleTagsCond = cuter_codeserver:get_feasible_tags(CodeServer, cuter_cerl:node_types_conditions()),
-  {Visited3, All3, Coverage3} = calculate_coverage(FeasibleTagsCond, VisitedTags),
+  {Visited3, All3, Coverage3} = calculate_coverage_h(FeasibleTagsCond, VisitedTags),
   cuter_pp:condition_coverage(Visited3, All3, Coverage3),
   %% Calculate the conditions coverage (without compiler generated clauses).
   FeasibleTagsCondNoComp = cuter_codeserver:get_feasible_tags(CodeServer, cuter_cerl:node_types_conditions_nocomp()),
-  {Visited4, All4, Coverage4} = calculate_coverage(FeasibleTagsCondNoComp, VisitedTags),
+  {Visited4, All4, Coverage4} = calculate_coverage_h(FeasibleTagsCondNoComp, VisitedTags),
   cuter_pp:condition_coverage_nocomp(Visited4, All4, Coverage4),
   %% Calculate the paths coverage.
   FeasibleTagsPaths = cuter_codeserver:get_feasible_tags(CodeServer, cuter_cerl:node_types_paths()),
-  {Visited5, All5, Coverage5} = calculate_coverage(FeasibleTagsPaths, VisitedTags),
+  {Visited5, All5, Coverage5} = calculate_coverage_h(FeasibleTagsPaths, VisitedTags),
   cuter_pp:condition_outcome_coverage(Visited5, All5, Coverage5),
   %% Calculate the condition coverage (without compiler generated clauses).
   FeasibleTagsPathsNoComp = cuter_codeserver:get_feasible_tags(CodeServer, cuter_cerl:node_types_paths_nocomp()),
-  {Visited6, All6, Coverage6} = calculate_coverage(FeasibleTagsPathsNoComp, VisitedTags),
+  {Visited6, All6, Coverage6} = calculate_coverage_h(FeasibleTagsPathsNoComp, VisitedTags),
   cuter_pp:condition_outcome_coverage_nocomp(Visited6, All6, Coverage6).
 
--spec calculate_coverage(cuter_cerl:visited_tags(), cuter_cerl:visited_tags()) -> {non_neg_integer(), non_neg_integer(), float()}.
-calculate_coverage(Feasible, Visited) ->
+-spec calculate_coverage_h(cuter_cerl:visited_tags(), 
+                           cuter_cerl:visited_tags()) -> {non_neg_integer(), non_neg_integer(), float()}.
+calculate_coverage_h(Feasible, Visited) ->
   case gb_sets:size(Feasible) of
     0 ->
       {0, 0, 100.0};
@@ -199,3 +206,25 @@ calculate_coverage(Feasible, Visited) ->
       Coverage = 100 * (All - NotVisited) / All,
       {All - NotVisited, All, Coverage}
   end.
+
+%% ----------------------------------------------------------------------------
+%% Report collected metrics.
+%% ----------------------------------------------------------------------------
+
+-spec report_metrics() -> ok.
+report_metrics() ->
+  case cuter_metrics:get_distribution_metrics() of
+    [] -> ok;
+    Names ->
+      cuter_pp:pp_metrics_title(),
+      report_distribution_metrics(Names)
+  end.
+
+report_distribution_metrics([]) -> ok;
+report_distribution_metrics([N|Ns]) ->
+  case cuter_metrics:get_distribution(N) of
+    enoent -> ok;
+    {ok, Distribution} ->
+      cuter_pp:pp_distribution_metric(N, Distribution)
+  end,
+  report_distribution_metrics(Ns).

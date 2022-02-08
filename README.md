@@ -1,4 +1,4 @@
-[![Travis][travis badge]][travis]
+[![Github Actions][github badge]][github]
 [![Erlang Versions][erlang versions badge]][erlang]
 [![Last Commit][commit badge]][commit]
 
@@ -17,7 +17,7 @@ This is the source tree for CutEr, a concolic unit testing tool for Erlang.
 License
 -------
 
-Copyright 2014-2020 by Aggelos Giantsios, Nikolaos Papaspyrou and Kostis Sagonas.
+Copyright 2014-2022 by Aggelos Giantsios, Nikolaos Papaspyrou and Kostis Sagonas.
 
 This program is distributed under the GPL, version 3 or later. Please see the COPYING file for details.
 
@@ -29,12 +29,12 @@ In order to use CutEr, you need the following programs:
 1. **Erlang/OTP**
 
   Although CutEr may still be working with older Erlang/OTP releases,
-  we only support Erlang/OTP releases 19.x or later.
+  *we only support Erlang/OTP releases 19.x till 22.x.*
   Note that using a pre-built package or binaries will not suffice if
   the library modules have not been compiled with debug information.
   In that case, you will need to build and install Erlang/OTP from source.
 
-  Download the latest [source code distribution of
+  Download the [source code of one of the supported releases of
   Erlang/OTP](http://www.erlang.org/download.html) or clone the
   Erlang/OTP github repository:
 
@@ -44,18 +44,15 @@ In order to use CutEr, you need the following programs:
   [INSTALL.md](https://github.com/erlang/otp/blob/maint/HOWTO/INSTALL.md)
   for building and installing Erlang/OTP.
 
-2. **Python 2.x**
+2. **Python 3.x**, x >= 6
 
-  Download and install the latest [Python 2.x distribution](http://www.python.org).
+  Download and install the latest [Python 3.x distribution](http://www.python.org).
 
-  Also, you need to install the *protobuf* package (*version 3.11.3*).
-  You can install it for your user with
+  Also, you need to install the required Python dependencies.
 
-        pip install --user protobuf==3.11.3
+        python3 -m pip install -r requirements.txt
 
-  or globally with
-
-        sudo pip install protobuf==3.11.3
+  Note that CutEr requires Python 3.6 or higher.
 
 3. **Z3 Theorem Prover**
 
@@ -72,13 +69,13 @@ In order to use CutEr, you need the following programs:
 
   If this sequence of commands does not work for you, follow the instructions in Z3's [GitHub repository](https://github.com/Z3Prover/z3/).
 
-  Note that CutEr requires Z3 v4.8.8 or higher.
+  Note that CutEr does **not** work properly with the v4.8.9 and v4.8.10 releases of Z3 due to [this issue](https://github.com/Z3Prover/z3/issues/5181), and does not work properly due to the v4.8.7 release of Z3 due to e.g. [this issue](https://github.com/Z3Prover/z3/issues/3051). It does, however, work well with many previous releases of Z3, for example v4.8.6.
 
 4. **Protocol Buffer Compiler**
 
   If you have a Linux or an OSX system then you can skip this step and, after you have downloaded or cloned this repository, you can run the provided `fetch_protoc.sh` script and follow the instructions.
 
-  If you are running on some other OS, download the [3.11.3 version](https://github.com/google/protobuf/releases/tag/v3.11.3) of **protoc** for your OS
+  If you are running on some other OS, download the [3.17.2 version](https://github.com/google/protobuf/releases/tag/v3.17.2) of **protoc** for your OS
   and follow the instructions in *readme.txt*.
 
 Installation
@@ -109,18 +106,9 @@ Installation
    then you need to specify the path of *protoc* to the configure script using a
    command like the following:
 
-        ./configure --with-protoc=$PWD/lib/protoc-3.11.3/bin/protoc
+        ./configure --with-protoc=$PWD/lib/protoc-3.17.2/bin/protoc
 
-* **[Optional]** In order to run the tests you need to install the *parsimonious* Python package (*version 0.8.1*).
-    You can install it for your user with
-
-        pip install --user parsimonious==0.8.1
-
-    or globally with
-
-        sudo pip install parsimonious==0.8.1
-
-    Now you can build and run the unit & functional tests with `make test`
+* **[Optional]** You can run the unit and functional tests with `make test`
 
 * **[Optional]** You can also run Dialyzer with `make dialyzer`
 
@@ -196,9 +184,9 @@ Have fun with the tool!
 <!-- Badges (alphabetically) -->
 [commit badge]: https://img.shields.io/github/last-commit/cuter-testing/cuter.svg?style=flat-square
 [erlang versions badge]: https://img.shields.io/badge/erlang-19.0%20to%2022.3-blue.svg?style=flat-square
-[travis badge]: https://img.shields.io/travis/cuter-testing/cuter.svg?branch=master?style=flat-square
+[github badge]: https://github.com/cuter-testing/cuter/workflows/CI/badge.svg
 
 <!-- Links (alphabetically) -->
 [commit]: https://github.com/cuter-testing/cuter/commit/HEAD
 [erlang]: http://www.erlang.org
-[travis]: https://travis-ci.org/cuter-testing/cuter
+[github]: https://github.com/cuter-testing/cuter/actions

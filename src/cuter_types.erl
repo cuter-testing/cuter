@@ -2,20 +2,20 @@
 %%------------------------------------------------------------------------------
 -module(cuter_types).
 
--export([parse_spec/4, retrieve_types/1, retrieve_specs/1, find_spec/2,
+-export([parse_spec/3, retrieve_types/1, retrieve_specs/1, find_spec/2,
 	 get_kind/1, find_remote_deps_of_type/2, find_remote_deps_of_spec/2]).
 
 -export([params_of_t_function_det/1, ret_of_t_function/1, atom_of_t_atom_lit/1,
 	 integer_of_t_integer_lit/1, elements_type_of_t_list/1,
 	 elements_type_of_t_nonempty_list/1, elements_types_of_t_tuple/1,
-	 elements_types_of_t_union/1, bounds_of_t_range/1,
+   assocs_of_t_map/1, elements_types_of_t_union/1, bounds_of_t_range/1,
 	 segment_size_of_bitstring/1, is_generic_function/1,
 	 name_of_t_userdef/1]).
 
 -export([t_atom/0, t_atom_lit/1, t_any/0,
 	 t_binary/0, t_bitstring/0, t_bitstring/2, t_char/0, t_float/0,
          t_function/0, t_function/2, t_function/3,
-	 t_integer/0, t_integer_lit/1, t_list/0, t_list/1,
+	 t_integer/0, t_integer_lit/1, t_list/0, t_list/1, t_map/0, t_map/1,
          t_nonempty_list/1, t_nil/0, t_number/0, t_remote/3, t_string/0,
 	 t_tuple/0, t_tuple/1, t_union/1,
 	 t_range/2, t_pos_inf/0, t_neg_inf/0, t_userdef/1]).
@@ -42,13 +42,13 @@
 
 -type kind() :: ?any_tag | ?atom_lit_tag |?atom_tag | ?bitstring_tag
               | ?float_tag | ?function_tag | ?integer_lit_tag |?integer_tag
-	      | ?list_tag | ?local_tag | ?neg_inf | ?nil_tag
+	      | ?list_tag | ?local_tag | ?map_tag | ?neg_inf | ?nil_tag
 	      | ?nonempty_list_tag | ?pos_inf | ?range_tag | ?record_tag
 	      | ?remote_tag | ?tuple_tag | ?union_tag | ?userdef_tag
 	      | ?type_variable.
 -type rep()  :: atom() | bitstring_rep()
               | function_det_rep() | function_gen_rep()
-              | integer() | integer_range_rep() | local_rep()
+              | integer() | integer_range_rep() | local_rep() | map_rep()
               | record_rep() | remote_rep() | userdef_rep()
 	      | type_var() | raw_type() | [raw_type()].
 
@@ -85,6 +85,7 @@
                   | t_nonempty_list()     % nonempty_list(Type)
                   | t_union()             % Type1 | ... | TypeN
                   | t_range()             % Erlang_Integer..Erlang_Integer
+                  | t_map()               % map
                   | t_bitstring()         % <<_:M>>
                   | t_function()          % function() | Fun | BoundedFun
                   | t_userdef()           % User defined type.
@@ -154,6 +155,11 @@
 
 %% Type variable.
 -type t_type_var() :: #t{kind :: ?type_variable, rep :: type_var()}.
+
+%% Map types.
+-type t_map()                :: #t{kind :: ?map_tag, rep :: map_rep()}.
+-type map_rep()              :: list({map_field_assoc_type(), raw_type(), raw_type()}).
+-type map_field_assoc_type() :: (map_field_exact | map_field_assoc).
 
 %% ----------------------------------------------------------------------------
 %% How intermediate type & spec representations are stored.
@@ -385,8 +391,15 @@ t_from_form({type, _, record, [{atom, _, Name} | FieldTypes]}) ->
   Fields = [t_bound_field_from_form(F) || F <- FieldTypes],
   t_record(Name, Fields);
 %% Map
-t_from_form({type, _, map, _}=X) ->
-  throw({unsupported, X});
+t_from_form({type, _, map, any}) ->
+  t_map();
+t_from_form({type, _, map, AssocForms}) ->
+  t_map([
+    case AssocType of 
+      map_field_assoc -> {map_field_assoc, t_from_form(From), t_from_form(To)};
+      map_field_exact -> {map_field_exact, t_from_form(From), t_from_form(To)}
+    end || {type, _, AssocType, [From, To]} <- AssocForms
+  ]);
 %% local type
 t_from_form({Tag, _, Name, Types}) when Tag =:= type; Tag =:= user_type ->
   Ts = [t_from_form(T) || T <- Types],
@@ -564,6 +577,14 @@ t_function(Types, Ret, Constraints) ->
 t_userdef(Name) ->
   #t{kind = ?userdef_tag, rep = Name}.
 
+-spec t_map(map_rep()) -> t_map().
+t_map(Rep) ->
+  #t{kind = ?map_tag, rep = Rep}.
+
+-spec t_map() -> t_map().
+t_map() ->
+  t_map([]).
+
 %% Constructors that are essentially aliases.
 
 -spec t_boolean() -> t_union().
@@ -681,6 +702,10 @@ is_tvar_wild_card(#t{kind = ?type_variable, rep = {?type_var, Var}}) ->
 -spec name_of_t_userdef(t_userdef()) -> userdef_rep().
 name_of_t_userdef(#t{kind = ?userdef_tag, rep = Name}) ->
   Name.
+
+-spec assocs_of_t_map(t_map()) -> map_rep().
+assocs_of_t_map(#t{kind = ?map_tag, rep = Assocs}) ->
+  Assocs.
 
 %% ----------------------------------------------------------------------------
 %% Generic API for raw_type().
@@ -910,16 +935,16 @@ insert_userdef_and_update_seen(Seen, IsTopLevel, NormalizedType, Deps) ->
 %% Traverse a spec and substitute the local and remote types.
 %% ----------------------------------------------------------------------------
 
--spec parse_spec(mfa(), stored_spec_value(), many_stored_types(), boolean()) -> erl_spec().
-parse_spec(Mfa, Spec, ManyStoredTypes, NormalizeTypes) ->
+-spec parse_spec(mfa(), stored_spec_value(), many_stored_types()) -> erl_spec().
+parse_spec(Mfa, Spec, ManyStoredTypes) ->
   Conf = mk_conf(Mfa, ManyStoredTypes),
   {ParsedSpec, Deps} = parse_spec_clauses(Spec, Conf, []),
   true = cleanup_conf(Conf),
   %% TODO Maybe also normalize the parsed spec.
-  case NormalizeTypes of
-    false ->
+  case cuter_config:fetch(?DISABLE_TYPE_NORMALIZATION) of
+    {ok, true} ->
       {ParsedSpec, Deps};
-    true ->
+    _ ->
       NormalizedDeps = normalize_type_deps(Deps),
       {ParsedSpec, NormalizedDeps}
   end.

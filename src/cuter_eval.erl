@@ -18,8 +18,6 @@
                   | {letrec_func, {atom(), atom(), cerl:c_fun(), function()}}.
 -type value()    :: any().
 
--type fun_decl() :: {cerl:c_fun(), boolean()}.
-
 %% The result of the concolic execution.
 -define(RESULT, '__cresult').
 
@@ -451,16 +449,18 @@ eval({named, M, F}, CAs_b, SAs_b, CallType, Servers, Fd) ->
   {CAs, SAs} = adjust_arguments(M, F, CAs_b, SAs_b, Fd),
   Arity = length(CAs),
   SAs_e = cuter_symbolic:ensure_list(SAs, Arity, Fd),
-  MFA = {M, F, Arity},
-  case access_mfa_code(MFA, Servers) of
-    error -> evaluate_bif(MFA, CAs, SAs_e, Servers, Fd);
-    {NM, {Def, Exported}} ->
-      check_exported(Exported, CallType, MFA),
+  Mfa = {NM, _NF, _NA} = cuter_mock:maybe_override_mfa({M, F, Arity}),
+  case get_kfun(Mfa, Servers) of
+    error ->
+      evaluate_bif(Mfa, CAs, SAs_e, Servers, Fd);
+    {ok, Kfun} ->
+      check_exported(cuter_cerl:kfun_is_exported(Kfun), CallType, Mfa),
+      Code = cuter_cerl:kfun_code(Kfun),
       NCenv = cuter_env:new_environment(),
       NSenv = cuter_env:new_environment(),
-      Cenv = cuter_env:bind_parameters(CAs, Def#c_fun.vars, NCenv),
-      Senv = cuter_env:bind_parameters(SAs_e, Def#c_fun.vars, NSenv),
-      eval_expr(Def#c_fun.body, NM, Cenv, Senv, Servers, Fd)
+      Cenv = cuter_env:bind_parameters(CAs, Code#c_fun.vars, NCenv),
+      Senv = cuter_env:bind_parameters(SAs_e, Code#c_fun.vars, NSenv),
+      eval_expr(Code#c_fun.body, NM, Cenv, Senv, Servers, Fd)
   end;
 
 %% Handle a Closure
@@ -683,17 +683,23 @@ eval_expr({c_letrec, _Anno, Defs, Body}, M, Cenv, Senv, Servers, Fd) ->
   eval_expr(Body, M, NCe, NSe, Servers, Fd);
 
 %% c_literal
-eval_expr({c_literal, _Anno, V}, _M, _Cenv, _Senv, _Servers, Fd) ->
+eval_expr({c_literal, _Anno, V}, _M, _Cenv, _Senv, Servers, Fd) ->
   case erlang:is_function(V) of
     false -> mk_result(V, V);
     true ->
       Info = erlang:fun_info(V),
       case proplists:get_value(arity, Info) of
-        undefined -> mk_result(V, V);
+	undefined -> mk_result(V, V);
         Arity ->
-          LambdaS = cuter_symbolic:fresh_lambda(Arity, Fd),
-          add_to_created_closure(LambdaS),
-          mk_result(V, LambdaS)
+          case proplists:get_value(module, Info) of
+	    undefined -> % XXX: Check whether this case actually happens
+	      LambdaS = cuter_symbolic:fresh_lambda(Arity, Fd),
+	      add_to_created_closure(LambdaS),
+	      mk_result(V, LambdaS);
+	    Mod ->
+	      Func = proplists:get_value(name, Info),
+	      make_fun(Mod, Func, Arity, Servers, Fd)
+	  end
       end
   end;
 
@@ -862,22 +868,23 @@ evaluate_bif_concrete({M, F, _A}=MFA, As) ->
   end.
 
 %% --------------------------------------------------------
-%% Try to retrieve the code of an MFA
+%% Get the kfun() of an MFA, if possible.
 %% --------------------------------------------------------
--spec access_mfa_code(mfa(), servers()) -> {module(), fun_decl()} | error.
-access_mfa_code({Mod, Fun, Arity} = MFA, Servers) ->
-  Whitelist = get_whitelist(Servers#svs.code),
-  case cuter_mock:is_whitelisted(MFA, Whitelist) of
-    true ->
-      error;
+
+-spec get_kfun(mfa(), servers()) -> {ok, cuter_cerl:kfun()} | error.
+get_kfun({M, _F, _A}=Mfa, #svs{code = CS}) ->
+  Whitelist = get_whitelist(CS),
+  ShouldAccessCode = not cuter_mock:is_whitelisted(Mfa, Whitelist)
+    andalso not cuter_mock:is_bif(Mfa),
+  case ShouldAccessCode of
     false ->
-      case cuter_mock:simulate_behaviour(Mod, Fun, Arity) of
-        bif -> error;
-        {ok, {M, _F, Arity} = Simulator} ->
-          case get_module_cache(M, Servers#svs.code) of
-            {error, _} -> error;
-            {ok, Cache} -> {M, retrieve_function_code(Simulator, Cache)}
-          end
+      error;
+    true ->
+      case maybe_get_kmodule_from_cache(M, CS) of
+        {error, _} ->
+          error;
+        {ok, Cache} ->
+          {ok, maybe_get_kfun_from_cache(Mfa, Cache)}
       end
   end.
 
@@ -892,21 +899,17 @@ get_whitelist(CodeServer) ->
       Whitelist
   end.
 
-%% --------------------------------------------------------
-%% Interact with the CodeServer and ask for the ETS Table
-%% where the code of the module M is stored.
-%%
-%% Optimization : For caching purposes, the MDb is stored
-%% in the process dictionary for subsequent lookups
-%% --------------------------------------------------------
--spec get_module_cache(atom(), pid()) -> {ok, cuter_codeserver:module_cache()} | {error, (preloaded | cover_compiled)}.
-get_module_cache(M, CodeServer) ->
+%% Retrieves the kmodule() for the given module.
+%% The kmodule() is cached in the pdict for subsequent queries,
+%% as an optimization.
+-spec maybe_get_kmodule_from_cache(atom(), pid()) -> {ok, cuter_cerl:kmodule()} | {error, (preloaded | cover_compiled)}.
+maybe_get_kmodule_from_cache(M, CodeServer) ->
   What = {?CONCOLIC_PREFIX_PDICT, M},
   case get(What) of
     undefined ->
       case cuter_codeserver:load(CodeServer, M) of
         %% Module Code loaded
-        {ok, Cache} = Ok -> put(What, Cache), Ok;
+        {ok, Kmodule} = Ok -> put(What, Kmodule), Ok;
         %% Preloaded Module
         {error, preloaded} = E -> E;
         %% Cover Compiled Module
@@ -916,26 +919,22 @@ get_module_cache(M, CodeServer) ->
         %% Any Error during Code Loading
         {error, Error} -> exception(error, Error)
       end;
-    MDb -> {ok, MDb}
+    Kmodule -> {ok, Kmodule}
   end.
 
-%% --------------------------------------------------------
-%% Retrieves the code and exported type of an MFA
-%%
-%% Optimization : For caching purposes, the function 
-%% definition is stored in the process dictionary for 
-%% subsequent lookups
-%% --------------------------------------------------------
--spec retrieve_function_code(mfa(), cuter_codeserver:module_cache()) -> fun_decl().
-retrieve_function_code(MFA, Cache) ->
-  What = {?CONCOLIC_PREFIX_PDICT, MFA},
+%% Retrieves the kfun() for the given MFA.
+%% The kfun() is cached in the pdict for subsequent queries,
+%% as an optimization.
+-spec maybe_get_kfun_from_cache(mfa(), cuter_cerl:kmodule()) -> cuter_cerl:kfun().
+maybe_get_kfun_from_cache(Mfa, Kmodule) ->
+  What = {?CONCOLIC_PREFIX_PDICT, Mfa},
   case get(What) of
     undefined ->
-      case cuter_codeserver:lookup_in_module_cache(MFA, Cache) of
-        error -> exception(error, {undef, MFA});
-        {ok, Val} -> put(What, Val), Val
+      case cuter_cerl:kmodule_kfun(Kmodule, Mfa) of
+        error -> exception(error, {undef, Mfa});
+        {ok, Kfun} -> put(What, Kfun), Kfun
       end;
-    Val -> Val
+    Kfun -> Kfun
   end.
 
 %% --------------------------------------------------------
@@ -1282,11 +1281,13 @@ bit_pattern_match(BinAnno, [{c_bitstr, Anno, {c_var, _, VarName}, Sz, Unit, Tp, 
 
 %% Create a Closure of a local function
 create_closure(M, F, Arity, local, Servers, Fd) ->
-  %% Module is already loaded since create_closure is called by eval_expr
-  {NM, {Def, _Exported}} = access_mfa_code({M, F, Arity}, Servers),
+  Mfa = {NM, _NF, NA} = cuter_mock:maybe_override_mfa({M, F, Arity}),
+  %% Module is already loaded since create_closure is called by eval_expr.
+  {ok, Kfun} = get_kfun(Mfa, Servers),
+  Code = cuter_cerl:kfun_code(Kfun),
   Cenv = cuter_env:new_environment(),
   Senv = cuter_env:new_environment(),
-  make_fun(Def#c_fun.vars, Def#c_fun.body, NM, Arity, Cenv, Senv, Servers, Fd);
+  make_fun(Code#c_fun.vars, Code#c_fun.body, NM, NA, Cenv, Senv, Servers, Fd);
 
 %% Create a Closure when the MFA is a function bound in a letrec
 create_closure(M, _F, Arity, {letrec_func, {Def, Cenv, Senv}}, Servers, Fd) ->
@@ -1622,8 +1623,8 @@ subscribe_and_apply(MonitorServer, Parent, Args, Ref) ->
 %% --------------------------------------------------------
 %% Resolve the type of an MFA call
 %% --------------------------------------------------------
-find_call_type(_M, _M)   -> local;
-find_call_type(_M1, _M2) -> external.
+find_call_type(M, M) -> local;
+find_call_type(_, _) -> external.
 
 %% --------------------------------------------------------
 %% Encode and Decode Msgs

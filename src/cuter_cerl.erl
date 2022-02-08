@@ -3,16 +3,21 @@
 -module(cuter_cerl).
 
 %% External exports
--export([retrieve_spec/2, get_tags/1, id_of_tag/1, tag_from_id/1, empty_tag/0,
-         get_stored_types/1, empty_tagId/0, collect_feasible_tags/2]).
+-export([get_tags/1, id_of_tag/1, tag_from_id/1, empty_tag/0,
+         empty_tagId/0, collect_feasible_tags/2]).
 %% Core AST extraction.
--export([load/4, get_core/2]).
+-export([load/3, get_core/2]).
 %% Node types generators.
 -export([node_types_branches/0, node_types_branches_nocomp/0, node_types_all/0,
          node_types_conditions/0, node_types_conditions_nocomp/0,
          node_types_paths/0, node_types_paths_nocomp/0]).
 %% Exported for debugging use.
 -export([classify_attributes/1]).
+%% kfun API.
+-export([kfun/2, kfun_code/1, kfun_is_exported/1]).
+%% kmodule API.
+-export([destroy_kmodule/1, kmodule/4, kmodule_kfun/2, kmodule_mfa_spec/2, 
+  kmodule_specs/1, kmodule_types/1]).
 
 %% We are using the records representation of Core Erlang Abstract Syntax Trees
 -include_lib("compiler/src/core_parse.hrl").
@@ -27,7 +32,28 @@
 	      tagID/0, tag/0, tag_generator/0, visited_tags/0,
 	      type_info/0, spec_info/0]).
 
--type info()          :: 'anno' | 'attributes' | 'exports' | 'name'.
+-export_type([kfun/0, kmodule/0]).
+
+-type ast() :: cerl:c_module().
+
+%% TODO(aggelgian): Change it to a map.
+%% In each kmodule(), the following information is stored:
+%%   Key               Value
+%% --------  ---------------------------
+%% types      cuter_types:stored_types()
+%% specs      cuter_types:stored_specs()
+%% mfa()      kfun()
+-opaque kmodule() :: ets:tid().
+
+%% kfun() is an ADT that holds the code and metadata for an MFA.
+-opaque kfun() :: #{
+  %% The code of the MFA.
+  code := code(),
+  %% Whether the MFA is exported or not.
+  is_exported := boolean()
+}.
+-type code() :: cerl:c_fun().
+
 -type compile_error() :: {'error', string()}.
 -type load_error()    :: {'error', 'preloaded'} | compile_error().
 
@@ -128,49 +154,100 @@
                             | cerl_func() | cerl_bounded_func().
 
 
-%%====================================================================
-%% External exports
-%%====================================================================
--spec load(M, cuter_codeserver:module_cache(), tag_generator(), boolean()) -> {ok, M} | load_error() when M :: cuter:mod().
-load(Mod, Cache, TagGen, WithPmatch) ->
-  case get_core(Mod, WithPmatch) of
+%% ===================================================================
+%% External API
+%% ===================================================================
+
+%% Loads the AST of the given module and stores it as a kmodule().
+-spec load(module(), tag_generator(), boolean()) -> {ok, kmodule()} | load_error().
+load(M, TagGen, WithPmatch) ->
+  case get_core(M, WithPmatch) of
     {ok, #c_module{}=AST} -> % just a sanity check that we get back a module
-      store_module(Mod, AST, Cache, TagGen),
-      {ok, Mod};
+      Exports = extract_exports(M, AST),
+      {TypeAttrs, SpecAttrs} = classify_attributes(cerl:module_attrs(AST)),
+      Types = cuter_types:retrieve_types(TypeAttrs),
+      Specs = cuter_types:retrieve_specs(SpecAttrs),
+      Defs = cerl:module_defs(AST),
+      Funs = [process_fundef(D, Exports, M, TagGen) || D <- Defs],
+      {ok, kmodule(M, Types, Specs, Funs)};
     {error, _} = Error -> Error
   end.
 
-%% Retrieves the spec of a function from a stored module's info.
--spec retrieve_spec(cuter_codeserver:module_cache(), fa()) -> {ok, cuter_types:stored_spec_value()} | error.
-retrieve_spec(Cache, FA) ->
-  {ok, Specs} = cuter_codeserver:lookup_in_module_cache(specs, Cache),
-  cuter_types:find_spec(FA, Specs).
+%% -------------------------------------------------------------------
+%% kmodule API
+%% -------------------------------------------------------------------
 
--spec get_stored_types(cuter_codeserver:module_cache()) -> cuter_types:stored_types().
-get_stored_types(Cache) ->
-  {ok, Types} = cuter_codeserver:lookup_in_module_cache(types, Cache),
+-spec kmodule(module(), cuter_types:stored_types(), cuter_types:stored_specs(), [{mfa(), kfun()}]) -> kmodule().
+kmodule(M, Types, Specs, Funs) ->
+  Kmodule = ets:new(M, [ordered_set, protected]),
+  ets:insert(Kmodule, {types, Types}),
+  ets:insert(Kmodule, {specs, Specs}),
+  lists:foreach(fun({Mfa, Kfun}) -> ets:insert(Kmodule, {Mfa, Kfun}) end, Funs),
+  Kmodule.
+
+-spec kmodule_specs(kmodule()) -> cuter_types:stored_specs().
+kmodule_specs(Kmodule) ->
+  [{specs, Specs}] = ets:lookup(Kmodule, specs),
+  Specs.
+
+-spec kmodule_types(kmodule()) -> cuter_types:stored_types().
+kmodule_types(Kmodule) ->
+  [{types, Types}] = ets:lookup(Kmodule, types),
   Types.
 
-%%====================================================================
-%% Internal functions
-%%====================================================================
+%% Retrieves the kfun() for the given MFA.
+-spec kmodule_kfun(kmodule(), mfa()) -> {ok, kfun()} | error.
+kmodule_kfun(Kmodule, Mfa) ->
+  case ets:lookup(Kmodule, Mfa) of
+    [] -> error;
+    [{Mfa, Kfun}] -> {ok, Kfun}
+  end.
 
-%% In each ModDb, the following information is saved:
-%% 
-%%       Key                  Value    
-%% -----------------    ---------------
-%% anno                 Anno :: []
-%% name                 Name :: module()
-%% exported             [{M :: module(), Fun :: atom(), Arity :: arity()}]
-%% attributes           Attrs :: [{cerl(), cerl()}]
-%% {M, Fun, Arity}      {Def :: #c_fun{}, Exported :: boolean()}
--spec store_module(cuter:mod(), cerl:cerl(), cuter_codeserver:module_cache(), tag_generator()) -> ok.
-store_module(M, AST, Cache, TagGen) ->
-  store_module_info(anno, M, AST, Cache),
-  store_module_info(name, M, AST, Cache),
-  store_module_info(exports, M, AST, Cache),
-  store_module_info(attributes, M, AST, Cache),
-  store_module_funs(M, AST, Cache, TagGen).
+%% Retrieves the spec for the given MFA.
+-spec kmodule_mfa_spec(kmodule(), mfa()) -> {ok, cuter_types:stored_spec_value()} | error.
+kmodule_mfa_spec(Kmodule, {_M, F, A}) ->
+  cuter_types:find_spec({F, A}, kmodule_specs(Kmodule)).
+
+%% TODO(aggelos): Remove it when kmodule() becomes a map.
+-spec destroy_kmodule(kmodule()) -> ok.
+destroy_kmodule(Kmodule) ->
+  ets:delete(Kmodule),
+  ok.
+
+%% -------------------------------------------------------------------
+%% kfun API
+%% -------------------------------------------------------------------
+
+-spec kfun(code(), boolean()) -> kfun().
+kfun(Code, IsExported) ->
+  #{code => Code, is_exported => IsExported}.
+
+-spec kfun_is_exported(kfun()) -> boolean().
+kfun_is_exported(#{is_exported := IsExported}) -> IsExported.
+
+-spec kfun_code(kfun()) -> code().
+kfun_code(#{code := Code}) -> Code.
+
+%% ===================================================================
+%% Internal functions
+%% ===================================================================
+
+-spec extract_exports(module(), ast()) -> [mfa()].
+extract_exports(M, AST) ->
+  Exports = cerl:module_exports(AST),
+  [mfa_from_var(M, E) || E <- Exports].
+
+-spec process_fundef({cerl:c_var(), code()}, [mfa()], module(), tag_generator()) -> {mfa(), kfun()}.
+process_fundef({FunVar, Def}, Exports, M, TagGen) ->
+  Mfa = mfa_from_var(M, FunVar),
+  IsExported = lists:member(Mfa, Exports),
+  AnnDef = annotate(Def, TagGen),
+  {Mfa, kfun(AnnDef, IsExported)}.
+
+-spec mfa_from_var(module(), cerl:c_var()) -> mfa().
+mfa_from_var(M, Var) ->
+  {F, A} = cerl:var_name(Var),
+  {M, F, A}.
 
 %% Gets the Core Erlang AST of a module.
 -spec get_core(cuter:mod(), boolean()) -> {ok, cerl:cerl()} | load_error().
@@ -211,57 +288,6 @@ get_abstract_code(Mod, Beam) ->
     {ok, {Mod, [{abstract_code, {_, AbstractCode}}]}} -> AbstractCode;
     _ -> throw(cuter_pp:abstract_code_missing(Mod))
   end.
-
-%% Store module information
--spec store_module_info(info(), cuter:mod(), cerl:c_module(), cuter_codeserver:module_cache()) -> ok.
-store_module_info(anno, _M, AST, Cache) ->
-  Anno = AST#c_module.anno,
-  cuter_codeserver:insert_in_module_cache(anno, Anno, Cache);
-store_module_info(attributes, _M, AST, Cache) ->
-  Attrs = cerl:module_attrs(AST),
-  cuter_codeserver:insert_in_module_cache(attributes, Attrs, Cache),
-  %% Retrieve the attributes that involve type & record declarations.
-  {TypeAttrs, SpecAttrs} = classify_attributes(Attrs),
-  %% Pre-process those declarations.
-  Types = cuter_types:retrieve_types(TypeAttrs),
-  cuter_codeserver:insert_in_module_cache(types, Types, Cache),
-  %% Just store the attributes that involve specs.
-  Specs = cuter_types:retrieve_specs(SpecAttrs),
-  cuter_codeserver:insert_in_module_cache(specs, Specs, Cache);
-store_module_info(exports, M, AST, Cache) ->
-  Exps_c = AST#c_module.exports,
-  Fun_info = 
-    fun(Elem) ->
-      {Fun, Arity} = Elem#c_var.name,
-      {M, Fun, Arity}
-    end,
-  Exps = [Fun_info(E) || E <- Exps_c],
-  cuter_codeserver:insert_in_module_cache(exported, Exps, Cache);
-store_module_info(name, _M, AST, Cache) ->
-  ModName_c = AST#c_module.name,
-  ModName = ModName_c#c_literal.val,
-  cuter_codeserver:insert_in_module_cache(name, ModName, Cache).
-
-%% Store exported functions of a module
--spec store_module_funs(cuter:mod(), cerl:cerl(), cuter_codeserver:module_cache(), tag_generator()) -> ok.
-store_module_funs(M, AST, Cache, TagGen) ->
-  Funs = AST#c_module.defs,
-  {ok, Exps} = cuter_codeserver:lookup_in_module_cache(exported, Cache),
-  lists:foreach(fun(X) -> store_fun(Exps, M, X, Cache, TagGen) end, Funs).
-
-%% Store the AST of a function
--spec store_fun([atom()], cuter:mod(), {cerl:c_var(), cerl:c_fun()}, cuter_codeserver:module_cache(), tag_generator()) -> ok.
-store_fun(Exps, M, {Fun, Def}, Cache, TagGen) ->
-  {FunName, Arity} = Fun#c_var.name,
-  MFA = {M, FunName, Arity},
-  Exported = lists:member(MFA, Exps),
-%  io:format("===========================================================================~n"),
-%  io:format("BEFORE~n"),
-%  io:format("~p~n", [Def]),
-  AnnDef = annotate(Def, TagGen),
-%  io:format("AFTER~n"),
-%  io:format("~p~n", [AnnDef]),
-  cuter_codeserver:insert_in_module_cache(MFA, {AnnDef, Exported}, Cache).
 
 -type type_info() :: {'type', cerl_typedef()}
                    | {'record', cerl_recdef()}.

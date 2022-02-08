@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 import gzip, json, struct, sys
@@ -26,13 +25,16 @@ class JsonReader:
     # Decode 4 bytes that represent the size of the entry
     def size(self):
         bs = [self.read(1) for _ in range(4)]
-        if any(map(lambda b: b == "", bs)):
+        if any(map(lambda b: not b, bs)):
             raise BinaryEOF
         x = [struct.unpack('B', b)[0] for b in bs]
         return (x[0] << 24) | (x[1] << 16) | (x[2] << 8) | x[3]
 
     def __iter__(self):
         return self
+
+    def __next__(self):
+        return self.next()
 
     def next(self):
         if self.cnt == self.end:

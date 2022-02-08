@@ -22,6 +22,7 @@ message Spec {
         FUN = 14;
         CONS = 15;
         NTUPLE = 16;
+        MAP = 18;
         USERDEF = 17;
     }
 
@@ -63,11 +64,28 @@ message Spec {
             FunSig fun = 7;
             uint32 ntuple_size = 8;
             string type_name = 9;
+            AssociationList association_list = 10;
         }
     }
 
     message TypeList {
         repeated Type types = 1;
+    }
+    
+    message Association {
+        Type from_type = 1;
+        Type to_type = 2;
+        
+        enum Kind {
+            UNKNOWN = 0;
+            MANDATORY = 1;
+            OPTIONAL = 2;
+        }
+        Kind kind = 3;
+    }
+    
+    message AssociationList {
+        repeated Association associations = 1;
     }
 
     repeated FunSig clauses = 1;

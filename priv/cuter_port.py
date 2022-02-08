@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 import sys, struct, json
@@ -10,16 +9,16 @@ import cuter_proto_solver_command_pb2 as scmd
 
 class ErlangPort:
     def __init__(self):
-        self.chan_in = sys.stdin
-        self.chan_out = sys.stdout
+        self.chan_in = sys.stdin.buffer
+        self.chan_out = sys.stdout.buffer
 
     def receive(self):
         """
         Receives a command from Erlang.
         """
         x = self.chan_in.read(4)
-        if (len(x) == 4):
-            sz = struct.unpack('!i', x)[0]
+        if len(x) == 4:
+            (sz,) = struct.unpack('!i', x)
             return self.chan_in.read(sz)
 
     def send(self, data):
@@ -27,7 +26,7 @@ class ErlangPort:
         Sends data to Erlang.
         """
         if cglb.__TTY__:
-            print data
+            print(data)
         else:
           try:
               sz = len(data)
@@ -48,7 +47,6 @@ def decode_command(erlport, erlSolver, data):
         scmd.SolverCommand.SOLVE: decode_solve,
         scmd.SolverCommand.GET_MODEL: decode_get_model,
         scmd.SolverCommand.ADD_AXIOMS: decode_add_axioms,
-        scmd.SolverCommand.FIX_VARIABLE: decode_fix_variable,
         scmd.SolverCommand.RESET_SOLVER: decode_reset_solver,
         scmd.SolverCommand.STOP: decode_stop,
     }
@@ -84,13 +82,6 @@ def decode_add_axioms(erlport, erlSolver, cmd):
     Adds the axioms.
     """
     erlSolver.add_axioms()
-
-def decode_fix_variable(erlport, erlSolver, cmd):
-    """
-    Fixes a variable to a specific value.
-    """
-    var, val = cmd.symbvar, cmd.symbvar_value
-    erlSolver.fix_parameter(var, val)
 
 def decode_reset_solver(erlport, erlSolver, cmd):
     """

@@ -5,16 +5,15 @@
 
 %% gen_server callbacks
 -export([init/1, terminate/2, code_change/3, handle_info/2, handle_call/3, handle_cast/2]).
--export([start/1, stop/0]).
+-export([start/0, stop/0]).
 %% Report information about the concolic executions.
 -export([mfa/1, input/2, error_retrieving_spec/2, execution_status/2,
          execution_info/2, path_vertex/2, flush/1, errors_found/1,
-         form_has_unsupported_type/1, invalid_ast_with_pmatch/2, code_logs/3]).
+         form_has_unsupported_type/1, invalid_ast_with_pmatch/2, code_logs/1]).
 %% Report information about solving.
 -export([solving_failed_unsat/0, solving_failed_timeout/0, solving_failed_unknown/0]).
 %% Report callgraph related info.
--export([callgraph_calculation_failed/1, callgraph_calculation_started/1,
-         callgraph_calculation_succeeded/0, loading_visited_module/1]).
+-export([callgraph_calculation_failed/1, loading_visited_module/1]).
 %% Parsing of options.
 -export([loaded_whitelist/2, error_loading_whitelist/2]).
 %% Statistics about the solver.
@@ -29,6 +28,8 @@
 -export([parsed_spec/1]).
 %% Used in unit tests.
 -export([pp_argument/1]).
+%% Metrics.
+-export([pp_metrics_title/0, pp_distribution_metric/2]).
 
 -export([ reversible_operations/1
         %% Execution info reporting level
@@ -87,7 +88,7 @@
   pplevel :: pp_level(),
   nl      :: boolean(),
   mfa     :: mfa() | 'undefined',
-  info    :: dict:dict(cuter_scheduler_maxcover:handle(), execution_data())
+  info    :: dict:dict(cuter_scheduler:handle(), execution_data())
 }).
 -type state() :: #st{}.
 
@@ -97,27 +98,23 @@
                        | condition_coverage | condition_coverage_nocomp
                        | condition_outcome_coverage | condition_outcome_coverage_nocomp.
 
--type call() :: {whitelist_loaded, file:name(), cuter_mock:whitelist()}
-              | {whitelist_error, file:name(), any()}
-              | {module_non_existing, atom()}
+-type call() :: {module_non_existing, atom()}
               | {mfa_non_existing, mfa()}
               | {mfa, mfa()}
               | {invalid_ast_with_pmatch, module(), any()}
               | {error_retrieving_spec, mfa(), any()}
               | {form_has_unsupported_type, any()}
-              | {input, cuter_scheduler_maxcover:handle(), cuter:input()}
-              | {execution_status, cuter_scheduler_maxcover:handle(), cuter_iserver:execution_status()}
-              | {execution_info, cuter_scheduler_maxcover:handle(), cuter_iserver:logs()}
-              | {path_vertex, cuter_scheduler_maxcover:handle(), cuter_analyzer:path_vertex()}
-              | {flush, cuter_scheduler_maxcover:handle()}
+              | {input, cuter_scheduler:handle(), cuter:input()}
+              | {execution_status, cuter_scheduler:handle(), cuter_iserver:execution_status()}
+              | {execution_info, cuter_scheduler:handle(), cuter_iserver:logs()}
+              | {path_vertex, cuter_scheduler:handle(), cuter_analyzer:path_vertex()}
+              | {flush, cuter_scheduler:handle()}
               | solving_failed_unsat
               | solving_failed_timeout
               | solving_failed_unknown
               | {errors_found, cuter:erroneous_inputs()}
               | {code_logs, cuter_codeserver:logs(), cuter_mock:whitelist(), boolean()}
-              | {callgraph_calculation_started, [mfa()]}
               | {callgraph_calculation_failed, string()}
-              | callgraph_calculation_succeeded
               | {loading_visited_module, cuter:mod()}
               | {solved_models, non_neg_integer(), non_neg_integer()}
               | coverage_title
@@ -156,13 +153,13 @@ fully_verbose_exec_info(PpLevel) ->
   PpLevel#pp_level{execInfo = ?FULLY_VERBOSE}.
 
 %% ============================================================================
-%% Eternal API
+%% External API
 %% ============================================================================
 
 %% Starts the server.
--spec start(pp_level()) -> ok.
-start(PpLevel) ->
-  case gen_server:start({local, ?PRETTY_PRINTER}, ?MODULE, [self(), PpLevel], []) of
+-spec start() -> ok.
+start() ->
+  case gen_server:start({local, ?PRETTY_PRINTER}, ?MODULE, [self()], []) of
     {ok, _Pid} -> ok;
     {error, Reason} -> exit({failed_to_start_ppserver, Reason})
   end.
@@ -178,7 +175,7 @@ mfa(MFA) ->
   gen_server:call(?PRETTY_PRINTER, {mfa, MFA}).
 
 %% The input that will be tested.
--spec input(cuter_scheduler_maxcover:handle(), cuter:input()) -> ok.
+-spec input(cuter_scheduler:handle(), cuter:input()) -> ok.
 input(Ref, As) ->
   gen_server:call(?PRETTY_PRINTER, {input, Ref, As}).
 
@@ -198,22 +195,22 @@ form_has_unsupported_type(Info) ->
   gen_server:call(?PRETTY_PRINTER, {form_has_unsupported_type, Info}).
 
 %% The result status of the given concolic execution.
--spec execution_status(cuter_scheduler_maxcover:handle(), cuter_iserver:execution_status()) -> ok.
+-spec execution_status(cuter_scheduler:handle(), cuter_iserver:execution_status()) -> ok.
 execution_status(Ref, Status) ->
   gen_server:call(?PRETTY_PRINTER, {execution_status, Ref, Status}).
 
 %% The InterpreterServer's logs of the given concolic execution.
--spec execution_info(cuter_scheduler_maxcover:handle(), cuter_iserver:logs()) -> ok.
+-spec execution_info(cuter_scheduler:handle(), cuter_iserver:logs()) -> ok.
 execution_info(Ref, Logs) ->
   gen_server:call(?PRETTY_PRINTER, {execution_info, Ref, Logs}).
 
 %% The path vertex of the given concolic execution.
--spec path_vertex(cuter_scheduler_maxcover:handle(), cuter_analyzer:path_vertex()) -> ok.
+-spec path_vertex(cuter_scheduler:handle(), cuter_analyzer:path_vertex()) -> ok.
 path_vertex(Ref, Vertex) ->
   gen_server:call(?PRETTY_PRINTER, {path_vertex, Ref, Vertex}).
 
 %% Display the information of the given concolic execution.
--spec flush(cuter_scheduler_maxcover:handle()) -> ok.
+-spec flush(cuter_scheduler:handle()) -> ok.
 flush(Ref) ->
   gen_server:call(?PRETTY_PRINTER, {flush, Ref}).
 
@@ -238,9 +235,9 @@ errors_found(Errors) ->
   gen_server:call(?PRETTY_PRINTER, {errors_found, Errors}).
 
 %% Prints the logs of a CodeServer.
--spec code_logs(cuter_codeserver:logs(), cuter_mock:whitelist(), boolean()) -> ok.
-code_logs(Logs, Whitelist, SuppressUnsupported) ->
-  gen_server:call(?PRETTY_PRINTER, {code_logs, Logs, Whitelist, SuppressUnsupported}).
+-spec code_logs(cuter_codeserver:logs()) -> ok.
+code_logs(Logs) ->
+  gen_server:call(?PRETTY_PRINTER, {code_logs, Logs}).
 
 %% Print the parsed spec of the MFA.
 -spec parsed_spec(cuter_types:erl_spec()) -> ok.
@@ -248,16 +245,32 @@ parsed_spec(Spec) ->
   gen_server:call(?PRETTY_PRINTER, {parsed_spec, Spec}).
 
 %% ----------------------------------------------------------------------------
-%% Parsing of options.
+%% Whitelisted MFAs.
 %% ----------------------------------------------------------------------------
 
 -spec loaded_whitelist(file:name(), cuter_mock:whitelist()) -> ok.
 loaded_whitelist(File, Whitelist) ->
-  gen_server:call(?PRETTY_PRINTER, {whitelist_loaded, File, Whitelist}).
+  {ok, VerbosityLevel} = cuter_config:fetch(?VERBOSITY_LEVEL),
+  case VerbosityLevel#pp_level.execInfo of
+    ?MINIMAL ->
+      io:format(standard_error, "Loaded whitelisted MFAs from ~p.~n", [File]);
+    ?VERBOSE ->
+      io:format("Loaded whitelisted MFAs from ~p.~n", [File]);
+    ?FULLY_VERBOSE ->
+      MFAs = cuter_mock:get_whitelisted_mfas(Whitelist),
+      io:format("Loaded the following whitelisted MFAs from ~p.~n  ~p~n", [File, MFAs])
+  end.
 
 -spec error_loading_whitelist(file:name(), any()) -> ok.
 error_loading_whitelist(File, Error) ->
-  gen_server:call(?PRETTY_PRINTER, {whitelist_error, File, Error}).
+  {ok, VerbosityLevel} = cuter_config:fetch(?VERBOSITY_LEVEL),
+  case VerbosityLevel#pp_level.execInfo of
+    ?MINIMAL ->
+      io:format(standard_error, "Error ~p occured when loading whitelisted MFAs from ~p.~n", 
+                [Error, File]);
+    _ ->
+      io:format("Error ~p occured when loading whitelisted MFAs from ~p.~n", [Error, File])
+  end.
 
 %% ----------------------------------------------------------------------------
 %% Failed pre-run checks.
@@ -315,17 +328,9 @@ condition_outcome_coverage_nocomp(Visited, All, Coverage) ->
 %% Callgraph related info.
 %% ----------------------------------------------------------------------------
 
--spec callgraph_calculation_started([mfa()]) -> ok.
-callgraph_calculation_started(Mfas) ->
-  gen_server:call(?PRETTY_PRINTER, {callgraph_calculation_started, Mfas}).
-
 -spec callgraph_calculation_failed(string()) -> ok.
 callgraph_calculation_failed(Reason) ->
   gen_server:call(?PRETTY_PRINTER, {callgraph_calculation_failed, Reason}).
-
--spec callgraph_calculation_succeeded() -> ok.
-callgraph_calculation_succeeded() ->
-  gen_server:call(?PRETTY_PRINTER, callgraph_calculation_succeeded).
 
 -spec loading_visited_module(cuter:mod()) -> ok.
 loading_visited_module(M) ->
@@ -336,10 +341,11 @@ loading_visited_module(M) ->
 %% ============================================================================
 
 %% gen_server callback : init/1
--spec init([pid() | pp_level(), ...]) -> {ok, state()}.
-init([Super, PpLevel]) ->
+-spec init([pid(), ...]) -> {ok, state()}.
+init([Super]) ->
   %% process_flag(trap_exit, true),
   link(Super),
+  {ok, PpLevel} = cuter_config:fetch(?VERBOSITY_LEVEL),
   {ok, #st{ info = dict:new()
           , nl = false
           , pplevel = PpLevel
@@ -440,46 +446,12 @@ handle_call({solved_models, Solved, NotSolved}, _From, State=#st{pplevel = PpLev
   end,
   {reply, ok, State};
 
-%% Parsing of options.
-
-handle_call({whitelist_loaded, File, Whitelist}, _From, State=#st{pplevel = PpLevel}) ->
-  case PpLevel#pp_level.execInfo of
-    ?MINIMAL -> io:format(standard_error, "Loaded whitelisted MFAs from ~p.~n", [File]);
-    ?VERBOSE -> io:format("Loaded whitelisted MFAs from ~p.~n", [File]);
-    ?FULLY_VERBOSE ->
-      MFAs = cuter_mock:get_whitelisted_mfas(Whitelist),
-      io:format("Loaded the following whitelisted MFAs from ~p.~n  ~p~n", [File, MFAs])
-  end,
-  {reply, ok, State};
-handle_call({whitelist_error, File, Error}, _From, State=#st{pplevel = PpLevel}) ->
-  case PpLevel#pp_level.execInfo of
-    ?MINIMAL -> io:format(standard_error, "Error ~p occured when loading whitelisted MFAs from ~p.~n", [Error, File]);
-    _ -> io:format("Error ~p occured when loading whitelisted MFAs from ~p.~n", [Error, File])
-  end,
-  {reply, ok, State};
-
 %% Callgraph related info.
 
-handle_call({callgraph_calculation_started, Mfas}, _From, State=#st{pplevel = PpLevel}) ->
-  IoDevice =
-    case PpLevel#pp_level.execInfo of
-      ?MINIMAL -> standard_error;
-      _ -> standard_io
-    end,
-  io:format(IoDevice, "Calculating the callgraph of~n", []),
-  Fn = fun({M, F, A}) -> io:format(IoDevice, "  - ~p:~p/:~w~n", [M, F, A]) end,
-  lists:foreach(Fn, Mfas),
-  {reply, ok, State};
 handle_call({callgraph_calculation_failed, Reason}, _From, State=#st{pplevel = PpLevel}) ->
   case PpLevel#pp_level.execInfo of
     ?MINIMAL -> io:format(standard_error, "ERROR~nFailed to calculate the callgraph because~n  ~p~n", [Reason]);
     _ -> io:format("ERROR~nFailed to calculate the callgraph because~n  ~p~n", [Reason])
-  end,
-  {reply, ok, State};
-handle_call(callgraph_calculation_succeeded, _From, State=#st{pplevel = PpLevel}) ->
-  case PpLevel#pp_level.execInfo of
-    ?MINIMAL -> io:format(standard_error, "OK~n", []);
-    _ -> io:format("OK~n")
   end,
   {reply, ok, State};
 handle_call({loading_visited_module, M}, _From, State=#st{pplevel = PpLevel}) ->
@@ -570,8 +542,9 @@ handle_call({errors_found, Errors}, _From, State=#st{pplevel = PpLevel}) ->
   pp_erroneous_inputs(Errors, PpLevel#pp_level.execInfo),
   {reply, ok, State#st{nl = false}};
 %% Prints the logs of a CodeServer.
-handle_call({code_logs, CodeLogs, Whitelist, SuppressUnsupported}, _From, State=#st{pplevel = PpLevel}) ->
-  pp_code_logs(CodeLogs, Whitelist, SuppressUnsupported, PpLevel#pp_level.execInfo),
+handle_call({code_logs, CodeLogs}, _From, State=#st{pplevel = PpLevel}) ->
+  {ok, Whitelist} = cuter_config:fetch(?WHITELISTED_MFAS),
+  pp_code_logs(CodeLogs, Whitelist, PpLevel#pp_level.execInfo),
   {reply, ok, State#st{nl = false}};
 %% Prints the parsed spec of the mfa.
 handle_call({parsed_spec, Spec}, _From, State=#st{mfa = Mfa, pplevel = PpLevel}) ->
@@ -886,19 +859,20 @@ pp_node_logs(Logs) ->
 %% Report the CodeServer's logs
 %% ----------------------------------------------------------------------------
 
--spec pp_code_logs(cuter_codeserver:logs(), cuter_mock:whitelist(), boolean(), level()) -> ok.
-pp_code_logs(Logs, Whitelist, SuppressUnsupported, ?MINIMAL) ->
-  pp_unsupported_mfas(Logs, Whitelist, SuppressUnsupported);
-pp_code_logs(Logs, Whitelist, SuppressUnsupported, ?VERBOSE) ->
-  pp_unsupported_mfas(Logs, Whitelist, SuppressUnsupported);
-pp_code_logs(Logs, Whitelist, _SuppressUnsupported, ?FULLY_VERBOSE) ->
+-spec pp_code_logs(cuter_codeserver:logs(), cuter_mock:whitelist(), level()) -> ok.
+pp_code_logs(Logs, Whitelist, L) when L =:= ?MINIMAL orelse L =:= ?VERBOSE ->
+  case cuter_config:fetch(?SUPPRESS_UNSUPPORTED_MFAS) of
+    {ok, true} ->
+      ok;
+    _ ->
+      pp_unsupported_mfas(Logs, Whitelist)
+  end;
+pp_code_logs(Logs, Whitelist, ?FULLY_VERBOSE) ->
   pp_code_logs_fully_verbose(Logs, Whitelist).
 
 %% Reports the unsupported mfas.
--spec pp_unsupported_mfas(cuter_codeserver:logs(), cuter_mock:whitelist(), boolean()) -> ok.
-pp_unsupported_mfas(_Logs, _Whitelist, true) ->
-  ok;
-pp_unsupported_mfas(Logs, Whitelist, false) ->
+-spec pp_unsupported_mfas(cuter_codeserver:logs(), cuter_mock:whitelist()) -> ok.
+pp_unsupported_mfas(Logs, Whitelist) ->
   UnsupportedMfas = cuter_codeserver:unsupportedMfas_of_logs(Logs),
   case filter_non_reportable(UnsupportedMfas, Whitelist) of
     [] -> ok;
@@ -1053,90 +1027,82 @@ delete_file(F, false) ->
 delete_file(_F, _Intact) -> ok.
 -endif.
 
-%%
-%% Verbose solving
-%%
-
-%%-spec sat() -> ok.
-%%-ifdef(VERBOSE_SOLVING).
-%%sat() ->
-%%  io:format("[SLV] (solving) SAT~n").
-%%-else.
-%%sat() -> ok.
-%%-endif.
-
-%%-spec not_sat() -> ok.
-%%-ifdef(VERBOSE_SOLVING).
-%%not_sat() ->
-%%  io:format("[SLV] (solving) NOT SAT~n").
-%%-else.
-%%not_sat() -> ok.
-%%-endif.
+%% ----------------------------------------------------------------------------
+%% Solver FSM
+%% ----------------------------------------------------------------------------
 
 -spec model_start() -> ok.
--ifdef(VERBOSE_SOLVING).
 model_start() ->
-  io:format("[SLV] (generating_model) Beginning of the model~n").
--else.
-model_start() -> ok.
--endif.
+  case cuter_config:fetch(?DEBUG_SOLVER_FSM) of
+    {ok, true} ->
+      io:format("[SLV] (generating_model) Beginning of the model~n");
+    _ ->
+      ok
+  end.
 
 -spec model_end() -> ok.
--ifdef(VERBOSE_SOLVING).
 model_end() ->
-  io:format("[SLV] (expecting_var) End of the model~n").
--else.
-model_end() -> ok.
--endif.
+  case cuter_config:fetch(?DEBUG_SOLVER_FSM) of
+    {ok, true} ->
+      io:format("[SLV] (expecting_var) End of the model~n");
+    _ ->
+      ok
+  end.
 
 -spec received_var(cuter_symbolic:symbolic()) -> ok.
--ifdef(VERBOSE_SOLVING).
 received_var(Var) ->
-  io:format("[SLV] (expecting_var) Var: ~p~n", [Var]).
--else.
-received_var(_Var) -> ok.
--endif.
+  case cuter_config:fetch(?DEBUG_SOLVER_FSM) of
+    {ok, true} ->
+      io:format("[SLV] (expecting_var) Var: ~p~n", [Var]);
+    _ ->
+      ok
+  end.
 
 -spec received_val(any()) -> ok.
--ifdef(VERBOSE_SOLVING).
 received_val(Val) ->
-  io:format("[SLV] (expecting_value) Val: ~p~n", [Val]).
--else.
-received_val(_Val) -> ok.
--endif.
+  case cuter_config:fetch(?DEBUG_SOLVER_FSM) of
+    {ok, true} ->
+      io:format("[SLV] (expecting_value) Val: ~p~n", [Val]);
+    _ ->
+      ok
+  end.
 
 -spec port_closed() -> ok.
--ifdef(VERBOSE_SOLVING).
 port_closed() ->
-  io:format("[SLV] (finished) Port Closed~n").
--else.
-port_closed() -> ok.
--endif.
+  case cuter_config:fetch(?DEBUG_SOLVER_FSM) of
+    {ok, true} ->
+      io:format("[SLV] (finished) Port Closed~n");
+    _ ->
+      ok
+  end.
 
 -spec undecoded_msg(binary(), cuter_solver:state()) -> ok.
--ifdef(VERBOSE_SOLVING).
 undecoded_msg(Msg, State) ->
-  io:format("[SLV INFO] (~p) ~p~n", [State, Msg]).
--else.
-undecoded_msg(_Msg, _State) -> ok.
--endif.
+  case cuter_config:fetch(?DEBUG_SOLVER_FSM) of
+    {ok, true} ->
+      io:format("[SLV INFO] (~p) ~p~n", [State, Msg]);
+    _ ->
+      ok
+  end.
 
 -spec fsm_started(port()) -> ok.
--ifdef(VERBOSE_SOLVING).
 fsm_started(Port) ->
-  io:format("[FSM] (idle) Started (Port ~p)~n", [Port]).
--else.
-fsm_started(_Port) -> ok.
--endif.
+  case cuter_config:fetch(?DEBUG_SOLVER_FSM) of
+    {ok, true} ->
+      io:format("[FSM] (idle) Started (Port ~p)~n", [Port]);
+    _ ->
+      ok
+  end.
 
 -type cmd() :: {file:name(), integer()} | cuter_symbolic:mapping() | binary().	% FIXME
 -spec send_cmd(cuter_solver:state(), cmd(), string()) -> ok.
--ifdef(VERBOSE_SOLVING).
-send_cmd(State, Cmd, Descr) ->
-  io:format("[FSM] (~p) ~p~n  ~p~n", [State, Descr, Cmd]).
--else.
-send_cmd(_State, _Cmd, _Descr) -> ok.
--endif.
+send_cmd(State, _, Descr) ->
+  case cuter_config:fetch(?DEBUG_SOLVER_FSM) of
+    {ok, true} ->
+      io:format("[FSM] (~p) ~p~n", [State, Descr]);
+    _ ->
+      ok
+  end.
 
 -spec debug_unexpected_solver_message(any()) -> ok.
 debug_unexpected_solver_message(Info) ->
@@ -1278,6 +1244,12 @@ pp_type(Type, FmtFn) ->
           Ts1 = [pp_type(T, StrFmtFn) || T <- Ts],
           FmtFn("{~s}", [string:join(Ts1, ", ")])
       end;
+    ?map_tag ->
+      AssocList = [
+        FmtFn("~s ~s ~s", [pp_type(From, StrFmtFn), assoc_type_op(AssocType), pp_type(To, StrFmtFn)])
+        || { AssocType, From, To } <- cuter_types:assocs_of_t_map(Type)
+      ],
+      FmtFn("#{~s}", [string:join(AssocList, ", ")]);
     ?union_tag ->
       Ts1 = [pp_type(T, StrFmtFn) || T <- cuter_types:elements_types_of_t_union(Type)],
       FmtFn("~s", [string:join(Ts1, " | ")]);
@@ -1298,6 +1270,12 @@ pp_range_bound(Limit) ->
       ""
   end.
 
+assoc_type_op(AssocType) ->
+  case AssocType of
+    map_field_assoc -> "=>";
+    map_field_exact -> ":="
+  end.
+
 pp_typesig(Fun, FmtFn) ->
   StrFmtFn = fun io_lib:format/2,
   Ret = pp_type(cuter_types:ret_of_t_function(Fun), StrFmtFn),
@@ -1308,3 +1286,22 @@ pp_typesig(Fun, FmtFn) ->
       Params = [pp_type(P, StrFmtFn) || P <- cuter_types:params_of_t_function_det(Fun)],
       FmtFn("fun((~s) -> ~s)", [string:join(Params, ", "), Ret])
   end.
+
+%% ----------------------------------------------------------------------------
+%% Report collected metrics.
+%% ----------------------------------------------------------------------------
+
+-spec pp_metrics_title() -> ok.
+pp_metrics_title() ->
+  io:format("~n=== Collected Metrics ===~n~n").
+
+-spec pp_distribution_metric(cuter_metrics:name(), cuter_metrics:distribution_list()) -> ok.
+pp_distribution_metric(Name, Distribution) ->
+  io:format("[~s]~n", [Name]),
+  pp_distribution_values(Distribution).
+
+pp_distribution_values(D) ->
+  lists:foreach(fun pp_distribution_value/1, D).
+
+pp_distribution_value({V, N}) ->
+  io:format("- ~s: ~w~n", [V, N]).

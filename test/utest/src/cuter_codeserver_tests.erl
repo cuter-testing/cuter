@@ -3,24 +3,19 @@
 -module(cuter_codeserver_tests).
 
 -include_lib("eunit/include/eunit.hrl").
+-include_lib("include/cuter_macros.hrl").
+-include_lib("test/utest/include/types.hrl").
 
--spec test() -> 'ok' | {'error', term()}.  %% This should be provided by EUnit
+-spec test() -> ok | {error, any()}.  %% This should be provided by EUnit
 
 -define(MODS_LIST, [lists, dict, orddict, ets, os, string, filelib, beam_lib, cerl]).
--define(Pmatch, false).
 
--type descr() :: nonempty_string().
--type f_one() :: fun((term()) -> term()).
--type setup() :: {'setup', fun(() -> term()), f_one(), f_one()}.
--type ret_t() :: {descr(), setup()}.
-
-%% Load modules
--spec load_modules_test_() -> ret_t().
+-spec load_modules_test_() -> tgen().
 load_modules_test_() ->
   Setup = fun setup/0,
   Cleanup = fun cleanup/1,
   Inst = fun(_) ->
-    Cs = cuter_codeserver:start(self(), ?Pmatch, cuter_mock:empty_whitelist(), true),
+    Cs = cuter_codeserver:start(),
     As = [load_mod(Cs, M) || M <- ?MODS_LIST],
     Stop = cuter_codeserver:stop(Cs),
     [{"codeserver termination", ?_assertEqual(ok, Stop)},
@@ -32,13 +27,13 @@ load_mod(Cs, M) ->
   Rep = cuter_codeserver:load(Cs, M),
   {atom_to_list(M), ?_assertMatch({ok, _}, Rep)}.
 
-%% Load & Retrieve modules
--spec load_and_retrieve_test_() -> ret_t().
+
+-spec load_and_retrieve_test_() -> tgen().
 load_and_retrieve_test_() ->
   Setup = fun setup/0,
   Cleanup = fun cleanup/1,
   Inst = fun(_) ->
-    Cs = cuter_codeserver:start(self(), ?Pmatch, cuter_mock:empty_whitelist(), true),
+    Cs = cuter_codeserver:start(),
     R1 = cuter_codeserver:load(Cs, lists),
     R2 = cuter_codeserver:load(Cs, os),
     R3 = cuter_codeserver:load(Cs, lists),
@@ -49,13 +44,13 @@ load_and_retrieve_test_() ->
   end,
   {"Query modules multiple times", {setup, Setup, Cleanup, Inst}}.
 
-%% Get the specs of mfas.
--spec get_spec_test_() -> ret_t().
-get_spec_test_() ->
+
+-spec get_mfa_spec_test_() -> tgen().
+get_mfa_spec_test_() ->
   Setup = fun setup/0,
   Cleanup = fun cleanup/1,
   Inst = fun(_) ->
-    Cs = cuter_codeserver:start(self(), ?Pmatch, cuter_mock:empty_whitelist(), true),
+    Cs = cuter_codeserver:start(),
     %% types_and_specs:foo/0
     Spec0 = cuter_codeserver:retrieve_spec(Cs, {types_and_specs, foo, 0}),
     Expected0 = {[cuter_types:t_function([], cuter_types:t_atom_lit(ok))], []},
@@ -73,13 +68,12 @@ get_spec_test_() ->
   end,
   {"Get specs of mfas", {setup, Setup, Cleanup, Inst}}.
 
-%% Erroneous modules
--spec error_load_test_() -> term().
+-spec error_load_test_() -> tgen().
 error_load_test_() ->
   Setup = fun setup/0,
   Cleanup = fun cleanup/1,
   Inst = fun(_) ->
-    Cs = cuter_codeserver:start(self(), ?Pmatch, cuter_mock:empty_whitelist(), true),
+    Cs = cuter_codeserver:start(),
     R1 = cuter_codeserver:load(Cs, erlang),
     R2 = cuter_codeserver:load(Cs, foobar),
     Stop = cuter_codeserver:stop(Cs),
@@ -88,16 +82,21 @@ error_load_test_() ->
   end,
   {"Query invalid modules", {setup, Setup, Cleanup, Inst}}.
 
-
-%%====================================================================
+%% ===================================================================
 %% Helper functions
-%%====================================================================
+%% ===================================================================
 
 setup() ->
-  ok = cuter_pp:start(cuter_pp:default_reporting_level()),
+  cuter_config:start(),
+  cuter_config:store(?DISABLE_PMATCH, true),
+  cuter_config:store(?DISABLE_TYPE_NORMALIZATION, false),
+  cuter_config:store(?VERBOSITY_LEVEL, cuter_pp:default_reporting_level()),
+  cuter_config:store(?WHITELISTED_MFAS, cuter_mock:empty_whitelist()),
+  ok = cuter_pp:start(),
   {}.
 
 cleanup(_) ->
   cuter_pp:stop(),
+  cuter_config:stop(),
   timer:sleep(200),
   ok.

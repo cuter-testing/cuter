@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 import sys, getopt
@@ -8,7 +8,7 @@ def main(argv):
   shortOpts = "p:hu:e:"
   longOpts = ["path=", "help", "utest-ebin=", "ebin="]
   try:
-    print "\033[01;34mTesting python modules ...\033[00m"
+    print("\033[01;34mTesting python modules ...\033[00m")
     optlist, mods = getopt.gnu_getopt(argv, shortOpts, longOpts)
     if len(mods) == 0:
       usage()
@@ -28,37 +28,37 @@ def main(argv):
         usage()
         sys.exit(0)
     if path == None:
-      print "\033[01;31mCutEr's priv directory has not been specified.\033[00m"
+      print("\033[01;31mCutEr's priv directory has not been specified.\033[00m")
       sys.exit(1)
     if ebin == None:
-      print "\033[01;31mCutEr's ebin directory has not been specified.\033[00m"
+      print("\033[01;31mCutEr's ebin directory has not been specified.\033[00m")
     if utestEbin == None:
-      print "\033[01;31mCutEr's utest ebin directory has not been specified.\033[00m"
+      print("\033[01;31mCutEr's utest ebin directory has not been specified.\033[00m")
       sys.exit(1)
     # Run tests.
-    cmds = ["echo \"{} ...\" && python {}/{}.py -e {} -u {}".format(
+    cmds = ["echo \"{} ...\" && python3 {}/{}.py -e {} -u {}".format(
       mod, path, mod, ebin, utestEbin) for mod in mods]
     ret = runCmds(cmds)
     if ret == 0:
-      print "\033[01;32m  All %d tests passed\033[00m" % (len(cmds))
+      print("\033[01;32m  All %d tests passed\033[00m" % (len(cmds)))
     else:
-      print "\033[01;31m  Some tests failed\033[00m"
+      print("\033[01;31m  Some tests failed\033[00m")
     sys.exit(ret)
   except Exception as e:
-    print "\033[01;31mFatal Error:\033[00m", e
+    print("\033[01;31mFatal Error:\033[00m", e)
     sys.exit(1)
 
 def runCmds(cmds):
   return 0 if all([subp.call(cmd, shell=True) == 0 for cmd in cmds]) else 1
 
 def usage():
-  print "Usage: python_test options Mods"
-  print "PARAMETERS"
-  print "	Mods				A list of space-separated modules."
-  print "OPTIONS"
-  print "	-p Dir, --path=Dir		The directory Dir of CutEr's priv."
-  print "	-u Dir, --utest-ebin=Dir		The directory Dir of CutEr's priv."
-  print "	--help				Display this information."
+  print("Usage: python_test options Mods")
+  print("PARAMETERS")
+  print("	Mods				A list of space-separated modules.")
+  print("OPTIONS")
+  print("	-p Dir, --path=Dir		The directory Dir of CutEr's priv.")
+  print("	-u Dir, --utest-ebin=Dir		The directory Dir of CutEr's priv.")
+  print("	--help				Display this information.")
 
 if __name__ == "__main__":
   try:
