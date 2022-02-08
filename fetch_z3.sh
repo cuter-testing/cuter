@@ -12,3 +12,5 @@ unzip /tmp/z3.zip -d /tmp
 rm /tmp/z3.zip
 mv /tmp/z3-* /opt/z3
 ln -s /opt/z3/bin/z3 /usr/bin/z3
+which z3
+z3 -version
