@@ -12,7 +12,7 @@
          node_types_conditions/0, node_types_conditions_nocomp/0,
          node_types_paths/0, node_types_paths_nocomp/0]).
 %% kfun API.
--export([kfun/2, kfun_code/1, kfun_is_exported/1, kfun_update_code/2]).
+-export([kfun/2, kfun_code/1, kfun_is_exported/1]).
 %% kmodule API.
 -export([kmodule_spec_forms/1, kmodule_record_forms/1, kmodule_type_forms/1, kmodule_exported_types/1, kmodule_name/1, destroy_kmodule/1, kmodule/3, kmodule_kfun/2, kmodule_mfa_spec/2,
   kmodule_specs/1, kmodule_types/1, kmodule_update_kfun/3, kmodule_mfas_with_kfuns/1,
@@ -228,13 +228,13 @@ kmodule_types(Kmodule) ->
   Types.
 
 %% Returns the unprocessed types (and opaques) of a kmodule (as forms).
--spec kmodule_type_forms(kmodule()) -> [{integer(), cerl:cerl()}].
+-spec kmodule_type_forms(kmodule()) -> [{lineno(), cerl:cerl()}].
 kmodule_type_forms(Kmodule) ->
   [{type_forms, TypeForms}] = ets:lookup(Kmodule, type_forms),
   TypeForms.
 
 %% Returns the unprocessed records of a kmodule (as forms).
--spec kmodule_record_forms(kmodule()) -> [{integer(), {atom(), [cerl:cerl()]}}].
+-spec kmodule_record_forms(kmodule()) -> [{lineno(), {atom(), [cerl:cerl()]}}].
 kmodule_record_forms(Kmodule) ->
   [{record_forms, RecordForms}] = ets:lookup(Kmodule, record_forms),
   RecordForms.
@@ -309,10 +309,6 @@ kfun_is_exported(#{is_exported := IsExported}) -> IsExported.
 %% Returns the code of a kfun.
 -spec kfun_code(kfun()) -> code().
 kfun_code(#{code := Code}) -> Code.
-
-%% Updates the code of a kfun.
--spec kfun_update_code(kfun(), code()) -> kfun().
-kfun_update_code(Fun, Code) -> Fun#{code=>Code}.
 
 %% ===================================================================
 %% Internal functions
