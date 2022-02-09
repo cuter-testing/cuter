@@ -152,11 +152,11 @@
 -type cerl_type_function() :: {'type', lineno(), 'function', []}
                             | cerl_func() | cerl_bounded_func().
 
-% Intermediate types during form extraction and manipulation.
+%% Intermediate types during form extraction and manipulation.
 -type extracted_record_form() :: {lineno(), cerl_recdef()}.
 -type extracted_type_form() :: {lineno(), cerl_typedef()}.
 
-% Types missing from the cerl module.
+%% Types missing from the cerl module.
 -type cerl_anno() :: {cerl:cerl(), cerl:cerl()}.
 
 
@@ -289,7 +289,7 @@ kmodule_mfas_with_spec_forms(Kmodule) ->
   end,
   lists:foldl(Fn, dict:new(), SpecsForms).
 
-% Updates the kfun of the given MFA of a kmodule.
+%% Updates the kfun of the given MFA of a kmodule.
 -spec kmodule_update_kfun(kmodule(), mfa(), kfun()) -> true.
 kmodule_update_kfun(Kmodule, MFa, Kfun) -> ets:insert(Kmodule, {MFa, Kfun}).
 
@@ -378,10 +378,7 @@ get_abstract_code(Mod, Beam) ->
 -type spec_info() :: cerl_attr_spec().
 
 %% Extracts the record definitions (as forms) from the annotations of a module.
-%% The relevant annotations have the following structure:
-%%   OTP 18.x and earlier:
-%%     {#c_atom{val=type}, #c_literal{val=[{record, Name}, Fields, []]}}
-%%  OTP 19.x and newer:
+%% The relevant annotations have the following structure in OTP 19.x and newer:
 %%     {#c_atom{val=record}, #c_literal{val=[{Name, Fields}]}}
 -spec extract_record_forms([cerl_anno()]) -> [extracted_record_form()].
 extract_record_forms(Attrs) ->
@@ -460,7 +457,7 @@ annotate(Tree, TagGen, InPats) ->
       Pat = annotate(cerl:alias_pat(Tree), TagGen, InPats),
       cerl:update_c_alias(Tree, Var, Pat);
     'apply' ->
-      % TODO Annotate applications for lambda terms.
+      %% TODO Annotate applications for lambda terms.
       Op = annotate(cerl:apply_op(Tree), TagGen, InPats),
       Args = annotate_all(cerl:apply_args(Tree), TagGen, InPats),
       cerl:update_c_apply(Tree, Op, Args);
