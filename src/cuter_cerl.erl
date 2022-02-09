@@ -177,6 +177,9 @@ load(M, TagGen, WithPmatch) ->
 %% kmodule API
 %% -------------------------------------------------------------------
 
+%% Constructs a kmodule.
+%% It takes the AST of the module as input and performs all the computations
+%% to produce a kmodule.
 -spec kmodule(module(), cerl:cerl(), tag_generator()) -> kmodule().
 kmodule(M, AST, TagGen) ->
   Kmodule = ets:new(M, [ordered_set, protected]),
@@ -199,37 +202,44 @@ kmodule(M, AST, TagGen) ->
   lists:foreach(fun({Mfa, Kfun}) -> ets:insert(Kmodule, {Mfa, Kfun}) end, Funs),
   Kmodule.
 
+%% Returns a set of all the exported types of a kmodule.
+%% Types are module-prefixed.
 -spec kmodule_exported_types(kmodule()) -> sets:set({module(), atom(), arity()}).
 kmodule_exported_types(Kmodule) ->
   [{exported_types, ExpTypes}] = ets:lookup(Kmodule, exported_types),
   ExpTypes.
 
+%% Returns the name of a kmodule.
 -spec kmodule_name(kmodule()) -> module().
 kmodule_name(Kmodule) ->
   [{name, Name}] = ets:lookup(Kmodule, name),
   Name.
 
+%% Returns the processed specs of a kmodule.
 -spec kmodule_specs(kmodule()) -> cuter_types:stored_specs().
 kmodule_specs(Kmodule) ->
   [{specs, Specs}] = ets:lookup(Kmodule, specs),
   Specs.
 
+%% Returns the processed types of a kmodule.
 -spec kmodule_types(kmodule()) -> cuter_types:stored_types().
 kmodule_types(Kmodule) ->
   [{types, Types}] = ets:lookup(Kmodule, types),
   Types.
 
+%% Returns the unprocessed types (and opaques) of a kmodule (as forms).
 -spec kmodule_type_forms(kmodule()) -> [{integer(), cerl:cerl()}].
 kmodule_type_forms(Kmodule) ->
   [{type_forms, TypeForms}] = ets:lookup(Kmodule, type_forms),
   TypeForms.
 
+%% Returns the unprocessed records of a kmodule (as forms).
 -spec kmodule_record_forms(kmodule()) -> [{integer(), {atom(), [cerl:cerl()]}}].
 kmodule_record_forms(Kmodule) ->
   [{record_forms, RecordForms}] = ets:lookup(Kmodule, record_forms),
   RecordForms.
 
-%% Retrieves the kfun() for the given MFA.
+%% Returns the kfun for a given MFA of a kmodule.
 -spec kmodule_kfun(kmodule(), mfa()) -> {ok, kfun()} | error.
 kmodule_kfun(Kmodule, Mfa) ->
   case ets:lookup(Kmodule, Mfa) of
@@ -237,7 +247,7 @@ kmodule_kfun(Kmodule, Mfa) ->
     [{Mfa, Kfun}] -> {ok, Kfun}
   end.
 
-%% Retrieves the spec for the given MFA.
+%% Returns the spec for a given MFA of a kmodule.
 -spec kmodule_mfa_spec(kmodule(), mfa()) -> {ok, cuter_types:stored_spec_value()} | error.
 kmodule_mfa_spec(Kmodule, {_M, F, A}) ->
   cuter_types:find_spec({F, A}, kmodule_specs(Kmodule)).
@@ -248,6 +258,7 @@ destroy_kmodule(Kmodule) ->
   ets:delete(Kmodule),
   ok.
 
+%% Returns a dict with all the kfuns of a kmodule, that is keyed by MFAs.
 -spec kmodule_mfas_with_kfuns(kmodule()) -> dict:dict(mfa(), kfun()).
 kmodule_mfas_with_kfuns(Kmodule) ->
   Fn = fun({Key, Val}, Acc) ->
@@ -261,11 +272,14 @@ kmodule_mfas_with_kfuns(Kmodule) ->
 is_mfa({M, F, A}) when is_atom(M), is_atom(F), is_integer(A), A >= 0 -> true;
 is_mfa(_Mfa) -> false.
 
+%% Returns the unprocessed specs of a kmodule (as forms).
 -spec kmodule_spec_forms(kmodule()) -> [cerl:cerl()].
 kmodule_spec_forms(Kmodule) ->
   [{spec_forms, SpecsForms}] = ets:lookup(Kmodule, spec_forms),
   SpecsForms.
 
+%% Returns a dict with all the unprocessed specs of a kmodule (as forms),
+%% that is keyed by MFAs.
 -spec kmodule_mfas_with_spec_forms(kmodule()) -> dict:dict(mfa(), any()).
 kmodule_mfas_with_spec_forms(Kmodule) ->
   [{name, M}] = ets:lookup(Kmodule, name),
@@ -275,7 +289,7 @@ kmodule_mfas_with_spec_forms(Kmodule) ->
   end,
   lists:foldl(Fn, dict:new(), SpecsForms).
 
-% updates the kfun of the given MFa
+% Updates the kfun of the given MFA of a kmodule.
 -spec kmodule_update_kfun(kmodule(), mfa(), kfun()) -> true.
 kmodule_update_kfun(Kmodule, MFa, Kfun) -> ets:insert(Kmodule, {MFa, Kfun}).
 
@@ -283,16 +297,20 @@ kmodule_update_kfun(Kmodule, MFa, Kfun) -> ets:insert(Kmodule, {MFa, Kfun}).
 %% kfun API
 %% -------------------------------------------------------------------
 
+%% Constructs a kfun.
 -spec kfun(code(), boolean()) -> kfun().
 kfun(Code, IsExported) ->
   #{code => Code, is_exported => IsExported}.
 
+%% Returns if a kfun represents an exported MFA.
 -spec kfun_is_exported(kfun()) -> boolean().
 kfun_is_exported(#{is_exported := IsExported}) -> IsExported.
 
+%% Returns the code of a kfun.
 -spec kfun_code(kfun()) -> code().
 kfun_code(#{code := Code}) -> Code.
 
+%% Updates the code of a kfun.
 -spec kfun_update_code(kfun(), code()) -> kfun().
 kfun_update_code(Fun, Code) -> Fun#{code=>Code}.
 
