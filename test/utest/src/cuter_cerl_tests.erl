@@ -83,7 +83,7 @@ construct_and_access_kmodule_test() ->
   Kfun = cuter_cerl:kfun(Code, true),
   SomeMod = some_module,
   SomeModAtm = cerl:c_atom(SomeMod),
-  F1Var  = cerl:c_var({f,1})
+  F1Var  = cerl:c_var({f,1}),
   MI0Var = cerl:c_var({module_info,0}),
   MI1Var = cerl:c_var({module_info,1}),
   ErlangAtm = cerl:c_atom(erlang),
