@@ -11,13 +11,14 @@
 -export([node_types_branches/0, node_types_branches_nocomp/0, node_types_all/0,
          node_types_conditions/0, node_types_conditions_nocomp/0,
          node_types_paths/0, node_types_paths_nocomp/0]).
-%% Exported for debugging use.
--export([classify_attributes/1]).
 %% kfun API.
 -export([kfun/2, kfun_code/1, kfun_is_exported/1]).
 %% kmodule API.
--export([destroy_kmodule/1, kmodule/4, kmodule_kfun/2, kmodule_mfa_spec/2, 
-  kmodule_specs/1, kmodule_types/1]).
+-export([kmodule_spec_forms/1, kmodule_record_forms/1, kmodule_type_forms/1, kmodule_exported_types/1, kmodule_name/1, destroy_kmodule/1, kmodule/3, kmodule_kfun/2, kmodule_mfa_spec/2,
+  kmodule_specs/1, kmodule_types/1, kmodule_update_kfun/3, kmodule_mfas_with_kfuns/1,
+  kmodule_mfas_with_spec_forms/1]).
+%% Export for unit tests.
+-export([extract_record_forms/1, extract_type_forms/1]).
 
 %% We are using the records representation of Core Erlang Abstract Syntax Trees
 -include_lib("compiler/src/core_parse.hrl").
@@ -30,7 +31,9 @@
 	      cerl_spec_func/0, cerl_type/0, cerl_typedef/0,
 	      cerl_type_record_field/0, node_types/0,
 	      tagID/0, tag/0, tag_generator/0, visited_tags/0,
-	      type_info/0, spec_info/0]).
+	      spec_info/0]).
+
+-export_type([extracted_record_form/0, extracted_type_form/0]).
 
 -export_type([kfun/0, kmodule/0]).
 
@@ -66,10 +69,6 @@
 -type lineno() :: integer().
 -type name() :: atom().
 -type fa() :: {name(), arity()}.
--type cerl_attr() :: {#c_literal{val :: 'type' | opaque}, #c_literal{val :: cerl_attr_type()}}
-                   | {#c_literal{val :: 'record'}, #c_literal{val :: cerl_recdef()}} % for OTP 19.x
-                   | {#c_literal{val :: 'spec'}, #c_literal{val :: cerl_attr_spec()}}
-                   | {#c_literal{val :: 'export_type' | 'behaviour'}, cerl:c_literal()}.
 -type cerl_attr_type() :: cerl_recdef() | cerl_typedef().
 -type cerl_attr_spec() :: cerl_specdef().
 
@@ -153,6 +152,13 @@
 -type cerl_type_function() :: {'type', lineno(), 'function', []}
                             | cerl_func() | cerl_bounded_func().
 
+%% Intermediate types during form extraction and manipulation.
+-type extracted_record_form() :: {lineno(), cerl_recdef()}.
+-type extracted_type_form() :: {lineno(), cerl_typedef()}.
+
+%% Types missing from the cerl module.
+-type cerl_anno() :: {cerl:cerl(), cerl:cerl()}.
+
 
 %% ===================================================================
 %% External API
@@ -163,13 +169,7 @@
 load(M, TagGen, WithPmatch) ->
   case get_core(M, WithPmatch) of
     {ok, #c_module{}=AST} -> % just a sanity check that we get back a module
-      Exports = extract_exports(M, AST),
-      {TypeAttrs, SpecAttrs} = classify_attributes(cerl:module_attrs(AST)),
-      Types = cuter_types:retrieve_types(TypeAttrs),
-      Specs = cuter_types:retrieve_specs(SpecAttrs),
-      Defs = cerl:module_defs(AST),
-      Funs = [process_fundef(D, Exports, M, TagGen) || D <- Defs],
-      {ok, kmodule(M, Types, Specs, Funs)};
+      {ok, kmodule(M, AST, TagGen)};
     {error, _} = Error -> Error
   end.
 
@@ -177,25 +177,69 @@ load(M, TagGen, WithPmatch) ->
 %% kmodule API
 %% -------------------------------------------------------------------
 
--spec kmodule(module(), cuter_types:stored_types(), cuter_types:stored_specs(), [{mfa(), kfun()}]) -> kmodule().
-kmodule(M, Types, Specs, Funs) ->
+%% Constructs a kmodule.
+%% It takes the AST of the module as input and performs all the computations
+%% to produce a kmodule.
+-spec kmodule(module(), cerl:cerl(), tag_generator()) -> kmodule().
+kmodule(M, AST, TagGen) ->
   Kmodule = ets:new(M, [ordered_set, protected]),
+  Exports = extract_exports(M, AST),
+  Attrs = cerl:module_attrs(AST),
+  RecordForms = extract_record_forms(Attrs),
+  TypeForms = extract_type_forms(Attrs),
+  SpecForms = extract_spec_forms(Attrs),
+  Types = cuter_types:retrieve_types(TypeForms, RecordForms),
+  Specs = cuter_types:retrieve_specs(SpecForms),
+  Defs = cerl:module_defs(AST),
+  Funs = [process_fundef(D, Exports, M, TagGen) || D <- Defs],
+  ets:insert(Kmodule, {name, M}),
   ets:insert(Kmodule, {types, Types}),
   ets:insert(Kmodule, {specs, Specs}),
+  ets:insert(Kmodule, {spec_forms, SpecForms}),
+  ets:insert(Kmodule, {exported_types, extract_exported_types(M, Attrs)}),
+  ets:insert(Kmodule, {type_forms, TypeForms}),
+  ets:insert(Kmodule, {record_forms, RecordForms}),
   lists:foreach(fun({Mfa, Kfun}) -> ets:insert(Kmodule, {Mfa, Kfun}) end, Funs),
   Kmodule.
 
+%% Returns a set of all the exported types of a kmodule.
+%% Types are module-prefixed.
+-spec kmodule_exported_types(kmodule()) -> sets:set({module(), atom(), arity()}).
+kmodule_exported_types(Kmodule) ->
+  [{exported_types, ExpTypes}] = ets:lookup(Kmodule, exported_types),
+  ExpTypes.
+
+%% Returns the name of a kmodule.
+-spec kmodule_name(kmodule()) -> module().
+kmodule_name(Kmodule) ->
+  [{name, Name}] = ets:lookup(Kmodule, name),
+  Name.
+
+%% Returns the processed specs of a kmodule.
 -spec kmodule_specs(kmodule()) -> cuter_types:stored_specs().
 kmodule_specs(Kmodule) ->
   [{specs, Specs}] = ets:lookup(Kmodule, specs),
   Specs.
 
+%% Returns the processed types of a kmodule.
 -spec kmodule_types(kmodule()) -> cuter_types:stored_types().
 kmodule_types(Kmodule) ->
   [{types, Types}] = ets:lookup(Kmodule, types),
   Types.
 
-%% Retrieves the kfun() for the given MFA.
+%% Returns the unprocessed types (and opaques) of a kmodule (as forms).
+-spec kmodule_type_forms(kmodule()) -> [{lineno(), cerl:cerl()}].
+kmodule_type_forms(Kmodule) ->
+  [{type_forms, TypeForms}] = ets:lookup(Kmodule, type_forms),
+  TypeForms.
+
+%% Returns the unprocessed records of a kmodule (as forms).
+-spec kmodule_record_forms(kmodule()) -> [{lineno(), {atom(), [cerl:cerl()]}}].
+kmodule_record_forms(Kmodule) ->
+  [{record_forms, RecordForms}] = ets:lookup(Kmodule, record_forms),
+  RecordForms.
+
+%% Returns the kfun for a given MFA of a kmodule.
 -spec kmodule_kfun(kmodule(), mfa()) -> {ok, kfun()} | error.
 kmodule_kfun(Kmodule, Mfa) ->
   case ets:lookup(Kmodule, Mfa) of
@@ -203,7 +247,7 @@ kmodule_kfun(Kmodule, Mfa) ->
     [{Mfa, Kfun}] -> {ok, Kfun}
   end.
 
-%% Retrieves the spec for the given MFA.
+%% Returns the spec for a given MFA of a kmodule.
 -spec kmodule_mfa_spec(kmodule(), mfa()) -> {ok, cuter_types:stored_spec_value()} | error.
 kmodule_mfa_spec(Kmodule, {_M, F, A}) ->
   cuter_types:find_spec({F, A}, kmodule_specs(Kmodule)).
@@ -214,17 +258,55 @@ destroy_kmodule(Kmodule) ->
   ets:delete(Kmodule),
   ok.
 
+%% Returns a dict with all the kfuns of a kmodule, that is keyed by MFAs.
+-spec kmodule_mfas_with_kfuns(kmodule()) -> dict:dict(mfa(), kfun()).
+kmodule_mfas_with_kfuns(Kmodule) ->
+  Fn = fun({Key, Val}, Acc) ->
+      case is_mfa(Key) of
+        true -> dict:store(Key, Val, Acc);
+        false -> Acc
+      end
+    end,
+  ets:foldl(Fn, dict:new(), Kmodule).
+
+is_mfa({M, F, A}) when is_atom(M), is_atom(F), is_integer(A), A >= 0 -> true;
+is_mfa(_Mfa) -> false.
+
+%% Returns the unprocessed specs of a kmodule (as forms).
+-spec kmodule_spec_forms(kmodule()) -> [cerl:cerl()].
+kmodule_spec_forms(Kmodule) ->
+  [{spec_forms, SpecsForms}] = ets:lookup(Kmodule, spec_forms),
+  SpecsForms.
+
+%% Returns a dict with all the unprocessed specs of a kmodule (as forms),
+%% that is keyed by MFAs.
+-spec kmodule_mfas_with_spec_forms(kmodule()) -> dict:dict(mfa(), any()).
+kmodule_mfas_with_spec_forms(Kmodule) ->
+  [{name, M}] = ets:lookup(Kmodule, name),
+  SpecsForms = kmodule_spec_forms(Kmodule),
+  Fn = fun({{F, A}, Spec}, Acc) ->
+    dict:store({M, F, A}, Spec, Acc)
+  end,
+  lists:foldl(Fn, dict:new(), SpecsForms).
+
+%% Updates the kfun of the given MFA of a kmodule.
+-spec kmodule_update_kfun(kmodule(), mfa(), kfun()) -> true.
+kmodule_update_kfun(Kmodule, MFa, Kfun) -> ets:insert(Kmodule, {MFa, Kfun}).
+
 %% -------------------------------------------------------------------
 %% kfun API
 %% -------------------------------------------------------------------
 
+%% Constructs a kfun.
 -spec kfun(code(), boolean()) -> kfun().
 kfun(Code, IsExported) ->
   #{code => Code, is_exported => IsExported}.
 
+%% Returns if a kfun represents an exported MFA.
 -spec kfun_is_exported(kfun()) -> boolean().
 kfun_is_exported(#{is_exported := IsExported}) -> IsExported.
 
+%% Returns the code of a kfun.
 -spec kfun_code(kfun()) -> code().
 kfun_code(#{code := Code}) -> Code.
 
@@ -236,6 +318,10 @@ kfun_code(#{code := Code}) -> Code.
 extract_exports(M, AST) ->
   Exports = cerl:module_exports(AST),
   [mfa_from_var(M, E) || E <- Exports].
+
+extract_exported_types(Mod, Attrs) ->
+  Filtered = [T || {#c_literal{val = export_type}, #c_literal{val = T}} <- Attrs],
+  sets:from_list(lists:append([{Mod, Tname, Tarity} || {Tname, Tarity} <- Filtered])).
 
 -spec process_fundef({cerl:c_var(), code()}, [mfa()], module(), tag_generator()) -> {mfa(), kfun()}.
 process_fundef({FunVar, Def}, Exports, M, TagGen) ->
@@ -289,36 +375,71 @@ get_abstract_code(Mod, Beam) ->
     _ -> throw(cuter_pp:abstract_code_missing(Mod))
   end.
 
--type type_info() :: {'type', cerl_typedef()}
-                   | {'record', cerl_recdef()}.
 -type spec_info() :: cerl_attr_spec().
--type classify_attr_ret() :: {[type_info()], [spec_info()]}.
 
--spec classify_attributes([cerl_attr()]) -> classify_attr_ret().
-classify_attributes(Attrs) ->
-  classify_attributes(Attrs, [], []).
+%% Extracts the record definitions (as forms) from the annotations of a module.
+%% The relevant annotations have the following structure in OTP 19.x and newer:
+%%     {#c_atom{val=record}, #c_literal{val=[{Name, Fields}]}}
+-spec extract_record_forms([cerl_anno()]) -> [extracted_record_form()].
+extract_record_forms(Attrs) ->
+  extract_record_forms(Attrs, []).
 
--spec classify_attributes([cerl_attr()], [type_info()], [spec_info()]) -> classify_attr_ret().
-classify_attributes([], Types, Specs) ->
-  {lists:reverse(Types), lists:reverse(Specs)};
-classify_attributes([{What, #c_literal{val = Val}}|Attrs], Types, Specs) ->
+extract_record_forms([], Acc) -> lists:reverse(Acc);
+extract_record_forms([{What, #c_literal{val = Val}=A}|Attrs], Acc) ->
   case cerl:atom_val(What) of
     Tp when Tp =:= type orelse Tp =:= opaque ->
       [V] = Val,
+      Line = hd(cerl:get_ann(A)),
       case V of
         {{record, Name}, Fields, []} -> % for OTP 18.x and earlier
-          classify_attributes(Attrs, [{record, {Name, Fields}}|Types], Specs);
+          extract_record_forms(Attrs, [{Line, {Name, Fields}}|Acc]);
         _ ->
-          classify_attributes(Attrs, [{type, V}|Types], Specs)
+          extract_record_forms(Attrs, Acc)
       end;
     record -> % for OTP 19.x and newer
+      Line = hd(cerl:get_ann(A)),
       [V] = Val,
-      classify_attributes(Attrs, [{record, V}|Types], Specs);
+      extract_record_forms(Attrs, [{Line, V}|Acc]);
+    _ ->
+      extract_record_forms(Attrs, Acc)
+  end.
+
+%% Extracts the type definitions (as forms) from the annotations of a module.
+%% The relevant annotations have the following structure:
+%%   {#c_atom{val=type|opaque}, #c_literal{val=[{Name, Type, TypeVars}]}}
+-spec extract_type_forms([cerl_anno()]) -> [extracted_type_form()].
+extract_type_forms(Attrs) ->
+  extract_type_forms(Attrs, []).
+
+extract_type_forms([], Acc) ->
+  lists:reverse(Acc);
+extract_type_forms([{What, #c_literal{val = Val}=A}|Attrs], Acc) ->
+  case cerl:atom_val(What) of
+    Tp when Tp =:= type orelse Tp =:= opaque ->
+      [V] = Val,
+      Line = hd(cerl:get_ann(A)),
+      case V of
+        {{record, _Name}, _Fields, []} -> % for OTP 18.x and earlier
+	        extract_type_forms(Attrs, Acc);
+        _ ->
+          extract_type_forms(Attrs, [{Line, V}|Acc])
+      end;
+    _ ->
+      extract_type_forms(Attrs, Acc)
+  end.
+
+extract_spec_forms(Attrs) ->
+  extract_spec_forms(Attrs, []).
+
+extract_spec_forms([], Acc) ->
+  lists:reverse(Acc);
+extract_spec_forms([{What, #c_literal{val = Val}}|Attrs], Acc) ->
+  case cerl:atom_val(What) of
     spec ->
       [V] = Val,
-      classify_attributes(Attrs, Types, [V|Specs]);
-    _Ignore ->
-      classify_attributes(Attrs, Types, Specs)
+      extract_spec_forms(Attrs, [V|Acc]);
+    _ ->
+      extract_spec_forms(Attrs, Acc)
   end.
 
 %% ----------------------------------------------------------------------------
@@ -336,7 +457,7 @@ annotate(Tree, TagGen, InPats) ->
       Pat = annotate(cerl:alias_pat(Tree), TagGen, InPats),
       cerl:update_c_alias(Tree, Var, Pat);
     'apply' ->
-      % TODO Annotate applications for lambda terms.
+      %% TODO Annotate applications for lambda terms.
       Op = annotate(cerl:apply_op(Tree), TagGen, InPats),
       Args = annotate_all(cerl:apply_args(Tree), TagGen, InPats),
       cerl:update_c_apply(Tree, Op, Args);

@@ -15,8 +15,9 @@ parse_basic_types_test_() ->
   [{"Parse basic types", {setup, Setup(I), Cleanup, Inst}} || I <- Is].
 
 parse_types({types_and_specs, Attrs}) ->
-  {TypeAttrs, _} = cuter_cerl:classify_attributes(Attrs),
-  Types = cuter_types:retrieve_types(TypeAttrs),
+  RecordForms = cuter_cerl:extract_record_forms(Attrs),
+  TypeForms = cuter_cerl:extract_type_forms(Attrs),
+  Types = cuter_types:retrieve_types(TypeForms, RecordForms),
   Ts = [
     {"t1()"
     , {type, t1, 0}
