@@ -381,6 +381,12 @@ get_abstract_code(Mod, Beam) ->
 
 -type spec_info() :: cerl_attr_spec().
 
+%% Extracts the record definitions (as forms) from the annotations of a module.
+%% The relevant annotations have the following structure:
+%%   OTP 18.x and earlier:
+%%     {#c_atom{val=type}, #c_literal{val=[{record, Name}, Fields, []]}}
+%%  OTP 19.x and newer:
+%%     {#c_atom{val=record}, #c_literal{val=[{Name, Fields}]}}
 -spec extract_record_forms([cerl_anno()]) -> [extracted_record_form()].
 extract_record_forms(Attrs) ->
   extract_record_forms(Attrs, []).
@@ -405,6 +411,9 @@ extract_record_forms([{What, #c_literal{val = Val}=A}|Attrs], Acc) ->
       extract_record_forms(Attrs, Acc)
   end.
 
+%% Extracts the type definitions (as forms) from the annotations of a module.
+%% The relevant annotations have the following structure:
+%%   {#c_atom{val=type|opaque}, #c_literal{val=[{Name, Type, TypeVars}]}}
 -spec extract_type_forms([cerl_anno()]) -> [extracted_type_form()].
 extract_type_forms(Attrs) ->
   extract_type_forms(Attrs, []).
