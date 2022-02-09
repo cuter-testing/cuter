@@ -79,10 +79,8 @@ construct_and_access_kfun_test() ->
 
 -spec construct_and_access_kmodule_test() -> any.
 construct_and_access_kmodule_test() ->
-  Code = {c_fun,
-	  [{function,{f,1}},4],
-	  [{c_var,[4],0}],
-	  {c_var,[{function,{f,1}},4],0}},
+  Code = cerl:c_fun([cerl:c_var(0)],
+		    cerl:c_var(0)),
   Kfun = cuter_cerl:kfun(Code, true),
   Mfa = {some_module, f, 1},
   AST = cerl:c_module(
