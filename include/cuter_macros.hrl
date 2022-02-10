@@ -89,6 +89,8 @@
 -define(NUM_SOLVERS, number_of_solvers).
 %% Sets the number of concurrent concolic execution processes.
 -define(NUM_POLLERS, number_of_pollers).
+%% Prune safe paths.
+-define(PRUNE_SAFE, prune_safe).
 
 -type runtime_options() :: {?Z3_TIMEOUT, pos_integer()} 
                          | ?REPORT_METRICS
