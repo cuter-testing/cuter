@@ -190,7 +190,7 @@ eval({named, erlang, F}, CAs, SAs, _CallType, Servers, Fd, Options) when F =:= s
     end,
   receive
     {ChildP, registered} ->
-      conditional_log(fun cuter_log:log_spawn/3, [Fd, ChildP, Rf], Options),
+      log(fun() -> cuter_log:log_spawn(Fd, ChildP, Rf) end, Options),
       mk_result(ChildP, ChildP)
   end;
 
@@ -217,7 +217,7 @@ eval({named, erlang, spawn_monitor}, CAs, SAs, _CallType, Servers, Fd, Options) 
   {ChildP, _ChildRef} = CC = erlang:spawn_monitor(Child),
   receive
     {ChildP, registered} ->
-      conditional_log(fun cuter_log:log_spawn/3, [Fd, ChildP, Rf], Options),
+      log(fun() -> cuter_log:log_spawn(Fd, ChildP, Rf) end, Options),
       mk_result(CC, CC)
   end;
 
@@ -266,7 +266,7 @@ eval({named, erlang, spawn_opt}, CAs, SAs, _CallType, Servers, Fd, Options) ->
     end,
   receive
     {ChildP, registered} ->
-      conditional_log(fun cuter_log:log_spawn/3, [Fd, ChildP, Rf], Options),
+      log(fun() -> cuter_log:log_spawn(Fd, ChildP, Rf) end, Options),
       mk_result(R, R)
   end;
 
@@ -494,7 +494,7 @@ eval({lambda, Closure, ClosureSymb}, CAs, SAs, _CallType, _Servers, Fd, Options)
               mk_result(Cv, R);
             true ->
               Sv = get_symbolic(Cv),
-              conditional_log(fun cuter_log:log_evaluated_closure/4, [Fd, ClosureSymb, SAs_e, Sv], Options),
+              log(fun() -> cuter_log:log_evaluated_closure(Fd, ClosureSymb, SAs_e, Sv) end, Options),
               Cv
           end
       end
@@ -568,9 +568,9 @@ eval_expr({c_bitstr, _Anno, Val, Size, Unit, Type, Flags}, M, Cenv, Senv, Server
   Size_c = get_concrete(Size_ev),
   Size_s = get_symbolic(Size_ev),
   %% Log constraints on type mismatch before construction.
-  conditional_log(fun log_bistr_type_mismatch/4, [Val_c, Val_s, Type, Fd], Options),  % Type is always a literal.
+  log(fun() -> log_bistr_type_mismatch(Val_c, Val_s, Type, Fd) end, Options),  % Type is always a literal.
   %% Log constraints on negative sizes before construction.
-  conditional_log(fun log_bitstr_neg_size/3, [Size_c, Size_s, Fd], Options),
+  log(fun() -> log_bitstr_neg_size(Size_c, Size_s, Fd) end, Options),
   %% Generate the concrete value.
   Bin_c = cuter_binlib:make_bitstring(Val_c, Size_c,
     get_concrete(Unit_ev), get_concrete(Type_ev), get_concrete(Flags_ev)),
@@ -1011,7 +1011,7 @@ find_message([Msg|Mailbox], Clauses, M, Cenv, Senv, Servers, Fd, Options) ->
     false ->
       find_message(Mailbox, Clauses, M, Cenv, Senv, Servers, Fd, Options);
     {Body, NCenv, NSenv, Cnt} ->
-      conditional_log(fun log_successful_msg_match/1, [LoggerFun], Options),
+      log(fun() -> log_successful_msg_match(LoggerFun) end, Options),
       %% I can log the received Msg here
       {Msg, Body, NCenv, NSenv, Cnt}
   end.
@@ -1079,12 +1079,12 @@ match_clause({c_clause, Anno, Pats, Guard, Body}, M, Mode, Cv, Sv, Cenv, Senv, S
             {true, SGv} ->
               %% CONSTRAINT: SGv is a True guard
               visit_tag(Servers#svs.code, Tags#tags.this),
-              conditional_log(fun cuter_log:log_guard/4, [Fd, true, SGv, Tags#tags.next], Options),
+              log(fun() -> cuter_log:log_guard(Fd, true, SGv, Tags#tags.next) end, Options),
               {true, {Body, Ce, Se, Cnt}};
             {false, SGv} ->
               %% CONSTRAINT: SGv is a False guard
               visit_tag(Servers#svs.code, Tags#tags.next),
-              conditional_log(fun cuter_log:log_guard/4, [Fd, false, SGv, Tags#tags.this], Options),
+              log(fun() -> cuter_log:log_guard(Fd, false, SGv, Tags#tags.this) end, Options),
               false
           catch
             error:_E -> false
@@ -1126,12 +1126,12 @@ pattern_match({c_literal, Anno, LitVal}, _Bitinfo, _Mode, Cv, Sv, CMaps, SMaps, 
     true ->
       %% CONSTRAINT: Sv =:= Litval
       visit_tag(Servers#svs.code, Tags#tags.this),
-      conditional_log(fun log_literal_match_success/4, [Fd, LitVal, Sv, Tags#tags.next], Options),
+      log(fun() -> log_literal_match_success(Fd, LitVal, Sv, Tags#tags.next) end, Options),
       {true, {CMaps, SMaps}};
     false ->
       %% CONSTRAINT: Sv =/= Litval
       visit_tag(Servers#svs.code, Tags#tags.next),
-      conditional_log(fun log_literal_match_failure/4, [Fd, LitVal, Sv, Tags#tags.this], Options),
+      log(fun() -> log_literal_match_failure(Fd, LitVal, Sv, Tags#tags.this) end, Options),
       false
   end;
 
@@ -1150,13 +1150,13 @@ pattern_match({c_tuple, Anno, Es}, BitInfo, Mode, Cv, Sv, CMaps, SMaps, Servers,
       Cv_l = tuple_to_list(Cv),
       %% CONSTRAINT: Sv is a tuple of Ne elements
       visit_tag(Servers#svs.code, Tags#tags.this),
-      conditional_log(fun cuter_log:log_tuple/5, [Fd, sz, Sv, Ne, Tags#tags.next], Options),
+      log(fun() -> cuter_log:log_tuple(Fd, sz, Sv, Ne, Tags#tags.next) end, Options),
       Sv_l = cuter_symbolic:tpl_to_list(Sv, Ne, Fd),
       pattern_match_all(Es, BitInfo, Mode, Cv_l, Sv_l, CMaps, SMaps, Servers, Fd, Options);
     false ->
       %% CONSTRAINT: Sv is a tuple of not Ne elements
       visit_tag(Servers#svs.code, Tags#tags.next),
-      conditional_log(fun cuter_log:log_tuple/5, [Fd, not_sz, Sv, Ne, Tags#tags.this], Options),
+      log(fun() -> cuter_log:log_tuple(Fd, not_sz, Sv, Ne, Tags#tags.this) end, Options),
       false
   end;
 pattern_match({c_tuple, Anno, Es}, _BitInfo, _Mode, _Cv, Sv, _CMaps, _SMaps, Servers, Fd, Options) ->
@@ -1164,7 +1164,7 @@ pattern_match({c_tuple, Anno, Es}, _BitInfo, _Mode, _Cv, Sv, _CMaps, _SMaps, Ser
   Tags = cuter_cerl:get_tags(Anno),
   %% CONSTRAINT: Sv is not a tuple
   visit_tag(Servers#svs.code, Tags#tags.next),
-  conditional_log(fun cuter_log:log_tuple/5, [Fd, not_tpl, Sv, Ne, Tags#tags.this], Options),
+  log(fun() -> cuter_log:log_tuple(Fd, not_tpl, Sv, Ne, Tags#tags.this) end, Options),
   false;
 
 %% List constructor pattern
@@ -1172,13 +1172,13 @@ pattern_match({c_cons, Anno, _Hd, _Tl}, _BitInfo, _Mode, [], Sv, _CMaps, _SMaps,
   Tags = cuter_cerl:get_tags(Anno),
   %% CONSTRAINT: Sv is an empty list
   visit_tag(Servers#svs.code, Tags#tags.next),
-  conditional_log(fun cuter_log:log_list/4, [Fd, empty, Sv, Tags#tags.this], Options),
+  log(fun() -> cuter_log:log_list(Fd, empty, Sv, Tags#tags.this) end, Options),
   false;
 pattern_match({c_cons, Anno, Hd, Tl}, BitInfo, Mode, [Cv|Cvs], Sv, CMaps, SMaps, Servers, Fd, Options) ->
   Tags = cuter_cerl:get_tags(Anno),
   %% CONSTRAINT: S is a non empty list
   visit_tag(Servers#svs.code, Tags#tags.this),
-  conditional_log(fun cuter_log:log_list/4, [Fd, nonempty, Sv, Tags#tags.next], Options),
+  log(fun() -> cuter_log:log_list(Fd, nonempty, Sv, Tags#tags.next) end, Options),
   Sv_h = cuter_symbolic:head(Sv, Fd),
   Sv_t = cuter_symbolic:tail(Sv, Fd),
   case pattern_match(Hd, BitInfo, Mode, Cv, Sv_h, CMaps, SMaps, Servers, Fd, Options) of
@@ -1189,7 +1189,7 @@ pattern_match({c_cons, Anno, _Hd, _Tl}, _BitInfo, _Mode, _Cv, Sv, _CMaps, _SMaps
   Tags = cuter_cerl:get_tags(Anno),
   %% CONSTRAINT: Sv is not a list
   visit_tag(Servers#svs.code, Tags#tags.next),
-  conditional_log(fun cuter_log:log_list/4, [Fd, not_lst, Sv, Tags#tags.this], Options),
+  log(fun() -> cuter_log:log_list(Fd, not_lst, Sv, Tags#tags.this) end, Options),
   false;
 
 %% Alias pattern
@@ -1217,13 +1217,13 @@ bit_pattern_match(BinAnno, [], _BitInfo, _Mode, <<>>, Sv, CMaps, SMaps, Servers,
   %% CONSTRAINT: Sv =:= <<>>
   Tags = cuter_cerl:get_tags(BinAnno),
   visit_tag(Servers#svs.code, Tags#tags.this),
-  conditional_log(fun cuter_log:log_equal/5, [Fd, true, <<>>, Sv, Tags#tags.next], Options),
+  log(fun() -> cuter_log:log_equal(Fd, true, <<>>, Sv, Tags#tags.next) end, Options),
   {true, {CMaps, SMaps}};
 bit_pattern_match(BinAnno, [], _BitInfo, _Mode, _Cv, Sv, _CMaps, _SMaps, Servers, Fd, Options) ->
   %% CONSTRAINT: Sv =/= <<>>
   Tags = cuter_cerl:get_tags(BinAnno),
   visit_tag(Servers#svs.code, Tags#tags.next),
-  conditional_log(fun cuter_log:log_equal/5, [Fd, false, <<>>, Sv, Tags#tags.this], Options),
+  log(fun() -> cuter_log:log_equal(Fd, false, <<>>, Sv, Tags#tags.this) end, Options),
   false;
 
 bit_pattern_match(BinAnno, [{c_bitstr, Anno, {c_literal, _, LVal}, Sz, Unit, Tp, Fgs}|Bs], {M, Cenv, Senv} = Bnfo, Mode, Cv, Sv, CMaps, SMaps, Svs, Fd, Options) ->
@@ -1236,7 +1236,7 @@ bit_pattern_match(BinAnno, [{c_bitstr, Anno, {c_literal, _, LVal}, Sz, Unit, Tp,
   Enc_s = {Size_s, get_symbolic(Unit_ev), get_symbolic(Type_ev), get_symbolic(Flags_ev)},
   Tags = cuter_cerl:get_tags(Anno),
   %% Log constraints on negative sizes before matching.
-  conditional_log(fun log_bitstr_neg_size/3, [Size_c, Size_s, Fd], Options),
+  log(fun() -> log_bitstr_neg_size(Size_c, Size_s, Fd) end, Options),
   try cuter_binlib:match_bitstring_const(LVal, Size_c, get_concrete(Unit_ev), get_concrete(Type_ev), get_concrete(Flags_ev), Cv) of
     Rest_c ->
       visit_tag(Svs#svs.code, Tags#tags.this),
@@ -1259,7 +1259,7 @@ bit_pattern_match(BinAnno, [{c_bitstr, Anno, {c_var, _, VarName}, Sz, Unit, Tp, 
   Enc_s = {Size_s, get_symbolic(Unit_ev), get_symbolic(Type_ev), get_symbolic(Flags_ev)},
   Tags = cuter_cerl:get_tags(Anno),
   %% Log constraints on negative sizes before matching.
-  conditional_log(fun log_bitstr_neg_size/3, [Size_c, Size_s, Fd], Options),
+  log(fun() -> log_bitstr_neg_size(Size_c, Size_s, Fd) end, Options),
   try cuter_binlib:match_bitstring_var(Size_c, get_concrete(Unit_ev), get_concrete(Type_ev), get_concrete(Flags_ev), Cv) of
     {X_c, Rest_c} ->
       visit_tag(Svs#svs.code, Tags#tags.this),
@@ -1408,7 +1408,7 @@ make_fun_h1(Mod, Args, Servers, Vars, Body, Cenv, Senv, Creator, LambdaS, FileDe
   NSvs = validate_servers(Servers),
   Fd = validate_file_descriptor(NSvs#svs.monitor, Creator, FileDescr),
   Ret = eval_expr(Body, Mod, Ce, Se, NSvs, Fd, Options),
-  conditional_log(fun cuter_log:log_evaluated_closure/4, [Fd, LambdaS, SAs, get_symbolic(Ret)], Options),
+  log(fun() -> cuter_log:log_evaluated_closure(Fd, LambdaS, SAs, get_symbolic(Ret)) end, Options),
   Ret.
 
 register_new_environments([], _Vars, Cenv, Senv) ->
@@ -1517,7 +1517,7 @@ make_fun_h(Mod, Func, Args, Servers, Creator, LambdaS, FileDescr, Options) ->
   NSvs = validate_servers(Servers),
   Fd = validate_file_descriptor(NSvs#svs.monitor, Creator, FileDescr),
   Ret = eval({named, Mod, Func}, CAs, SAs, external, NSvs, Fd, Options),
-  conditional_log(fun cuter_log:log_evaluated_closure/4, [Fd, LambdaS, SAs, get_symbolic(Ret)], Options),
+  log(fun() -> cuter_log:log_evaluated_closure(Fd, LambdaS, SAs, get_symbolic(Ret)) end, Options),
   Ret.
 
 %% --------------------------------------------------------
@@ -1957,10 +1957,10 @@ log_bistr_type_mismatch(Cv, Sv, Type, Fd) ->
       end
   end.
 
-conditional_log(LogFun, Args, Options) ->
+log(Fn, Options) ->
   case maps:get(constraintLogging, Options) of
     true ->
-      apply(LogFun, Args);
+      Fn();
     false ->
       ok
   end.
