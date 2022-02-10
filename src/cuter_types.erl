@@ -212,13 +212,15 @@
 %% ============================================================================
 
 %% Pre-processes the type & record declarations.
--spec retrieve_types([cuter_cerl:type_info()], any()) -> stored_types().
+-spec retrieve_types([cuter_cerl:extracted_type_form()],
+                     [cuter_cerl:extracted_record_form()]) -> stored_types().
 retrieve_types(TypeAttrs, RecordAttrs) ->
   T = lists:foldl(fun process_type_attr/2, dict:new(), TypeAttrs),
   R = lists:foldl(fun process_record_attr/2, dict:new(), RecordAttrs),
+  %% There are no collisions between the two dicts as the structures of the keys differ.
   dict:merge(fun (_Key, V1, _V2) -> V1 end, T, R).
 
--spec process_type_attr(cuter_cerl:type_info(), stored_types()) -> stored_types().
+-spec process_type_attr(cuter_cerl:extracted_type_form(), stored_types()) -> stored_types().
 %% Processes the declaration of a type.
 process_type_attr({_Line, {Name, Repr, Vars}}, Processed) ->
   %% Process the type's representation.

@@ -17,7 +17,7 @@ This is the source tree for CutEr, a concolic unit testing tool for Erlang.
 License
 -------
 
-Copyright 2014-2021 by Aggelos Giantsios, Nikolaos Papaspyrou and Kostis Sagonas.
+Copyright 2014-2022 by Aggelos Giantsios, Nikolaos Papaspyrou and Kostis Sagonas.
 
 This program is distributed under the GPL, version 3 or later. Please see the COPYING file for details.
 
@@ -69,7 +69,9 @@ In order to use CutEr, you need the following programs:
 
   If this sequence of commands does not work for you, follow the instructions in Z3's [GitHub repository](https://github.com/Z3Prover/z3/).
 
-  Note that CutEr does **not** work properly with the v4.8.9 and v4.8.10 releases of Z3 due to [this issue](https://github.com/Z3Prover/z3/issues/5181), and does not work properly due to the v4.8.7 release of Z3 due to e.g. [this issue](https://github.com/Z3Prover/z3/issues/3051). It does, however, work well with many previous releases of Z3, for example v4.8.6.
+  Note that CutEr *requires* Z3 v4.8.8 or higher.
+  
+  However, also note that CutEr does **not** work properly with the v4.8.9 and v4.8.10 releases of Z3 due to [this issue](https://github.com/Z3Prover/z3/issues/5181).
 
 4. **Protocol Buffer Compiler**
 
