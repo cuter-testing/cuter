@@ -1958,9 +1958,8 @@ log_bistr_type_mismatch(Cv, Sv, Type, Fd) ->
   end.
 
 log(Fn, Options) ->
+  %% TODO(dspil): Add the clause for the false value. It does not exist for now to silence dialyzer.
   case maps:get(constraintLogging, Options) of
     true ->
-      Fn();
-    false ->
-      ok
+      Fn()
   end.
