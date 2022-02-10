@@ -23,6 +23,8 @@
 -export([erl_type_deps_map/2, get_type_name_from_type_dep/1,
 	 get_type_from_type_dep/1, unique_type_name/3]).
 
+-export([parse_specs/1]).
+
 -export_type([erl_type/0, erl_spec_clause/0, erl_spec/0, stored_specs/0,
 	      stored_types/0, stored_spec_value/0, t_range_limit/0]).
 -export_type([erl_type_dep/0, erl_type_deps/0]).
@@ -1213,3 +1215,293 @@ get_type_name_from_type_dep({Name, _Type}) ->
 -spec get_type_from_type_dep(erl_type_dep()) -> erl_type().
 get_type_from_type_dep({_Name, Type}) ->
   Type.
+
+%% ----------------------------------------------------------------------------
+%% API for erl_types:erl_type().
+%% Here a fix point computation is defined which converts all specs in a list
+%% of modules to their erl_type representation
+%% ----------------------------------------------------------------------------
+
+-define(CUTER_RECORD_TYPE_PREFIX, "__cuter_record_type__").
+
+var_name({var, _, X}) ->
+  X.
+
+%% Find the erl type representation of all signatures in a list of kmodules
+-spec parse_specs([cuter_cerl:kmodule()]) -> dict:dict().
+parse_specs(Kmodules) ->
+  RecDict = ets:new(recdict, []), %% Needed for erl_types:t_from_form/6
+  ExpTypes = sets:union([cuter_cerl:kmodule_exported_types(M) || M <- Kmodules]), %% Needed for erl_types:t_from_form/6
+  Fn = fun (Kmodule, Acc) ->
+	   Mod = cuter_cerl:kmodule_name(Kmodule),
+	   TypesLines = all_types_from_cerl(Kmodule),
+	   U = sets:from_list([{TName, length(Vars)} || {{TName, _T, Vars}, _L} <- TypesLines]),
+	   dict:store(Mod, U, Acc)
+       end,
+  %% Unhandled holds all non converted types from a form to an erl_type for each module.
+  %% It is a dict with the module name as the key and all the types defined in it initially.
+  Unhandled = lists:foldl(Fn, dict:new(), Kmodules),
+  %% Find all signatures
+  Ret = parse_specs_fix(Kmodules, ExpTypes, RecDict, Unhandled, dict:new()),
+  ets:delete(RecDict),
+  Ret.
+
+%% Convert all signatures in all modules until none can be converted
+parse_specs_fix(Kmodules, ExpTypes, RecDict, Unhandled, GatheredSpecs) ->
+  %% Pass all modules
+  {Unhandled1, Change, GatheredSpecs1} = parse_specs_fix_pass(Kmodules, ExpTypes, RecDict, Unhandled, false, GatheredSpecs),
+  case Change of %% If Unhandled has changed in this pass
+    %% Pass again
+    true ->
+      parse_specs_fix(Kmodules, ExpTypes, RecDict, Unhandled1, GatheredSpecs1);
+    %% Else return the gathered signatures
+    false ->
+      GatheredSpecs1
+  end.
+
+%% Pass through all modules and gather signatures
+parse_specs_fix_pass([], _ExpTypes, _RecDict, Unhandled, Change, GatheredSpecs) -> {Unhandled, Change, GatheredSpecs};
+parse_specs_fix_pass([Kmodule|Kmodules], ExpTypes, RecDict, Unhandled, Change, GatheredSpecs) ->
+  Mod = cuter_cerl:kmodule_name(Kmodule),
+  PrevUnhandled = dict:fetch(Mod, Unhandled),
+  %% Get the signatures converted and the unhandled types of this module
+  {Specs, NewUnhandled} = parse_mod_specs(Kmodule, ExpTypes, RecDict, PrevUnhandled),
+  Fn = fun ({MFA, Spec}, G) ->
+	   dict:store(MFA, Spec, G)
+       end,
+  %% Store the new signatures found in GatheredSpecs
+  GatheredSpecs1 = lists:foldl(Fn, GatheredSpecs, Specs),
+  %% If the unhandled types for this module have not changed
+  case equal_sets(NewUnhandled, PrevUnhandled) of
+    %% Maintain the Change so far in the recursive call
+    true -> parse_specs_fix_pass(Kmodules, ExpTypes, RecDict, Unhandled, Change, GatheredSpecs1);
+    %% A change has occured, make the recursive call with Change: true and an updated Unhandled dict
+    false -> parse_specs_fix_pass(Kmodules, ExpTypes, RecDict, dict:store(Mod, NewUnhandled, Unhandled), true, GatheredSpecs1)
+  end.
+
+%% Gather all signatures defined in a module.
+%% Return all signatures that can be converted to erl_types
+%% and all the types that couldn't
+parse_mod_specs(Kmodule, ExpTypes, RecDict, PrevUnhandled) ->
+  %% Fetch type forms from the kmodule along with the lines where they were defined.
+  %% The lines are needed for the erl_types:t_from_form/6 call
+  TypesLines = all_types_from_cerl(Kmodule),
+  Mod = cuter_cerl:kmodule_name(Kmodule),
+  %% Only Unhandled is returned because types will be stored in RecDict ets table
+  Unhandled = fix_point_type_parse(Mod, RecDict, ExpTypes, TypesLines, PrevUnhandled),
+  Fn = fun ({{F, A}, S1}) -> %% For a function F with arity A and signature S1 which is a list
+	   %% Replace records with temp record types in the signature
+	   S = spec_replace_records(spec_replace_bounded(S1)),
+	   %% Convert each element of the list into an erl_type
+	   ErlSpecs = convert_list_to_erl(S, {Mod, F, A}, ExpTypes, RecDict),
+	   {{Mod, F, A}, ErlSpecs}
+       end,
+  Specs = lists:map(Fn, cuter_cerl:kmodule_spec_forms(Kmodule)),
+  {Specs, Unhandled}.
+
+%% Convert as many types in Mod as possible to erl_types.
+%% For every succesful conversion add it to RecDict and finally 
+%% return the types that couldn't be converted.
+%% If there are more succesful conversions as before try again.
+%% This is done to handle types depending on later defined types 
+%% or mutually recursive types immediately
+fix_point_type_parse(Mod, RecDict, ExpTypes, TypesLines, PrevUnhandled) ->
+  F = fun ({{Tname, T, Vars}, L}, Acc) -> %% Get a type and a set of unhandled types
+	  A = length(Vars),
+	  %% Try to convert the type to erl_type using erl_types:t_from_form/6
+	  {{T1, _C}, D1} = 
+	    try erl_types:t_from_form(T, ExpTypes, {'type', {Mod, Tname, A}}, RecDict, erl_types:var_table__new(), erl_types:cache__new()) of
+	      Ret -> {Ret, false}
+	    catch
+	      _:_ ->
+		{{none, none}, true}
+	    end,
+	  %% Check if the conversion was successful
+	  case D1 of
+	    %% If it was, add the new erl_type in RecDict
+	    false ->
+	      case ets:lookup(RecDict, Mod) of
+		[{Mod, VT}] ->
+		  ets:insert(RecDict, {Mod, maps:put({'type', Tname, A}, {{Mod, {lists:append(atom_to_list(Mod), ".erl"), L}, T, [var_name(Var) || Var <- Vars]}, T1}, VT)}),
+		  Acc;
+		_ ->
+		  ets:insert(RecDict, {Mod, maps:put({'type', Tname, A}, {{Mod, {lists:append(atom_to_list(Mod), ".erl"), L}, T, [var_name(Var) || Var <- Vars]}, T1}, maps:new())}),
+		  Acc
+	      end;
+	    %% Else, add the type to the Unhandled set
+	    true ->
+	      sets:add_element({Tname, A}, Acc)
+	  end
+      end,
+  %% Apply F to all Types in the module
+  Unhandled = lists:foldl(F, sets:new(), TypesLines),
+  %% Check if the unhandled types are different than before
+  case equal_sets(PrevUnhandled, Unhandled) of
+    %% If they are, run the module again
+    false ->
+      fix_point_type_parse(Mod, RecDict, ExpTypes, TypesLines, Unhandled);
+    %% Else return the unhandled types
+    true ->
+      Unhandled
+  end.
+
+%% Convert a list of forms to a list of erl_types
+convert_list_to_erl(S, MFA, ExpTypes, RecDict) ->
+  convert_list_to_erl(S, MFA, ExpTypes, RecDict, []).
+
+convert_list_to_erl([], _MFA, _ExpTypes, _RecDict, Acc) -> lists:reverse(Acc);
+convert_list_to_erl([Spec|Specs], MFA, ExpTypes, RecDict, Acc) ->
+  ErlSpec = 
+    try erl_types:t_from_form(Spec, ExpTypes, {'spec', MFA}, RecDict, erl_types:var_table__new(), erl_types:cache__new()) of
+      {S, _C} -> S
+    catch
+      _:_ -> nospec
+    end,
+  case ErlSpec of
+    nospec ->
+      convert_list_to_erl(Specs, MFA, ExpTypes, RecDict, Acc);
+    _ ->
+      convert_list_to_erl(Specs, MFA, ExpTypes, RecDict, [ErlSpec|Acc])
+  end.
+
+equal_sets(A, B) ->
+  sets:size(A) == sets:size(B) andalso sets:size(sets:union(A, B)) == sets:size(B).
+
+%% Return all types defined in a kmodule
+all_types_from_cerl(Kmodule) ->
+  %% Types and Opaque types
+  TypesOpaques = [{type_replace_records(Type), Line} || {Line, Type} <- cuter_cerl:kmodule_type_forms(Kmodule)],
+  %% Make the temp types representing records
+  Records = records_as_types(Kmodule),
+  lists:append(TypesOpaques, Records).
+
+%% Replace all record references with their respective temporary type in a type form
+type_replace_records({Name, Type, Args}) ->
+  {Name, replace_records(Type), Args}.
+
+%% Replace all record references with their respective temporary type in a spec form list
+spec_replace_records(FunSpecs) ->
+  Fn = fun({type, Line, F, L}) ->
+	   {type, Line, F, lists:map(fun replace_records/1, L)}
+       end,
+  lists:map(Fn, FunSpecs).
+
+%% Replace all record references with their respective temporary type in a form
+replace_records({type, L, record, [{atom, _, Name}]}) ->
+  {user_type, L, record_name(Name), []};
+replace_records({T, L, Type, Args}) when T =:= type orelse T =:= user_type ->
+  case is_list(Args) of
+    true ->
+      {T, L, Type, lists:map(fun replace_records/1, Args)};
+    false ->
+      {T, L, Type, Args}
+  end;
+replace_records(Rest) -> Rest.
+
+%% Return temporary types representing the records in a kmodule
+%% For each record rec with fields es make a temporary tuple type with
+%% first item rec and es as the rest items
+records_as_types(Kmodule) ->
+  R = [{RecName, Line, RecFields} || {Line, {RecName, RecFields}} <- cuter_cerl:kmodule_record_forms(Kmodule)],  
+  lists:map(fun type_from_record/1, R).
+
+%% Create the temporary type from a record form
+type_from_record({Name, Line, Fields}) ->
+  Fn = fun ({typed_record_field, _, T}) ->
+	   replace_records(T)
+       end,
+  %% Replace record references in fields
+  NewFields = lists:map(Fn, Fields),
+  NewName = record_name(Name),
+  RecType = {type, Line, tuple, [{atom, Line, Name} | NewFields]},
+  {{NewName, RecType, []}, Line}.
+
+%% Return the name of a temporary type corresponding to a record with name Name
+record_name(Name) ->
+  list_to_atom(?CUTER_RECORD_TYPE_PREFIX ++ atom_to_list(Name)).
+
+%% Replace all bounded signatures with equivalent normal ones
+spec_replace_bounded(Specs) -> lists:map(fun handle_bounded_fun/1, Specs).
+
+%% If a the signature is not bounded, return it intact
+handle_bounded_fun({type, _L, 'fun', _Rest} = S) -> S;
+%% If it is bounded, replace all variables with type forms
+handle_bounded_fun({type, _, 'bounded_fun', [Spec, Constraints]} = S) ->
+  Fn = fun({type, _, constraint, [{atom, _, is_subtype}, [Key, Value]]}, D) ->
+	   dict:store(element(3, Key), Value, D)
+       end,
+  %% Find the forms of the variables used in the constraints
+  D = lists:foldl(Fn, dict:new(), Constraints),
+  {D1, Rec} = fix_update_vars(D),
+  case Rec of %% If the conversion succeeds
+    %% Return an equivalent Spec without constraints
+    true ->
+      make_normal_spec(Spec, D1);
+    %% Else return S as is
+    false ->
+      S
+  end.
+
+%% Replace variables in a bounded fun with their produced type forms
+replace_vars({type, L, record, R}, _D) -> {{type, L, record, R}, false};
+replace_vars({T, L, Type, Args}, D) when is_list(Args) ->
+  Fn = fun(Arg) -> replace_vars(Arg, D) end,
+  {NewArgs, Changes} = lists:unzip(lists:map(Fn, Args)),
+  Change = lists:foldl(fun erlang:'or'/2, false, Changes),
+  {{T, L, Type, NewArgs}, Change};
+replace_vars({var, _L, Name}, D) ->
+  case dict:find(Name, D) of
+    {ok, T} ->
+      {T, true};
+    error ->
+      {any, true}
+  end;
+replace_vars({ann_type, _L, [_T, T1]}, D) ->
+  {T2, _C} = replace_vars(T1, D),
+  {T2, true};
+replace_vars(Rest, _D) -> {Rest, false}.
+
+%% Find the types of constraint variables for non recursive declarations.
+%% Return a dictionary with the variables as keys and their type forms as values
+fix_update_vars(D) ->
+  %% If no recursive variables exist, the computation will end in steps at most equal to the
+  %% count of the variables
+  fix_update_vars(D, dict:size(D) + 1, 0).
+
+fix_update_vars(D, Lim, Depth) ->
+  Keys = dict:fetch_keys(D),
+  Fn = fun(Key, {Acc1, Acc2}) ->
+	   T = dict:fetch(Key, D),
+	   {NewT, C} = replace_vars(T, D),
+	   case C of
+	     true ->
+	       {dict:store(Key, NewT, Acc1), true};
+	     false ->
+	       {Acc1, Acc2}
+	   end
+       end,
+  %% Replace variables in all type forms
+  {NewD, Change} = lists:foldl(Fn, {D, false}, Keys),
+  %% If something changed
+  case Change of
+    true ->
+      %% If we have reached the limit
+      case Depth > Lim of
+	%% The transformation failed
+	true ->
+	  {rec, false};
+	%% Else call self
+	false ->
+	  fix_update_vars(NewD, Lim, Depth + 1)
+      end;
+    %% Else return the dictionary of the variables
+    false ->
+      {NewD, true}	  
+  end.
+
+%% Create a non bounded fun from a bounded fun given the type forms of the variables
+%% in the bounded fun
+make_normal_spec({type, L, 'fun', [Args, Range]}, D) ->
+  {NewArgs, _C1} = replace_vars(Args, D),
+  {NewRange, _C2} = replace_vars(Range, D),
+  {type, L, 'fun', [NewArgs, NewRange]}.
