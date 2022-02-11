@@ -100,7 +100,8 @@ UTEST_MODULES = \
 	types_and_specs \
 	types_and_specs2 \
 	cuter_metrics_tests \
-	cuter_config_tests
+	cuter_config_tests \
+	examples_for_type_analysis
 
 FTEST_MODULES = \
 	bitstr \
