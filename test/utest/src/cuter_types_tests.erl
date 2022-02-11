@@ -81,3 +81,15 @@ setup(Mod) ->
   {Mod, Attrs}.
 
 cleanup(_) -> ok.
+
+-spec convert_types_test() -> any().
+convert_types_test() ->
+  Modules = [examples_for_type_analysis],
+  Fn = fun(M) ->
+	   {ok, AST} = cuter_cerl:get_core(M, false),
+	   AST
+       end,
+  ASTs = [{M, Fn(M)} || M <- Modules],
+  Kmodules = [cuter_cerl:kmodule(M, AST, fun() -> ok end) || {M, AST} <- ASTs],
+  Specs = cuter_types:convert_specs(Kmodules),
+  [?assertEqual([{examples_for_type_analysis,f,1}], dict:fetch_keys(Specs))].

@@ -1,7 +1,7 @@
 %% -*- erlang-indent-level: 2 -*-
 %%------------------------------------------------------------------------------
 -module(cuter_debug).
--export([parse_module/2]).
+-export([parse_module/2, convert_types/1]).
 
 %% Prints the AST of a module.
 %% Run as:
@@ -14,3 +14,13 @@ parse_module(M, WithPmatch) ->
     {ok, AST} ->
       io:format("~p~n", [AST])
   end.
+
+-spec convert_types([module()]) -> ok.
+convert_types(Modules) ->
+  Fn = fun(M) ->
+	   {ok, AST} = cuter_cerl:get_core(M, false),
+	   AST
+       end,
+  ASTs = [{M, Fn(M)} || M <- Modules],
+  Kmodules = [cuter_cerl:kmodule(M, AST, fun() -> ok end) || {M, AST} <- ASTs],
+  io:format("~p~n", [dict:to_list(cuter_types:convert_specs(Kmodules))]).
