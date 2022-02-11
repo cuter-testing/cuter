@@ -23,7 +23,7 @@
 -export([erl_type_deps_map/2, get_type_name_from_type_dep/1,
 	 get_type_from_type_dep/1, unique_type_name/3]).
 
--export([parse_specs/1]).
+-export([convert_specs/1]).
 
 -export_type([erl_type/0, erl_spec_clause/0, erl_spec/0, stored_specs/0,
 	      stored_types/0, stored_spec_value/0, t_range_limit/0]).
@@ -1228,8 +1228,8 @@ var_name({var, _, X}) ->
   X.
 
 %% Find the erl type representation of all signatures in a list of kmodules
--spec parse_specs([cuter_cerl:kmodule()]) -> dict:dict().
-parse_specs(Kmodules) ->
+-spec convert_specs([cuter_cerl:kmodule()]) -> dict:dict().
+convert_specs(Kmodules) ->
   RecDict = ets:new(recdict, []), %% Needed for erl_types:t_from_form/6
   ExpTypes = sets:union([cuter_cerl:kmodule_exported_types(M) || M <- Kmodules]), %% Needed for erl_types:t_from_form/6
   Fn = fun (Kmodule, Acc) ->
@@ -1242,26 +1242,26 @@ parse_specs(Kmodules) ->
   %% It is a dict with the module name as the key and all the types defined in it initially.
   Unhandled = lists:foldl(Fn, dict:new(), Kmodules),
   %% Find all signatures
-  Ret = parse_specs_fix(Kmodules, ExpTypes, RecDict, Unhandled, dict:new()),
+  Ret = convert_specs_fix(Kmodules, ExpTypes, RecDict, Unhandled, dict:new()),
   ets:delete(RecDict),
   Ret.
 
 %% Convert all signatures in all modules until none can be converted
-parse_specs_fix(Kmodules, ExpTypes, RecDict, Unhandled, GatheredSpecs) ->
+convert_specs_fix(Kmodules, ExpTypes, RecDict, Unhandled, GatheredSpecs) ->
   %% Pass all modules
-  {Unhandled1, Change, GatheredSpecs1} = parse_specs_fix_pass(Kmodules, ExpTypes, RecDict, Unhandled, false, GatheredSpecs),
+  {Unhandled1, Change, GatheredSpecs1} = convert_specs_fix_pass(Kmodules, ExpTypes, RecDict, Unhandled, false, GatheredSpecs),
   case Change of %% If Unhandled has changed in this pass
     %% Pass again
     true ->
-      parse_specs_fix(Kmodules, ExpTypes, RecDict, Unhandled1, GatheredSpecs1);
+      convert_specs_fix(Kmodules, ExpTypes, RecDict, Unhandled1, GatheredSpecs1);
     %% Else return the gathered signatures
     false ->
       GatheredSpecs1
   end.
 
 %% Pass through all modules and gather signatures
-parse_specs_fix_pass([], _ExpTypes, _RecDict, Unhandled, Change, GatheredSpecs) -> {Unhandled, Change, GatheredSpecs};
-parse_specs_fix_pass([Kmodule|Kmodules], ExpTypes, RecDict, Unhandled, Change, GatheredSpecs) ->
+convert_specs_fix_pass([], _ExpTypes, _RecDict, Unhandled, Change, GatheredSpecs) -> {Unhandled, Change, GatheredSpecs};
+convert_specs_fix_pass([Kmodule|Kmodules], ExpTypes, RecDict, Unhandled, Change, GatheredSpecs) ->
   Mod = cuter_cerl:kmodule_name(Kmodule),
   PrevUnhandled = dict:fetch(Mod, Unhandled),
   %% Get the signatures converted and the unhandled types of this module
@@ -1274,9 +1274,9 @@ parse_specs_fix_pass([Kmodule|Kmodules], ExpTypes, RecDict, Unhandled, Change, G
   %% If the unhandled types for this module have not changed
   case equal_sets(NewUnhandled, PrevUnhandled) of
     %% Maintain the Change so far in the recursive call
-    true -> parse_specs_fix_pass(Kmodules, ExpTypes, RecDict, Unhandled, Change, GatheredSpecs1);
+    true -> convert_specs_fix_pass(Kmodules, ExpTypes, RecDict, Unhandled, Change, GatheredSpecs1);
     %% A change has occured, make the recursive call with Change: true and an updated Unhandled dict
-    false -> parse_specs_fix_pass(Kmodules, ExpTypes, RecDict, dict:store(Mod, NewUnhandled, Unhandled), true, GatheredSpecs1)
+    false -> convert_specs_fix_pass(Kmodules, ExpTypes, RecDict, dict:store(Mod, NewUnhandled, Unhandled), true, GatheredSpecs1)
   end.
 
 %% Gather all signatures defined in a module.
