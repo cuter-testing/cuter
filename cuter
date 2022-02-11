@@ -38,7 +38,6 @@ def main():
   parser.add_argument("-m", "--metrics", action='store_true', help="report collected metrics")
   parser.add_argument("--debug-keep-traces", action='store_true', help="keep execution traces for debugging")
   parser.add_argument("--debug-solver-fsm", action='store_true', help="output debug logs for the solver FSM")
-  parser.add_argument("-ps", "--prune-safe", action='store_true', help="prune safe paths and stop the execution early")
 
   # Parse the arguments
   args = parser.parse_args()
@@ -110,8 +109,6 @@ def main():
     opts.append("debug_keep_traces")
   if args.debug_solver_fsm:
     opts.append("debug_solver_fsm")
-  if args.prune_safe:
-    opts.append("prune_safe")
   strOpts = ",".join(opts)
 
   # Run CutEr

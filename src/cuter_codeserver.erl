@@ -10,8 +10,6 @@
          visit_tag/2, calculate_callgraph/2,
          %% Work with module cache
          merge_dumped_cached_modules/2, modules_of_dumped_cache/1,
-	 %% Code annotations
-	 annotate_for_possible_errors/1,
          %% Access logs
          cachedMods_of_logs/1, visitedTags_of_logs/1, tagsAddedNo_of_logs/1,
          unsupportedMfas_of_logs/1, loadedMods_of_logs/1]).
@@ -144,11 +142,6 @@ calculate_callgraph(CodeServer, Mfas) ->
 get_feasible_tags(CodeServer, NodeTypes) ->
   gen_server:call(CodeServer, {get_feasible_tags, NodeTypes}).
 
-%% Annotates the code for possible errors.
--spec annotate_for_possible_errors(codeserver()) -> ok.
-annotate_for_possible_errors(CodeServer) ->
-  gen_server:call(CodeServer, annotate_for_possible_errors).
-
 %% ----------------------------------------------------------------------------
 %% gen_server callbacks (Server Implementation)
 %% ----------------------------------------------------------------------------
@@ -189,7 +182,6 @@ handle_info(_Msg, State) ->
                ; (get_whitelist, from(), state()) -> {reply, cuter_mock:whitelist(), state()}
                ; ({get_feasible_tags, cuter_cerl:node_types()}, from(), state()) -> {reply, cuter_cerl:visited_tags(), state()}
                ; ({calculate_callgraph, [mfa()]}, from(), state()) -> {reply, ok, state()}
-	       ; (annotate_for_possible_errors, from(), state()) -> {reply, ok, state()}
                .
 handle_call({load, M}, _From, State) ->
   {reply, try_load(M, State), State};
@@ -239,14 +231,7 @@ handle_call({calculate_callgraph, Mfas}, _From, State=#st{whitelist = Whitelist}
                 end,
       cuter_callgraph:foreachModule(LoadFn, Callgraph),
       {reply, ok, State#st{callgraph = Callgraph}}
-  end;
-handle_call(annotate_for_possible_errors, _From, State=#st{db = Db}) ->
-  Fn2 = fun({_M, Kmodule}, Acc) ->
-	    [Kmodule|Acc]
-	end,
-  Kmodules = ets:foldl(Fn2, [], Db),
-  _MfasToSpecs = cuter_types:parse_specs(Kmodules),
-  {reply, ok, State}.
+  end.
 
 %% gen_server callback : handle_cast/2
 -spec handle_cast(stop, state()) -> {stop, normal, state()} | {noreply, state()}
