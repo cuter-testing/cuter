@@ -1267,19 +1267,19 @@ specs_as_erl_types_fix(KMs, Exported, RecDict, Openset, GatheredSpecs) ->
 %% erl_types representation.
 specs_as_erl_types_fix_pass([], _Exported, _RecDict, Openset, GatheredSpecs) ->
   {Openset, GatheredSpecs};
-specs_as_erl_types_fix_pass([KM|KMs], Exported, RecDict, Openset, GatheredSpecs) ->
+specs_as_erl_types_fix_pass([KM|Rest]=KMs, Exported, RecDict, Openset, GatheredSpecs) ->
   Mod = cuter_cerl:kmodule_name(KM),
   ModOpenset = sets:filter(fun({M, _T, _A}) -> M =:= Mod end, Openset),
-  {ComputedSpecs, NewModOpenset} = parse_mod_specs(KM, Exported, RecDict),
+  {NewModOpenset, ComputedSpecs} = module_specs_as_erl_types(KM, Exported, RecDict),
   GatheredSpecs1 = update_gathered_specs(ComputedSpecs, GatheredSpecs),
   case are_sets_equal(NewModOpenset, ModOpenset) of
     %% The openset of the module has reached a fixpoint.
     true ->
-      specs_as_erl_types_fix_pass(KMs, Exported, RecDict, Openset, GatheredSpecs1);
+      specs_as_erl_types_fix_pass(Rest, Exported, RecDict, Openset, GatheredSpecs1);
     %% If the openset of the module has changed, we want to re-run the computation.
     false ->
       OtherModsOpenset = sets:subtract(Openset, ModOpenset),
-      specs_as_erl_types_fix_pass([KM|KMs], Exported, RecDict, sets:union(NewModOpenset, OtherModsOpenset), GatheredSpecs1)
+      specs_as_erl_types_fix_pass(KMs, Exported, RecDict, sets:union(NewModOpenset, OtherModsOpenset), GatheredSpecs1)
   end.
 
 update_gathered_specs([], GatheredSpecs) -> GatheredSpecs;
@@ -1287,25 +1287,28 @@ update_gathered_specs([{Mfa, Spec}|More], GatheredSpecs) ->
   GatheredSpecs1 = dict:store(Mfa, Spec, GatheredSpecs),
   update_gathered_specs(More, GatheredSpecs1).
 
-%% Gather all signatures defined in a module.
-%% Return all signatures that can be converted to erl_types
-%% and all the types that couldn't
-parse_mod_specs(Kmodule, ExpTypes, RecDict) ->
-  %% Fetch type forms from the kmodule along with the lines where they were defined.
-  %% The lines are needed for the erl_types:t_from_form/6 call
-  TypesLines = extract_type_definitions(Kmodule),
-  Mod = cuter_cerl:kmodule_name(Kmodule),
-  %% Only Unhandled is returned because types will be stored in RecDict ets table
-  ModOpenset = fix_point_type_parse(Mod, RecDict, ExpTypes, TypesLines),
-  Fn = fun ({{F, A}, S1}) -> %% For a function F with arity A and signature S1 which is a list
-      %% Replace records with temp record types in the signature
-      S = spec_replace_records(spec_replace_bounded(S1)),
-      %% Convert each element of the list into an erl_type
-      ErlSpecs = convert_list_to_erl(S, {Mod, F, A}, ExpTypes, RecDict),
-      {{Mod, F, A}, ErlSpecs}
-    end,
-  Specs = lists:map(Fn, cuter_cerl:kmodule_spec_forms(Kmodule)),
-  {Specs, ModOpenset}.
+%% Computes the specs of a kmodule as erl_types.
+%% Returns the computes specs, and the types that were not computed yet.
+module_specs_as_erl_types(Kmodule, Exported, RecDict) ->
+  %% Run one pass that computes the types in the module.
+  ModOpenset = update_recdict_for_module_types(Kmodule, Exported, RecDict),
+  %% Compute the specs based on the potentially updated types.
+  SpecForms = cuter_cerl:kmodule_spec_forms(Kmodule),
+  Specs = [spec_form_as_erl_types(SF, Kmodule, Exported, RecDict) || SF <- SpecForms],
+  {ModOpenset, Specs}.
+
+update_recdict_for_module_types(Kmodule, Exported, RecDict) ->
+  TypeForms = extract_type_definitions(Kmodule),
+  M = cuter_cerl:kmodule_name(Kmodule),
+  fix_point_type_parse(M, RecDict, Exported, TypeForms).
+
+spec_form_as_erl_types({{F, A}, Spec}, Kmodule, Exported, RecDict) ->
+  %% Replace records with temp record types in the signature
+  Normalized = spec_replace_records(spec_replace_bounded(Spec)),
+  %% Convert each element of the list into an erl_type
+  Mfa = {cuter_cerl:kmodule_name(Kmodule), F, A},
+  Converted = convert_list_to_erl(Normalized, Mfa, Exported, RecDict),
+  {Mfa, Converted}.
 
 %% Convert as many types in Mod as possible to erl_types.
 %% For every succesful conversion add it to RecDict and finally 
@@ -1313,12 +1316,12 @@ parse_mod_specs(Kmodule, ExpTypes, RecDict) ->
 %% If there are more succesful conversions as before try again.
 %% This is done to handle types depending on later defined types 
 %% or mutually recursive types immediately
-fix_point_type_parse(Mod, RecDict, ExpTypes, TypesLines) ->
+fix_point_type_parse(Mod, RecDict, Exported, TypeForms) ->
   F = fun ({L, {Tname, T, Vars}}, Acc) -> %% Get a type and a set of unhandled types
 	  A = length(Vars),
 	  %% Try to convert the type to erl_type using erl_types:t_from_form/6
 	  {{T1, _C}, D1} = 
-	    try erl_types:t_from_form(T, ExpTypes, {'type', {Mod, Tname, A}}, RecDict, erl_types:var_table__new(), erl_types:cache__new()) of
+	    try erl_types:t_from_form(T, Exported, {'type', {Mod, Tname, A}}, RecDict, erl_types:var_table__new(), erl_types:cache__new()) of
 	      Ret -> {Ret, false}
 	    catch
 	      _:_ ->
@@ -1342,25 +1345,25 @@ fix_point_type_parse(Mod, RecDict, ExpTypes, TypesLines) ->
 	  end
       end,
   %% Apply F to all Types in the module
-  lists:foldl(F, sets:new(), TypesLines).
+  lists:foldl(F, sets:new(), TypeForms).
 
 %% Convert a list of forms to a list of erl_types
-convert_list_to_erl(S, MFA, ExpTypes, RecDict) ->
-  convert_list_to_erl(S, MFA, ExpTypes, RecDict, []).
+convert_list_to_erl(S, MFA, TypeForms, RecDict) ->
+  convert_list_to_erl(S, MFA, TypeForms, RecDict, []).
 
-convert_list_to_erl([], _MFA, _ExpTypes, _RecDict, Acc) -> lists:reverse(Acc);
-convert_list_to_erl([Spec|Specs], MFA, ExpTypes, RecDict, Acc) ->
+convert_list_to_erl([], _MFA, _TypeForms, _RecDict, Acc) -> lists:reverse(Acc);
+convert_list_to_erl([Spec|Specs], MFA, TypeForms, RecDict, Acc) ->
   ErlSpec = 
-    try erl_types:t_from_form(Spec, ExpTypes, {'spec', MFA}, RecDict, erl_types:var_table__new(), erl_types:cache__new()) of
+    try erl_types:t_from_form(Spec, TypeForms, {'spec', MFA}, RecDict, erl_types:var_table__new(), erl_types:cache__new()) of
       {S, _C} -> S
     catch
       _:_ -> nospec
     end,
   case ErlSpec of
     nospec ->
-      convert_list_to_erl(Specs, MFA, ExpTypes, RecDict, Acc);
+      convert_list_to_erl(Specs, MFA, TypeForms, RecDict, Acc);
     _ ->
-      convert_list_to_erl(Specs, MFA, ExpTypes, RecDict, [ErlSpec|Acc])
+      convert_list_to_erl(Specs, MFA, TypeForms, RecDict, [ErlSpec|Acc])
   end.
 
 are_sets_equal(A, B) ->

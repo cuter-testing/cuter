@@ -70,7 +70,7 @@
 -type name() :: atom().
 -type fa() :: {name(), arity()}.
 -type cerl_attr_type() :: cerl_recdef() | cerl_typedef().
--type cerl_attr_spec() :: cerl_specdef().
+-type cerl_attr_spec() :: cerl_spec_form().
 
 -type cerl_recdef() :: {name(), [cerl_record_field()]} % for OTP 19.x
                      | {{'record', name()}, [cerl_record_field()], []}. % for OTP 18.x or earlier
@@ -80,7 +80,7 @@
 -type cerl_typed_record_field() :: {'typed_record_field', cerl_untyped_record_field(), cerl_type()}.
 -type cerl_typedef() :: {name(), cerl_type(), [cerl_type_var()]}.
 
--type cerl_specdef() :: {fa(), cerl_spec()}.
+-type cerl_spec_form() :: {fa(), cerl_spec()}.
 -type cerl_spec() :: [cerl_spec_func(), ...].
 -type cerl_spec_func() :: cerl_func() | cerl_bounded_func().
 
@@ -273,7 +273,7 @@ is_mfa({M, F, A}) when is_atom(M), is_atom(F), is_integer(A), A >= 0 -> true;
 is_mfa(_Mfa) -> false.
 
 %% Returns the unprocessed specs of a kmodule (as forms).
--spec kmodule_spec_forms(kmodule()) -> [cerl:cerl()].
+-spec kmodule_spec_forms(kmodule()) -> [cerl_spec_form()].
 kmodule_spec_forms(Kmodule) ->
   [{spec_forms, SpecsForms}] = ets:lookup(Kmodule, spec_forms),
   SpecsForms.
