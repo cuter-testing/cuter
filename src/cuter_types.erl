@@ -1217,20 +1217,15 @@ get_type_from_type_dep({_Name, Type}) ->
   Type.
 
 %% ----------------------------------------------------------------------------
-%% API for erl_types:erl_type().
-%% Here a fix point computation is defined which converts all specs in a list
-%% of modules to their erl_type representation
+%% Compute the erl_types:erl_type() representation of type specifications.
 %% ----------------------------------------------------------------------------
 
 -define(CUTER_RECORD_TYPE_PREFIX, "__cuter_record_type__").
 
-var_name({var, _, X}) ->
-  X.
-
-%% Find the erl type representation of all signatures in a list of kmodules
--spec specs_as_erl_types([cuter_cerl:kmodule()]) -> dict:dict().
+%% Returns the specs of the given kmodules in their erl_types representation.
+-spec specs_as_erl_types([cuter_cerl:kmodule()]) -> dict:dict(mfa(), [erl_types:erl_type()]).
 specs_as_erl_types(Kmodules) ->
-  %% Initialise an openset with all the types that have not yet been converted from a form
+  %% Initialize an openset with all the types that have not yet been converted from a form
   %% to its erl_types representation.
   Openset = initial_openset_of_types(Kmodules),
   Exported = sets:union([cuter_cerl:kmodule_exported_types(KM) || KM <- Kmodules]),
@@ -1319,7 +1314,7 @@ update_recdict_from_type_forms(M, RecDict, Exported, TypeForms) ->
   Fn = fun ({L, {TName, T, TVars}}, Acc) ->
 	  A = length(TVars),
 	  Mta = {M, TName, A},
-	  Vs = [var_name(Var) || Var <- TVars],
+	  Vs = [V || {var, _, V} <- TVars],
 	  case try_convert_type_to_erl_types(Mta, T, Exported, RecDict) of
 	    error -> sets:add_element(Mta, Acc);
 	    {ok, T1} ->
