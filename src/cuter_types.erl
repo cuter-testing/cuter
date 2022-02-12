@@ -1279,7 +1279,7 @@ specs_as_erl_types_fix_pass([KM|KMs], Exported, RecDict, Openset, GatheredSpecs)
     %% If the openset of the module has changed, we want to re-run the computation.
     false ->
       OtherModsOpenset = sets:subtract(Openset, ModOpenset),
-      specs_as_erl_types_fix_pass(KMs, Exported, RecDict, sets:union(NewModOpenset, OtherModsOpenset), GatheredSpecs1)
+      specs_as_erl_types_fix_pass([KM|KMs], Exported, RecDict, sets:union(NewModOpenset, OtherModsOpenset), GatheredSpecs1)
   end.
 
 update_gathered_specs([], GatheredSpecs) -> GatheredSpecs;
