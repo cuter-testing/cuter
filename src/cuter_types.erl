@@ -1270,7 +1270,7 @@ specs_as_erl_types_fix_pass([], _Exported, _RecDict, Openset, GatheredSpecs) ->
 specs_as_erl_types_fix_pass([KM|KMs], Exported, RecDict, Openset, GatheredSpecs) ->
   Mod = cuter_cerl:kmodule_name(KM),
   ModOpenset = sets:filter(fun({M, _T, _A}) -> M =:= Mod end, Openset),
-  {ComputedSpecs, NewModOpenset} = parse_mod_specs(KM, Exported, RecDict, ModOpenset),
+  {ComputedSpecs, NewModOpenset} = parse_mod_specs(KM, Exported, RecDict),
   GatheredSpecs1 = update_gathered_specs(ComputedSpecs, GatheredSpecs),
   case are_sets_equal(NewModOpenset, ModOpenset) of
     %% The openset of the module has reached a fixpoint.
@@ -1290,13 +1290,13 @@ update_gathered_specs([{Mfa, Spec}|More], GatheredSpecs) ->
 %% Gather all signatures defined in a module.
 %% Return all signatures that can be converted to erl_types
 %% and all the types that couldn't
-parse_mod_specs(Kmodule, ExpTypes, RecDict, ModOpenSet) ->
+parse_mod_specs(Kmodule, ExpTypes, RecDict) ->
   %% Fetch type forms from the kmodule along with the lines where they were defined.
   %% The lines are needed for the erl_types:t_from_form/6 call
   TypesLines = extract_type_definitions(Kmodule),
   Mod = cuter_cerl:kmodule_name(Kmodule),
   %% Only Unhandled is returned because types will be stored in RecDict ets table
-  NewModOpenset = fix_point_type_parse(Mod, RecDict, ExpTypes, TypesLines, ModOpenSet),
+  ModOpenset = fix_point_type_parse(Mod, RecDict, ExpTypes, TypesLines),
   Fn = fun ({{F, A}, S1}) -> %% For a function F with arity A and signature S1 which is a list
       %% Replace records with temp record types in the signature
       S = spec_replace_records(spec_replace_bounded(S1)),
@@ -1305,7 +1305,7 @@ parse_mod_specs(Kmodule, ExpTypes, RecDict, ModOpenSet) ->
       {{Mod, F, A}, ErlSpecs}
     end,
   Specs = lists:map(Fn, cuter_cerl:kmodule_spec_forms(Kmodule)),
-  {Specs, NewModOpenset}.
+  {Specs, ModOpenset}.
 
 %% Convert as many types in Mod as possible to erl_types.
 %% For every succesful conversion add it to RecDict and finally 
@@ -1313,7 +1313,7 @@ parse_mod_specs(Kmodule, ExpTypes, RecDict, ModOpenSet) ->
 %% If there are more succesful conversions as before try again.
 %% This is done to handle types depending on later defined types 
 %% or mutually recursive types immediately
-fix_point_type_parse(Mod, RecDict, ExpTypes, TypesLines, ModOpenSet) ->
+fix_point_type_parse(Mod, RecDict, ExpTypes, TypesLines) ->
   F = fun ({L, {Tname, T, Vars}}, Acc) -> %% Get a type and a set of unhandled types
 	  A = length(Vars),
 	  %% Try to convert the type to erl_type using erl_types:t_from_form/6
@@ -1342,16 +1342,7 @@ fix_point_type_parse(Mod, RecDict, ExpTypes, TypesLines, ModOpenSet) ->
 	  end
       end,
   %% Apply F to all Types in the module
-  Openset = lists:foldl(F, sets:new(), TypesLines),
-  %% Check if the unhandled types are different than before
-  case are_sets_equal(ModOpenSet, Openset) of
-    %% If they are, run the module again
-    false ->
-      fix_point_type_parse(Mod, RecDict, ExpTypes, TypesLines, Openset);
-    %% Else return the unhandled types
-    true ->
-      Openset
-  end.
+  lists:foldl(F, sets:new(), TypesLines).
 
 %% Convert a list of forms to a list of erl_types
 convert_list_to_erl(S, MFA, ExpTypes, RecDict) ->
