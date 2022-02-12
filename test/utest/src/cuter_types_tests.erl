@@ -86,10 +86,59 @@ cleanup(_) -> ok.
 convert_types_test() ->
   Modules = [examples_for_type_analysis],
   Fn = fun(M) ->
-	   {ok, AST} = cuter_cerl:get_core(M, false),
-	   AST
-       end,
-  ASTs = [{M, Fn(M)} || M <- Modules],
-  Kmodules = [cuter_cerl:kmodule(M, AST, fun() -> ok end) || {M, AST} <- ASTs],
+    {ok, AST} = cuter_cerl:get_core(M, false),
+    AST
+    end,
+  Xs = [{M, Fn(M)} || M <- Modules],
+  TagGen = fun() -> ok end,
+  Kmodules = [cuter_cerl:kmodule(M, AST, TagGen) || {M, AST} <- Xs],
   Specs = cuter_types:convert_specs(Kmodules),
-  [?assertEqual([{examples_for_type_analysis,f,1}], dict:fetch_keys(Specs))].
+  Expect = mfas_and_specs(),
+  ExpectMfas = [Mfa || {Mfa, _Spec} <- Expect],
+  As = lists:flatten([spec_assertions(E, Specs) || E <- Expect]),
+  [?assertEqual(lists:sort(ExpectMfas), lists:sort(dict:fetch_keys(Specs)))] ++ As.
+
+
+mfas_and_specs() ->
+  [
+    {
+      {examples_for_type_analysis, id, 1},
+      [erl_types:t_fun([erl_types:t_any()], erl_types:t_any())]
+    },
+    {
+      {examples_for_type_analysis, inc, 1},
+      [erl_types:t_fun([erl_types:t_integer()], erl_types:t_integer())]
+    },
+    {
+      {examples_for_type_analysis, to_atom, 1},
+      [erl_types:t_fun([erl_types:t_sup(erl_types:t_integer(), erl_types:t_atom())], erl_types:t_atom())]
+    },
+    {
+      {examples_for_type_analysis, translate, 3},
+      [erl_types:t_fun(
+        [erl_types:t_tuple([erl_types:t_from_term(point), erl_types:t_number(), erl_types:t_number()]),
+          erl_types:t_number(),
+          erl_types:t_number()],
+        erl_types:t_tuple([erl_types:t_from_term(point), erl_types:t_number(), erl_types:t_number()]))]
+    },
+    {
+      {examples_for_type_analysis, root, 1},
+      []  %% We do not support recursive types.
+    },
+    {
+      {examples_for_type_analysis, max_x, 1},
+      [erl_types:t_fun(
+        [erl_types:t_list(
+          erl_types:t_tuple([erl_types:t_from_term(point), erl_types:t_number(), erl_types:t_number()]))],
+        erl_types:t_number())]
+    }
+  ].
+
+spec_assertions({Mfa, Expect}, R) ->
+  As = [?assert(dict:is_key(Mfa, R))],
+  case dict:find(Mfa, R) of
+    error -> As;
+    {ok, Got} ->
+      Comment = "Spec of " ++ cuter_tests_lib:mfa_to_list(Mfa),
+      As ++ [?assertEqual(Expect, Got, Comment)]
+  end.
