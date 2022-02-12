@@ -1235,7 +1235,7 @@ specs_as_erl_types(Kmodules) ->
   Fn = fun (Kmodule, Acc) ->
 	   Mod = cuter_cerl:kmodule_name(Kmodule),
 	   TypesLines = all_types_from_cerl(Kmodule),
-	   U = sets:from_list([{TName, length(Vars)} || {{TName, _T, Vars}, _L} <- TypesLines]),
+	   U = sets:from_list([{TName, length(Vars)} || {_L, {TName, _T, Vars}} <- TypesLines]),
 	   dict:store(Mod, U, Acc)
        end,
   %% Unhandled holds all non converted types from a form to an erl_type for each module.
@@ -1306,7 +1306,7 @@ parse_mod_specs(Kmodule, ExpTypes, RecDict, PrevUnhandled) ->
 %% This is done to handle types depending on later defined types 
 %% or mutually recursive types immediately
 fix_point_type_parse(Mod, RecDict, ExpTypes, TypesLines, PrevUnhandled) ->
-  F = fun ({{Tname, T, Vars}, L}, Acc) -> %% Get a type and a set of unhandled types
+  F = fun ({L, {Tname, T, Vars}}, Acc) -> %% Get a type and a set of unhandled types
 	  A = length(Vars),
 	  %% Try to convert the type to erl_type using erl_types:t_from_form/6
 	  {{T1, _C}, D1} = 
@@ -1370,7 +1370,7 @@ equal_sets(A, B) ->
 %% Return all types defined in a kmodule
 all_types_from_cerl(Kmodule) ->
   %% Types and Opaque types
-  TypesOpaques = [{type_replace_records(Type), Line} || {Line, Type} <- cuter_cerl:kmodule_type_forms(Kmodule)],
+  TypesOpaques = [{Line, type_replace_records(Type)} || {Line, Type} <- cuter_cerl:kmodule_type_forms(Kmodule)],
   %% Make the temp types representing records
   Records = records_as_types(Kmodule),
   lists:append(TypesOpaques, Records).
@@ -1414,7 +1414,7 @@ type_from_record({Name, Line, Fields}) ->
   NewFields = lists:map(Fn, Fields),
   NewName = record_name(Name),
   RecType = {type, Line, tuple, [{atom, Line, Name} | NewFields]},
-  {{NewName, RecType, []}, Line}.
+  {Line, {NewName, RecType, []}}.
 
 %% Return the name of a temporary type corresponding to a record with name Name
 record_name(Name) ->
