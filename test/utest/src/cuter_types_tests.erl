@@ -84,7 +84,7 @@ cleanup(_) -> ok.
 
 -spec convert_types_test() -> any().
 convert_types_test() ->
-  Modules = [examples_for_type_analysis],
+  Modules = [examples_for_type_analysis, examples_for_type_analysis_pair],
   Fn = fun(M) ->
     {ok, AST} = cuter_cerl:get_core(M, false),
     AST
@@ -132,11 +132,20 @@ mfas_and_specs() ->
         [erl_types:t_list(
           erl_types:t_tuple([erl_types:t_from_term(point), erl_types:t_number(), erl_types:t_number()]))],
         erl_types:t_number())]
+    },
+    {
+      {examples_for_type_analysis, is_dog, 1},
+      [erl_types:t_fun([erl_types:t_any()], erl_types:t_boolean())]  %% Remote types not working??
+    },
+    {
+      {examples_for_type_analysis_pair, to_int, 1},
+      [erl_types:t_fun([erl_types:t_any()], erl_types:t_integer())]  %% Remote types not working??
     }
   ].
 
 spec_assertions({Mfa, Expect}, R) ->
-  As = [?assert(dict:is_key(Mfa, R))],
+  CommentExists = cuter_tests_lib:mfa_to_list(Mfa) ++ " should exist",
+  As = [?assert(dict:is_key(Mfa, R), CommentExists)],
   case dict:find(Mfa, R) of
     error -> As;
     {ok, Got} ->
