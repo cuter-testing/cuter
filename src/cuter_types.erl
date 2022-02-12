@@ -1414,8 +1414,9 @@ generate_type_form_for_record_form({Line, {Name, Fields}}) ->
 type_name_for_record(RecordName) ->
   list_to_atom(?CUTER_RECORD_TYPE_PREFIX ++ atom_to_list(RecordName)).
 
-%% Replace all bounded signatures with equivalent normal ones
-spec_replace_bounded(Specs) -> lists:map(fun handle_bounded_fun/1, Specs).
+%% Replaces all the specs that are expressed as bounded functions, to their equivalent
+%% unbounded ones.
+spec_replace_bounded(Spec) -> [handle_bounded_fun(S) || S <- Spec].
 
 %% If a the signature is not bounded, return it intact
 handle_bounded_fun({type, _L, 'fun', _Rest} = S) -> S;
