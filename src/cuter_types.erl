@@ -1277,6 +1277,8 @@ specs_as_erl_types_fix_pass([KM|Rest]=KMs, Exported, RecDict, Openset, GatheredS
     true ->
       specs_as_erl_types_fix_pass(Rest, Exported, RecDict, Openset, GatheredSpecs1);
     %% If the openset of the module has changed, we want to re-run the computation.
+    %% This can happend when a type depends on a type that is defined later in the code,
+    %% or for mutually recursive types.
     false ->
       OtherModsOpenset = sets:subtract(Openset, ModOpenset),
       specs_as_erl_types_fix_pass(KMs, Exported, RecDict, sets:union(NewModOpenset, OtherModsOpenset), GatheredSpecs1)
@@ -1300,7 +1302,7 @@ module_specs_as_erl_types(Kmodule, Exported, RecDict) ->
 update_recdict_for_module_types(Kmodule, Exported, RecDict) ->
   TypeForms = extract_type_definitions(Kmodule),
   M = cuter_cerl:kmodule_name(Kmodule),
-  fix_point_type_parse(M, RecDict, Exported, TypeForms).
+  update_recdict_from_type_forms(M, RecDict, Exported, TypeForms).
 
 spec_form_as_erl_types({{F, A}, Spec}, Kmodule, Exported, RecDict) ->
   %% Replace records with temp record types in the signature
@@ -1310,42 +1312,37 @@ spec_form_as_erl_types({{F, A}, Spec}, Kmodule, Exported, RecDict) ->
   Converted = convert_list_to_erl(Normalized, Mfa, Exported, RecDict),
   {Mfa, Converted}.
 
-%% Convert as many types in Mod as possible to erl_types.
-%% For every succesful conversion add it to RecDict and finally 
-%% return the types that couldn't be converted.
-%% If there are more succesful conversions as before try again.
-%% This is done to handle types depending on later defined types 
-%% or mutually recursive types immediately
-fix_point_type_parse(Mod, RecDict, Exported, TypeForms) ->
-  F = fun ({L, {Tname, T, Vars}}, Acc) -> %% Get a type and a set of unhandled types
-	  A = length(Vars),
-	  %% Try to convert the type to erl_type using erl_types:t_from_form/6
-	  {{T1, _C}, D1} = 
-	    try erl_types:t_from_form(T, Exported, {'type', {Mod, Tname, A}}, RecDict, erl_types:var_table__new(), erl_types:cache__new()) of
-	      Ret -> {Ret, false}
-	    catch
-	      _:_ ->
-		{{none, none}, true}
-	    end,
-	  %% Check if the conversion was successful
-	  case D1 of
-	    %% If it was, add the new erl_type in RecDict
-	    false ->
-	      case ets:lookup(RecDict, Mod) of
-		[{Mod, VT}] ->
-		  ets:insert(RecDict, {Mod, maps:put({'type', Tname, A}, {{Mod, {lists:append(atom_to_list(Mod), ".erl"), L}, T, [var_name(Var) || Var <- Vars]}, T1}, VT)}),
-		  Acc;
-		_ ->
-		  ets:insert(RecDict, {Mod, maps:put({'type', Tname, A}, {{Mod, {lists:append(atom_to_list(Mod), ".erl"), L}, T, [var_name(Var) || Var <- Vars]}, T1}, maps:new())}),
-		  Acc
-	      end;
-	    %% Else, add the type to the Unhandled set
-	    true ->
-	      sets:add_element({Mod, Tname, A}, Acc)
+%% Converts as many types in M as possible to their erl_types representation.
+%% Every succesful conversion is added to RecDict.
+%% We return the types that could not be converted, i.e. the openset.
+update_recdict_from_type_forms(M, RecDict, Exported, TypeForms) ->
+  Fn = fun ({L, {TName, T, TVars}}, Acc) ->
+	  A = length(TVars),
+	  Mta = {M, TName, A},
+	  Vs = [var_name(Var) || Var <- TVars],
+	  case try_convert_type_to_erl_types(Mta, T, Exported, RecDict) of
+	    error -> sets:add_element(Mta, Acc);
+	    {ok, T1} ->
+	      VT =
+	        case ets:lookup(RecDict, M) of
+            [{M, OVT}] -> OVT;
+		        [] -> maps:new()
+	        end,
+        NVT = maps:put({'type', TName, A}, {{M, {atom_to_list(M) ++ ".erl", L}, T, Vs}, T1}, VT),
+	      ets:insert(RecDict, {M, NVT}),
+	      Acc
 	  end
-      end,
-  %% Apply F to all Types in the module
-  lists:foldl(F, sets:new(), TypeForms).
+  end,
+  lists:foldl(Fn, sets:new(), TypeForms).
+
+try_convert_type_to_erl_types(Mta, T, Exported, RecDict) ->
+  VT = erl_types:var_table__new(),
+  Cache = erl_types:cache__new(),
+  try erl_types:t_from_form(T, Exported, {'type', Mta}, RecDict, VT, Cache) of
+    {T1, _C} -> {ok, T1}
+  catch
+    _:_ -> error
+  end.
 
 %% Convert a list of forms to a list of erl_types
 convert_list_to_erl(S, MFA, TypeForms, RecDict) ->
