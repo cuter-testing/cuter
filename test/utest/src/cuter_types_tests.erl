@@ -92,11 +92,12 @@ convert_types_test() ->
   Xs = [{M, Fn(M)} || M <- Modules],
   TagGen = fun() -> ok end,
   Kmodules = [cuter_cerl:kmodule(M, AST, TagGen) || {M, AST} <- Xs],
-  Specs = cuter_types:convert_specs(Kmodules),
+  Specs = cuter_types:specs_as_erl_types(Kmodules),
   Expect = mfas_and_specs(),
-  ExpectMfas = [Mfa || {Mfa, _Spec} <- Expect],
   As = lists:flatten([spec_assertions(E, Specs) || E <- Expect]),
-  [?assertEqual(lists:sort(ExpectMfas), lists:sort(dict:fetch_keys(Specs)))] ++ As.
+  ExpectMfas = lists:sort([Mfa || {Mfa, _Spec} <- Expect]),
+  GotMfas = lists:sort(dict:fetch_keys(Specs)),
+  [?assertEqual(ExpectMfas, GotMfas)] ++ As.
 
 
 mfas_and_specs() ->

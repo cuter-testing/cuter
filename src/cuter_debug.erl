@@ -27,7 +27,7 @@ to_erl_types_specs(Modules) ->
   Xs = [{M, Fn(M)} || M <- Modules],
   TagGen = fun() -> ok end,
   Kmodules = [cuter_cerl:kmodule(M, AST, TagGen) || {M, AST} <- Xs],
-  Specs = cuter_types:convert_specs(Kmodules),
+  Specs = cuter_types:specs_as_erl_types(Kmodules),
   lists:foreach(fun print_mfa_and_spec/1, dict:to_list(Specs)).
 
 print_mfa_and_spec({MFA, Spec}) ->
