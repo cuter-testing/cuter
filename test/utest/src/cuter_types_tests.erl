@@ -144,6 +144,12 @@ mfas_and_specs() ->
       [erl_types:t_fun(
         [erl_types:t_sup(erl_types:t_integer(), erl_types:t_atom())],
         erl_types:t_integer())]
+    },
+    {
+      {examples_for_type_analysis_pair, can_bark, 1},
+      [erl_types:t_fun(
+        [erl_types:t_sup(erl_types:t_atom(dog), erl_types:t_atom(cat))],
+        erl_types:t_boolean())]
     }
   ].
 
