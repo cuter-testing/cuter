@@ -1306,7 +1306,7 @@ update_recdict_for_module_types(Kmodule, Exported, RecDict) ->
 
 spec_form_as_erl_types({{F, A}, Spec}, Kmodule, Exported, RecDict) ->
   %% Replace records with temp record types in the signature
-  Normalized = spec_replace_records(transform_bounded_funs_in_spec(Spec)),
+  Normalized = replace_records_in_spec(transform_bounded_funs_in_spec(Spec)),
   %% Convert each element of the list into an erl_type
   Mfa = {cuter_cerl:kmodule_name(Kmodule), F, A},
   Converted = convert_list_to_erl(Normalized, Mfa, Exported, RecDict),
@@ -1382,12 +1382,15 @@ extract_type_definitions(Kmodule) ->
 replace_record_references_in_type_form({Line, {Name, Type, Args}}) ->
   {Line, {Name, replace_record_references(Type), Args}}.
 
-%% Replace all record references with their respective temporary type in a spec form list
-spec_replace_records(FunSpecs) ->
-  Fn = fun({type, Line, F, L}) ->
-	   {type, Line, F, lists:map(fun replace_record_references/1, L)}
-       end,
-  lists:map(Fn, FunSpecs).
+%% Replaces all the record within specs, with the respective generated types.
+replace_records_in_spec(Spec) ->
+  replace_records_in_spec(Spec, []).
+
+replace_records_in_spec([], Clauses) ->
+  lists:reverse(Clauses);
+replace_records_in_spec([{type, _, _, Ts}=Cl|Cls], Clauses) ->
+  NTs = [replace_record_references(T) || T <- Ts],
+  replace_records_in_spec(Cls, [setelement(4, Cl, NTs)|Clauses]).
 
 %% Replace all record references with their respective temporary type in a form
 %% Replaces all the references to records inside a type form.
