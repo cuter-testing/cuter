@@ -1,11 +1,13 @@
 %% -*- erlang-indent-level: 2 -*-
 %%------------------------------------------------------------------------------
 -module(cuter_debug).
--export([parse_module/2, convert_types/1]).
+
+-export([parse_module/2, to_erl_types_specs/1]).
+
+%% This modules contains convenience MFAs for debugging purposes during the
+%% development of the tool.
 
 %% Prints the AST of a module.
-%% Run as:
-%%   erl -noshell -pa ebin/ -eval "cuter_debug:parse_module(lists, true)" -s init stop
 -spec parse_module(module(), boolean()) -> ok.
 parse_module(M, WithPmatch) ->
 	case cuter_cerl:get_core(M, WithPmatch) of
@@ -15,12 +17,18 @@ parse_module(M, WithPmatch) ->
       io:format("~p~n", [AST])
   end.
 
--spec convert_types([module()]) -> ok.
-convert_types(Modules) ->
+%% Returns the specs of a list of modules as erl_types representation.
+-spec to_erl_types_specs([module()]) -> ok.
+to_erl_types_specs(Modules) ->
   Fn = fun(M) ->
-	   {ok, AST} = cuter_cerl:get_core(M, false),
-	   AST
-       end,
-  ASTs = [{M, Fn(M)} || M <- Modules],
-  Kmodules = [cuter_cerl:kmodule(M, AST, fun() -> ok end) || {M, AST} <- ASTs],
-  io:format("~p~n", [dict:to_list(cuter_types:convert_specs(Kmodules))]).
+    {ok, AST} = cuter_cerl:get_core(M, false),
+    AST
+    end,
+  Xs = [{M, Fn(M)} || M <- Modules],
+  TagGen = fun() -> ok end,
+  Kmodules = [cuter_cerl:kmodule(M, AST, TagGen) || {M, AST} <- Xs],
+  Specs = cuter_types:convert_specs(Kmodules),
+  lists:foreach(fun print_mfa_and_spec/1, dict:to_list(Specs)).
+
+print_mfa_and_spec({MFA, Spec}) ->
+  io:format("~p~n  ~p~n", [MFA, Spec]).
