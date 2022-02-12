@@ -1234,7 +1234,7 @@ specs_as_erl_types(Kmodules) ->
   ExpTypes = sets:union([cuter_cerl:kmodule_exported_types(M) || M <- Kmodules]), %% Needed for erl_types:t_from_form/6
   Fn = fun (Kmodule, Acc) ->
 	   Mod = cuter_cerl:kmodule_name(Kmodule),
-	   TypesLines = all_types_from_cerl(Kmodule),
+	   TypesLines = extract_type_definitions(Kmodule),
 	   U = sets:from_list([{TName, length(Vars)} || {_L, {TName, _T, Vars}} <- TypesLines]),
 	   dict:store(Mod, U, Acc)
        end,
@@ -1285,7 +1285,7 @@ convert_specs_fix_pass([Kmodule|Kmodules], ExpTypes, RecDict, Unhandled, Change,
 parse_mod_specs(Kmodule, ExpTypes, RecDict, PrevUnhandled) ->
   %% Fetch type forms from the kmodule along with the lines where they were defined.
   %% The lines are needed for the erl_types:t_from_form/6 call
-  TypesLines = all_types_from_cerl(Kmodule),
+  TypesLines = extract_type_definitions(Kmodule),
   Mod = cuter_cerl:kmodule_name(Kmodule),
   %% Only Unhandled is returned because types will be stored in RecDict ets table
   Unhandled = fix_point_type_parse(Mod, RecDict, ExpTypes, TypesLines, PrevUnhandled),
@@ -1367,58 +1367,52 @@ convert_list_to_erl([Spec|Specs], MFA, ExpTypes, RecDict, Acc) ->
 equal_sets(A, B) ->
   sets:size(A) == sets:size(B) andalso sets:size(sets:union(A, B)) == sets:size(B).
 
-%% Return all types defined in a kmodule
-all_types_from_cerl(Kmodule) ->
-  %% Types and Opaque types
-  TypesOpaques = [{Line, type_replace_records(Type)} || {Line, Type} <- cuter_cerl:kmodule_type_forms(Kmodule)],
-  %% Make the temp types representing records
-  Records = records_as_types(Kmodule),
-  lists:append(TypesOpaques, Records).
+%% Returns the type and record definitions in a kmodule.
+%% Records are replaced by equivalent types.
+extract_type_definitions(Kmodule) ->
+  %% Replaces the record references in the type forms.
+  TypeForms = cuter_cerl:kmodule_type_forms(Kmodule),
+  Types = [replace_record_references_in_type_form(TF) || TF <- TypeForms],
+  %% Generate equivalent type for the records.
+  RecordForms = cuter_cerl:kmodule_record_forms(Kmodule),
+  Records = [generate_type_form_for_record_form(RF) || RF <- RecordForms],
+  Types ++ Records.
 
 %% Replace all record references with their respective temporary type in a type form
-type_replace_records({Name, Type, Args}) ->
-  {Name, replace_records(Type), Args}.
+replace_record_references_in_type_form({Line, {Name, Type, Args}}) ->
+  {Line, {Name, replace_record_references(Type), Args}}.
 
 %% Replace all record references with their respective temporary type in a spec form list
 spec_replace_records(FunSpecs) ->
   Fn = fun({type, Line, F, L}) ->
-	   {type, Line, F, lists:map(fun replace_records/1, L)}
+	   {type, Line, F, lists:map(fun replace_record_references/1, L)}
        end,
   lists:map(Fn, FunSpecs).
 
 %% Replace all record references with their respective temporary type in a form
-replace_records({type, L, record, [{atom, _, Name}]}) ->
-  {user_type, L, record_name(Name), []};
-replace_records({T, L, Type, Args}) when T =:= type orelse T =:= user_type ->
+%% Replaces all the references to records inside a type form.
+replace_record_references({type, L, record, [{atom, _, Name}]}) ->
+  {user_type, L, type_name_for_record(Name), []};
+replace_record_references({T, L, Type, Args}) when T =:= type orelse T =:= user_type ->
   case is_list(Args) of
     true ->
-      {T, L, Type, lists:map(fun replace_records/1, Args)};
+      {T, L, Type, [replace_record_references(A) || A <- Args]};
     false ->
       {T, L, Type, Args}
   end;
-replace_records(Rest) -> Rest.
+replace_record_references(F) -> F.
 
-%% Return temporary types representing the records in a kmodule
-%% For each record rec with fields es make a temporary tuple type with
-%% first item rec and es as the rest items
-records_as_types(Kmodule) ->
-  R = [{RecName, Line, RecFields} || {Line, {RecName, RecFields}} <- cuter_cerl:kmodule_record_forms(Kmodule)],  
-  lists:map(fun type_from_record/1, R).
+%% Generates a type definition for a record.
+%% A record is represented as a tuple where the first element is the name of the record.
+%% The rest of the elements are the types of the record fields.
+generate_type_form_for_record_form({Line, {Name, Fields}}) ->
+  Fs = [replace_record_references(T) || {typed_record_field, _, T} <- Fields],
+  RecType = {type, Line, tuple, [{atom, Line, Name} | Fs]},
+  {Line, {type_name_for_record(Name), RecType, []}}.
 
-%% Create the temporary type from a record form
-type_from_record({Name, Line, Fields}) ->
-  Fn = fun ({typed_record_field, _, T}) ->
-	   replace_records(T)
-       end,
-  %% Replace record references in fields
-  NewFields = lists:map(Fn, Fields),
-  NewName = record_name(Name),
-  RecType = {type, Line, tuple, [{atom, Line, Name} | NewFields]},
-  {Line, {NewName, RecType, []}}.
-
-%% Return the name of a temporary type corresponding to a record with name Name
-record_name(Name) ->
-  list_to_atom(?CUTER_RECORD_TYPE_PREFIX ++ atom_to_list(Name)).
+%% Returns the name of a generated type that represents the record RecordName.
+type_name_for_record(RecordName) ->
+  list_to_atom(?CUTER_RECORD_TYPE_PREFIX ++ atom_to_list(RecordName)).
 
 %% Replace all bounded signatures with equivalent normal ones
 spec_replace_bounded(Specs) -> lists:map(fun handle_bounded_fun/1, Specs).
