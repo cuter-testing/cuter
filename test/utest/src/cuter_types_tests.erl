@@ -135,11 +135,15 @@ mfas_and_specs() ->
     },
     {
       {examples_for_type_analysis, is_dog, 1},
-      [erl_types:t_fun([erl_types:t_any()], erl_types:t_boolean())]  %% Remote types not working??
+      [erl_types:t_fun(
+        [erl_types:t_sup(erl_types:t_atom(dog), erl_types:t_atom(cat))],
+        erl_types:t_boolean())]
     },
     {
       {examples_for_type_analysis_pair, to_int, 1},
-      [erl_types:t_fun([erl_types:t_any()], erl_types:t_integer())]  %% Remote types not working??
+      [erl_types:t_fun(
+        [erl_types:t_sup(erl_types:t_integer(), erl_types:t_atom())],
+        erl_types:t_integer())]
     }
   ].
 

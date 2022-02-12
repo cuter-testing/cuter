@@ -320,8 +320,8 @@ extract_exports(M, AST) ->
   [mfa_from_var(M, E) || E <- Exports].
 
 extract_exported_types(Mod, Attrs) ->
-  Filtered = [T || {#c_literal{val = export_type}, #c_literal{val = T}} <- Attrs],
-  sets:from_list(lists:append([{Mod, Tname, Tarity} || {Tname, Tarity} <- Filtered])).
+  Filtered = lists:append([Ts || {#c_literal{val = export_type}, #c_literal{val = Ts}} <- Attrs]),
+  sets:from_list([{Mod, Tname, Tarity} || {Tname, Tarity} <- Filtered]).
 
 -spec process_fundef({cerl:c_var(), code()}, [mfa()], module(), tag_generator()) -> {mfa(), kfun()}.
 process_fundef({FunVar, Def}, Exports, M, TagGen) ->
