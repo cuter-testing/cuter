@@ -1272,7 +1272,7 @@ specs_as_erl_types_fix_pass([KM|Rest]=KMs, Exported, RecDict, Openset, GatheredS
     true ->
       specs_as_erl_types_fix_pass(Rest, Exported, RecDict, Openset, GatheredSpecs1);
     %% If the openset of the module has changed, we want to re-run the computation.
-    %% This can happend when a type depends on a type that is defined later in the code,
+    %% This can happen when a type depends on a type that is defined later in the code,
     %% or for mutually recursive types.
     false ->
       OtherModsOpenset = sets:subtract(Openset, ModOpenset),
@@ -1300,11 +1300,9 @@ update_recdict_for_module_types(Kmodule, Exported, RecDict) ->
   update_recdict_from_type_forms(M, RecDict, Exported, TypeForms).
 
 spec_form_as_erl_types({{F, A}, Spec}, Kmodule, Exported, RecDict) ->
-  %% Replace records with temp record types in the signature
-  Normalized = replace_records_in_spec(transform_bounded_funs_in_spec(Spec)),
-  %% Convert each element of the list into an erl_type
+  NormalizedSpec = replace_records_in_spec(transform_bounded_funs_in_spec(Spec)),
   Mfa = {cuter_cerl:kmodule_name(Kmodule), F, A},
-  Converted = convert_list_to_erl(Normalized, Mfa, Exported, RecDict),
+  Converted = normalized_spec_form_as_erl_types(NormalizedSpec, Mfa, Exported, RecDict),
   {Mfa, Converted}.
 
 %% Converts as many types in M as possible to their erl_types representation.
@@ -1339,23 +1337,20 @@ try_convert_type_to_erl_types(Mta, T, Exported, RecDict) ->
     _:_ -> error
   end.
 
-%% Convert a list of forms to a list of erl_types
-convert_list_to_erl(S, MFA, TypeForms, RecDict) ->
-  convert_list_to_erl(S, MFA, TypeForms, RecDict, []).
+%% Converts a spec without bounded funs and record to its erl_types representation.
+normalized_spec_form_as_erl_types(Spec, Mfa, TypeForms, RecDict) ->
+  normalized_spec_form_as_erl_types(Spec, Mfa, TypeForms, RecDict, []).
 
-convert_list_to_erl([], _MFA, _TypeForms, _RecDict, Acc) -> lists:reverse(Acc);
-convert_list_to_erl([Spec|Specs], MFA, TypeForms, RecDict, Acc) ->
-  ErlSpec = 
-    try erl_types:t_from_form(Spec, TypeForms, {'spec', MFA}, RecDict, erl_types:var_table__new(), erl_types:cache__new()) of
-      {S, _C} -> S
-    catch
-      _:_ -> nospec
-    end,
-  case ErlSpec of
-    nospec ->
-      convert_list_to_erl(Specs, MFA, TypeForms, RecDict, Acc);
-    _ ->
-      convert_list_to_erl(Specs, MFA, TypeForms, RecDict, [ErlSpec|Acc])
+normalized_spec_form_as_erl_types([], _Mfa, _TypeForms, _RecDict, Acc) -> lists:reverse(Acc);
+normalized_spec_form_as_erl_types([FC|FCs], Mfa, TypeForms, RecDict, Acc) ->
+  VT = erl_types:var_table__new(),
+  Cache = erl_types:cache__new(),
+  try erl_types:t_from_form(FC, TypeForms, {'spec', Mfa}, RecDict, VT, Cache) of
+    {S, _C} ->
+      normalized_spec_form_as_erl_types(FCs, Mfa, TypeForms, RecDict, [S|Acc])
+  catch
+    _:_ ->
+      normalized_spec_form_as_erl_types(FCs, Mfa, TypeForms, RecDict, Acc)
   end.
 
 are_sets_equal(A, B) ->
@@ -1381,11 +1376,11 @@ replace_record_references_in_type_form({Line, {Name, Type, Args}}) ->
 replace_records_in_spec(Spec) ->
   replace_records_in_spec(Spec, []).
 
-replace_records_in_spec([], Clauses) ->
-  lists:reverse(Clauses);
-replace_records_in_spec([{type, _, _, Ts}=Cl|Cls], Clauses) ->
+replace_records_in_spec([], FClauses) ->
+  lists:reverse(FClauses);
+replace_records_in_spec([{type, _, _, Ts}=FC|FCs], FClauses) ->
   NTs = [replace_record_references(T) || T <- Ts],
-  replace_records_in_spec(Cls, [setelement(4, Cl, NTs)|Clauses]).
+  replace_records_in_spec(FCs, [setelement(4, FC, NTs)|FClauses]).
 
 %% Replace all record references with their respective temporary type in a form
 %% Replaces all the references to records inside a type form.
