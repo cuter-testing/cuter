@@ -1,35 +1,33 @@
 -module(examples_for_type_analysis).
--export([f/1, f1/1, f2/1, f3/1, f4/1, f5/1]).
+-export([id/1, inc/1, to_atom/1, translate/3, root/1, max_x/1]).
 
--type t2() :: t1() | atom().
--type t1() :: integer().
+-type t_int_or_atom() :: t_int() | atom().
+-type t_int() :: integer().
 
--record(rec, {x :: integer(), y :: number()}).
+-record(point, {x :: number(), y :: number()}).
 
 -type tree() :: {integer(), tree(), tree()} | nil.
 
--type t3(X) :: [X].
+-type list_of(X) :: [X].
 
-%% erl_types:t_fun([erl_types:t_any()], erl_types:t_any())
--spec f(any()) -> any().
-f(X) -> X.
+-type point() :: #point{}.
 
-%% erl_types:t_fun([erl_types:t_integer()], erl_types:t_atom(ok))
--spec f1(t1()) -> ok.
-f1(_X) -> ok.
+-spec id(any()) -> any().
+id(X) -> X.
 
-%% erl_types:t_fun([erl_types:t_sup(erl_types:t_integer(), erl_types:t_atom())], erl_types:t_atom(ok))
--spec f2(t2()) -> ok.
-f2(_X) -> ok.
+-spec inc(t_int()) -> t_int().
+inc(X) -> X + 1.
 
-%% erl_types:t_fun([erl_types:t_tuple([erl_types:t_from_term(rec), erl_types:t_integer(), erl_types:t_number()])], erl_types:t_atom(ok)).
--spec f3(#rec{}) -> ok.
-f3(_X) -> ok.
+-spec to_atom(t_int_or_atom()) -> atom().
+to_atom(X) when is_atom(X) -> X;
+to_atom(X) when is_integer(X) -> list_to_atom([$0 + X]).
 
-%% ??
--spec f4(tree()) -> ok.
-f4(_X) -> ok.
+-spec translate(#point{}, number(), number()) -> point().
+translate(#point{x=X, y=Y}, DX, DY) -> #point{x = X + DX, y = Y + DY}.
 
-%% erl_types:t_fun([erl_types:t_list(erl_types:t_tuple([erl_types:t_from_term(rec), erl_types:t_integer(), erl_types:t_number()]))], erl_types:t_atom(ok)).
--spec f5(t3(#rec{})) -> ok.
-f5(_X) -> ok.
+-spec root(tree()) -> integer() | nil.
+root({X, _L, _R}) -> X;
+root(nil) -> nil.
+
+-spec max_x(list_of(#point{})) -> number().
+max_x(Ps) -> lists:max([P#point.x || P <- Ps]).
