@@ -1256,34 +1256,36 @@ specs_as_erl_types_fix(Kmodules, Exported, Openset) ->
   ets:delete(RecDict),
   R.
 
-specs_as_erl_types_fix(Kmodules, Exported, RecDict, Openset, GatheredSpecs) ->
-  {Openset1, GatheredSpecs1} = specs_as_erl_types_fix_pass(Kmodules, Exported, RecDict, Openset, GatheredSpecs),
+specs_as_erl_types_fix(KMs, Exported, RecDict, Openset, GatheredSpecs) ->
+  {Openset1, GatheredSpecs1} = specs_as_erl_types_fix_pass(KMs, Exported, RecDict, Openset, GatheredSpecs),
   case are_sets_equal(Openset, Openset1) of
     true -> GatheredSpecs1;
-    false -> specs_as_erl_types_fix(Kmodules, Exported, RecDict, Openset1, GatheredSpecs1)
+    false -> specs_as_erl_types_fix(KMs, Exported, RecDict, Openset1, GatheredSpecs1)
   end.
 
-%% Pass through all modules and gather signatures
+%% Iterates through each kmodule and converts function specifications into their
+%% erl_types representation.
 specs_as_erl_types_fix_pass([], _Exported, _RecDict, Openset, GatheredSpecs) ->
   {Openset, GatheredSpecs};
 specs_as_erl_types_fix_pass([KM|KMs], Exported, RecDict, Openset, GatheredSpecs) ->
   Mod = cuter_cerl:kmodule_name(KM),
   ModOpenset = sets:filter(fun({M, _T, _A}) -> M =:= Mod end, Openset),
-  %% Get the signatures converted and the unhandled types of this module
-  {Specs, NewModOpenset} = parse_mod_specs(KM, Exported, RecDict, ModOpenset),
-  Fn = fun ({MFA, Spec}, G) -> dict:store(MFA, Spec, G) end,
-  %% Store the new signatures found in GatheredSpecs
-  GatheredSpecs1 = lists:foldl(Fn, GatheredSpecs, Specs),
-  %% If the unhandled types for this module have not changed
+  {ComputedSpecs, NewModOpenset} = parse_mod_specs(KM, Exported, RecDict, ModOpenset),
+  GatheredSpecs1 = update_gathered_specs(ComputedSpecs, GatheredSpecs),
   case are_sets_equal(NewModOpenset, ModOpenset) of
-    %% Maintain the Change so far in the recursive call
+    %% The openset of the module has reached a fixpoint.
     true ->
       specs_as_erl_types_fix_pass(KMs, Exported, RecDict, Openset, GatheredSpecs1);
-    %% A change has occured, make the recursive call with Change: true and an updated Unhandled dict
+    %% If the openset of the module has changed, we want to re-run the computation.
     false ->
       OtherModsOpenset = sets:subtract(Openset, ModOpenset),
       specs_as_erl_types_fix_pass(KMs, Exported, RecDict, sets:union(NewModOpenset, OtherModsOpenset), GatheredSpecs1)
   end.
+
+update_gathered_specs([], GatheredSpecs) -> GatheredSpecs;
+update_gathered_specs([{Mfa, Spec}|More], GatheredSpecs) ->
+  GatheredSpecs1 = dict:store(Mfa, Spec, GatheredSpecs),
+  update_gathered_specs(More, GatheredSpecs1).
 
 %% Gather all signatures defined in a module.
 %% Return all signatures that can be converted to erl_types
