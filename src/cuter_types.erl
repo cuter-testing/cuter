@@ -1306,7 +1306,7 @@ update_recdict_for_module_types(Kmodule, Exported, RecDict) ->
 
 spec_form_as_erl_types({{F, A}, Spec}, Kmodule, Exported, RecDict) ->
   %% Replace records with temp record types in the signature
-  Normalized = spec_replace_records(spec_replace_bounded(Spec)),
+  Normalized = spec_replace_records(transform_bounded_funs_in_spec(Spec)),
   %% Convert each element of the list into an erl_type
   Mfa = {cuter_cerl:kmodule_name(Kmodule), F, A},
   Converted = convert_list_to_erl(Normalized, Mfa, Exported, RecDict),
@@ -1414,89 +1414,64 @@ generate_type_form_for_record_form({Line, {Name, Fields}}) ->
 type_name_for_record(RecordName) ->
   list_to_atom(?CUTER_RECORD_TYPE_PREFIX ++ atom_to_list(RecordName)).
 
-%% Replaces all the specs that are expressed as bounded functions, to their equivalent
-%% unbounded ones.
-spec_replace_bounded(Spec) -> [handle_bounded_fun(S) || S <- Spec].
+%% Transforms the spec and replaces all the clauses that are expressed as bounded
+%% functions, to their equivalent unbounded ones.
+transform_bounded_funs_in_spec(Spec) ->
+  [transform_bounded_fun(C) || C <- Spec].
 
-%% If a the signature is not bounded, return it intact
-handle_bounded_fun({type, _L, 'fun', _Rest} = S) -> S;
-%% If it is bounded, replace all variables with type forms
-handle_bounded_fun({type, _, 'bounded_fun', [Spec, Constraints]} = S) ->
-  Fn = fun({type, _, constraint, [{atom, _, is_subtype}, [Key, Value]]}, D) ->
-	   dict:store(element(3, Key), Value, D)
-       end,
-  %% Find the forms of the variables used in the constraints
-  D = lists:foldl(Fn, dict:new(), Constraints),
-  {D1, Rec} = fix_update_vars(D),
-  case Rec of %% If the conversion succeeds
-    %% Return an equivalent Spec without constraints
-    true ->
-      make_normal_spec(Spec, D1);
-    %% Else return S as is
-    false ->
-      S
+transform_bounded_fun({type, _L, 'fun', _Sig} = FC) -> FC;
+transform_bounded_fun({type, _L, 'bounded_fun', [Func, Constraints]} = FC) ->
+  Ms = dict:from_list([extract_var_type_from_constraint(C) || C <- Constraints]),
+  case simplify_var_mappings(Ms) of
+    error -> FC;
+    {ok, NMs} -> generate_nonbounded_fun(Func, NMs)
+  end.
+
+extract_var_type_from_constraint({type, _, constraint, [{atom, _, is_subtype}, [{var, _, V}, T]]}) ->
+  {V, T}.
+
+%% Simplifies the types of constraint variables.
+%% The input is a dictionary of variables mapped to their types.
+%% Note that it supports only non-recursive declarations.
+simplify_var_mappings(Ms) ->
+  %% If there are no recursive variables, the computation will end in
+  %% steps at most equal to the number of variables.
+  simplify_var_mappings_pass(Ms, dict:size(Ms), 0).
+
+simplify_var_mappings_pass(_Ms, Lim, N) when N > Lim -> error;
+simplify_var_mappings_pass(Ms, Lim, N) ->
+  Vars = dict:fetch_keys(Ms),
+  Fn = fun(Key, D) ->
+	   T = dict:fetch(Key, D),
+	   case substitute_vars_in_type(T, Ms) of
+	     T -> D;
+	     NewT -> dict:store(Key, NewT, D)
+	   end
+   end,
+  NMs = lists:foldl(Fn, Ms, Vars),
+  case are_dicts_equal_on_keys(Vars, Ms, NMs) of
+    true -> {ok, NMs};
+    false -> simplify_var_mappings_pass(NMs, Lim, N + 1)
   end.
 
 %% Replace variables in a bounded fun with their produced type forms
-replace_vars({type, L, record, R}, _D) -> {{type, L, record, R}, false};
-replace_vars({T, L, Type, Args}, D) when is_list(Args) ->
-  Fn = fun(Arg) -> replace_vars(Arg, D) end,
-  {NewArgs, Changes} = lists:unzip(lists:map(Fn, Args)),
-  Change = lists:foldl(fun erlang:'or'/2, false, Changes),
-  {{T, L, Type, NewArgs}, Change};
-replace_vars({var, _L, Name}, D) ->
-  case dict:find(Name, D) of
-    {ok, T} ->
-      {T, true};
-    error ->
-      {any, true}
-  end;
-replace_vars({ann_type, _L, [_T, T1]}, D) ->
-  {T2, _C} = replace_vars(T1, D),
-  {T2, true};
-replace_vars(Rest, _D) -> {Rest, false}.
+substitute_vars_in_type({type, _, record, _R} = T, _Ms) -> T;
+substitute_vars_in_type({_, _, _, Args}=T, Ms) when is_list(Args) ->
+  NewArgs = [substitute_vars_in_type(A, Ms) || A <- Args],
+  setelement(4, T, NewArgs);
+substitute_vars_in_type({var, _, Var}, Ms) ->
+  dict:fetch(Var, Ms);
+substitute_vars_in_type({ann_type, _, [_Var, T]}, Ms) ->
+  substitute_vars_in_type(T, Ms);
+substitute_vars_in_type(T, _Ms) -> T.
 
-%% Find the types of constraint variables for non recursive declarations.
-%% Return a dictionary with the variables as keys and their type forms as values
-fix_update_vars(D) ->
-  %% If no recursive variables exist, the computation will end in steps at most equal to the
-  %% count of the variables
-  fix_update_vars(D, dict:size(D) + 1, 0).
+are_dicts_equal_on_keys([], _D1, _D2) -> true;
+are_dicts_equal_on_keys([K|Ks], D1, D2) ->
+  dict:fetch(K, D1) =:= dict:fetch(K, D2) andalso are_dicts_equal_on_keys(Ks, D1, D2).
 
-fix_update_vars(D, Lim, Depth) ->
-  Keys = dict:fetch_keys(D),
-  Fn = fun(Key, {Acc1, Acc2}) ->
-	   T = dict:fetch(Key, D),
-	   {NewT, C} = replace_vars(T, D),
-	   case C of
-	     true ->
-	       {dict:store(Key, NewT, Acc1), true};
-	     false ->
-	       {Acc1, Acc2}
-	   end
-       end,
-  %% Replace variables in all type forms
-  {NewD, Change} = lists:foldl(Fn, {D, false}, Keys),
-  %% If something changed
-  case Change of
-    true ->
-      %% If we have reached the limit
-      case Depth > Lim of
-	%% The transformation failed
-	true ->
-	  {rec, false};
-	%% Else call self
-	false ->
-	  fix_update_vars(NewD, Lim, Depth + 1)
-      end;
-    %% Else return the dictionary of the variables
-    false ->
-      {NewD, true}	  
-  end.
-
-%% Create a non bounded fun from a bounded fun given the type forms of the variables
-%% in the bounded fun
-make_normal_spec({type, L, 'fun', [Args, Range]}, D) ->
-  {NewArgs, _C1} = replace_vars(Args, D),
-  {NewRange, _C2} = replace_vars(Range, D),
+%% Generates a non bounded fun from a bounded fun given the type substitutions for
+%% constraints on the variables.
+generate_nonbounded_fun({type, L, 'fun', [Args, Range]}, Ms) ->
+  NewArgs = substitute_vars_in_type(Args, Ms),
+  NewRange = substitute_vars_in_type(Range, Ms),
   {type, L, 'fun', [NewArgs, NewRange]}.
