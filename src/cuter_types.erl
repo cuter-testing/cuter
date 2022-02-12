@@ -23,7 +23,7 @@
 -export([erl_type_deps_map/2, get_type_name_from_type_dep/1,
 	 get_type_from_type_dep/1, unique_type_name/3]).
 
--export([convert_specs/1]).
+-export([specs_as_erl_types/1]).
 
 -export_type([erl_type/0, erl_spec_clause/0, erl_spec/0, stored_specs/0,
 	      stored_types/0, stored_spec_value/0, t_range_limit/0]).
@@ -1228,8 +1228,8 @@ var_name({var, _, X}) ->
   X.
 
 %% Find the erl type representation of all signatures in a list of kmodules
--spec convert_specs([cuter_cerl:kmodule()]) -> dict:dict().
-convert_specs(Kmodules) ->
+-spec specs_as_erl_types([cuter_cerl:kmodule()]) -> dict:dict().
+specs_as_erl_types(Kmodules) ->
   RecDict = ets:new(recdict, []), %% Needed for erl_types:t_from_form/6
   ExpTypes = sets:union([cuter_cerl:kmodule_exported_types(M) || M <- Kmodules]), %% Needed for erl_types:t_from_form/6
   Fn = fun (Kmodule, Acc) ->
