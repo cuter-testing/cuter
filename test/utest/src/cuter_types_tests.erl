@@ -84,7 +84,7 @@ cleanup(_) -> ok.
 
 -spec convert_types_test() -> any().
 convert_types_test() ->
-  Modules = [examples_for_type_analysis, examples_for_type_analysis_pair],
+  Modules = [examples_for_spec_conversion, examples_for_spec_conversion_pair],
   Fn = fun(M) ->
     {ok, AST} = cuter_cerl:get_core(M, false),
     AST
@@ -103,19 +103,19 @@ convert_types_test() ->
 mfas_and_specs() ->
   [
     {
-      {examples_for_type_analysis, id, 1},
+      {examples_for_spec_conversion, id, 1},
       [erl_types:t_fun([erl_types:t_any()], erl_types:t_any())]
     },
     {
-      {examples_for_type_analysis, inc, 1},
+      {examples_for_spec_conversion, inc, 1},
       [erl_types:t_fun([erl_types:t_integer()], erl_types:t_integer())]
     },
     {
-      {examples_for_type_analysis, to_atom, 1},
+      {examples_for_spec_conversion, to_atom, 1},
       [erl_types:t_fun([erl_types:t_sup(erl_types:t_integer(), erl_types:t_atom())], erl_types:t_atom())]
     },
     {
-      {examples_for_type_analysis, translate, 3},
+      {examples_for_spec_conversion, translate, 3},
       [erl_types:t_fun(
         [erl_types:t_tuple([erl_types:t_atom(point), erl_types:t_number(), erl_types:t_number()]),
           erl_types:t_number(),
@@ -123,40 +123,40 @@ mfas_and_specs() ->
         erl_types:t_tuple([erl_types:t_atom(point), erl_types:t_number(), erl_types:t_number()]))]
     },
     {
-      {examples_for_type_analysis, root, 1},
+      {examples_for_spec_conversion, root, 1},
       []  %% We do not support recursive types.
     },
     {
-      {examples_for_type_analysis, max_x, 1},
+      {examples_for_spec_conversion, max_x, 1},
       [erl_types:t_fun(
         [erl_types:t_list(
           erl_types:t_tuple([erl_types:t_atom(point), erl_types:t_number(), erl_types:t_number()]))],
         erl_types:t_number())]
     },
     {
-      {examples_for_type_analysis, is_dog, 1},
+      {examples_for_spec_conversion, is_dog, 1},
       [erl_types:t_fun(
         [erl_types:t_atoms([dog, cat])],
         erl_types:t_boolean())]
     },
     {
-      {examples_for_type_analysis_pair, to_int, 1},
+      {examples_for_spec_conversion_pair, to_int, 1},
       [erl_types:t_fun(
         [erl_types:t_sup(erl_types:t_integer(), erl_types:t_atom())],
         erl_types:t_integer())]
     },
     {
-      {examples_for_type_analysis_pair, can_bark, 1},
+      {examples_for_spec_conversion_pair, can_bark, 1},
       [erl_types:t_fun(
         [erl_types:t_list(erl_types:t_atoms([dog, cat]))],
         erl_types:t_boolean())]
     },
     {
-      {examples_for_type_analysis_pair, count_trees, 1},
+      {examples_for_spec_conversion_pair, count_trees, 1},
       []  %% We do not support mutually recursive declarations in bounded funs.
     },
     {
-      {examples_for_type_analysis_pair, tree_height, 1},
+      {examples_for_spec_conversion_pair, tree_height, 1},
       []  %% We do not support recursive declarations in bounded funs.
     }
   ].

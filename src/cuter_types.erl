@@ -1310,22 +1310,22 @@ spec_form_as_erl_types({{F, A}, Spec}, Kmodule, Exported, RecDict) ->
 %% We return the types that could not be converted, i.e. the openset.
 update_recdict_from_type_forms(M, RecDict, Exported, TypeForms) ->
   Fn = fun ({L, {TName, T, TVars}}, Acc) ->
-	  A = length(TVars),
-	  Mta = {M, TName, A},
-	  Vs = [V || {var, _, V} <- TVars],
-	  case try_convert_type_to_erl_types(Mta, T, Exported, RecDict) of
-	    error -> sets:add_element(Mta, Acc);
-	    {ok, T1} ->
-	      VT =
-	        case ets:lookup(RecDict, M) of
-            [{M, OVT}] -> OVT;
-		        [] -> maps:new()
-	        end,
-        NVT = maps:put({'type', TName, A}, {{M, {atom_to_list(M) ++ ".erl", L}, T, Vs}, T1}, VT),
-	      ets:insert(RecDict, {M, NVT}),
-	      Acc
-	  end
-  end,
+	   A = length(TVars),
+	   Mta = {M, TName, A},
+	   Vs = [V || {var, _, V} <- TVars],
+	   case try_convert_type_to_erl_types(Mta, T, Exported, RecDict) of
+	     error -> sets:add_element(Mta, Acc);
+	     {ok, T1} ->
+	       VT =
+		 case ets:lookup(RecDict, M) of
+		   [{M, OVT}] -> OVT;
+		   [] -> maps:new()
+		 end,
+	       NVT = maps:put({'type', TName, A}, {{M, {atom_to_list(M) ++ ".erl", L}, T, Vs}, T1}, VT),
+	       ets:insert(RecDict, {M, NVT}),
+	       Acc
+	   end
+       end,
   lists:foldl(Fn, sets:new(), TypeForms).
 
 try_convert_type_to_erl_types(Mta, T, Exported, RecDict) ->
