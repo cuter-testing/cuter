@@ -117,10 +117,10 @@ mfas_and_specs() ->
     {
       {examples_for_type_analysis, translate, 3},
       [erl_types:t_fun(
-        [erl_types:t_tuple([erl_types:t_from_term(point), erl_types:t_number(), erl_types:t_number()]),
+        [erl_types:t_tuple([erl_types:t_atom(point), erl_types:t_number(), erl_types:t_number()]),
           erl_types:t_number(),
           erl_types:t_number()],
-        erl_types:t_tuple([erl_types:t_from_term(point), erl_types:t_number(), erl_types:t_number()]))]
+        erl_types:t_tuple([erl_types:t_atom(point), erl_types:t_number(), erl_types:t_number()]))]
     },
     {
       {examples_for_type_analysis, root, 1},
@@ -130,13 +130,13 @@ mfas_and_specs() ->
       {examples_for_type_analysis, max_x, 1},
       [erl_types:t_fun(
         [erl_types:t_list(
-          erl_types:t_tuple([erl_types:t_from_term(point), erl_types:t_number(), erl_types:t_number()]))],
+          erl_types:t_tuple([erl_types:t_atom(point), erl_types:t_number(), erl_types:t_number()]))],
         erl_types:t_number())]
     },
     {
       {examples_for_type_analysis, is_dog, 1},
       [erl_types:t_fun(
-        [erl_types:t_sup(erl_types:t_atom(dog), erl_types:t_atom(cat))],
+        [erl_types:t_atoms([dog, cat])],
         erl_types:t_boolean())]
     },
     {
@@ -148,7 +148,7 @@ mfas_and_specs() ->
     {
       {examples_for_type_analysis_pair, can_bark, 1},
       [erl_types:t_fun(
-        [erl_types:t_list(erl_types:t_sup(erl_types:t_atom(dog), erl_types:t_atom(cat)))],
+        [erl_types:t_list(erl_types:t_atoms([dog, cat]))],
         erl_types:t_boolean())]
     },
     {
