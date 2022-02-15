@@ -8,14 +8,13 @@
 -type t_int() :: integer().
 
 -record(point, {x :: number(), y :: number()}).
+-type point() :: #point{}.
 
 -type tree() :: {integer(), tree(), tree()} | nil.
 
 -type list_of(X) :: [X].
 
--type point() :: #point{}.
-
--spec id(any()) -> any().
+-spec id(X) -> X when X :: term().
 id(X) -> X.
 
 -spec inc(t_int()) -> t_int().
@@ -35,5 +34,5 @@ root(nil) -> nil.
 -spec max_x(list_of(#point{})) -> number().
 max_x(Ps) -> lists:max([P#point.x || P <- Ps]).
 
--spec is_dog(examples_for_spec_conversion_pair:t_dog_or_cat()) -> boolean().
+-spec is_dog(examples_for_spec_conversion_pair:t_animal()) -> boolean().
 is_dog(X) -> X =:= dog.

@@ -5,7 +5,7 @@
 -include("include/eunit_config.hrl").
 
 -export([setup_dir/0, get_python_command/0, get_module_attrs/2, sample_trace_file/1]).
--export([mfa_to_list/1, mfa_to_list/3]).
+-export([mfa_to_string/1]).
 
 %% Create a directory for temporary use
 -spec setup_dir() -> file:filename_all().
@@ -48,10 +48,6 @@ sample_trace_file(Fname) ->
   cuter_log:close_file(Fd).
 
 %% Returns the string representation of an MFA.
--spec mfa_to_list(mfa()) -> string().
-mfa_to_list({M, F, A}) -> mfa_to_list(M, F, A).
-
-%% Returns the string representation of an MFA.
--spec mfa_to_list(module(), atom(), byte()) -> string().
-mfa_to_list(M, F, A) ->
+-spec mfa_to_string(mfa()) -> string().
+mfa_to_string({M, F, A}) ->
   atom_to_list(M) ++ ":" ++ atom_to_list(F) ++ "/" ++ integer_to_list(A).

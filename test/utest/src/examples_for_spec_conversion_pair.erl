@@ -2,9 +2,9 @@
 
 -export([to_int/1, can_bark/1, count_trees/1, tree_height/1]).
 
--export_type([t_dog_or_cat/0]).
+-export_type([t_animal/0]).
 
--type t_dog_or_cat() :: dog | cat.
+-type t_animal() :: dog | cat.
 
 -spec to_int(examples_for_spec_conversion:t_int_or_atom()) -> integer().
 to_int(X) when is_integer(X) -> X;
@@ -12,7 +12,7 @@ to_int(X) when is_atom(X) -> lists:max(atom_to_list(X)).
 
 -spec can_bark(Animals) -> boolean() when
         Animals :: [Animal],
-        Animal :: t_dog_or_cat().
+        Animal :: t_animal().
 can_bark(Animals) -> lists:any(fun (A) -> A =:= dog end, Animals).
 
 -spec count_trees(Forest) -> integer() when
