@@ -1222,6 +1222,9 @@ get_type_from_type_dep({_Name, Type}) ->
 
 -define(CUTER_RECORD_TYPE_PREFIX, "__cuter_record_type__").
 
+mfa_to_string({M, F, A}) ->
+  atom_to_list(M) ++ ":" ++ atom_to_list(F) ++ integer_to_list(A).
+
 %% Returns the specs of the given kmodules in their erl_types representation.
 -spec specs_as_erl_types([cuter_cerl:kmodule()]) -> dict:dict(mfa(), [erl_types:erl_type()]).
 specs_as_erl_types(Kmodules) ->
@@ -1229,7 +1232,23 @@ specs_as_erl_types(Kmodules) ->
   %% to its erl_types representation.
   Openset = initial_openset_of_types(Kmodules),
   Exported = sets:union([cuter_cerl:kmodule_exported_types(KM) || KM <- Kmodules]),
-  specs_as_erl_types_fix(Kmodules, Exported, Openset).
+  Specs = specs_as_erl_types_fix(Kmodules, Exported, Openset),
+  %% Gather all specs available in the modules.
+  AllFunSpecs = lists:append([[{{cuter_cerl:kmodule_name(Kmodule), F, A}, S} || {{F, A}, S} <- cuter_cerl:kmodule_spec_forms(Kmodule)] || Kmodule <- Kmodules]),
+  ReportUnhandled = fun({MFA, Form}) ->
+			case dict:find(MFA, Specs) of
+			  {ok, ErlType} ->
+			    case length(ErlType) =:= length(Form) of
+			      false -> 
+				report_unhandled_spec("Couldn't convert signature of function: ~p~n", [mfa_to_string(MFA)]);
+			      true ->
+				ok
+			    end
+			  end
+		    end,
+  %% Report which specs couldn't be succesfully converted to an erl_type.
+  lists:foreach(ReportUnhandled, AllFunSpecs),
+  Specs.
 
 initial_openset_of_types(Kmodules) ->
   initial_openset_of_types(Kmodules, sets:new()).
@@ -1468,3 +1487,6 @@ generate_nonbounded_fun({type, L, 'fun', [Args, Range]}, Ms) ->
   NewArgs = substitute_vars_in_type(Args, Ms),
   NewRange = substitute_vars_in_type(Range, Ms),
   {type, L, 'fun', [NewArgs, NewRange]}.
+
+report_unhandled_spec(F, Args) ->
+  io:format(standard_error, F, Args).
