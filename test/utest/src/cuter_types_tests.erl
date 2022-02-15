@@ -98,10 +98,10 @@ convert_types_test() ->
 spec_assertions({Mfa, Expect}, R) ->
   case dict:find(Mfa, R) of
     error ->
-      Comment = cuter_tests_lib:mfa_to_string(Mfa) ++ " should exist",
+      Comment = cuter_types:mfa_to_string(Mfa) ++ " should exist",
       ?assert(dict:is_key(Mfa, R), Comment);
     {ok, Got} ->
-      Comment = "Spec of " ++ cuter_tests_lib:mfa_to_string(Mfa),
+      Comment = "Spec of " ++ cuter_types:mfa_to_string(Mfa),
       ?assertEqual(Expect, Got, Comment)
   end.
 

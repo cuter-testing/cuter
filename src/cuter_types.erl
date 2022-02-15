@@ -25,6 +25,8 @@
 
 -export([specs_as_erl_types/1]).
 
+-export([mfa_to_string/1]).
+
 -export_type([erl_type/0, erl_spec_clause/0, erl_spec/0, stored_specs/0,
 	      stored_types/0, stored_spec_value/0, t_range_limit/0]).
 -export_type([erl_type_dep/0, erl_type_deps/0]).
@@ -205,6 +207,16 @@
 -type erl_type_deps() :: [erl_type_dep()].
 -type erl_spec_clause() :: t_function_det().
 -type erl_spec() :: {[erl_spec_clause()], erl_type_deps()}.
+
+%% ============================================================================
+%% Utilities
+%% ============================================================================
+
+%% Returns the string representation of an MFA.
+-spec mfa_to_string(mfa()) -> string().
+mfa_to_string({M, F, A}) ->
+  atom_to_list(M) ++ ":" ++ atom_to_list(F) ++ "/" ++ integer_to_list(A).
+
 
 %% ============================================================================
 %% Pre-process the type & record declarations and generate their intermediate
@@ -1237,7 +1249,7 @@ specs_as_erl_types(Kmodules) ->
 			  {ok, ErlType} ->
 			    case length(ErlType) =:= length(Form) of
 			      false -> 
-				report_unhandled_spec("Couldn't convert signature of function: ~p~n", [cuter_tests_lib:mfa_to_string(MFA)]);
+				report_unhandled_spec("Couldn't convert signature of function: ~p~n", [mfa_to_string(MFA)]);
 			      true ->
 				ok
 			    end
