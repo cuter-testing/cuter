@@ -739,11 +739,11 @@ unify_deps(Types) ->
 %% define an intermediate representation solely for specs.
 %% ============================================================================
 
--spec retrieve_specs([cuter_cerl:spec_info()]) -> stored_specs().
+-spec retrieve_specs([cuter_cerl:cerl_spec_form()]) -> stored_specs().
 retrieve_specs(SpecAttrs) ->
   lists:foldl(fun process_spec_attr/2, dict:new(), SpecAttrs).
 
--spec process_spec_attr(cuter_cerl:spec_info(), stored_specs()) -> stored_specs().
+-spec process_spec_attr(cuter_cerl:cerl_spec_form(), stored_specs()) -> stored_specs().
 process_spec_attr({FA, Specs}, Processed) ->
   Xs = [t_spec_from_form(Spec) || Spec <- Specs],
   dict:store(FA, Xs, Processed).

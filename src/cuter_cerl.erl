@@ -25,13 +25,12 @@
 
 -include("include/cuter_macros.hrl").
 
--export_type([compile_error/0, cerl_attr_spec/0, cerl_attr_type/0,
+-export_type([compile_error/0, cerl_spec_form/0, cerl_attr_type/0,
 	      cerl_bounded_func/0, cerl_constraint/0, cerl_func/0,
 	      cerl_recdef/0, cerl_record_field/0, cerl_spec/0,
 	      cerl_spec_func/0, cerl_type/0, cerl_typedef/0,
 	      cerl_type_record_field/0, node_types/0,
-	      tagID/0, tag/0, tag_generator/0, visited_tags/0,
-	      spec_info/0]).
+	      tagID/0, tag/0, tag_generator/0, visited_tags/0]).
 
 -export_type([extracted_record_form/0, extracted_type_form/0]).
 
@@ -70,7 +69,6 @@
 -type name() :: atom().
 -type fa() :: {name(), arity()}.
 -type cerl_attr_type() :: cerl_recdef() | cerl_typedef().
--type cerl_attr_spec() :: cerl_spec_form().
 
 -type cerl_recdef() :: {name(), [cerl_record_field()]} % for OTP 19.x
                      | {{'record', name()}, [cerl_record_field()], []}. % for OTP 18.x or earlier
@@ -374,8 +372,6 @@ get_abstract_code(Mod, Beam) ->
     {ok, {Mod, [{abstract_code, {_, AbstractCode}}]}} -> AbstractCode;
     _ -> throw(cuter_pp:abstract_code_missing(Mod))
   end.
-
--type spec_info() :: cerl_attr_spec().
 
 %% Extracts the record definitions (as forms) from the annotations of a module.
 %% The relevant annotations have the following structure in OTP 19.x and newer:
