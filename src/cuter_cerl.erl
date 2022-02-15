@@ -27,7 +27,7 @@
 
 -export_type([compile_error/0, cerl_spec_form/0, cerl_attr_type/0,
 	      cerl_bounded_func/0, cerl_constraint/0, cerl_func/0,
-	      cerl_recdef/0, cerl_record_field/0, cerl_spec/0,
+	      cerl_record_field/0, cerl_spec/0,
 	      cerl_spec_func/0, cerl_type/0, cerl_typedef/0,
 	      cerl_type_record_field/0, node_types/0,
 	      tagID/0, tag/0, tag_generator/0, visited_tags/0]).
@@ -70,8 +70,7 @@
 -type fa() :: {name(), arity()}.
 -type cerl_attr_type() :: cerl_recdef() | cerl_typedef().
 
--type cerl_recdef() :: {name(), [cerl_record_field()]} % for OTP 19.x
-                     | {{'record', name()}, [cerl_record_field()], []}. % for OTP 18.x or earlier
+-type cerl_recdef() :: {name(), [cerl_record_field()]}.
 -type cerl_record_field() :: cerl_untyped_record_field() | cerl_typed_record_field().
 -type cerl_untyped_record_field() :: {'record_field', lineno(), {'atom', lineno(), name()}}
                                    | {'record_field', lineno(), {'atom', lineno(), name()}, any()}.
