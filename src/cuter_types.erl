@@ -1222,9 +1222,6 @@ get_type_from_type_dep({_Name, Type}) ->
 
 -define(CUTER_RECORD_TYPE_PREFIX, "__cuter_record_type__").
 
-mfa_to_string({M, F, A}) ->
-  atom_to_list(M) ++ ":" ++ atom_to_list(F) ++ integer_to_list(A).
-
 %% Returns the specs of the given kmodules in their erl_types representation.
 -spec specs_as_erl_types([cuter_cerl:kmodule()]) -> dict:dict(mfa(), [erl_types:erl_type()]).
 specs_as_erl_types(Kmodules) ->
@@ -1240,7 +1237,7 @@ specs_as_erl_types(Kmodules) ->
 			  {ok, ErlType} ->
 			    case length(ErlType) =:= length(Form) of
 			      false -> 
-				report_unhandled_spec("Couldn't convert signature of function: ~p~n", [mfa_to_string(MFA)]);
+				report_unhandled_spec("Couldn't convert signature of function: ~p~n", [cuter_tests_lib:mfa_to_string(MFA)]);
 			      true ->
 				ok
 			    end
