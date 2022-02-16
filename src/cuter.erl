@@ -87,7 +87,8 @@ run_from_file(File, Options) ->
 %% The tasks to run during the app initialization.
 init_tasks() ->
   [fun ensure_exported_entry_points/1,
-   fun compute_callgraph/1].
+   fun compute_callgraph/1,
+   fun convert_specs/1].
 
 -spec init(state()) -> ok | error.
 init(State) ->
@@ -127,6 +128,9 @@ ensure_exported_entry_point({M, F, A}) ->
 compute_callgraph(State) ->
   Mfas = mfas_from_state(State),
   cuter_codeserver:calculate_callgraph(State#st.codeServer, Mfas).
+
+convert_specs(State) ->
+  cuter_codeserver:convert_specs(State#st.codeServer).
 
 mfas_from_state(State) ->
   [{M, F, length(As)} || {M, F, As, _} <- State#st.seeds].

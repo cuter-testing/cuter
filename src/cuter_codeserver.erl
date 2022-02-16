@@ -19,6 +19,8 @@
 %% Counter of branches & Tag generator.
 -export([get_branch_counter/0, init_branch_counter/0, generate_tag/0]).
 
+-export([convert_specs/1]).
+
 -include("include/cuter_macros.hrl").
 
 -export_type([cached_modules/0, codeserver/0, counter/0, logs/0]).
@@ -137,6 +139,10 @@ get_whitelist(CodeServer) ->
 calculate_callgraph(CodeServer, Mfas) ->
   gen_server:call(CodeServer, {calculate_callgraph, Mfas}).
 
+-spec convert_specs(codeserver()) -> ok.
+convert_specs(CodeServer) ->
+  gen_server:call(CodeServer, convert_specs).
+
 %% Gets the feasible tags.
 -spec get_feasible_tags(codeserver(), cuter_cerl:node_types()) -> cuter_cerl:visited_tags().
 get_feasible_tags(CodeServer, NodeTypes) ->
@@ -182,6 +188,7 @@ handle_info(_Msg, State) ->
                ; (get_whitelist, from(), state()) -> {reply, cuter_mock:whitelist(), state()}
                ; ({get_feasible_tags, cuter_cerl:node_types()}, from(), state()) -> {reply, cuter_cerl:visited_tags(), state()}
                ; ({calculate_callgraph, [mfa()]}, from(), state()) -> {reply, ok, state()}
+               ; (convert_specs, from(), state()) -> {reply, ok, state()}
                .
 handle_call({load, M}, _From, State) ->
   {reply, try_load(M, State), State};
@@ -231,7 +238,15 @@ handle_call({calculate_callgraph, Mfas}, _From, State=#st{whitelist = Whitelist}
                 end,
       cuter_callgraph:foreachModule(LoadFn, Callgraph),
       {reply, ok, State#st{callgraph = Callgraph}}
-  end.
+  end;
+handle_call(convert_specs, _From, State=#st{db = Db}) ->
+  Fn2 = fun({_M, Kmodule}, Acc) ->
+	    [Kmodule|Acc]
+	end,
+  Kmodules = ets:foldl(Fn2, [], Db),
+  _MfasToSpecs = cuter_types:specs_as_erl_types(Kmodules),
+  {reply, ok, State}.
+
 
 %% gen_server callback : handle_cast/2
 -spec handle_cast(stop, state()) -> {stop, normal, state()} | {noreply, state()}
