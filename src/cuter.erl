@@ -62,7 +62,9 @@ run(Seeds, Options) ->
       stop(State),
       ErroneousInputs
   catch
-    _:_ -> 
+    ExceptionType:Why -> 
+      io:format("Proccess exited with exception:~n~p:~p~n", [ExceptionType, Why]),
+      io:format("Shutting down the execution...~n"),
       stop(State),
       []
   end.
