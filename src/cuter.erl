@@ -52,7 +52,7 @@ run(M, F, As, Depth, Options) ->
 %% Runs CutEr on multiple units.
 run(Seeds, Options) ->
   State = state_from_options_and_seeds(Options, Seeds),
-  case init(State) of
+  try init(State) of
     error ->
       stop(State),
       [];
@@ -61,6 +61,10 @@ run(Seeds, Options) ->
       ErroneousInputs = process_results(EndState),
       stop(State),
       ErroneousInputs
+  catch
+    _:_ -> 
+      stop(State),
+      []
   end.
 
 -spec run_from_file(file:name(), options()) -> erroneous_inputs().
