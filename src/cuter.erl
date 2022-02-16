@@ -128,7 +128,6 @@ compute_callgraph(State) ->
   Mfas = mfas_from_state(State),
   cuter_codeserver:calculate_callgraph(State#st.codeServer, Mfas).
 
-
 mfas_from_state(State) ->
   [{M, F, length(As)} || {M, F, As, _} <- State#st.seeds].
 
@@ -251,7 +250,7 @@ state_from_options_and_seeds(Options, Seeds) ->
   ok = cuter_pp:start(),
   CodeServer = cuter_codeserver:start(),
   SchedPid = cuter_scheduler:start(?DEFAULT_DEPTH, CodeServer),
-  #st{ codeServer = CodeServer, scheduler = SchedPid, seeds = Seeds }.
+  #st{codeServer = CodeServer, scheduler = SchedPid, seeds = Seeds}.
 
 define_metrics() ->
   define_distribution_metrics().
