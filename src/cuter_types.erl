@@ -1469,11 +1469,17 @@ substitute_vars_in_type({type, _, record, _R} = T, _Ms) -> T;
 substitute_vars_in_type({_, _, _, Args}=T, Ms) when is_list(Args) ->
   NewArgs = [substitute_vars_in_type(A, Ms) || A <- Args],
   setelement(4, T, NewArgs);
-substitute_vars_in_type({var, _, Var}, Ms) ->
-  dict:fetch(Var, Ms);
+substitute_vars_in_type({var, L, Var}, Ms) ->
+  case dict:find(Var, Ms) of
+    error -> form_any(L);
+    {ok, T} -> T
+  end;
 substitute_vars_in_type({ann_type, _, [_Var, T]}, Ms) ->
   substitute_vars_in_type(T, Ms);
 substitute_vars_in_type(T, _Ms) -> T.
+
+form_any(L) ->
+  {type, L, any, []}.
 
 are_dicts_equal_on_keys([], _D1, _D2) -> true;
 are_dicts_equal_on_keys([K|Ks], D1, D2) ->
@@ -1485,7 +1491,6 @@ generate_nonbounded_fun({type, L, 'fun', [Args, Range]}, Ms) ->
   NewArgs = substitute_vars_in_type(Args, Ms),
   NewRange = substitute_vars_in_type(Range, Ms),
   {type, L, 'fun', [NewArgs, NewRange]}.
-
 
 warn_unhandled_spec(MFA) ->
   Slogan = "\033[00;33mWarning: Cannot convert spec of ~s~n\033[00m",
