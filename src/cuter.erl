@@ -52,22 +52,19 @@ run(M, F, As, Depth, Options) ->
 %% Runs CutEr on multiple units.
 run(Seeds, Options) ->
   State = state_from_options_and_seeds(Options, Seeds),
-  try init(State) of
-    error ->
-      stop(State),
-      [];
-    ok ->
+  ErroneousInputs =
+    try
+      ok = init(State),
       EndState = start(State),
-      ErroneousInputs = process_results(EndState),
-      stop(State),
-      ErroneousInputs
-  catch
-    ExceptionType:Why -> 
-      io:format("Proccess exited with exception:~n~p:~p~n", [ExceptionType, Why]),
-      io:format("Shutting down the execution...~n"),
-      stop(State),
-      []
-  end.
+      process_results(EndState)
+    catch
+      ErrorType:Error ->
+	io:format("Proccess exited with exception:~n~p:~p~n"
+		  "Shutting down the execution...~n", [ErrorType, Error]),
+	[]
+    end,
+  stop(State),
+  ErroneousInputs.
 
 -spec run_from_file(file:name(), options()) -> erroneous_inputs().
 %% Loads the seeds from a file and runs CutEr on all of them.
