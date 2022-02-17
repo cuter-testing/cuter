@@ -14,7 +14,7 @@ f([H|T]=L) when length(L) < 4 ->
   end;
 f(_) -> ok.
 
--type t():: nil | {integer(), t(), t()}.
+-type t() :: nil | {integer(), t(), t()}.
 
 -spec g([t()]) -> integer().
 g([]) -> 0;
