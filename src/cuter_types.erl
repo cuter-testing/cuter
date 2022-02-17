@@ -25,6 +25,8 @@
 
 -export([convert_specs/1]).
 
+-export([equal_sets/2]).
+
 -export_type([erl_type/0, erl_spec_clause/0, erl_spec/0, stored_specs/0,
 	      stored_types/0, stored_spec_value/0, t_range_limit/0]).
 -export_type([erl_type_dep/0, erl_type_deps/0]).
@@ -1364,6 +1366,7 @@ convert_list_to_erl([Spec|Specs], MFA, ExpTypes, RecDict, Acc) ->
       convert_list_to_erl(Specs, MFA, ExpTypes, RecDict, [ErlSpec|Acc])
   end.
 
+-spec equal_sets(sets:set(), sets:set()) -> boolean().
 equal_sets(A, B) ->
   sets:size(A) == sets:size(B) andalso sets:size(sets:union(A, B)) == sets:size(B).
 
