@@ -82,7 +82,8 @@ SRC_MODULES = \
 	cuter_strategy \
 	cuter_bfs_strategy \
 	cuter_metrics \
-	cuter_config
+	cuter_config \
+	cuter_graphs
 
 UTEST_MODULES = \
 	cuter_tests_lib \
@@ -100,7 +101,9 @@ UTEST_MODULES = \
 	types_and_specs \
 	types_and_specs2 \
 	cuter_metrics_tests \
-	cuter_config_tests
+	cuter_config_tests \
+	cuter_graphs_tests \
+	callgraph_examples
 
 FTEST_MODULES = \
 	bitstr \
