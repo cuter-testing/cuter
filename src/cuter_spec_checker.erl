@@ -254,7 +254,7 @@ unify_pattern(Tree, TSM, TSM2, Type) ->
 	error ->
 	  case dict:find(cerl:var_name(Tree), TSM2) of
 	    {ok, VarGuardType} ->
-	      case erl_types:t_is_subtype(VarGuardType, Type) of
+	      case erl_types:t_is_subtype(Type, VarGuardType) of
 		true -> {ok, dict:store(cerl:var_name(Tree), VarGuardType, TSM)};
 		false -> {error, mismatch}
 	      end;

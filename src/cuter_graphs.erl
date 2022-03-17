@@ -76,6 +76,8 @@ cycle_nodes(Node, Graph, Visited, Ignored) ->
   TC = [Y || Y <- C, not (sets:is_element(Y, Visited) or sets:is_element(Node, Ignored))],
   %% Call self for every child.
   {ChildrenCycled, ChildrenActiveCycled, VisitedBelow} = cycle_nodes_children(TC, Graph, sets:add_element(Node, Visited), Ignored),
+  %% An active cycle is a detected cycle that hasn't been
+  %% completed yet when backtracking
   ActiveCycled = lists:filter(fun(X) -> sets:is_element(X, Visited) end, C),
   {Cycles, ActiveCycles} = update_active_cycles(Node, ActiveCycled, ChildrenCycled, ChildrenActiveCycled),
   {Cycles, ActiveCycles, sets:add_element(Node, VisitedBelow)}.
