@@ -107,6 +107,8 @@ UTEST_MODULES = \
 	cuter_config_tests \
 	cuter_graphs_tests \
 	callgraph_examples
+	examples_for_spec_conversion \
+	examples_for_spec_conversion_pair
 
 FTEST_MODULES = \
 	bitstr \

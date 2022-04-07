@@ -21,6 +21,8 @@
 %% Counter of branches & Tag generator.
 -export([get_branch_counter/0, init_branch_counter/0, generate_tag/0]).
 
+-export([convert_specs/1]).
+
 -include("include/cuter_macros.hrl").
 
 -export_type([cached_modules/0, codeserver/0, counter/0, logs/0]).
@@ -29,7 +31,7 @@
 -define(BRANCH_COUNTER_PREFIX, '__branch_count').
 
 -type counter() :: non_neg_integer().
--type cached_module_data() :: any().
+-type cached_module_data() :: any().   % XXX: refine
 -type cached_modules() :: dict:dict(module(), cached_module_data()).
 
 -type cache() :: ets:tid().
@@ -48,12 +50,12 @@
 }).
 -type logs() :: #logs{}.
 
-%% Internal type declarations
+%% Internal type declarations.
 -type load_reply() :: {ok, cuter_cerl:kmodule()} | cuter_cerl:compile_error() | {error, (preloaded | cover_compiled | non_existing)}.
 -type spec_reply() :: {ok, cuter_types:erl_spec()} | error.
 -type from() :: {pid(), reference()}.
 
-%% Finding the remote dependencies of a spec.
+%% Remote dependencies of a spec.
 -type remote_type()     :: {cuter:mod(), atom(), byte()}.
 -type module_deps()     :: ordsets:ordset(cuter:mod()).
 -type visited_remotes() :: ordsets:ordset(remote_type()).
@@ -61,7 +63,7 @@
 -type codeserver() :: pid().
 -type codeserver_args() :: #{}.
 
-%% Server's state
+%% Server's state.
 -record(st, {
   %% Acts as a reference table for looking up the ETS table that holds a module's extracted code.
   %% It stores tuples {Module :: module(), ModuleDb :: ets:tid()}.
@@ -139,6 +141,10 @@ get_whitelist(CodeServer) ->
 calculate_callgraph(CodeServer, Mfas) ->
   gen_server:call(CodeServer, {calculate_callgraph, Mfas}).
 
+-spec convert_specs(codeserver()) -> ok.
+convert_specs(CodeServer) ->
+  gen_server:call(CodeServer, convert_specs).
+
 %% Gets the feasible tags.
 -spec get_feasible_tags(codeserver(), cuter_cerl:node_types()) -> cuter_cerl:visited_tags().
 get_feasible_tags(CodeServer, NodeTypes) ->
@@ -189,7 +195,7 @@ handle_info(_Msg, State) ->
                ; (get_whitelist, from(), state()) -> {reply, cuter_mock:whitelist(), state()}
                ; ({get_feasible_tags, cuter_cerl:node_types()}, from(), state()) -> {reply, cuter_cerl:visited_tags(), state()}
                ; ({calculate_callgraph, [mfa()]}, from(), state()) -> {reply, ok, state()}
-	       ; (annotate_for_possible_errors, from(), state()) -> {reply, ok, state()}
+	             ; (annotate_for_possible_errors, from(), state()) -> {reply, ok, state()}
                .
 handle_call({load, M}, _From, State) ->
   {reply, try_load(M, State), State};
@@ -254,7 +260,7 @@ handle_call(annotate_for_possible_errors, _From, State=#st{db = Db}) ->
   MfasToKfuns = ets:foldl(Fn, dict:new(), Db),
   %io:format("Before Specs~n"),
   %io:format("ast: ~p~n", [cuter_cerl:kfun_code(dict:fetch(EntryPoint, MfasToKfuns))]),
-  MfasToSpecs = cuter_types:convert_specs(Kmodules),
+  MfasToSpecs = cuter_types:specs_as_erl_types(Kmodules),
   %io:format("Before Preprocess~n"),
   UpdatedKfuns = cuter_maybe_error_annotation:preprocess(EntryPoint, MfasToKfuns, MfasToSpecs, true),
   RFn = fun({M, F, A}, Kfun, _Acc) ->
@@ -288,10 +294,10 @@ handle_cast({visit_tag, Tag}, State=#st{tags = Tags}) ->
 -spec load_all_deps_of_spec(cuter_types:stored_spec_value(), module(), cuter_cerl:kmodule(), state()) -> [cuter:mod()].
 load_all_deps_of_spec(CerlSpec, Module, Kmodule, State) ->
   LocalTypesCache = cuter_cerl:kmodule_types(Kmodule),
-  % Get the remote dependencies of the spec.
+  %% Get the remote dependencies of the spec.
   ToBeVisited = cuter_types:find_remote_deps_of_spec(CerlSpec, LocalTypesCache),
   InitDepMods = ordsets:add_element(Module, ordsets:new()),
-  % Find iteratively the dependencies of the found dependencies.
+  %% Find iteratively the dependencies of the found dependencies.
   case load_all_deps(ToBeVisited, State, ordsets:new(), InitDepMods) of
     error -> [];
     {ok, DepMods} -> DepMods
@@ -319,7 +325,7 @@ load_all_deps([Remote={M, TypeName, Arity}|Rest], State, VisitedRemotes, DepMods
               Deps = cuter_types:find_remote_deps_of_type(Type, LocalTypesCache),
               %% Queue the ones that we haven't encountered yet.
               NewRemotes = [R || R <- Deps,
-                not ordsets:is_element(R, VisitedRemotes1)],
+				 not ordsets:is_element(R, VisitedRemotes1)],
               load_all_deps(NewRemotes ++ Rest, State, VisitedRemotes1, DepMods1)
           end;
         _Msg ->

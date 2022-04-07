@@ -25,13 +25,12 @@
 
 -include("include/cuter_macros.hrl").
 
--export_type([compile_error/0, cerl_attr_spec/0, cerl_attr_type/0,
+-export_type([compile_error/0, cerl_spec_form/0, cerl_attr_type/0,
 	      cerl_bounded_func/0, cerl_constraint/0, cerl_func/0,
-	      cerl_recdef/0, cerl_record_field/0, cerl_spec/0,
+	      cerl_record_field/0, cerl_spec/0,
 	      cerl_spec_func/0, cerl_type/0, cerl_typedef/0,
 	      cerl_type_record_field/0, node_types/0,
-	      tagID/0, tag/0, tag_generator/0, visited_tags/0,
-	      spec_info/0]).
+	      tagID/0, tag/0, tag_generator/0, visited_tags/0]).
 
 -export_type([extracted_record_form/0, extracted_type_form/0]).
 
@@ -70,17 +69,15 @@
 -type name() :: atom().
 -type fa() :: {name(), arity()}.
 -type cerl_attr_type() :: cerl_recdef() | cerl_typedef().
--type cerl_attr_spec() :: cerl_specdef().
 
--type cerl_recdef() :: {name(), [cerl_record_field()]} % for OTP 19.x
-                     | {{'record', name()}, [cerl_record_field()], []}. % for OTP 18.x or earlier
+-type cerl_recdef() :: {name(), [cerl_record_field()]}.
 -type cerl_record_field() :: cerl_untyped_record_field() | cerl_typed_record_field().
 -type cerl_untyped_record_field() :: {'record_field', lineno(), {'atom', lineno(), name()}}
                                    | {'record_field', lineno(), {'atom', lineno(), name()}, any()}.
 -type cerl_typed_record_field() :: {'typed_record_field', cerl_untyped_record_field(), cerl_type()}.
 -type cerl_typedef() :: {name(), cerl_type(), [cerl_type_var()]}.
 
--type cerl_specdef() :: {fa(), cerl_spec()}.
+-type cerl_spec_form() :: {fa(), cerl_spec()}.
 -type cerl_spec() :: [cerl_spec_func(), ...].
 -type cerl_spec_func() :: cerl_func() | cerl_bounded_func().
 
@@ -273,7 +270,7 @@ is_mfa({M, F, A}) when is_atom(M), is_atom(F), is_integer(A), A >= 0 -> true;
 is_mfa(_Mfa) -> false.
 
 %% Returns the unprocessed specs of a kmodule (as forms).
--spec kmodule_spec_forms(kmodule()) -> [cerl:cerl()].
+-spec kmodule_spec_forms(kmodule()) -> [cerl_spec_form()].
 kmodule_spec_forms(Kmodule) ->
   [{spec_forms, SpecsForms}] = ets:lookup(Kmodule, spec_forms),
   SpecsForms.
@@ -323,8 +320,8 @@ extract_exports(M, AST) ->
   [mfa_from_var(M, E) || E <- Exports].
 
 extract_exported_types(Mod, Attrs) ->
-  Filtered = [T || {#c_literal{val = export_type}, #c_literal{val = T}} <- Attrs],
-  sets:from_list(lists:append([{Mod, Tname, Tarity} || {Tname, Tarity} <- Filtered])).
+  ExpTypes = lists:append([Ts || {#c_literal{val = export_type}, #c_literal{val = Ts}} <- Attrs]),
+  sets:from_list([{Mod, Tname, Tarity} || {Tname, Tarity} <- ExpTypes]).
 
 -spec process_fundef({cerl:c_var(), code()}, [mfa()], module(), tag_generator()) -> {mfa(), kfun()}.
 process_fundef({FunVar, Def}, Exports, M, TagGen) ->
@@ -377,8 +374,6 @@ get_abstract_code(Mod, Beam) ->
     {ok, {Mod, [{abstract_code, {_, AbstractCode}}]}} -> AbstractCode;
     _ -> throw(cuter_pp:abstract_code_missing(Mod))
   end.
-
--type spec_info() :: cerl_attr_spec().
 
 %% Extracts the record definitions (as forms) from the annotations of a module.
 %% The relevant annotations have the following structure in OTP 19.x and newer:

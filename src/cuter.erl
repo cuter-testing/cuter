@@ -261,7 +261,7 @@ state_from_options_and_seeds(Options, Seeds) ->
   ok = cuter_pp:start(),
   CodeServer = cuter_codeserver:start(),
   SchedPid = cuter_scheduler:start(?DEFAULT_DEPTH, CodeServer),
-  #st{ codeServer = CodeServer, scheduler = SchedPid, seeds = Seeds }.
+  #st{codeServer = CodeServer, scheduler = SchedPid, seeds = Seeds}.
 
 define_metrics() ->
   define_distribution_metrics().
