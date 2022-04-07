@@ -91,7 +91,7 @@ equal_keys([{KeyType, K1}=Key1|Keys1], Keys2, Acc) ->
 	[_] -> equal_keys(Keys1, Keys2, Acc)
       end;
     cycle ->
-      case [K2 || {cycle, K2} <- Keys2, cuter_types:equal_sets(sets:from_list(K1), sets:from_list(K2))] of
+      case [K2 || {cycle, K2} <- Keys2, cuter_types:are_sets_equal(sets:from_list(K1), sets:from_list(K2))] of
 	[] -> false;
 	[K2] ->
 	  equal_keys(Keys1, Keys2, dict:store(K2, K1, Acc))
@@ -121,7 +121,7 @@ equal_graphs_helper(G1, G2) ->
 equal_entry_points({T, E1}, {T, E2}) ->
   case T of
     node -> E1 =:= E2;
-    cycle -> cuter_types:equal_sets(sets:from_list(E1), sets:from_list(E2))
+    cycle -> cuter_types:are_sets_equal(sets:from_list(E1), sets:from_list(E2))
   end;
 equal_entry_points(_, _) -> false.
 

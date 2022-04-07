@@ -25,7 +25,7 @@
 
 -export([specs_as_erl_types/1]).
 
--export([mfa_to_string/1]).
+-export([mfa_to_string/1, are_sets_equal/2]).
 
 -export_type([erl_type/0, erl_spec_clause/0, erl_spec/0, stored_specs/0,
 	      stored_types/0, stored_spec_value/0, t_range_limit/0]).
@@ -1370,10 +1370,6 @@ normalized_spec_form_as_erl_types([FC|FCs], Mfa, TypeForms, RecDict, Acc) ->
       normalized_spec_form_as_erl_types(FCs, Mfa, TypeForms, RecDict, Acc)
   end.
 
-are_sets_equal(A, B) ->
-  %% A = B, iff A ⊆ B and B ⊆ A.
-  sets:is_subset(A, B) andalso sets:is_subset(B, A).
-
 %% Returns the type and record definitions in a kmodule.
 %% Records are replaced by equivalent types.
 extract_type_definitions(Kmodule) ->
@@ -1504,3 +1500,8 @@ warn_unhandled_spec(MFA) ->
 -spec mfa_to_string(mfa()) -> string().
 mfa_to_string({M, F, A}) ->
   atom_to_list(M) ++ ":" ++ atom_to_list(F) ++ "/" ++ integer_to_list(A).
+
+-spec are_sets_equal(sets:set(), sets:set()) -> boolean().
+are_sets_equal(A, B) ->
+  %% A = B, iff A ⊆ B and B ⊆ A.
+  sets:is_subset(A, B) andalso sets:is_subset(B, A).
