@@ -36,6 +36,11 @@
 }).
 -type valuelist() :: #valuelist{}.
 
+%% Runtime options for the evaluator function of the interpreter.
+-type eval_opts() :: #{constraintLogging := boolean(),
+                       isForced := boolean(),
+                       distrustTypeDependent := boolean()}.
+
 %% ----------------------------------------------------------------------------
 %% Types and macros used for storing the information of applying a lambda
 %% that has a symbolic value.
@@ -146,7 +151,7 @@ eval(A, CAs, SAs, CallType, Servers, Fd) ->
 %% and not directly executed
 
 %% spawn/{1,2,3,4} & spawn_link/{1,2,3,4}
--spec eval(eval(), [any()], [any()], calltype(), servers(), file:io_device(), maps:map()) -> result().
+-spec eval(eval(), [any()], [any()], calltype(), servers(), file:io_device(), eval_opts()) -> result().
 eval({named, erlang, F}, CAs, SAs, _CallType, Servers, Fd, Options) when F =:= spawn; F =:= spawn_link ->
   Arity = length(CAs),
   SAs_e = cuter_symbolic:ensure_list(SAs, Arity, Fd),
@@ -509,7 +514,7 @@ eval({letrec_func, {M, _F, Def, E}}, CAs, SAs, _CallType, Servers, Fd, Options) 
 %%
 %% Evaluates a Core Erlang expression
 %% --------------------------------------------------------
--spec eval_expr(cerl:cerl(), module(), cuter_env:environment(), cuter_env:environment(), servers(), file:io_device(), maps:map()) -> result().
+-spec eval_expr(cerl:cerl(), module(), cuter_env:environment(), cuter_env:environment(), servers(), file:io_device(), eval_opts()) -> result().
 
 %% c_apply
 eval_expr({c_apply, Anno, Op, Args}, M, Cenv, Senv, Servers, Fd, Options) ->
