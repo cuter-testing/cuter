@@ -1,6 +1,9 @@
 -module(cuter_type_dependent_functions).
 -export([original_tsm/0]).
 
+%% Returns a dictionary with:
+%% Keys: Mfas of built-in functions
+%% Values: List of signatures of these functions.
 -spec original_tsm() -> dict:dict().
 original_tsm() ->
   TSM = dict:from_list(

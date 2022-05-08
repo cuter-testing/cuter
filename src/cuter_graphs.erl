@@ -12,7 +12,7 @@
 -type graph() :: dict:dict().
 -type graph_node() :: mfa() 
 		    | {node, mfa()} 
-		    | {cycle, [mfa()]}.
+		    | {scc, [mfa()]}.
 
 
 %% =====================================================
@@ -60,94 +60,94 @@ has_node(Node, Graph) ->
 
 
 %% =====================================================
-%% Logic for finding cycles. Implemented as a DFS search
+%% Logic for finding sccs. Implemented as a DFS search
 %% with a visited set.
 %% =====================================================
 
-%% Returns a list of cycles in a graph.
-cycle_nodes(EntryPoint, Graph) ->
-  {Cycled, _, _} = cycle_nodes(EntryPoint, Graph, sets:new(), sets:new()),
-  Cycled.
+%% Returns a list of sccs in a graph.
+scc_nodes(EntryPoint, Graph) ->
+  {Sccd, _, _} = scc_nodes(EntryPoint, Graph, sets:new(), sets:new()),
+  Sccd.
 
-cycle_nodes(Node, Graph, Visited, Ignored) ->
+scc_nodes(Node, Graph, Visited, Ignored) ->
   %% Get the children of the node.
   C = children(Node, Graph),
   %% Filter out the ones that have been visited or are ignored.
   TC = [Y || Y <- C, not (sets:is_element(Y, Visited) or sets:is_element(Node, Ignored))],
   %% Call self for every child.
-  {ChildrenCycled, ChildrenActiveCycled, VisitedBelow} = cycle_nodes_children(TC, Graph, sets:add_element(Node, Visited), Ignored),
-  %% An active cycle is a detected cycle that hasn't been
+  {ChildrenSccd, ChildrenActiveSccd, VisitedBelow} = scc_nodes_children(TC, Graph, sets:add_element(Node, Visited), Ignored),
+  %% An active scc is a detected scc that hasn't been
   %% completed yet when backtracking
-  ActiveCycled = lists:filter(fun(X) -> sets:is_element(X, Visited) end, C),
-  {Cycles, ActiveCycles} = update_active_cycles(Node, ActiveCycled, ChildrenCycled, ChildrenActiveCycled),
-  {Cycles, ActiveCycles, sets:add_element(Node, VisitedBelow)}.
+  ActiveSccd = lists:filter(fun(X) -> sets:is_element(X, Visited) end, C),
+  {Sccs, ActiveSccs} = update_active_sccs(Node, ActiveSccd, ChildrenSccd, ChildrenActiveSccd),
+  {Sccs, ActiveSccs, sets:add_element(Node, VisitedBelow)}.
 
-cycle_nodes_children(C, G, V, I) ->
-  cycle_nodes_children(C, G, V, I, [], [], sets:new()).
+scc_nodes_children(C, G, V, I) ->
+  scc_nodes_children(C, G, V, I, [], [], sets:new()).
 
-cycle_nodes_children([], _, _, _, CycleAcc, ActiveCycleAcc, VisitedAcc) ->
-  {CycleAcc, ActiveCycleAcc, VisitedAcc};
-cycle_nodes_children([Ch|C], G, V, I, CycleAcc, ActiveCycleAcc, VisitedAcc) ->
-  {Cycle, ActiveCycle, VisitedBelow} = cycle_nodes(Ch, G, V, I),
-  cycle_nodes_children(C, G, V, sets:union([I, VisitedBelow]), lists:append([CycleAcc, Cycle]), lists:append([ActiveCycleAcc,  ActiveCycle]), sets:union([VisitedAcc, VisitedBelow])).
+scc_nodes_children([], _, _, _, SccAcc, ActiveSccAcc, VisitedAcc) ->
+  {SccAcc, ActiveSccAcc, VisitedAcc};
+scc_nodes_children([Ch|C], G, V, I, SccAcc, ActiveSccAcc, VisitedAcc) ->
+  {Scc, ActiveScc, VisitedBelow} = scc_nodes(Ch, G, V, I),
+  scc_nodes_children(C, G, V, sets:union([I, VisitedBelow]), lists:append([SccAcc, Scc]), lists:append([ActiveSccAcc,  ActiveScc]), sets:union([VisitedAcc, VisitedBelow])).
 
-update_active_cycles(Node, ActiveCycled, ChildrenCycled, ChildrenActiveCycled) ->
-  ActiveCycled1 = create_new_cycles(ActiveCycled, ChildrenActiveCycled),
-  {Cycles1, ActiveCycled2} = update_all_cycles(Node, ActiveCycled1),
-  {lists:append([Cycles1, ChildrenCycled]), ActiveCycled2}.
+update_active_sccs(Node, ActiveSccd, ChildrenSccd, ChildrenActiveSccd) ->
+  ActiveSccd1 = create_new_sccs(ActiveSccd, ChildrenActiveSccd),
+  {Sccs1, ActiveSccd2} = update_all_sccs(Node, ActiveSccd1),
+  {lists:append([Sccs1, ChildrenSccd]), ActiveSccd2}.
 
-create_new_cycles([], Acc) ->
+create_new_sccs([], Acc) ->
   Acc;
-create_new_cycles([H|T], Acc) ->
-  [{H,[]}|create_new_cycles(T, Acc)].
+create_new_sccs([H|T], Acc) ->
+  [{H,[]}|create_new_sccs(T, Acc)].
 
-update_all_cycles(Node, ActiveCycled) ->
-  update_all_cycles(Node, ActiveCycled, [], []).
+update_all_sccs(Node, ActiveSccd) ->
+  update_all_sccs(Node, ActiveSccd, [], []).
 
-update_all_cycles(_, [], ActiveAcc, CyclesAcc) ->
-  {CyclesAcc, ActiveAcc};
-update_all_cycles(Node, [{First, List}|T], ActiveAcc, CyclesAcc) ->
+update_all_sccs(_, [], ActiveAcc, SccsAcc) ->
+  {SccsAcc, ActiveAcc};
+update_all_sccs(Node, [{First, List}|T], ActiveAcc, SccsAcc) ->
   case First of
     Node ->
-      CyclesAcc1 = [[Node|List]|CyclesAcc],
+      SccsAcc1 = [[Node|List]|SccsAcc],
       ActiveAcc1 = ActiveAcc;
     _ ->
-      CyclesAcc1 = CyclesAcc,
+      SccsAcc1 = SccsAcc,
       ActiveAcc1 = [{First, [Node|List]}|ActiveAcc]
   end,
-  update_all_cycles(Node, T, ActiveAcc1, CyclesAcc1).
+  update_all_sccs(Node, T, ActiveAcc1, SccsAcc1).
 
 
 %% =================================================================
-%% Logic for merging overlapping cycles.
-%% Overlapping cycles are cycles that have at least one common node.
-%% Each cycle is a list of nodes, so we have to find all lists with
+%% Logic for merging overlapping sccs.
+%% Overlapping sccs are sccs that have at least one common node.
+%% Each scc is a list of nodes, so we have to find all lists with
 %% common elements and merge them.
 %% =================================================================
 
-%% Cycles are lists of nodes.
-%% If two cycles contain at least one commone element are merged into one list.
-merge_cycles(Cycles) ->
+%% Sccs are lists of nodes.
+%% If two sccs contain at least one commone element are merged into one list.
+merge_sccs(Sccs) ->
   %% Make a helper graph.
-  G = make_help_graph(Cycles),
-  %% Merged cycles are the connected components of the helper graph.
+  G = make_help_graph(Sccs),
+  %% Merged sccs are the connected components of the helper graph.
   connected_components(G).
 
-%% Creates the helper graph for merging the cycles.
+%% Creates the helper graph for merging the sccs.
 -spec make_help_graph([[graph_node()]]) -> dict:dict().
-make_help_graph(Cycles) ->
+make_help_graph(Sccs) ->
   %% Initialize a graph.
   G = dict:new(),
-  %% Add each cycle to the graph.
-  lists:foldl(fun put_cycle/2, G, Cycles).
+  %% Add each scc to the graph.
+  lists:foldl(fun put_scc/2, G, Sccs).
 
-%% Adds a cycle to a helper graph.
--spec put_cycle([graph_node()], dict:dict()) -> dict:dict().
-put_cycle(Cycle, Graph) -> put_cycle(nonode, Cycle, Graph).
+%% Adds a scc to a helper graph.
+-spec put_scc([graph_node()], dict:dict()) -> dict:dict().
+put_scc(Scc, Graph) -> put_scc(nonode, Scc, Graph).
 
 %% If we don't have other nodes to add, return the graph.
-put_cycle(_, [], Graph) -> Graph;
-put_cycle(Prev, [N|Ns], Graph) ->
+put_scc(_, [], Graph) -> Graph;
+put_scc(Prev, [N|Ns], Graph) ->
   %% If the node is not already in the graph, add it.
   Graph1 = case dict:is_key(N, Graph) of
 	     true ->
@@ -163,7 +163,7 @@ put_cycle(Prev, [N|Ns], Graph) ->
 	       G = dict:append_list(Prev, [N], Graph1),
 	       dict:append_list(N, [Prev], G)
 	   end,
-  put_cycle(N, Ns, Graph2).
+  put_scc(N, Ns, Graph2).
 
 %% Returns the connected components of a graph.
 connected_components(G) ->
@@ -221,48 +221,48 @@ remove_nodes(C, G) ->
 
 
 %% ==================================================
-%% Logic for making a new graph merging cycled nodes.
+%% Logic for making a new graph merging sccd nodes.
 %% ==================================================
 
 remake_graph(EntryPoint, Graph) ->
-  Cycles = merge_cycles(cycle_nodes(EntryPoint, Graph)),
-  CycleNodes = [{cycle, sets:to_list(X)} || X <- Cycles],
-  AllCycledNodes = sets:union(Cycles),
-  Children = find_children([A || {cycle, A} <- CycleNodes], Graph),
-  NewNodes = [{node, X} || X <- get_nodes(Graph), not sets:is_element(X, AllCycledNodes)],
-  NewChildren = [update_children(children(Y, Graph), AllCycledNodes, Cycles, CycleNodes) || {node, Y} <- NewNodes],
-  CycleChildren = [update_children(Z, AllCycledNodes, Cycles, CycleNodes) || Z <- Children],
-  Nodes = lists:append(NewNodes, CycleNodes),
-  ChildrenPerNodeTemp = [sets:to_list(sets:from_list(W)) || W <- lists:append(NewChildren, CycleChildren)],
+  Sccs = merge_sccs(scc_nodes(EntryPoint, Graph)),
+  SccNodes = [{scc, sets:to_list(X)} || X <- Sccs],
+  AllSccdNodes = sets:union(Sccs),
+  Children = find_children([A || {scc, A} <- SccNodes], Graph),
+  NewNodes = [{node, X} || X <- get_nodes(Graph), not sets:is_element(X, AllSccdNodes)],
+  NewChildren = [update_children(children(Y, Graph), AllSccdNodes, Sccs, SccNodes) || {node, Y} <- NewNodes],
+  SccChildren = [update_children(Z, AllSccdNodes, Sccs, SccNodes) || Z <- Children],
+  Nodes = lists:append(NewNodes, SccNodes),
+  ChildrenPerNodeTemp = [sets:to_list(sets:from_list(W)) || W <- lists:append(NewChildren, SccChildren)],
   ChildrenPerNode = [try_remove(B, C) || {B, C} <- lists:zip(Nodes, ChildrenPerNodeTemp)],
   make_graph_from_children(Nodes, ChildrenPerNode).  
 
-find_children(Cycles, Graph) ->
-  find_children(Cycles, Graph, []).
+find_children(Sccs, Graph) ->
+  find_children(Sccs, Graph, []).
 
 find_children([], _, Acc) -> lists:reverse(Acc);
 find_children([C|Cs], Graph, Acc) ->
   find_children(Cs, Graph, [lists:append([children(X, Graph) || X <- C])|Acc]).
 
-update_children(Children, AllCycledNodes, Cycles, CyclesAsLists) ->
-  update_children(Children, AllCycledNodes, Cycles, CyclesAsLists, []).
+update_children(Children, AllSccdNodes, Sccs, SccsAsLists) ->
+  update_children(Children, AllSccdNodes, Sccs, SccsAsLists, []).
 
 update_children([], _, _, _, Acc) -> Acc;
-update_children([C|Cs], AllCycles, Cycles, CyclesAsLists, Acc) -> 
-  case sets:is_element(C, AllCycles) of
+update_children([C|Cs], AllSccs, Sccs, SccsAsLists, Acc) -> 
+  case sets:is_element(C, AllSccs) of
     true ->
-      update_children(Cs, AllCycles, Cycles, CyclesAsLists, [which_cycle(C, Cycles, CyclesAsLists)|Acc]);
+      update_children(Cs, AllSccs, Sccs, SccsAsLists, [which_scc(C, Sccs, SccsAsLists)|Acc]);
     false ->
-      update_children(Cs, AllCycles, Cycles, CyclesAsLists, [{node, C}|Acc])
+      update_children(Cs, AllSccs, Sccs, SccsAsLists, [{node, C}|Acc])
   end.
 
-which_cycle(_, [], _) -> error('cycle not found');
-which_cycle(Node, [C|Cs], [CL|CLs]) ->
+which_scc(_, [], _) -> error('scc not found');
+which_scc(Node, [C|Cs], [CL|CLs]) ->
   case sets:is_element(Node, C) of
     true ->
       CL;
     false ->
-      which_cycle(Node, Cs, CLs)
+      which_scc(Node, Cs, CLs)
   end.
 
 try_remove(Node, Children) ->
@@ -284,9 +284,9 @@ try_remove(Node, [C|Cs], Acc) ->
 %% ===========================================================
 
 %% First calculates the callgraph.
-%% Then it replaces all cycles with single nodes,
-%% merging cycles with common functions.
-%% Last it finds the new entry point which may be part of a cycle.
+%% Then it replaces all sccs with single nodes,
+%% merging sccs with common functions.
+%% Last it finds the new entry point which may be part of a scc.
 %% Returns the processed callgraph, all functions belonging to the callgraph in a set
 %% and the new entry point.
 -spec calculate_dag_callgraph(mfa()) -> {graph(), sets:set(), graph_node()}.
@@ -303,10 +303,10 @@ find_entry_point(EntryPoint, Graph) ->
       %% If entry point is just a node, return it.
       {node, EntryPoint};
     false ->
-      %% Else return the first cycle that contains the entry point.
-      %% Only one cycle will contain it, since if it belonge to many,
+      %% Else return the first scc that contains the entry point.
+      %% Only one scc will contain it, since if it belonge to many,
       %% they would have been merged.
-      {cycle, hd([C || {cycle, C} <- get_nodes(Graph), list_contains(EntryPoint, C)])}
+      {scc, hd([C || {scc, C} <- get_nodes(Graph), list_contains(EntryPoint, C)])}
   end.
 
 %% Calculates the callgraph produced by the

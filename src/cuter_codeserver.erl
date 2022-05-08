@@ -258,18 +258,13 @@ handle_call(annotate_for_possible_errors, _From, State=#st{db = Db}) ->
   Kmodules = ets:foldl(Fn2, [], Db),
   {ok, EntryPoint} = cuter_config:fetch(?ENTRY_POINT),
   MfasToKfuns = ets:foldl(Fn, dict:new(), Db),
-  %io:format("Before Specs~n"),
-  %io:format("ast: ~p~n", [cuter_cerl:kfun_code(dict:fetch(EntryPoint, MfasToKfuns))]),
   MfasToSpecs = cuter_types:specs_as_erl_types(Kmodules),
-  %io:format("Before Preprocess~n"),
-  UpdatedKfuns = cuter_maybe_error_annotation:preprocess(EntryPoint, MfasToKfuns, MfasToSpecs, true),
+  UpdatedKfuns = cuter_maybe_error_annotation:preprocess(EntryPoint, MfasToKfuns, MfasToSpecs),
   RFn = fun({M, F, A}, Kfun, _Acc) ->
 	   [{_M, Kmodule}] = ets:lookup(Db, M),
 	    cuter_cerl:kmodule_update_kfun(Kmodule, {M, F, A}, Kfun)
 	end,
   dict:fold(RFn, ok, UpdatedKfuns),
-  %io:format("spec: ~p~n", [dict:find(EntryPoint, MfasToSpecs)]),
-  %io:format("ast: ~p~n", [cuter_cerl:kfun_code(dict:fetch(EntryPoint, UpdatedKfuns))]),
   {reply, ok, State}.
 
 
