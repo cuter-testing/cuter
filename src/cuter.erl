@@ -48,7 +48,7 @@ run(M, F, As, Depth, Options) ->
   Seeds = [{M, F, As, Depth}],
   run(Seeds, Options).
 
--spec run([seed()], options()) -> erroneous_inputs().
+-spec run([seed(),...], options()) -> erroneous_inputs().
 %% Runs CutEr on multiple units.
 run(Seeds, Options) ->
   State = state_from_options_and_seeds(Options, Seeds),
@@ -90,7 +90,8 @@ run_from_file(File, Options) ->
 %% The tasks to run during the app initialization.
 init_tasks() ->
   [fun ensure_exported_entry_points/1,
-   fun compute_callgraph/1].
+   fun compute_callgraph/1,
+   fun annotate_for_possible_errors/1].
 
 -spec init(state()) -> ok | error.
 init(State) ->
@@ -131,9 +132,16 @@ compute_callgraph(State) ->
   Mfas = mfas_from_state(State),
   cuter_codeserver:calculate_callgraph(State#st.codeServer, Mfas).
 
-
 mfas_from_state(State) ->
   [{M, F, length(As)} || {M, F, As, _} <- State#st.seeds].
+
+annotate_for_possible_errors(State) ->
+  case cuter_config:fetch(?PRUNE_SAFE) of
+    {ok, true} ->
+      cuter_codeserver:annotate_for_possible_errors(State#st.codeServer);
+    _ ->
+      ok
+  end.
 
 %% ----------------------------------------------------------------------------
 %% Manage the concolic executions
@@ -146,8 +154,7 @@ start(State) ->
 -spec start([seed()], state()) -> state().
 start([], State) ->
   State;
-start([{M, F, As, Depth}|Seeds], State) ->
-  CodeServer = State#st.codeServer,
+start([{M, F, As, Depth}|Seeds], State) ->  CodeServer = State#st.codeServer,
   Scheduler = State#st.scheduler,
   Errors = start_one(M, F, As, Depth, CodeServer, Scheduler),
   NewErrors = [{{M, F, length(As)}, Errors}|State#st.errors],
@@ -242,7 +249,7 @@ stop(State) ->
 %% Generate the system state
 %% ----------------------------------------------------------------------------
 
--spec state_from_options_and_seeds(options(), [seed()]) -> state().
+-spec state_from_options_and_seeds(options(), [seed(),...]) -> state().
 state_from_options_and_seeds(Options, Seeds) ->
   process_flag(trap_exit, true),
   error_logger:tty(false),  %% disable error_logger
@@ -250,11 +257,11 @@ state_from_options_and_seeds(Options, Seeds) ->
   ok = cuter_metrics:start(),
   ok = define_metrics(),
   enable_debug_config(Options),
-  enable_runtime_config(Options),
+  enable_runtime_config(Options, Seeds),
   ok = cuter_pp:start(),
   CodeServer = cuter_codeserver:start(),
   SchedPid = cuter_scheduler:start(?DEFAULT_DEPTH, CodeServer),
-  #st{ codeServer = CodeServer, scheduler = SchedPid, seeds = Seeds }.
+  #st{codeServer = CodeServer, scheduler = SchedPid, seeds = Seeds}.
 
 define_metrics() ->
   define_distribution_metrics().
@@ -268,8 +275,8 @@ enable_debug_config(Options) ->
   cuter_config:store(?DEBUG_SMT, proplists:get_bool(?DEBUG_SMT, Options)),
   cuter_config:store(?DEBUG_SOLVER_FSM, proplists:get_bool(?DEBUG_SOLVER_FSM, Options)).
 
--spec enable_runtime_config(options()) -> ok.
-enable_runtime_config(Options) ->
+-spec enable_runtime_config(options(), [seed(),...]) -> ok.
+enable_runtime_config(Options, [{M, F, I, _D}|_]) ->
   {ok, CWD} = file:get_cwd(),
   cuter_config:store(?WORKING_DIR,
                      cuter_lib:get_tmp_dir(proplists:get_value(?WORKING_DIR, Options, CWD))),
@@ -287,7 +294,9 @@ enable_runtime_config(Options) ->
   cuter_config:store(?SORTED_ERRORS, proplists:get_bool(?SORTED_ERRORS, Options)),
   cuter_config:store(?WHITELISTED_MFAS, whitelisted_mfas(Options)),
   cuter_config:store(?NUM_SOLVERS, proplists:get_value(?NUM_SOLVERS, Options, ?ONE)),
-  cuter_config:store(?NUM_POLLERS, proplists:get_value(?NUM_POLLERS, Options, ?ONE)).
+  cuter_config:store(?NUM_POLLERS, proplists:get_value(?NUM_POLLERS, Options, ?ONE)),
+  cuter_config:store(?PRUNE_SAFE, proplists:get_bool(?PRUNE_SAFE, Options)),
+  cuter_config:store(?ENTRY_POINT, {M, F, length(I)}).
 
 verbosity_level(Options) ->
   Default = cuter_pp:default_reporting_level(),

@@ -20,12 +20,9 @@ exported_mfas_in_lists_module_test_() ->
   TagGen = fun() -> {?BRANCH_TAG_PREFIX, 42} end,
   {ok, Klists} = cuter_cerl:load(lists, TagGen, false),
   MfaKfuns = kfuns_from_exports(lists, Klists),
-  Assertions = [{mfa_to_string(Mfa), assert_is_exported(Kfun)} || {Mfa, Kfun} <- MfaKfuns],
+  Assertions = [{cuter_types:mfa_to_string(Mfa), assert_is_exported(Kfun)} || {Mfa, Kfun} <- MfaKfuns],
   R = cuter_cerl:destroy_kmodule(Klists),
   Assertions ++ [?_assertEqual(ok, R)].
-
-mfa_to_string({M, F, A}) ->
-  atom_to_list(M) ++ ":" ++ atom_to_list(F) ++ "/" ++ integer_to_list(A).
 
 kfuns_from_exports(M, Kmodule) ->
   Mfas = [{M, F, A} || {F, A} <- M:module_info(exports)],

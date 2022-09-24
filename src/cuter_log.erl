@@ -331,10 +331,10 @@ log(Fd, OpCode, TagID, Data) ->
     N when is_integer(N), N > 0 ->
       IsConstraint = is_constraint(OpCode),
       try cuter_serial:to_log_entry(OpCode, Data, IsConstraint, TagID) of
-        Jdata ->
-          write_data(Fd, Jdata)
+	Jdata ->
+	  write_data(Fd, Jdata)
       catch
-        throw:{unsupported_term, _} -> ok
+	throw:{unsupported_term, _} -> ok
       end
   end.
 -else.
