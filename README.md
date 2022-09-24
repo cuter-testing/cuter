@@ -29,7 +29,7 @@ In order to use CutEr, you need the following programs:
 1. **Erlang/OTP**
 
   Although CutEr may still be working with older Erlang/OTP releases,
-  *we only support Erlang/OTP releases 19.x till 22.x.*
+  *we only support Erlang/OTP releases 20.0 till 22.3.*
   Note that using a pre-built package or binaries will not suffice if
   the library modules have not been compiled with debug information.
   In that case, you will need to build and install Erlang/OTP from source.
@@ -77,7 +77,7 @@ In order to use CutEr, you need the following programs:
 
   If you have a Linux or an OSX system then you can skip this step and, after you have downloaded or cloned this repository, you can run the provided `fetch_protoc.sh` script and follow the instructions.
 
-  If you are running on some other OS, download the [3.19.2 version](https://github.com/google/protobuf/releases/tag/v3.19.2) of **protoc** for your OS
+  If you are running on some other OS, download the [3.20.2 version](https://github.com/google/protobuf/releases/tag/v3.20.2) of **protoc** for your OS
   and follow the instructions in *readme.txt*.
 
 Installation
@@ -108,7 +108,7 @@ Installation
    then you need to specify the path of *protoc* to the configure script using a
    command like the following:
 
-        ./configure --with-protoc=$PWD/lib/protoc-3.19.2/bin/protoc
+        ./configure --with-protoc=$PWD/lib/protoc-3.20.2/bin/protoc
 
 * **[Optional]** You can run the unit and functional tests with `make test`
 
@@ -185,7 +185,7 @@ Have fun with the tool!
 
 <!-- Badges (alphabetically) -->
 [commit badge]: https://img.shields.io/github/last-commit/cuter-testing/cuter.svg?style=flat-square
-[erlang versions badge]: https://img.shields.io/badge/erlang-19.0%20to%2022.3-blue.svg?style=flat-square
+[erlang versions badge]: https://img.shields.io/badge/erlang-20.0%20to%2022.3-blue.svg?style=flat-square
 [github badge]: https://github.com/cuter-testing/cuter/workflows/CI/badge.svg
 
 <!-- Links (alphabetically) -->
