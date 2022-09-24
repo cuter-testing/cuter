@@ -37,8 +37,10 @@ jobs:
         with:
           path: .plt
           key: ${{ runner.os }}-otp-${{ matrix.otp }}
-      - name: Build submodules
-        run: git submodule foreach make
+      - name: Update and build submodules
+        run: |
+	  git submodule init && git submodule update
+	  git submodule foreach make
       - name: Install Z3
         run: bash -x fetch_z3.sh
       - name: Install Python modules
