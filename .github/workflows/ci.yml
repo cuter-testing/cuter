@@ -39,8 +39,7 @@ jobs:
           key: ${{ runner.os }}-otp-${{ matrix.otp }}
       - name: Build submodules
         run: |
-          git submodule init && git submodule update
-          cd lib/gpb && bash -c "ls build && echo `./build/find-vsn --show-vsn` > gpb.vsn && cat gpb.vsn && ls && cd ../.."
+          bash -c "echo 4.19.2 > lib/gpb/gpb.vsn"
           git submodule foreach make
       - name: Install Z3
         run: bash -x fetch_z3.sh
