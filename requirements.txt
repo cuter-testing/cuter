@@ -2,5 +2,5 @@ attrs==19.3.0
 mypy==0.780
 mypy-protobuf==1.20
 parsimonious==0.8.1
-protobuf==3.19.2
+protobuf==3.20.2
 typing==3.7.4.1
