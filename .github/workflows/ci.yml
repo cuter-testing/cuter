@@ -40,7 +40,7 @@ jobs:
       - name: Build submodules
         run: |
           git submodule init && git submodule update
-          bash -c "echo 4.19.5 >> gpb.vsn"
+          bash -c "echo 4.19.5 >> lib/gpb/gpb.vsn"
           git submodule foreach make
       - name: Install Z3
         run: bash -x fetch_z3.sh
