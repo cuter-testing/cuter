@@ -59,7 +59,7 @@ run(Seeds, Options) ->
       process_results(EndState)
     catch
       ErrorType:Error ->
-	io:format("Proccess exited with exception:~n~p:~p~n"
+	io:format("Process exited with exception:~n~p:~p~n"
 		  "Shutting down the execution...~n", [ErrorType, Error]),
 	[]
     end,
@@ -179,7 +179,7 @@ wait_for_processes(Procs, StopFn) ->
     {'EXIT', Who, normal} ->
       wait_for_processes(Procs -- [Who], StopFn);
     {'EXIT', Who, Why} ->
-      io:format("Proccess ~p exited with ~p~n", [Who, Why]),
+      io:format("Process ~p exited with ~p~n", [Who, Why]),
       io:format("Shutting down the execution...~n"),
       Rest = Procs -- [Who],
       lists:foreach(StopFn, Rest),

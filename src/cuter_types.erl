@@ -233,7 +233,7 @@ process_record_attr({_Line, {Name, Fields}}, Processed) ->
   Fs = [t_field_from_form(Field) || Field <- Fields],
   %% Construct the representation of the record.
   Record = t_record(Name, Fs),
-  %% Store the record in the proccessed dict.
+  %% Store the record in the processed dict.
   dict:store({record, Name}, Record, Processed).
 
 %% Processes the declaration of a record's field.

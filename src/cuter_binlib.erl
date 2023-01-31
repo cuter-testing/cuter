@@ -24,20 +24,20 @@ get_signedness([unsigned | _Fls]) -> unsigned;
 get_signedness([signed | _Fls]) -> signed;
 get_signedness([_Fl | Fls]) -> get_signedness(Fls).
 
-%% Returns the type of endianess from a list of options
--spec get_endianess(flags()) -> bend().
+%% Returns the type of endianness from a list of options
+-spec get_endianness(flags()) -> bend().
   
-get_endianess([big | _Fls]) -> big;
-get_endianess([little | _Fls]) -> little;
-get_endianess([native | _Fls]) -> native;
-get_endianess([_Fl | Fls]) -> get_endianess(Fls).
+get_endianness([big | _Fls]) -> big;
+get_endianness([little | _Fls]) -> little;
+get_endianness([native | _Fls]) -> native;
+get_endianness([_Fl | Fls]) -> get_endianness(Fls).
 
 %% Encodes a bitstring segment value to a bitstring with the specified encoding
 -spec make_bitstring(bval(), bsize(), bunit(), btype(), flags()) -> bitstring().
 
 make_bitstring(Val, Size, Unit, Type, Flags) ->
   Sign = get_signedness(Flags),
-  End = get_endianess(Flags),
+  End = get_endianness(Flags),
   case {Size, Unit, Type, Sign, End} of
     {_, 1, integer, signed, big} ->
       <<Val:Size/signed-big-integer-unit:1>>;
@@ -12335,7 +12335,7 @@ make_bitstring(Val, Size, Unit, Type, Flags) ->
   
 match_bitstring_const(Val, Size, Unit, Type, Flags, MatchVal) ->
   Sign = get_signedness(Flags),
-  End = get_endianess(Flags),
+  End = get_endianness(Flags),
   case {Size, Unit, Type, Sign, End} of
     {_, 1, integer, signed, big} ->
       <<Val:Size/signed-big-integer-unit:1, Rest/bitstring>> = MatchVal,
@@ -30777,7 +30777,7 @@ match_bitstring_const(Val, Size, Unit, Type, Flags, MatchVal) ->
   
 match_bitstring_var(Size, Unit, Type, Flags, MatchVal) ->
   Sign = get_signedness(Flags),
-  End = get_endianess(Flags),
+  End = get_endianness(Flags),
   case {Size, Unit, Type, Sign, End} of
     {_, 1, integer, signed, big} ->
       <<X:Size/signed-big-integer-unit:1, Rest/bitstring>> = MatchVal,

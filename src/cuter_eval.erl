@@ -679,8 +679,8 @@ eval_expr({c_letrec, _Anno, Defs, Body}, M, Cenv, Senv, Servers, Fd) ->
       Defs
     )
   end end,
-  {NCe, NSe} = (y(H))(),
-  eval_expr(Body, M, NCe, NSe, Servers, Fd);
+  {NewCe, NewSe} = (y(H))(),
+  eval_expr(Body, M, NewCe, NewSe, Servers, Fd);
 
 %% c_literal
 eval_expr({c_literal, _Anno, V}, _M, _Cenv, _Senv, Servers, Fd) ->
@@ -1587,7 +1587,7 @@ validate_servers(Servers) ->
   end.
 
 %% --------------------------------------------------------
-%% Check if the given file descriptor correponds to this 
+%% Check if the given file descriptor corresponds to this 
 %% process. If not get the proper file descriptor.
 %% Needed when a closure is created in process A and is
 %% executed in process B.

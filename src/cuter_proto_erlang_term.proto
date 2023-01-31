@@ -41,7 +41,7 @@ message ErlangTerm {
     }
 
     /**
-     * The represenation of Erlang Terms.
+     * The representation of Erlang Terms.
      */
     Type type = 1;
     string value = 2;

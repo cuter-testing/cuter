@@ -80,7 +80,7 @@ override_mfa({lists, reverse, 2}) -> {ok, {cuter_erlang, reverse, 2}};
 override_mfa({lists, keyfind, 3}) -> {ok, {cuter_erlang, keyfind, 3}};
 %% Module math.
 override_mfa({math, pi, 0}) -> {ok, {math, pi, 0}};
-%% The rest MFAs are not overriden.
+%% The remaining MFAs are not overridden.
 override_mfa(_Mfa) -> false.
 
 %% Returns true if the MFA should be considered a BIF in the context of a

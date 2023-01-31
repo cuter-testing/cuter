@@ -27,7 +27,7 @@ eval_cerl_test_() ->
     {"Create bitstring / binary", {doBinary, [], <<"42">>}},
     {"Create closure", {doDoubleFun, [2], 4}},
     {"Send / Receive messages", {doReceive, [ping], ok}},
-    {"Pattern Mathing", {lambdaEval, [{{{$\\,x,{$\\,y,{$+,x,y}}},5},4}], 9}},
+    {"Pattern Matching", {lambdaEval, [{{{$\\,x,{$\\,y,{$+,x,y}}},5},4}], 9}},
     {"Bit Pattern Matching", {doBitMatch, [], {42, <<"ok">>}}},
     {"Naming Processes", {doRegister, [], true}},
 %%    {"Start a Slave Node", {doDistributed, [lists:seq(1,100)], 100}},

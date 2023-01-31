@@ -21,6 +21,6 @@
 %% Returns true if there are no more nodes to be reversed.
 -callback no_paths(state()) -> boolean().
 
-%% Consumes the result of an execution and retuns the updated state.
+%% Consumes the result of an execution and returns the updated state.
 -callback handle_execution(state(), cuter_analyzer:reversible_with_tags(), cuter_scheduler:handle(), 
                            cuter_cerl:visited_tags(), cuter_scheduler:operation_id(), cuter:depth()) -> state().

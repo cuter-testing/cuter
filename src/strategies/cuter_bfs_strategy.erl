@@ -57,7 +57,7 @@ locate_next_reversible(State, Visited, M) ->
       end
   end.
 
-%% Consumes the result of an execution and retuns the updated state.
+%% Consumes the result of an execution and returns the updated state.
 -spec handle_execution(state(), cuter_analyzer:reversible_with_tags(), cuter_scheduler:handle(), cuter_cerl:visited_tags(),
                        cuter_scheduler:operation_id(), cuter:depth()) -> state().
 handle_execution(TQ, Rvs, Handle, Visited, N, Depth) ->

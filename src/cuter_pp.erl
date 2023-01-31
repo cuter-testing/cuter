@@ -266,10 +266,10 @@ error_loading_whitelist(File, Error) ->
   {ok, VerbosityLevel} = cuter_config:fetch(?VERBOSITY_LEVEL),
   case VerbosityLevel#pp_level.execInfo of
     ?MINIMAL ->
-      io:format(standard_error, "Error ~p occured when loading whitelisted MFAs from ~p.~n", 
+      io:format(standard_error, "Error ~p occurred when loading whitelisted MFAs from ~p.~n", 
                 [Error, File]);
     _ ->
-      io:format("Error ~p occured when loading whitelisted MFAs from ~p.~n", [Error, File])
+      io:format("Error ~p occurred when loading whitelisted MFAs from ~p.~n", [Error, File])
   end.
 
 %% ----------------------------------------------------------------------------
@@ -955,7 +955,7 @@ pp_erroneous_inputs(Errors, Level) ->
   pp_nl(true, Level =:= ?MINIMAL),
   case has_errors(Errors) of
     false ->
-      io:format("No Runtime Errors Occured~n");
+      io:format("No Runtime Errors Occurred~n");
     true ->
       io:format("=== Inputs That Lead to Runtime Errors ==="),
       pp_erroneous_inputs_h(Errors, 1)
