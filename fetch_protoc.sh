@@ -1,4 +1,4 @@
-#! /bin/bash
+#!/usr/bin/env bash
 
 set -e
 
@@ -7,9 +7,9 @@ VER="3.20.2"
 PROTOC_DIR="$DL/protoc-$VER"
 rm -rf $PROTOC_DIR
 
-ME=`basename "$0"`
+ME=$(basename "$0")
 
-SYSTEM_TYPE=`uname -s`
+SYSTEM_TYPE=$(uname -s)
 case ${SYSTEM_TYPE} in
   'Darwin') OS=osx;;
   'Linux')  OS=linux;;
@@ -18,7 +18,7 @@ case ${SYSTEM_TYPE} in
      ;;
 esac
 
-MACHINE_TYPE=`uname -m`
+MACHINE_TYPE=$(uname -m)
 case ${MACHINE_TYPE} in
   'i686')   ARCH='x86_32';;	# 32-bit
   'x86_64') ARCH='x86_64';;	# 64-bit
