@@ -111,7 +111,8 @@ FTEST_MODULES = \
 	collection \
 	funs \
 	sum \
-	reduce_search_space
+	reduce_search_space \
+	map
 
 PRIV_MODULES = \
 	cuter_io \

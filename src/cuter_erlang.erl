@@ -29,6 +29,7 @@
         , '++'/2, '--'/2, reverse/2, member/2, keyfind/3
         , is_binary/1, bit_size/1, byte_size/1
         , 'bsl'/2, 'bsr'/2, 'bnot'/1
+        , maps_get/2, ismap/1, maps_put/3
         ]).
 
 %% XXX When adding type constraints for spec, the overriding funs must be ignored
@@ -925,6 +926,25 @@ keyfind(Key, N, [H|T]) when is_tuple(H) ->
     Key -> H;
     _   -> keyfind(Key, N, T)
   end.
+
+%% ----------------------------------------------------------------------------
+%% MAP OPERATIONS
+%% ----------------------------------------------------------------------------
+
+-spec maps_get(any(), #{ any() => any() }) -> any().
+maps_get(Key, Map) when is_map(Map) ->
+  case Map of 
+    #{ Key := Val } -> Val;
+    _ -> error({badkey, Key})
+  end.
+
+-spec ismap(any()) -> boolean().
+ismap(#{}) -> true;
+ismap(_) -> false.
+
+-spec maps_put(any(), any(), #{ any() => any() }) -> #{ any() => any() }.
+maps_put(Key, Val, Map) when is_map(Map) ->
+  Map#{Key => Val}.
 
 %% ----------------------------------------------------------------------------
 %% BINARY / BITSTRING OPERATIONS
