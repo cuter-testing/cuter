@@ -185,16 +185,17 @@ encode_term(T, Seen) when is_tuple(T) ->
   Subterms = [encode_maybe_shared_term(X, Seen) || X <- Ts],
   #'ErlangTerm'{type='TUPLE', subterms=Subterms};
 %%%
-%%% TODO: Uncomment out these clauses when it is decided how to
-%%% properly handle pids and refs.  Also, make sure that the
-%%% corresponding unit tests are re-enabled.
+%%% We encode PIDs and refs with the assumption that the solver
+%%% cannot reason about them. We do not expect to receive them
+%%% as values that will exercise the unit under test, hence
+%%% we do not implement the decode_term equivalent.
 %%%
 %% %% pid
-%% encode_term(Pid, _Seen) when is_pid(Pid) ->
-%%   #'ErlangTerm'{type='PID', value=pid_to_list(Pid)};
+ encode_term(Pid, _Seen) when is_pid(Pid) ->
+   #'ErlangTerm'{type='PID', value=pid_to_list(Pid)};
 %% %% reference
-%% encode_term(Ref, _Seen) when is_reference(Ref) ->
-%%   #'ErlangTerm'{type='REFERENCE', value=erlang:ref_to_list(Ref)};
+ encode_term(Ref, _Seen) when is_reference(Ref) ->
+   #'ErlangTerm'{type='REFERENCE', value=erlang:ref_to_list(Ref)};
 %% bitstring & binary
 encode_term(Ref, _Seen) when is_bitstring(Ref) ->
   Bits = encode_bitstring(Ref),

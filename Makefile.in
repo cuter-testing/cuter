@@ -110,6 +110,7 @@ FTEST_MODULES = \
 	no_debug_info \
 	collection \
 	funs \
+	pingpong \
 	sum \
 	reduce_search_space
 

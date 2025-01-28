@@ -249,6 +249,20 @@ def get_alias(t):
     assert is_alias(t)
     return t.value
 
+def is_pid(t):
+    """
+    Parameters
+        t : ErlangTerm
+    """
+    return t.type == ErlangTerm.PID
+
+def get_pid(t):
+    """
+    Parameters
+        t : ErlangTerm
+    """
+    return t.value
+
 def get_shared(t):
     """
     Parameters
