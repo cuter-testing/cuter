@@ -1251,6 +1251,21 @@
               "UNSAT": 6
             },
             "skip": false
+        },
+        {
+            "module": "pingpong",
+            "function": "start",
+            "args": "[17]",
+            "depth": "25",
+            "errors": true,
+            "arity": 1,
+            "solutions": [
+                "[41]"
+            ],
+            "bifs": [
+                "erlang:self/0"
+            ],
+            "skip": false
         }
     ]
 }

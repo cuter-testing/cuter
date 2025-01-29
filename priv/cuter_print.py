@@ -62,6 +62,9 @@ def pretty(d):
     if cc.is_bitstring(d):
       bits = map(lambda x: 1 if x else 0, cc.get_bits(d))
       return "<<%s>>" % pretty_list(bits)
+    # PID
+    if cc.is_pid(d):
+      return str(cc.get_pid(d))
   except KeyError:
     pass
   return str(d)
