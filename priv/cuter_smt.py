@@ -164,10 +164,10 @@ class ErlangSMT(cgs.AbstractErlangSolver):
 		elif cc.is_pid(data):
 			v = cc.get_pid(data)
 			v = int(v.replace("<", "").replace(">", "").replace(".", ""))
-			# Represent a PID as an int. We do not expect the solver to
-			# be able to reason about it, but just handle it if it
-			# appears in a term.
-            # e.g. A process sends the message {self(), 42} to another process.
+			# Represent a PID as an int.  We do not expect the solver
+			# to be able to reason about it, but just handle it if it
+			# appears in a term (e.g., when process sends the message
+			# {self(), 42} to another process).
 			return ["int", build_int(v)]
 		clg.debug_info("decoding failed: " + str(data))
 		assert False
