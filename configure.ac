@@ -56,8 +56,8 @@ fi
 AC_SUBST(PYTHON_PATH)
 
 cat > test_python.py <<EOF
-from sys import version
-if version < "3.6":
+import sys
+if sys.version_info < (3,6):
    exit(1)
 exit(0)
 EOF
