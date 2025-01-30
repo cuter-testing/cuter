@@ -17,7 +17,7 @@ This is the source tree for CutEr, a concolic unit testing tool for Erlang.
 License
 -------
 
-Copyright 2014-2022 by Aggelos Giantsios, Nikolaos Papaspyrou and Kostis Sagonas.
+Copyright 2014-2025 by Aggelos Giantsios, Nikolaos Papaspyrou and Kostis Sagonas.
 
 This program is distributed under the GPL, version 3 or later. Please see the COPYING file for details.
 
@@ -77,7 +77,7 @@ In order to use CutEr, you need the following programs:
 
   If you have a Linux or an OSX system then you can skip this step and, after you have downloaded or cloned this repository, you can run the provided `fetch_protoc.sh` script and follow the instructions.
 
-  If you are running on some other OS, download the [3.20.2 version](https://github.com/google/protobuf/releases/tag/v3.20.2) of **protoc** for your OS
+  If you are running on some other OS, download the [29.3 version](https://github.com/google/protobuf/releases/tag/v29.3) of **protoc** for your OS
   and follow the instructions in *readme.txt*.
 
 Installation
@@ -108,7 +108,7 @@ Installation
    then you need to specify the path of *protoc* to the configure script using a
    command like the following:
 
-        ./configure --with-protoc=$PWD/lib/protoc-3.20.2/bin/protoc
+        ./configure --with-protoc=$PWD/lib/protoc-29.3/bin/protoc
 
 * **[Optional]** You can run the unit and functional tests with `make test`
 
