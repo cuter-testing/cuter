@@ -53,7 +53,7 @@ jobs:
       - name: Build CutEr
         run: |
           autoconf
-          ./configure --with-protoc=$PWD/lib/protoc-29.3/bin/protoc
+          ./configure --with-protoc=$PWD/lib/protoc-22.0/bin/protoc
           make depend
           make -j 2
       - name: Run Dialyzer
