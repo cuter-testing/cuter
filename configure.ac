@@ -167,7 +167,7 @@ fi
 rm -f person.proto
 
 if test "$HAS_PROTOC" = "0"; then
-  AC_MSG_ERROR([protoc is missing. Please download version 3.11.0 of the package at https://github.com/google/protobuf/releases/tag/v3.11.0 and follow the instructions in the README. If you have a linux installation, then you can run ./fetch_protoc.sh and follow the instructions.])
+  AC_MSG_ERROR([protoc is missing. Please download version 22.0 of the package at https://github.com/google/protobuf/releases/tag/v22.0 and follow the instructions in the README. If you have a linux installation, then you can run ./fetch_protoc.sh and follow the instructions.])
 fi
 
 ###############################################
