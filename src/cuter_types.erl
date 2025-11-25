@@ -34,7 +34,7 @@
 %% Type Declarations
 %% ============================================================================
 
--define(type_variable, vart).
+-define(type_variable, var_t).
 -define(type_var, tvar).
 -define(max_char, 16#10ffff).
 

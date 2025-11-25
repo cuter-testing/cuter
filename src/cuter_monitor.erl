@@ -34,7 +34,7 @@
 %% procs :: ets:tab()
 %%   Pids of alive interpreter processes.
 %% fds :: ets:tab()
-%%   Stores the file descriptor of the log file of each interepreter process.
+%%   Stores the file descriptor of the log file of each interpreter process.
 %%   ETS table with elements: {Pid, Fd}
 %% ptree :: ets:tab()
 %%   Stores the execution process graph in the node
