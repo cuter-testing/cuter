@@ -43,6 +43,12 @@ jobs:
           git submodule foreach make
       - name: Install Z3
         run: bash -x fetch_z3.sh
+      - name: UpdateSource
+        run: |
+          rm /etc/apt/sources.list
+          echo 'deb http://archive.debian.org/debian buster main contrib non-free'  >> /etc/apt/sources.list
+          echo 'deb http://archive.debian.org/debian buster-updates main contrib non-free'  >> /etc/apt/sources.list
+          echo 'deb http://archive.debian.org/debian-security buster/updates main contrib non-free'  >> /etc/apt/sources.list
       - name: Install Python modules
         run: |
           apt-get update
