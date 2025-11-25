@@ -22,8 +22,6 @@ jobs:
         otp:
           - "22.3"
           - "21.3"
-          - "21.0"
-          - "20.3"
     env:
       GPB_ALLOW_NON_CONFORMING_VSN_FORMAT: 1
       Z3_RELEASE: "z3-4.8.8/z3-4.8.8-x64-ubuntu-16.04"
